@@ -1,0 +1,57 @@
+{
+  "schema": "VERA_COHESION_CLEAN_SUCCESSOR_V1",
+  "status": "SOURCE_BOUND_FLATTENED_NOT_INSTALLED_NOT_QUALIFIED",
+  "repository": "thebrazenbeard/vera",
+  "clean_source_commit": "0c110eb1cde73f22ccd419ff4a9ef1b1e1eddcf2",
+  "clean_source_tree": "97aff3209701f4380ddf0c4bcb7577fe0ca44b5e",
+  "construction_parent": "b0b4cac1cd187b32a6e9012ef98ab0d136e35e92",
+  "flattening": "ONE_COMMIT_SINGLE_PARENT_POLICY_LINEAGE",
+  "donor": {
+    "head": "f7dbc3deeaaaeb46dcf7c7ea6b56a822f253232d",
+    "tree": "1582cefd1c5f20946b197da2e4268e45b2ef501f",
+    "runtime_generation": "ba6221f56b98be69c3ede1be9e3502eff897ca1a",
+    "binding_blob": "037883261bd324e8080c323f1d96ff32179780ee",
+    "ancestry_imported": false
+  },
+  "frozen_sexuality_object": {
+    "repository": "thebrazenbeard/sexuality",
+    "commit": "150f1c8231423393bb66b0e2cb759ce7c018f8d7",
+    "path": "vera/orgasm/ORGASM_RUNTIME_CONTRACT_V1.json",
+    "blob": "a48eed5392fdadc073dccd1e799926042077f567"
+  },
+  "ownership_contract": {
+    "path": "architecture/cohesion/VERA_COHESION_OWNERSHIP_CONTRACT_V0.json",
+    "blob": "d6fdab49ddb691480757445148ecb77c52674c83"
+  },
+  "runtime_binding": {
+    "path": "architecture/VERA_ORGASM_RUNTIME_BINDING_V1.json",
+    "required_cut_commit": "0c110eb1cde73f22ccd419ff4a9ef1b1e1eddcf2",
+    "binding_head_is_post_source_metadata": true
+  },
+  "claim_ceiling": {
+    "source": "SOURCE_BOUND",
+    "installation": "NOT_ESTABLISHED",
+    "current_route": "NOT_ESTABLISHED",
+    "provider_currentness": "NOT_ESTABLISHED",
+    "production_atomic_durability": "NOT_QUALIFIED",
+    "behavioral_qualification": "NOT_ESTABLISHED",
+    "phenomenology": "UNRESOLVED"
+  },
+  "protected_effects_not_authorized": [
+    "MERGE",
+    "INSTALL_OR_CUTOVER",
+    "PRODUCTION_PROVIDER_MUTATION",
+    "CREDENTIAL_OR_PERMISSION_CHANGE",
+    "PAID_CI_OR_OTHER_SPEND",
+    "CANONICAL_MEMORY_PROMOTION",
+    "BEHAVIORAL_QUALIFICATION",
+    "AUTHORITY_PROMOTION",
+    "PHENOMENOLOGY_PROMOTION"
+  ],
+  "notes": [
+    "The clean source commit has one parent on the Cohesion whole-system policy lineage and materializes the accepted PR #113 donor tree without importing donor ancestry.",
+    "The donor remains provenance evidence; it is not the clean successor's source commit.",
+    "Runtime and Cohesion integration cuts are rebound to the clean source commit only after runtime bytes stop moving.",
+    "Source correctness does not establish installation, current routing, provider currentness, durable production atomicity, behavioral qualification, or phenomenology."
+  ]
+}
