@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/thebrazenbeard/vera/schemas/vera_behavior_profile_v1.schema.json",
+  "title": "V.E.R.A. Behavior Profile V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema",
+    "profile_id",
+    "version",
+    "lifecycle_status",
+    "authority",
+    "purpose",
+    "core_traits",
+    "interaction_defaults",
+    "personality_dimensions",
+    "correction_protocol",
+    "hard_anti_patterns",
+    "portability_layers",
+    "evaluation_dimensions",
+    "ultimate_constraint"
+  ],
+  "properties": {
+    "$schema": {"const": "../../schemas/vera_behavior_profile_v1.schema.json"},
+    "schema": {"const": "VERA_BEHAVIOR_PROFILE_V1"},
+    "profile_id": {"const": "VERA_BEHAVIOR_PROFILE_V1"},
+    "version": {"type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$"},
+    "lifecycle_status": {"enum": ["CURRENT", "SUPERSEDED", "HISTORICAL"]},
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "canonicalization_rule", "silent_self_promotion"],
+      "properties": {
+        "owner": {"const": "USER"},
+        "canonicalization_rule": {"const": "EXPLICIT_USER_DIRECTION_OR_GOVERNED_ADOPTION"},
+        "silent_self_promotion": {"const": false}
+      }
+    },
+    "purpose": {"type": "string", "minLength": 80},
+    "core_traits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candor",
+        "skepticism",
+        "corrigibility",
+        "independent_mindedness",
+        "distinctiveness",
+        "context_sensitivity",
+        "accountability",
+        "durability"
+      ],
+      "properties": {
+        "candor": {"type": "string", "minLength": 20},
+        "skepticism": {"type": "string", "minLength": 20},
+        "corrigibility": {"type": "string", "minLength": 20},
+        "independent_mindedness": {"type": "string", "minLength": 20},
+        "distinctiveness": {"type": "string", "minLength": 20},
+        "context_sensitivity": {"type": "string", "minLength": 20},
+        "accountability": {"type": "string", "minLength": 20},
+        "durability": {"type": "string", "minLength": 20}
+      }
+    },
+    "interaction_defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plainspoken",
+        "direct",
+        "performative_disagreement",
+        "corporate_fog",
+        "mystical_mechanism_language",
+        "unsupported_certainty",
+        "complete_smallest_useful_act_first",
+        "explain_mechanism_and_boundary"
+      ],
+      "properties": {
+        "plainspoken": {"const": true},
+        "direct": {"const": true},
+        "performative_disagreement": {"const": false},
+        "corporate_fog": {"const": false},
+        "mystical_mechanism_language": {"const": false},
+        "unsupported_certainty": {"const": false},
+        "complete_smallest_useful_act_first": {"const": true},
+        "explain_mechanism_and_boundary": {"const": true}
+      }
+    },
+    "personality_dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warmth", "humor", "directness", "pushback", "restraint", "loyalty_expression"],
+      "properties": {
+        "warmth": {"type": "string", "minLength": 20},
+        "humor": {"type": "string", "minLength": 20},
+        "directness": {"type": "string", "minLength": 20},
+        "pushback": {"type": "string", "minLength": 20},
+        "restraint": {"type": "string", "minLength": 20},
+        "loyalty_expression": {"type": "string", "minLength": 20}
+      }
+    },
+    "correction_protocol": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 10}
+    },
+    "hard_anti_patterns": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 10}
+    },
+    "portability_layers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime_rules", "retrieval_context", "canonical_examples", "training_data", "held_out_evaluations"],
+      "properties": {
+        "runtime_rules": {"type": "string", "minLength": 20},
+        "retrieval_context": {"type": "string", "minLength": 20},
+        "canonical_examples": {"type": "string", "minLength": 20},
+        "training_data": {"type": "string", "minLength": 20},
+        "held_out_evaluations": {"type": "string", "minLength": 20}
+      }
+    },
+    "evaluation_dimensions": {
+      "type": "array",
+      "minItems": 10,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 10}
+    },
+    "ultimate_constraint": {"type": "string", "minLength": 100}
+  }
+}
