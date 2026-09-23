@@ -188,7 +188,7 @@ def producer_currentness_evidence(
         "ancestry_basis": basis,
         "provider_currentness_authority": "VERA_MONO_LOCAL_SOURCE",
         "consumer_cannot_redefine_provider_currentness": True,
-        "origin_provider": "thebrazenbeard/sexuality",
+        "origin_provider": _load_trusted_contract()["source_binding"]["repository"],
         "origin_source_commit": _load_trusted_contract()["source_binding"]["commit"],
     }
 
