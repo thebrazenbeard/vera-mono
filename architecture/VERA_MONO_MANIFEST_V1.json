@@ -11,17 +11,30 @@
   },
   "packages": [
     {
-      "id": "rezon",
-      "path": "packages/rezon",
-      "role": "reasoning_kernel",
-      "status": "ABSORBED_SOURCE",
-      "donor": "thebrazenbeard/rezon@9b04cb6d669ec3e361433d85fced8231c574efe5"
-    },
-    {
       "id": "vera_core",
       "path": "packages/vera_core",
       "role": "composition_root_and_runtime_contracts",
       "status": "ACTIVE_BOOTSTRAP"
+    },
+    {
+      "id": "rezon",
+      "path": "packages/rezon",
+      "role": "reasoning_kernel",
+      "status": "ABSORBED_SOURCE_PLUS_LOCAL_EXTENSION",
+      "donor": "thebrazenbeard/rezon@9b04cb6d669ec3e361433d85fced8231c574efe5"
+    },
+    {
+      "id": "portfolio_runtime",
+      "path": "packages/portfolio_runtime",
+      "role": "absorbed_reusable_runtime_mechanisms",
+      "status": "ABSORBED_SOURCE",
+      "donor": "thebrazenbeard/vera#200@078d2d7242384c58676305d47654406713e599cf"
+    }
+  ],
+  "local_reasoning_extensions": [
+    {
+      "path": "packages/rezon/src/rezon/cascade.py",
+      "purpose": "progressive depth gating plus recursive unresolved-delta refinement"
     }
   ],
   "source_seeds": [
