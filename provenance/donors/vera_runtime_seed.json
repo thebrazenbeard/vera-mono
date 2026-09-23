@@ -1,0 +1,15 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/vera",
+  "donor_ref": "078d2d7242384c58676305d47654406713e599cf",
+  "donor_subject": "Vera runtime/kernel source seed",
+  "absorbed_target": "packages/vera_runtime/src",
+  "mode": "BYTE_COPY_SELECTED_RUNTIME_SOURCE",
+  "source_prefixes": [
+    "src/",
+    "protocol/",
+    "runtime_cohesion/"
+  ],
+  "runtime_dependency_on_donor": false,
+  "note": "Selected Vera implementation is copied locally; remaining Vera source is absorbed incrementally under the monorepo contract."
+}
