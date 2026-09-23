@@ -17,15 +17,21 @@ def test_recovery_layer_has_no_unix_only_fcntl_or_etc_vera_dependency():
     assert violations == []
 
 
-def test_default_trust_provisioning_is_user_local_not_system_etc():
-    paths = (
-        trust_module.AUTHORITY_ROOT_CONFIG_PATH,
-        trust_module.TRUST_REGISTRY_CONFIG_PATH,
-        trust_module.LIFECYCLE_REGISTRY_KEY_PATH,
-    )
-    assert all(path.is_absolute() for path in paths)
-    assert all("/etc/vera" not in path.as_posix() for path in paths)
-    assert all("recovery/trust" in path.as_posix() for path in paths)
+def test_trust_provisioning_root_is_explicit_local_state(tmp_path):
+    original = trust_module.PROVISIONING_ROOT
+    try:
+        root = trust_module.configure_provisioning_root(tmp_path / "state")
+        paths = (
+            trust_module.AUTHORITY_ROOT_CONFIG_PATH,
+            trust_module.TRUST_REGISTRY_CONFIG_PATH,
+            trust_module.LIFECYCLE_REGISTRY_KEY_PATH,
+        )
+        assert root == (tmp_path / "state").resolve()
+        assert all(path.is_absolute() for path in paths)
+        assert all("/etc/vera" not in path.as_posix() for path in paths)
+        assert all(path.parent == root / "recovery" / "trust" for path in paths)
+    finally:
+        trust_module.configure_provisioning_root(original)
 
 
 def test_lifecycle_registry_uses_portable_sqlite_lock(tmp_path):
