@@ -194,8 +194,10 @@
       "vera_recovery_checkpoint_cas",
       "vera_control_local_source_closure",
       "currentness_candidate",
+      "digest_chained_lifecycle_journal_prepare",
       "vera_assurance_internal_gate",
-      "atomic_currentness_commit"
+      "atomic_currentness_commit",
+      "digest_chained_lifecycle_journal_commit"
     ],
     "recovery_checkpoint_semantics": "Checkpoint is durable transition evidence; assurance gates currentness publication.",
     "critical_assurance_fields": [
@@ -210,6 +212,19 @@
       "recovery_checkpoint_generation"
     ],
     "independent_review": false,
-    "protected_effect_authority": false
+    "protected_effect_authority": false,
+    "persistent_state_root": "vera_core.VeraStateDirectory",
+    "restart_reconstruction": "vera_core.NativeVeraLifecycle.reconstruct",
+    "conversational_state_required": false,
+    "restart_statuses": [
+      "EMPTY",
+      "ACCEPTED_CURRENT",
+      "ACCEPTED_RECONCILED",
+      "MEMORY_AHEAD_OF_CURRENTNESS",
+      "INTERRUPTED_CANDIDATE",
+      "BLOCKED_CANDIDATE",
+      "CONTROL_SOURCE_DRIFT"
+    ],
+    "integrity_fail_closed": true
   }
 }
