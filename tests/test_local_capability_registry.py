@@ -13,6 +13,8 @@ def test_registry_is_local_and_valid():
         "coordination",
         "memory",
         "assurance",
+        "pc_connection",
+        "control",
     }
     assert all("github.com/" not in item.import_root for item in CAPABILITIES)
     assert all(not item.import_root.startswith("thebrazenbeard/") for item in CAPABILITIES)
