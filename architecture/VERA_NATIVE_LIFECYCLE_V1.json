@@ -7,7 +7,9 @@
     "control": "vera_control.local_profile",
     "currentness": "vera_assurance.AtomicCurrentnessStore",
     "assurance": "vera_assurance.compare_snapshots",
-    "composition": "vera_core.NativeVeraLifecycle"
+    "composition": "vera_core.NativeVeraLifecycle",
+    "lifecycle_journal": "vera_core.LifecycleJournal",
+    "state_directory": "vera_core.VeraStateDirectory"
   },
   "transition": [
     {
@@ -32,11 +34,16 @@
     },
     {
       "step": 5,
+      "name": "LIFECYCLE_JOURNAL_PREPARE",
+      "effect": "Append digest-chained CANDIDATE_PREPARED evidence before assurance/currentness publication."
+    },
+    {
+      "step": 6,
       "name": "INTERNAL_ASSURANCE",
       "effect": "Block on drift in critical project, identity, or control-source fields. Mutable lifecycle heads may advance."
     },
     {
-      "step": 6,
+      "step": 7,
       "name": "CURRENTNESS_COMMIT",
       "effect": "Commit candidate with generation CAS only after assurance does not block."
     }
@@ -62,6 +69,48 @@
     "stale_checkpoint_head": "FAIL_CLOSED_AT_RECOVERY_CAS",
     "invalid_control_source_closure": "FAIL_CLOSED_BEFORE_CURRENTNESS",
     "assurance_block": "CHECKPOINT_REMAINS_TRANSITION_EVIDENCE_CURRENTNESS_NOT_COMMITTED",
-    "stale_currentness_generation": "FAIL_CLOSED_AT_CURRENTNESS_CAS"
+    "stale_currentness_generation": "FAIL_CLOSED_AT_CURRENTNESS_CAS",
+    "lifecycle_journal_drift": "FAIL_CLOSED_BEFORE_RESTART_OR_NEW_TRANSITION",
+    "currentness_integrity_drift": "FAIL_CLOSED_DURING_RECONSTRUCTION",
+    "checkpoint_integrity_drift": "FAIL_CLOSED_DURING_RECONSTRUCTION"
+  },
+  "persistent_state": {
+    "root_owner": "vera_core.VeraStateDirectory",
+    "layout": {
+      "memory": "memory/memory.sqlite",
+      "recovery": "recovery/checkpoints.sqlite",
+      "currentness": "control/currentness.sqlite",
+      "lifecycle_journal": "lifecycle/journal.sqlite",
+      "trust": "recovery/trust/"
+    },
+    "conversational_state_required_for_restart": false,
+    "trust_material_auto_created": false
+  },
+  "restart_reconstruction": {
+    "accepted_authority": "Atomic currentness payload bound to an exact recovery checkpoint.",
+    "transition_evidence": "Recovery checkpoint plus digest-chained lifecycle journal.",
+    "statuses": [
+      "EMPTY",
+      "ACCEPTED_CURRENT",
+      "ACCEPTED_RECONCILED",
+      "MEMORY_AHEAD_OF_CURRENTNESS",
+      "INTERRUPTED_CANDIDATE",
+      "BLOCKED_CANDIDATE",
+      "CONTROL_SOURCE_DRIFT"
+    ],
+    "crash_windows": {
+      "checkpoint_before_journal": "INTERRUPTED_CANDIDATE",
+      "prepared_or_assurance_passed_before_currentness": "INTERRUPTED_CANDIDATE",
+      "assurance_blocked": "BLOCKED_CANDIDATE",
+      "currentness_committed_before_final_journal_event": "RESTART_RECONCILED_COMMITTED event is appended after exact state verification"
+    },
+    "integrity_checks": [
+      "lifecycle journal sequence/predecessor/event digest chain",
+      "currentness snapshot digest",
+      "currentness payload digest",
+      "accepted recovery checkpoint digest",
+      "currentness payload exactly equals checkpoint-derived candidate values",
+      "local R10 control source closure"
+    ]
   }
 }
