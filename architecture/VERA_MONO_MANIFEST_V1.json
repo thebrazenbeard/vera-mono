@@ -45,6 +45,26 @@
       "role": "absorbed_reusable_runtime_mechanisms",
       "status": "ABSORBED_SOURCE",
       "donor": "thebrazenbeard/vera#200@078d2d7242384c58676305d47654406713e599cf"
+    },
+    {
+      "id": "vera_coordination",
+      "path": "packages/vera_coordination",
+      "role": "coordination_contracts_and_runtime",
+      "status": "ABSORBED_SOURCE",
+      "donor": "thebrazenbeard/vera@078d2d7242384c58676305d47654406713e599cf",
+      "source_file_count": 8
+    },
+    {
+      "id": "vera_memory",
+      "path": "packages/vera_memory",
+      "role": "governed_memory_and_provenance",
+      "status": "DERIVED_MONOREPO_NATIVE"
+    },
+    {
+      "id": "vera_assurance",
+      "path": "packages/vera_assurance",
+      "role": "internal_drift_and_invariant_assurance",
+      "status": "DERIVED_MONOREPO_NATIVE_NOT_INDEPENDENT"
     }
   ],
   "active_local_capability_registry": "packages/vera_core/src/vera_core/registry.py",
@@ -63,5 +83,18 @@
     "thebrazenbeard/vera@87aa888cb7543875ffa11c9c7a1eb9e5b60c35cf",
     "thebrazenbeard/vera#200@078d2d7242384c58676305d47654406713e599cf"
   ],
-  "claim_ceiling": "SOURCE_ARCHITECTURE_AND_LOCAL_CODE_ONLY_NOT_DEPLOYED_NOT_RUNTIME_QUALIFIED"
+  "claim_ceiling": "SOURCE_ARCHITECTURE_AND_LOCAL_CODE_ONLY_NOT_DEPLOYED_NOT_RUNTIME_QUALIFIED",
+  "local_binding_migrations": {
+    "affective_contract": {
+      "source": "packages/vera_runtime/src/runtime_cohesion/resources/ORGASM_RUNTIME_CONTRACT_V1.json",
+      "runtime_authority": "VERA_MONO_LOCAL",
+      "donor_origin": "thebrazenbeard/sexuality@150f1c8231423393bb66b0e2cb759ce7c018f8d7",
+      "donor_runtime_dependency": false
+    },
+    "runtime_source_registry": "Sibling repositories are inventory/provenance only; runtime activation no longer requires named sibling repositories."
+  },
+  "assurance_boundary": {
+    "internal": "packages/vera_assurance",
+    "independent_external_review": "DriftGuard or another separately executed evaluator remains required for independent falsification claims."
+  }
 }
