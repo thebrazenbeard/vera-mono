@@ -1,5 +1,10 @@
 """Vera monorepo composition root."""
 
+from .lifecycle import (
+    LifecycleAssuranceError,
+    NativeLifecycleReceipt,
+    NativeVeraLifecycle,
+)
 from .reasoning_cascade import (
     CascadeEngine,
     CascadeOutcome,
@@ -15,7 +20,10 @@ __all__ = [
     "CascadeOutcome",
     "LayerResult",
     "LayerSpec",
+    "LifecycleAssuranceError",
     "LocalCapability",
+    "NativeLifecycleReceipt",
+    "NativeVeraLifecycle",
     "ReasoningRequest",
     "capability",
     "validate_registry",
