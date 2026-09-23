@@ -1,0 +1,13 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/vera",
+  "donor_ref": "078d2d7242384c58676305d47654406713e599cf",
+  "donor_subject": "PR #200 portfolio_runtime",
+  "absorbed_target": "packages/portfolio_runtime/src/portfolio_runtime",
+  "mode": "BYTE_COPY_SUBTREE_ABSORPTION",
+  "source_subtree": "portfolio_runtime/",
+  "source_file_count": 30,
+  "exact_blob_parity_verified": true,
+  "runtime_dependency_on_donor": false,
+  "note": "The copied runtime subtree is local implementation. PR #200 planning artifacts are retained separately under provenance/plans."
+}
