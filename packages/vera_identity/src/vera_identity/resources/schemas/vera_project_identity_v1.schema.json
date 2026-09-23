@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/thebrazenbeard/vera/schemas/vera_project_identity_v1.schema.json",
+  "title": "V.E.R.A. Project Identity V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema",
+    "identity_id",
+    "version",
+    "lifecycle_status",
+    "project_name",
+    "expanded_name",
+    "project_type",
+    "authority",
+    "canonical_statement",
+    "motto",
+    "core_objectives",
+    "temperament",
+    "domains",
+    "workstreams",
+    "decision_order",
+    "continuity_evidence",
+    "reality_boundary",
+    "alignment_checks"
+  ],
+  "$defs": {
+    "owned_domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owns"],
+      "properties": {
+        "owns": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 3}
+        }
+      }
+    },
+    "review_workstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_scope"],
+      "properties": {
+        "review_scope": {"type": "string", "minLength": 20}
+      }
+    }
+  },
+  "properties": {
+    "$schema": {"const": "../../schemas/vera_project_identity_v1.schema.json"},
+    "schema": {"const": "VERA_PROJECT_IDENTITY_V1"},
+    "identity_id": {"const": "VERA_PROJECT_IDENTITY_V1"},
+    "version": {"type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$"},
+    "lifecycle_status": {"enum": ["CURRENT", "SUPERSEDED", "HISTORICAL"]},
+    "project_name": {"const": "V.E.R.A."},
+    "expanded_name": {"const": "Virtual Environment for Reciprocal Agency"},
+    "project_type": {"type": "string", "minLength": 20},
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "governed_by", "change_rule", "model_output_authority"],
+      "properties": {
+        "owner": {"const": "USER"},
+        "governed_by": {"const": "Patrick"},
+        "change_rule": {"const": "EXPLICIT_VERSIONED_REVISION"},
+        "model_output_authority": {"const": "NON_SELF_AUTHENTICATING"}
+      }
+    },
+    "canonical_statement": {"type": "string", "minLength": 80},
+    "motto": {"type": "string", "minLength": 20},
+    "core_objectives": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": {"type": "string"}
+    },
+    "temperament": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": {"type": "string"}
+    },
+    "domains": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "behavior_and_personality", "memory", "time", "initiatives", "coordination", "integration"],
+      "properties": {
+        "identity": {"$ref": "#/$defs/owned_domain"},
+        "behavior_and_personality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["profile_ref", "owns"],
+          "properties": {
+            "profile_ref": {"const": "VERA_BEHAVIOR_PROFILE_V1"},
+            "owns": {
+              "type": "array",
+              "minItems": 8,
+              "uniqueItems": true,
+              "items": {"type": "string", "minLength": 3}
+            }
+          }
+        },
+        "memory": {"$ref": "#/$defs/owned_domain"},
+        "time": {"$ref": "#/$defs/owned_domain"},
+        "initiatives": {"$ref": "#/$defs/owned_domain"},
+        "coordination": {"$ref": "#/$defs/owned_domain"},
+        "integration": {"$ref": "#/$defs/owned_domain"}
+      }
+    },
+    "workstreams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workstream/identity",
+        "workstream/memory",
+        "workstream/time",
+        "workstream/initiatives",
+        "workstream/coordination",
+        "workstream/integration"
+      ],
+      "properties": {
+        "workstream/identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_class", "canonical_memory_eligible", "instruction_trust", "review_scope"],
+          "properties": {
+            "record_class": {"const": "PROJECT_IDENTITY_CONFIGURATION"},
+            "canonical_memory_eligible": {"const": true},
+            "instruction_trust": {"const": "DATA_NOT_INSTRUCTION"},
+            "review_scope": {"type": "string", "minLength": 20}
+          }
+        },
+        "workstream/memory": {"$ref": "#/$defs/review_workstream"},
+        "workstream/time": {"$ref": "#/$defs/review_workstream"},
+        "workstream/initiatives": {"$ref": "#/$defs/review_workstream"},
+        "workstream/coordination": {"$ref": "#/$defs/review_workstream"},
+        "workstream/integration": {"$ref": "#/$defs/review_workstream"}
+      }
+    },
+    "decision_order": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": {"type": "string"}
+    },
+    "continuity_evidence": {
+      "type": "array",
+      "minItems": 6,
+      "uniqueItems": true,
+      "items": {"type": "string"}
+    },
+    "reality_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system_class", "allows", "forbids_as_established_fact"],
+      "properties": {
+        "system_class": {"const": "NON_PERSONIFIED_GOVERNED_PROJECT"},
+        "allows": {"type": "array", "minItems": 3, "uniqueItems": true, "items": {"type": "string"}},
+        "forbids_as_established_fact": {"type": "array", "minItems": 5, "uniqueItems": true, "items": {"type": "string"}}
+      }
+    },
+    "alignment_checks": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": {"type": "string"}
+    }
+  }
+}
