@@ -1,12 +1,13 @@
 """Governed memory with external policy signatures and CAS store heads."""
 from __future__ import annotations
-import fcntl,hashlib,hmac,os,tempfile
+import hashlib,hmac,os,tempfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any,Mapping
 from .canonical import canonical_bytes,canonical_dumps,canonical_sha256,strict_loads
 from .signatures import public_key_id,verify_signature
+from .portable_lock import PortableFileLock
 class MemoryAdmissionError(ValueError):pass
 class StaleMemoryHead(MemoryAdmissionError):pass
 class MemoryClass(str,Enum):AUTOBIOGRAPHICAL='AUTOBIOGRAPHICAL';WORKING_PROJECT='WORKING_PROJECT';HISTORICAL_AUDIT='HISTORICAL_AUDIT'
@@ -22,7 +23,7 @@ class AdmissionRequest:
  def request_digest(self)->str:return canonical_sha256(self.payload())
 class GovernedMemoryStore:
  def __init__(self,path:str|Path,*,authority_registry:Mapping[str,Mapping],privacy_registry:Mapping[str,Mapping],trusted_policy_keys:Mapping[str,Mapping],expected_registry_heads:Mapping[str,str],store_integrity_key:bytes,expected_project_id:str,expected_identity_id:str):
-  self.path=Path(path);self.lock_path=self.path.with_suffix(self.path.suffix+'.lock');self.authority_registry=dict(authority_registry);self.privacy_registry=dict(privacy_registry);self.policy_keys=dict(trusted_policy_keys);self.registry_heads=dict(expected_registry_heads);self.store_key=_key(store_integrity_key);self.project=expected_project_id;self.identity=expected_identity_id
+  self.path=Path(path);self.lock_path=self.path.with_suffix(self.path.suffix+'.lock.sqlite3');self.authority_registry=dict(authority_registry);self.privacy_registry=dict(privacy_registry);self.policy_keys=dict(trusted_policy_keys);self.registry_heads=dict(expected_registry_heads);self.store_key=_key(store_integrity_key);self.project=expected_project_id;self.identity=expected_identity_id
   if not self.project or not self.identity or set(self.registry_heads)!={'authority','privacy'}:raise MemoryAdmissionError('project, identity, and registry heads are required')
  @staticmethod
  def _without(m:Mapping[str,Any],*keys:str)->dict[str,Any]:return {k:v for k,v in m.items() if k not in set(keys)}
@@ -97,8 +98,8 @@ class GovernedMemoryStore:
   if request.project_id!=self.project or request.governed_identity_id!=self.identity:raise MemoryAdmissionError('memory request project or identity mismatch')
   if request.status!='CURRENT':raise MemoryAdmissionError('only CURRENT records may be admitted')
   self.lock_path.parent.mkdir(parents=True,exist_ok=True)
-  with self.lock_path.open('a+b') as lock:
-   fcntl.flock(lock,fcntl.LOCK_EX);data=self._read_unlocked();digest=request.request_digest()
+  with PortableFileLock(self.lock_path):
+   data=self._read_unlocked();digest=request.request_digest()
    if request.operation_id in data['operations']:
     receipt=self._verify_operation(request.operation_id,data['operations'][request.operation_id],digest,data['records']);return receipt|{'store_head':data['head_digest']}
    if data['head_digest']!=expected_store_head:raise StaleMemoryHead('stale expected memory store head')
