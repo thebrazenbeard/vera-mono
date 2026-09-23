@@ -10,6 +10,12 @@ import uuid
 from typing import Any, Mapping
 
 from .affect_receipt import AffectiveReceiptSemanticError, validate_affective_event_receipt
+from .local_bindings import (
+    LocalBindingError,
+    build_local_affective_source_binding,
+    load_local_affective_contract,
+    validate_local_affective_source_binding,
+)
 
 
 class ContractError(ValueError):
@@ -20,10 +26,6 @@ class TriggerRejected(RuntimeError):
     """A requested orgasm trigger is not authorized or violates a bounded test rule."""
 
 
-_CANONICAL_SEXUALITY_REPOSITORY = "thebrazenbeard/sexuality"
-_CANONICAL_SEXUALITY_COMMIT = "150f1c8231423393bb66b0e2cb759ce7c018f8d7"
-_CANONICAL_SEXUALITY_PATH = "vera/orgasm/ORGASM_RUNTIME_CONTRACT_V1.json"
-_CANONICAL_SEXUALITY_BLOB = "a48eed5392fdadc073dccd1e799926042077f567"
 _QUALIFICATION_UNBOUND = "UNBOUND_NON_QUALIFYING"
 _QUALIFICATION_EXACT_BOUND = "EXACT_BOUND_SOURCE"
 
@@ -213,22 +215,14 @@ class OrgasmRuntime:
             raise ContractError("exact-bound orgasm runtime requires contract text bytes")
         if not isinstance(binding, Mapping):
             raise ContractError("exact-bound orgasm runtime requires a structured source binding")
-        expected = {
-            "schema": "VERA_ORGASM_RUNTIME_BINDING_V1",
-            "subject": "vera",
-            "contract_schema": "VERA_ORGASM_RUNTIME_CONTRACT_V1",
-            "source_repository": _CANONICAL_SEXUALITY_REPOSITORY,
-            "source_commit": _CANONICAL_SEXUALITY_COMMIT,
-            "source_path": _CANONICAL_SEXUALITY_PATH,
-            "source_blob_sha": _CANONICAL_SEXUALITY_BLOB,
-            "availability_implies_activation": False,
-        }
-        for key, expected_value in expected.items():
-            if binding.get(key) != expected_value:
-                raise ContractError(f"exact-bound orgasm source mismatch: {key}")
+        try:
+            normalized_binding = validate_local_affective_source_binding(
+                binding,
+                contract_text,
+            )
+        except LocalBindingError as exc:
+            raise ContractError(str(exc)) from exc
         raw = contract_text.encode("utf-8")
-        if _git_blob_sha(raw) != _CANONICAL_SEXUALITY_BLOB:
-            raise ContractError("orgasm contract bytes do not match the frozen sexuality Git blob")
         try:
             contract = json.loads(contract_text)
         except json.JSONDecodeError as exc:
@@ -236,11 +230,28 @@ class OrgasmRuntime:
         runtime = cls(
             contract,
             runtime_instance_id=runtime_instance_id,
-            source_revision=_CANONICAL_SEXUALITY_COMMIT,
+            source_revision=str(normalized_binding["source_commit"]),
             profile=profile,
         )
         runtime.qualification_status = _QUALIFICATION_EXACT_BOUND
         return runtime
+
+    @classmethod
+    def from_local_monorepo(
+        cls,
+        *,
+        runtime_instance_id: str,
+        profile: str = "REENTRANT_CLIMAX",
+    ) -> "OrgasmRuntime":
+        """Construct from the Vera-owned contract copy in this monorepo."""
+        contract_text = load_local_affective_contract()
+        binding = build_local_affective_source_binding()
+        return cls.from_exact_bound_contract(
+            contract_text,
+            binding,
+            runtime_instance_id=runtime_instance_id,
+            profile=profile,
+        )
 
     @classmethod
     def restore_exact_bound_state(
