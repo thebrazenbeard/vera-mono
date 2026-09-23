@@ -20,6 +20,7 @@ from .reasoning_cascade import (
     ReasoningRequest,
 )
 from .registry import CAPABILITIES, LocalCapability, capability, validate_registry
+from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
     "CAPABILITIES",
@@ -37,6 +38,8 @@ __all__ = [
     "NativeLifecycleReceipt",
     "NativeVeraLifecycle",
     "ReasoningRequest",
+    "VeraStateDirectory",
+    "VeraStatePaths",
     "capability",
     "validate_registry",
 ]
