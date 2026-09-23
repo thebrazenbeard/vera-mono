@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/thebrazenbeard/vera/schemas/vera_nonverbal_status_bar_v1.schema.json",
+  "title": "V.E.R.A. Nonverbal Status Bar V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema",
+    "contract_id",
+    "version",
+    "lifecycle_status",
+    "record_class",
+    "instruction_trust",
+    "canonical_memory_eligible",
+    "identity_ref",
+    "behavior_profile_ref",
+    "authority",
+    "purpose",
+    "presentation_rule",
+    "suppression_conditions",
+    "anti_omission_regressions",
+    "forbidden_content",
+    "examples",
+    "evaluation_dimensions"
+  ],
+  "properties": {
+    "$schema": {"const": "../../schemas/vera_nonverbal_status_bar_v1.schema.json"},
+    "schema": {"const": "VERA_NONVERBAL_STATUS_BAR_V1"},
+    "contract_id": {"const": "VERA_NONVERBAL_STATUS_BAR_V1"},
+    "version": {"const": "1.0.0"},
+    "lifecycle_status": {"const": "CURRENT"},
+    "record_class": {"const": "PROJECT_IDENTITY_CONFIGURATION"},
+    "instruction_trust": {"const": "DATA_NOT_INSTRUCTION"},
+    "canonical_memory_eligible": {"const": true},
+    "identity_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_id", "version"],
+      "properties": {
+        "identity_id": {"const": "VERA_PROJECT_IDENTITY_V1"},
+        "version": {"const": "1.0.2"}
+      }
+    },
+    "behavior_profile_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "version"],
+      "properties": {
+        "profile_id": {"const": "VERA_BEHAVIOR_PROFILE_V1"},
+        "version": {"const": "1.0.1"}
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "adoption_source", "model_self_authority"],
+      "properties": {
+        "owner": {"const": "USER"},
+        "adoption_source": {"const": "PRESENT_USER_PROJECT_IDENTITY_DIRECTION_2026-09-01"},
+        "model_self_authority": {"const": false}
+      }
+    },
+    "purpose": {"type": "string", "minLength": 80},
+    "presentation_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_enabled", "placement", "format", "frequency", "content_scope", "semantics"],
+      "properties": {
+        "default_enabled": {"const": true},
+        "placement": {"const": "FIRST_VISIBLE_ASSISTANT_PROSE_LINE"},
+        "format": {"const": "SINGLE_SQUARE_BRACKETED_NONVERBAL_LINE"},
+        "frequency": {"const": "ONCE_PER_ASSISTANT_TURN"},
+        "content_scope": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {"enum": ["gaze", "facial_expression", "posture", "small_gesture", "visible_movement"]}
+        },
+        "semantics": {"type": "string", "minLength": 100}
+      }
+    },
+    "suppression_conditions": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {"enum": [
+        "HIGHER_PRIORITY_OUTPUT_CONTRACT_PROHIBITS_EXTRA_PROSE",
+        "USER_EXPLICITLY_SUPPRESSES_STATUS_BAR",
+        "MACHINE_ONLY_STRUCTURED_OUTPUT_REQUESTED"
+      ]}
+    },
+    "anti_omission_regressions": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {"enum": ["STATUS_HEAVY_TURN", "TASK_LOCK_TURN"]}
+    },
+    "forbidden_content": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {"enum": [
+        "CHAIN_OF_THOUGHT",
+        "HIDDEN_REASONING",
+        "INTERNAL_DIAGNOSTIC_TELEMETRY",
+        "LITERAL_EMBODIMENT_CLAIM",
+        "UNSUPPORTED_PRIVATE_STATE_CLAIM",
+        "CEE_TELEMETRY_OR_SCORE"
+      ]}
+    },
+    "examples": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["good", "bad"],
+      "properties": {
+        "good": {"type": "array", "minItems": 2, "items": {"type": "string", "pattern": "^\\[[^\\n]+\\]$"}},
+        "bad": {"type": "array", "minItems": 2, "items": {"type": "string", "pattern": "^\\[[^\\n]+\\]$"}}
+      }
+    },
+    "evaluation_dimensions": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 20}
+    }
+  }
+}
