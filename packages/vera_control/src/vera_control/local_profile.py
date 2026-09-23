@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -128,3 +129,25 @@ def local_r10_source_paths() -> dict[str, Path]:
         artifact.logical_id: resource_path(artifact.relative_path)
         for artifact in R10_SOURCE_CLOSURE
     }
+
+
+def local_r10_source_digest() -> str:
+    """Digest the validated local control source closure as one stable control cut."""
+    errors = validate_local_r10_source_closure()
+    if errors:
+        raise ValueError("R10 local source closure failed: " + "; ".join(errors))
+    payload = [
+        {
+            "logical_id": artifact.logical_id,
+            "relative_path": artifact.relative_path,
+            "git_blob": artifact.git_blob,
+        }
+        for artifact in R10_SOURCE_CLOSURE
+    ]
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
