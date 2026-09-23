@@ -1,0 +1,204 @@
+{
+  "schema": "VERARELAY_DSM_LIFECYCLE_TRANSITIONS_V1",
+  "component": "VeraRelay",
+  "target_release": "0.4.0",
+  "purpose": "deterministic reconciliation of DSM package lifecycle, OS process ownership, listener ownership, and application health",
+  "observation_bundle": [
+    "PACKAGE_ID",
+    "PACKAGE_VERSION",
+    "DSM_FRAMEWORK_STATUS",
+    "START_STOP_STATUS_EXIT",
+    "SYSTEMD_UNIT_STATE_IF_USED",
+    "OWNED_PROCESS_SET",
+    "OWNED_CHILD_PROCESS_SET",
+    "LISTENER_17443_OWNER",
+    "APPLICATION_HEALTH",
+    "APPLICATION_REPORTED_VERSION",
+    "OBSERVED_AT"
+  ],
+  "states": [
+    "ABSENT",
+    "INSTALLED_STOPPED",
+    "STARTING",
+    "RUNNING_CURRENT",
+    "STOPPING",
+    "ORPHANED_RUNTIME",
+    "BROKEN",
+    "UPGRADING",
+    "ROLLBACK_REQUIRED"
+  ],
+  "classification": {
+    "ABSENT": [
+      "PACKAGE_NOT_INSTALLED",
+      "NO_OWNED_PROCESS",
+      "NO_PACKAGE_UNIT"
+    ],
+    "INSTALLED_STOPPED": [
+      "PACKAGE_INSTALLED",
+      "START_STOP_STATUS_3",
+      "NO_OWNED_PROCESS",
+      "NO_OWNED_LISTENER"
+    ],
+    "RUNNING_CURRENT": [
+      "PACKAGE_VERSION_EXPECTED",
+      "DSM_STATUS_RUNNING",
+      "START_STOP_STATUS_0",
+      "EXACT_OWNED_RUNTIME_PRESENT",
+      "OWNED_LISTENER_17443_PRESENT",
+      "APPLICATION_HEALTH_PASS",
+      "APPLICATION_VERSION_EXPECTED"
+    ],
+    "ORPHANED_RUNTIME": [
+      "OWNED_RUNTIME_PRESENT",
+      "DSM_OR_SCRIPT_NOT_RUNNING"
+    ],
+    "BROKEN": [
+      "PACKAGE_FRAMEWORK_BROKEN_OR_OBSERVERS_IRRECONCILABLE"
+    ],
+    "ROLLBACK_REQUIRED": [
+      "UPGRADE_OR_START_PARTIALLY_EFFECTED_WITHOUT_CURRENT_CONVERGENCE"
+    ]
+  },
+  "reconciliation_precedence": [
+    "EXACT_PROCESS_OWNERSHIP",
+    "APPLICATION_IDENTITY_AND_HEALTH",
+    "DSM_FRAMEWORK_STATUS",
+    "START_STOP_STATUS_EXIT",
+    "LISTENER_OBSERVATION"
+  ],
+  "non_authoritative_observations": {
+    "PID_ALONE": "NEVER_OWNERSHIP",
+    "PORT_17443_ALONE": "NEVER_OWNERSHIP",
+    "APPLICATION_HEALTH_ALONE": "NEVER_DSM_RUNNING",
+    "DSM_STATUS_ALONE": "NEVER_APPLICATION_HEALTH"
+  },
+  "transitions": {
+    "START": {
+      "from": [
+        "INSTALLED_STOPPED"
+      ],
+      "intermediate": "STARTING",
+      "success": "RUNNING_CURRENT",
+      "failure": [
+        "INSTALLED_STOPPED",
+        "BROKEN",
+        "ROLLBACK_REQUIRED"
+      ],
+      "success_requires": [
+        "EXACTLY_ONE_OWNED_RUNTIME",
+        "OWNED_LISTENER_17443_PRESENT",
+        "APPLICATION_HEALTH_PASS",
+        "APPLICATION_VERSION_EXPECTED",
+        "START_STOP_STATUS_0",
+        "DSM_STATUS_RUNNING"
+      ],
+      "must_not": [
+        "ADOPT_UNRELATED_PID",
+        "ADOPT_UNRELATED_17443_LISTENER",
+        "START_SECOND_OWNED_RUNTIME"
+      ]
+    },
+    "STOP": {
+      "from": [
+        "RUNNING_CURRENT",
+        "ORPHANED_RUNTIME",
+        "BROKEN"
+      ],
+      "intermediate": "STOPPING",
+      "success": "INSTALLED_STOPPED",
+      "failure": [
+        "ORPHANED_RUNTIME",
+        "BROKEN"
+      ],
+      "success_requires": [
+        "NO_OWNED_RUNTIME",
+        "NO_OWNED_CHILD",
+        "NO_OWNED_LISTENER",
+        "START_STOP_STATUS_3"
+      ],
+      "missing_pid": "RECONCILE_EXACT_PROCESS_OWNERSHIP_THEN_STOP_OR_FAIL",
+      "must_not": [
+        "RETURN_SUCCESS_WITH_OWNED_PROCESS_ALIVE",
+        "KILL_UNRELATED_PID",
+        "KILL_BY_PORT_ONLY"
+      ]
+    },
+    "UPGRADE": {
+      "from": [
+        "RUNNING_CURRENT",
+        "INSTALLED_STOPPED"
+      ],
+      "intermediate": "UPGRADING",
+      "success": "RUNNING_CURRENT",
+      "failure": [
+        "ROLLBACK_REQUIRED",
+        "BROKEN"
+      ],
+      "ordered_gates": [
+        "CAPTURE_PREDECESSOR_EVIDENCE",
+        "STOP_PREDECESSOR_IF_RUNNING",
+        "VERIFY_NO_PREDECESSOR_OWNED_PROCESS",
+        "VERIFY_NO_PREDECESSOR_OWNED_LISTENER",
+        "INSTALL_SUCCESSOR",
+        "VERIFY_SUCCESSOR_PACKAGE_VERSION",
+        "START_SUCCESSOR_IF_PREVIOUSLY_RUNNING",
+        "VERIFY_RUNNING_CURRENT"
+      ],
+      "forbidden_promotion": "NEW_PACKAGE_INSTALLED_NE_RUNNING_CURRENT"
+    },
+    "UNINSTALL": {
+      "from": [
+        "RUNNING_CURRENT",
+        "INSTALLED_STOPPED",
+        "ORPHANED_RUNTIME",
+        "BROKEN"
+      ],
+      "success": "ABSENT",
+      "success_requires": [
+        "NO_OWNED_RUNTIME",
+        "NO_OWNED_CHILD",
+        "NO_PACKAGE_UNIT",
+        "NO_PACKAGE_RUNTIME_FILES_EXCEPT_EXPLICIT_USER_DATA_RETENTION"
+      ]
+    },
+    "REBOOT": {
+      "success_requires": [
+        "PACKAGE_FRAMEWORK_REESTABLISHES_AT_MOST_ONE_OWNED_RUNTIME",
+        "STATUS_AND_HEALTH_RECONCILE",
+        "NO_STALE_PREBOOT_PID_AUTHORITY"
+      ]
+    }
+  },
+  "deployment_gate": {
+    "required_before_0005_replacement": [
+      "VERARELAY_0_4_SOURCE_PASS",
+      "VERARELAY_0_4_BUILD_PASS",
+      "VERARELAY_0_4_CONFORMANCE_PASS",
+      "VERARELAY_0_4_LIFECYCLE_HOSTILE_PASS",
+      "SECURITY_HOSTILE_PASS",
+      "PREDEPLOY_0005_STATE_CAPTURE",
+      "EXACT_0_4_ARTIFACT_SHA256",
+      "ROLLBACK_ARTIFACT_AND_STATE_CAPTURE",
+      "ROLLBACK_ARTIFACT_AND_DATA_PLAN",
+      "PATRICK_EXACT_DEPLOY_AUTHORITY"
+    ],
+    "post_install_required": [
+      "POSTINSTALL_PACKAGE_VERSION_READBACK",
+      "START_STOP_STATUS_READBACK",
+      "POSTINSTALL_PROCESS_OWNERSHIP_READBACK",
+      "POSTINSTALL_HEALTH_READBACK",
+      "LISTENER_OWNERSHIP_READBACK"
+    ],
+    "cross_contract_rule": "The union of required_before_0005_replacement and post_install_required MUST contain every exact VERARELAY_0_4_QUALIFICATION_V1.deployed_requires prerequisite; transition-only gates may make replacement stricter but never weaker."
+  },
+  "route_gate": {
+    "relay_package_running_ne_durable_relay_current": true,
+    "durable_relay_current_requires": [
+      "RUNNING_CURRENT",
+      "VERAMESH_V1_PROTOCOL_CONFORMANCE",
+      "CURRENT_ROUTE_PROBE_PASS",
+      "EXPECTED_NODE_IDENTITIES",
+      "FRESHNESS_POLICY_PASS"
+    ]
+  }
+}
