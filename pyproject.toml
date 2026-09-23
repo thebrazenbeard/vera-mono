@@ -14,5 +14,6 @@ pythonpath = [
   "packages/rezon/src",
   "packages/portfolio_runtime/src",
   "packages/vera_runtime/src",
+  "packages/vera_identity/src",
 ]
 testpaths = ["tests"]
