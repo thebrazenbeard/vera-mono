@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from r8a0.trust import configure_provisioning_root
 from vera_assurance import AtomicCurrentnessStore
 from vera_memory import MemoryLedger
 from vera_recovery import NativeRecoveryCheckpointStore
@@ -60,6 +61,7 @@ class VeraStateDirectory:
 
     def open(self) -> NativeVeraLifecycle:
         self.paths.root.mkdir(parents=True, exist_ok=True)
+        configure_provisioning_root(self.paths.root)
         memory = MemoryLedger(
             self.paths.memory,
             project_id=self.project_id,
