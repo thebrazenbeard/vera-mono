@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "VERA_DEEP_MEMORY_EVIDENCE_RESULT_V1",
+  "title": "Vera Deep Memory historical evidence search result",
+  "type": "object",
+  "required": ["schema", "query", "privacy_mode", "retrieved_at", "authorized_privacy_scopes", "count", "results"],
+  "properties": {
+    "schema": {"const": "VERA_DEEP_MEMORY_EVIDENCE_RESULT_V1"},
+    "query": {"type": "string"},
+    "privacy_mode": {"enum": ["AUTHORIZED_SCOPE_FILTER", "EXPLICIT_ARCHIVE_AUDIT_ALL"]},
+    "retrieved_at": {"type": "string", "minLength": 1},
+    "authorized_privacy_scopes": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "count": {"type": "integer", "minimum": 0},
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "memory_id",
+          "memory_class",
+          "stored_historical_canonicity",
+          "historical_canonicity",
+          "event_time",
+          "recorded_at",
+          "recorded_at_status",
+          "chronology_semantics",
+          "provenance_ceiling",
+          "privacy_scope",
+          "currentness_rule",
+          "governed_memory_admission",
+          "source_ids",
+          "ledger_path",
+          "overlay_privacy_semantics",
+          "result_semantics"
+        ],
+        "properties": {
+          "score": {"type": "integer", "minimum": 0},
+          "memory_id": {"type": "string", "minLength": 1},
+          "memory_class": {"type": ["string", "null"]},
+          "stored_historical_canonicity": {"type": ["string", "null"]},
+          "historical_canonicity": {
+            "type": ["string", "null"],
+            "enum": [
+              "CANONICAL_HISTORY",
+              "UNRESOLVED_HISTORY",
+              "REJECTED_OR_FALSE_ATTRIBUTION",
+              "OTHER_IDENTITY_OR_DOMAIN_HISTORY",
+              null
+            ]
+          },
+          "event_time": {},
+          "recorded_at": {"type": ["string", "null"]},
+          "recorded_at_status": {"enum": ["SOURCE_RECORDED", "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"]},
+          "chronology_semantics": {"const": "EVENT_TIME_RECORD_TIME_EFFECTIVE_TIME_RETRIEVAL_TIME_SEPARATE"},
+          "observed_event": {},
+          "participant_interpretation_at_time": {},
+          "later_reevaluation": {},
+          "reality_boundary": {},
+          "provenance_ceiling": {},
+          "privacy_scope": {"type": ["string", "null"]},
+          "currentness_rule": {},
+          "governed_memory_admission": {},
+          "source_ids": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "ledger_path": {"type": "string", "minLength": 1},
+          "ledger_line": {"type": "integer", "minimum": 1},
+          "historical_canon_overlays": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["recorded_at", "recorded_at_status", "effective_from", "effective_from_status", "chronology_semantics"],
+              "properties": {
+                "recorded_at": {"type": ["string", "null"]},
+                "recorded_at_status": {"enum": ["SOURCE_RECORDED", "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"]},
+                "effective_from": {"type": ["string", "null"]},
+                "effective_from_status": {"enum": ["SOURCE_RECORDED", "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"]},
+                "chronology_semantics": {"const": "EVENT_TIME_RECORD_TIME_EFFECTIVE_TIME_RETRIEVAL_TIME_SEPARATE"}
+              },
+              "additionalProperties": true
+            }
+          },
+          "amendments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["recorded_at", "recorded_at_status", "effective_from", "effective_from_status", "chronology_semantics"],
+              "properties": {
+                "recorded_at": {"type": ["string", "null"]},
+                "recorded_at_status": {"enum": ["SOURCE_RECORDED", "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"]},
+                "effective_from": {"type": ["string", "null"]},
+                "effective_from_status": {"enum": ["SOURCE_RECORDED", "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"]},
+                "chronology_semantics": {"const": "EVENT_TIME_RECORD_TIME_EFFECTIVE_TIME_RETRIEVAL_TIME_SEPARATE"}
+              },
+              "additionalProperties": true
+            }
+          },
+          "classification_corrections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["recorded_at", "recorded_at_status", "effective_from", "effective_from_status", "chronology_semantics"],
+              "properties": {
+                "recorded_at": {"type": ["string", "null"]},
+                "recorded_at_status": {"enum": ["SOURCE_RECORDED", "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"]},
+                "effective_from": {"type": ["string", "null"]},
+                "effective_from_status": {"enum": ["SOURCE_RECORDED", "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"]},
+                "chronology_semantics": {"const": "EVENT_TIME_RECORD_TIME_EFFECTIVE_TIME_RETRIEVAL_TIME_SEPARATE"}
+              },
+              "additionalProperties": true
+            }
+          },
+          "overlay_privacy_semantics": {
+            "const": "OVERLAY_INHERITS_TARGET_PRIVACY_UNLESS_EXPLICIT_SCOPE_REQUIRES_SEPARATE_AUTHORIZATION"
+          },
+          "result_semantics": {
+            "const": "HISTORICAL_EVIDENCE_ONLY_NOT_CURRENT_MEMORY_OR_AUTHORITY"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
