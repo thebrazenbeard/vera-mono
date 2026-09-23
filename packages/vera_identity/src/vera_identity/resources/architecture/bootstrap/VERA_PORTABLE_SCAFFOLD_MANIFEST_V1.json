@@ -1,0 +1,240 @@
+{
+  "atomic_candidate": {
+    "embedded_package_digest_algorithm": "SHA256_CANONICAL_NON_SELF_BINDINGS",
+    "full_package_digest_resolution": "EXTERNAL_EXACT_HEAD_ATTESTATION",
+    "granularity": "COMPLETE_REPOSITORY_TRANSACTION",
+    "path_set_digest_algorithm": "SHA256_LF_SORTED_PATHS",
+    "per_file_actions_are_internal": true,
+    "requires_exact_base_sha": true
+  },
+  "base_source_commit": "fc761beab263f2fab010cde2fab424b2b8358bb7",
+  "embedded_package_sha256": "73674b4178f7f42b066bbcfce38a9918352e3d7d2559a0db5854c880af4a993b",
+  "files": [
+    {
+      "activation_class": "NEVER_ACTIVE",
+      "binding": {
+        "embedded_sha256": "1faede6263ca46d3056e6257adb5ea5203b485bbc3fea549faf07ec7b8f16df9",
+        "embedded_size": 8427,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": ".github/workflows/portable-project-bootstrap.yml",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "SUPPORT_DATA",
+      "binding": {
+        "embedded_sha256": "e6cc57d98e9ada76fadb4ad7e6c154dadcb0dc18104531ceaa08b628698381ce",
+        "embedded_size": 8852,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "architecture/bootstrap/VERA_BOOTSTRAP_MANIFEST_V1.json",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "SUPPORT_DATA",
+      "binding": {
+        "embedded_sha256": "f83f8c90cf81525815ae9092d68c2b7d85aad113a987420377ef631572f4b91b",
+        "embedded_size": 6932,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "architecture/bootstrap/VERA_NATIVE_PROJECT_INSTRUCTIONS_BOOTLOADER_V1.txt",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "SUPPORT_DATA",
+      "binding": {
+        "embedded_sha256": "4e745e18ae8bcd342e348dc714bfb11d62b3509d3aec96239e1e9e29b42e8ab9",
+        "embedded_size": 11028,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "architecture/bootstrap/VERA_PORTABLE_PROJECT_BOOTSTRAP_V1.json",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "SUPPORT_DATA",
+      "binding": {
+        "embedded_sha256": null,
+        "embedded_size": null,
+        "external_git_blob_required": true,
+        "self_excluded": true
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "architecture/bootstrap/VERA_PORTABLE_SCAFFOLD_MANIFEST_V1.json",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "SUPPORT_DATA",
+      "binding": {
+        "embedded_sha256": "8dbd96e06be22b66078373a7bd0d28edd6536247c80f485d6bee8872a12b83d0",
+        "embedded_size": 7608,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "docs/PORTABLE_PROJECT_BOOTSTRAP_V1.md",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "NEVER_ACTIVE",
+      "binding": {
+        "embedded_sha256": "42dad76c9bbfedeecb2186238d426925c8ceea0211ac2f50a923240b81f0038f",
+        "embedded_size": 17284,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "schemas/vera_portable_project_bootstrap_v1.schema.json",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "NEVER_ACTIVE",
+      "binding": {
+        "embedded_sha256": "53e2200860f9d589e1600bd84aef05cf0c92a90d9b823c9a911bff3dba15cb39",
+        "embedded_size": 8555,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "schemas/vera_portable_scaffold_manifest_v1.schema.json",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "NEVER_ACTIVE",
+      "binding": {
+        "embedded_sha256": "3ec65d9868204a40e4e27d96ec0ef29ae1351ded5daf1a472c6c0d527b421649",
+        "embedded_size": 9244,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "scripts/validate_portable_project_bootstrap.py",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "NEVER_ACTIVE",
+      "binding": {
+        "embedded_sha256": "5ef06b1c881806eb429033b2bf38985f9b3cddf0f717ad83c0cb8a210c199f98",
+        "embedded_size": 10397,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "supabase/migrations/20260731142200_create_vera_portable_bootstrap_registry_v1.sql",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "NEVER_ACTIVE",
+      "binding": {
+        "embedded_sha256": "2669cfe944268fb60d6d1b365a5ee441247c83517b4d655651ced42e973bac72",
+        "embedded_size": 17881,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "supabase/tests/validate_portable_bootstrap_registry_v1.sql",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    },
+    {
+      "activation_class": "NEVER_ACTIVE",
+      "binding": {
+        "embedded_sha256": "2a9b4361b156c32124e17b7704b211f6fe8fa8ccd9515821b7e797167b4a2451",
+        "embedded_size": 13845,
+        "external_git_blob_required": true,
+        "self_excluded": false
+      },
+      "conflict_policy": "STOP_NO_OVERWRITE",
+      "mode": "100644",
+      "path": "tests/test_portable_project_bootstrap.py",
+      "required": true,
+      "store_class": "REPOSITORY_TEMPLATE",
+      "write_authority": "EXACT_PROJECT_ARCHITECT_LEASE"
+    }
+  ],
+  "path_set_sha256": "a010ac6b7caaba5ef26d4ab069fd8da5869fb7066dcc7a4c53119cd1c5f0d50d",
+  "release_evidence": {
+    "embedded_release_commit": false,
+    "required_path_count": 12,
+    "resolution": "EXTERNAL_EXACT_HEAD_ATTESTATION_REQUIRED",
+    "self_excluded_path": "architecture/bootstrap/VERA_PORTABLE_SCAFFOLD_MANIFEST_V1.json"
+  },
+  "release_id": "VERA_PORTABLE_BOOTSTRAP_R7A1_20260731_V1",
+  "rollback": {
+    "automatic": false,
+    "modes": [
+      "REVERT_COMMIT_WITH_SEPARATE_AUTHORITY",
+      "DELETE_EPHEMERAL_BRANCH_WITH_SEPARATE_AUTHORITY_IF_SUPPORTED",
+      "MANUAL_REQUIRED"
+    ],
+    "receipt_is_authority": false
+  },
+  "runtime_project_file_output": {
+    "archive_corpus_included": false,
+    "base_release": "VERA_NEUTRAL_CORE_R7A0_20260731_EC7D18F7",
+    "fixed_locator": "VERA_BOOTSTRAP_MANIFEST_V1.json",
+    "native_bootloader_is_project_file": false
+  },
+  "schema_id": "VERA_PORTABLE_SCAFFOLD_MANIFEST_V1",
+  "source_repository": "thebrazenbeard/vera",
+  "stores": [
+    "PROJECT_FILE_INPUT",
+    "REPOSITORY_TEMPLATE",
+    "EXTERNAL_RECEIPT",
+    "ARCHIVE_ONLY"
+  ],
+  "target_branch_policy": {
+    "exact_base_required": true,
+    "force_update_allowed": false,
+    "suggested_branch": "feature/portable-project-bootstrap-v1"
+  },
+  "version": "1.1.0",
+  "write_policy": {
+    "apply": "ONE_ATOMIC_TREE_ONE_COMMIT_NON_FORCE_REF_UPDATE",
+    "conflict": "STOP_NO_OVERWRITE",
+    "default": "DRY_RUN_VERIFY_ONLY",
+    "implementation_owner": "workstream/project-architecture",
+    "lease_issuer": "workstream/project-architecture",
+    "sequential_fallback_allowed": false,
+    "team_router": "workstream/coordination"
+  }
+}
