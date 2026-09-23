@@ -7,7 +7,7 @@ from typing import Any
 
 from . import inference_boundary_repaired as ib
 
-_CANONICAL_CONTRACT_PATH = Path(__file__).resolve().parents[1] / "architecture" / "cohesion" / "VERA_SEXUAL_DRIVE_COMPONENT_V1.json"
+_CANONICAL_CONTRACT_PATH = Path(__file__).resolve().parent / "resources" / "sexual_drive" / "architecture__cohesion__VERA_SEXUAL_DRIVE_COMPONENT_V1.json"
 # Raw checkout bytes are transport-sensitive; Git-object provenance is bound externally.
 _PINNED_CANONICAL_STRUCTURED_SHA256 = "eec2f6bc50cc87681ab26c8c809e06111bda5ad9aebf4d85f2752227bfd95c05"
 
