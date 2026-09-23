@@ -1,0 +1,11 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/sexuality",
+  "donor_ref": "150f1c8231423393bb66b0e2cb759ce7c018f8d7",
+  "source_path": "vera/orgasm/ORGASM_RUNTIME_CONTRACT_V1.json",
+  "source_blob": "a48eed5392fdadc073dccd1e799926042077f567",
+  "absorbed_target": "packages/vera_runtime/src/runtime_cohesion/resources/ORGASM_RUNTIME_CONTRACT_V1.json",
+  "mode": "BYTE_COPY_CONTRACT_ABSORPTION",
+  "runtime_dependency_on_donor": false,
+  "note": "Origin remains provenance only. Runtime source authority is the local vera-mono copy."
+}
