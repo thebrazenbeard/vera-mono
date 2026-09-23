@@ -4,12 +4,23 @@
   "donor_ref": "078d2d7242384c58676305d47654406713e599cf",
   "donor_subject": "Vera runtime/kernel source seed",
   "absorbed_target": "packages/vera_runtime/src",
-  "mode": "BYTE_COPY_SELECTED_RUNTIME_SOURCE",
-  "source_prefixes": [
+  "mode": "BASELINE_BYTE_COPY_WITH_MONOREPO_LOCAL_MIGRATIONS",
+  "runtime_dependency_on_donor": false,
+  "note": "The listed donor cut seeded the package. Runtime code has since been migrated to vera-mono-local bindings; donor repositories are provenance/research inputs, not runtime source dependencies.",
+  "baseline_source_prefixes": [
     "src/",
     "protocol/",
     "runtime_cohesion/"
   ],
-  "runtime_dependency_on_donor": false,
-  "note": "Selected Vera implementation is copied locally; remaining Vera source is absorbed incrementally under the monorepo contract."
+  "local_migrations": [
+    "runtime_cohesion/orgasm.py",
+    "runtime_cohesion/affect_host.py",
+    "runtime_cohesion/affect_integration.py",
+    "runtime_cohesion/affect_integration_bound.py",
+    "runtime_cohesion/affect_persistence.py",
+    "runtime_cohesion/deep_memory_evidence.py",
+    "runtime_cohesion/live_sources.py",
+    "runtime_cohesion/local_bindings.py",
+    "runtime_cohesion/resources/ORGASM_RUNTIME_CONTRACT_V1.json"
+  ]
 }
