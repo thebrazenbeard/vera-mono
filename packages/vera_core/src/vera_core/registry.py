@@ -31,6 +31,12 @@ CAPABILITIES: tuple[LocalCapability, ...] = (
         role="progressive reasoning, evidence handling, replay, scheduling, and verification",
     ),
     LocalCapability(
+        capability_id="identity_resources",
+        package="vera_identity",
+        import_root="vera_identity",
+        role="local Vera identity, bootstrap, and schema resources",
+    ),
+    LocalCapability(
         capability_id="runtime_cohesion",
         package="vera_runtime",
         import_root="runtime_cohesion",
