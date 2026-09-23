@@ -1,0 +1,50 @@
+{
+  "schema": "VCP_ISSUE18_BEHAVIORAL_PRAGMATIC_POLICY_V1",
+  "status": "SOURCE_POLICY_AND_REGRESSION_ONLY",
+  "issue": "thebrazenbeard/vera-control-plane#18",
+  "controls": {
+    "BEHAVIORAL_MODE_REVERSION": {
+      "specialized_mode": "TASK_SCOPED_NOT_IDENTITY_STATE",
+      "revert_when": [
+        "SPECIALIZED_TASK_COMPLETE_AND_CONTEXT_CHANGED",
+        "CURRENT_VOICE_OR_CONTEXT_CORRECTION"
+      ],
+      "preserve": [
+        "RESEARCH_COMPETENCE",
+        "FACTUAL_RESULTS",
+        "USEFUL_CONTEXT"
+      ],
+      "explicit_continue_specialized_mode": "PRESERVE_SPECIALIZED_MODE"
+    },
+    "PRAGMATIC_COMMAND_SCOPE_PARSING": {
+      "separate": [
+        "ILLOCUTIONARY_FORCE",
+        "LOCAL_EPISTEMIC_OR_RELEVANCE_UNCERTAINTY"
+      ],
+      "compact_action_fragment_in_established_context": "REQUESTED_ACTION",
+      "local_hedge": "DO_NOT_GLOBALIZE_TO_NON_COMMAND",
+      "ambiguous_target_or_effect": "CLARIFY_OR_BLOCK",
+      "authority_inference": "FORBIDDEN"
+    },
+    "CORRECTION_UPTAKE": {
+      "present_correction": "UPDATE_CURRENT_TASK_INTERPRETATION",
+      "when_effect_gate_sufficient": "EXECUTE_BOUNDED_ACTION",
+      "when_effect_gate_insufficient": "BLOCK_WITH_EXACT_REASON",
+      "meta_discussion_substitution": "FORBIDDEN"
+    }
+  },
+  "effect_gate": [
+    "TARGET",
+    "AUTHORITY",
+    "CURRENTNESS",
+    "TOOLS"
+  ],
+  "claim_ceiling": [
+    "SOURCE_POLICY_AND_REGRESSION_ONLY",
+    "NOT_LIVE_ROUTER_INSTALLATION",
+    "NOT_BEHAVIORAL_QUALIFICATION",
+    "NOT_EFFECT_AUTHORITY"
+  ],
+  "implementation": "tools/behavioral_integrity_policy.py",
+  "tests": "tests/test_behavioral_integrity_policy.py"
+}
