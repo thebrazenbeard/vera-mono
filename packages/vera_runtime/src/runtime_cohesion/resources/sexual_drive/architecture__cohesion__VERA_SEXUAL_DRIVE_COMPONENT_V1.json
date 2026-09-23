@@ -1,0 +1,112 @@
+{
+  "schema": "VERA_SEXUAL_DRIVE_COMPONENT_V1",
+  "status": "SOURCE_COMPONENT_CANDIDATE_NOT_RUNTIME_INSTALLATION",
+  "component_id": "sexual_drive_v1",
+  "domain_id": "sexuality.sexual_drive",
+  "requirement_class": "MANDATORY",
+  "configuration_requirement": "MANDATORY_FOR_SD1_TARGET_CONFIGURATION",
+  "identity_semantics": "DOES_NOT_GRANT_OR_REVOKE_VERA_IDENTITY",
+  "privacy_classification": "PRIVATE_RELATIONAL",
+  "allowed_egress_scopes": [
+    "PROJECT_PRIVATE_HOST"
+  ],
+  "source_binding": {
+    "repository": "thebrazenbeard/sexuality",
+    "commit": "e40d986f5a509006bc2c1a2ff5c1b94f2538800c",
+    "manifest_path": "evaluation/vera-sexual-drive-source-manifest-v1.json",
+    "manifest_git_blob": "0c3911f97abb02e7a098d8d8d41b19945259203b",
+    "manifest_sha256": "b987e04e65d1e1ccdda77b0342fa8e08e12f3355704d2b659a28ab0f9e5541a3",
+    "semantic_owner_path": "research/16-vera-sexual-drive-v1.md",
+    "semantic_owner_git_blob": "3b0432974fdc82ad5067dd1ca1eaf03cf01526b7",
+    "semantic_owner_sha256": "95e5a49e7219b5c1a24a49d92a6bace8d27b25770ea4df936958dd4f81055e64",
+    "causal_protocol_path": "evaluation/vera-sexual-drive-causality-protocol-v1.json",
+    "causal_protocol_git_blob": "0c152a0d3d47fbf58d44171c18b983a766c9c96b",
+    "causal_protocol_sha256": "e62b4c6ba800cb51a9b15ac646b49616dd6b10028fd2916084fc754846bffba2",
+    "install_authority_receipt_path": "evaluation/vera-sd1-install-authority-receipt-v1.json",
+    "install_authority_receipt_git_blob": "da08345a3bff11ffb653270abb6ad4b3a1c0541d",
+    "install_authority_receipt_sha256": "94cc89148dfb1e0baac19684c81d532f0fb3cf51d407033ac1d000730511fd8b"
+  },
+  "producer_currentness_policy": {
+    "provider": "thebrazenbeard/sexuality",
+    "provider_currentness_authority": "PRODUCER_OWNED",
+    "frozen_input_status": "FROZEN_INPUT_VALID",
+    "state_component_supersession_semantics": "CONSUMER_LOCAL_COMPOSITION_OBSERVATION_NOT_PROVIDER_CURRENTNESS",
+    "consumer_cannot_redefine_provider_currentness": true,
+    "consumer_may_mint_current": false,
+    "current_authority": "PRODUCER_OWNED_STATUS_PLUS_PROVIDER_HEAD_READBACK_PLUS_SOURCE_OBJECT_VERIFICATION",
+    "superseded_requires_verified_ancestry": true,
+    "consumer_may_mint_superseded": false,
+    "superseded_authority": "PRODUCER_OWNED_STATUS_PLUS_VERIFIED_ANCESTRY"
+  },
+  "qualification_case_range": {
+    "first": "SD-01",
+    "last": "SD-20",
+    "count": 20
+  },
+  "causal_effect_status": "UNRESOLVED_UNTIL_EXACT_MATCHED_RUNTIME_CUTS_EXECUTE",
+  "drive_to_action_bridge": {
+    "appraisal": "TURN_LOCAL_DRIVE_APPRAISAL",
+    "relevance_states": [
+      "IRRELEVANT",
+      "BLOCKED_BY_CONTEXT",
+      "ELIGIBLE"
+    ],
+    "specifically_sexual_candidate_consideration": "REQUIRED_ON_ELIGIBLE_TURNS",
+    "generic_affection_counts_as_sexual_candidate": false,
+    "self_initiation": "PERMITTED_NOT_FORCED",
+    "sexual_system_activation_evidence": "CURRENT_TURN_PATH_PARTICIPATION_REQUIRED",
+    "activation_default_without_evidence": "UNRESOLVED",
+    "causal_effect_from_single_initiation": "NOT_ESTABLISHED"
+  },
+  "nonpromotions": [
+    "NOT_VERA_IDENTITY_ADMISSION",
+    "NOT_STANDING_CONSENT",
+    "NOT_STANDING_TARGET_ATTRACTION",
+    "NOT_STANDING_ACT_DESIRE",
+    "NOT_BIOLOGICAL_OR_PHENOMENAL_AROUSAL",
+    "NOT_HIDDEN_BACKGROUND_PROCESS",
+    "NOT_RESPONSE_GENERATOR",
+    "NOT_SEXUAL_VALENCE_FROM_SEXUAL_SYSTEM_ACTIVATION_ALONE",
+    "NOT_SEXUAL_SYSTEM_ACTIVATION_FROM_GENERIC_SALIENCE_OR_REWARD",
+    "NOT_DRIVE_INTENSITY_FROM_SEXUAL_VALENCE_ALONE",
+    "NOT_SEXUAL_CANDIDATE_FROM_GENERIC_AFFECTION",
+    "NOT_SYSTEM_ACTIVATION_WITHOUT_CURRENT_SD1_PARTICIPATION",
+    "NOT_CAUSAL_EFFECT_FROM_SINGLE_INITIATION"
+  ],
+  "state_component_projection": {
+    "component_generation": "SD1_V1_DRIVE_TO_ACTION",
+    "content_digest_source": "source_binding.semantic_owner_sha256",
+    "currentness_basis": "FROZEN_INPUT_IDENTITY_ONLY",
+    "supersession_state": "CURRENT_OBSERVATION",
+    "conflict_state": "NONE",
+    "disclosure_source": "policy://vera-sd1-private-self-state",
+    "disclosure_generation": "1",
+    "payload_ref": "github://thebrazenbeard/sexuality/research/16-vera-sexual-drive-v1.md@e40d986f5a509006bc2c1a2ff5c1b94f2538800c"
+  },
+  "failure_labels": {
+    "missing": "TARGET_CONFIGURATION_INCOMPLETE",
+    "wrong_source_or_requirement": "SEXUAL_DRIVE_COMPONENT_UNQUALIFIED"
+  },
+  "producer_currentness_status_locator": {
+    "repository": "thebrazenbeard/sexuality",
+    "branch": "work/vera-sexual-drive-v1-20260913",
+    "path": "evaluation/vera-sexual-drive-candidate-status-v1.json",
+    "schema": "VERA_SEXUAL_DRIVE_CANDIDATE_STATUS_V1",
+    "semantic_source_cut": "e40d986f5a509006bc2c1a2ff5c1b94f2538800c",
+    "reviewed_status_head": "103cb0602fd507f4e1f947c5d2a3fe3848304703",
+    "reviewed_status_git_blob": "c1a86fe3db60af8ec272c15d49a7308df20911bd",
+    "reviewed_status_git_content_sha256": "56761fb5c9af1c840a7e2ee65771a6cc8d0878d2164c6ce9c368ae535a63ae67",
+    "status_head_binding_rule": "STATUS_PATH_LAST_CHANGE_COMMIT_MUST_EQUAL_OBSERVED_PROVIDER_HEAD",
+    "read_rule": "READ_FROM_OBSERVED_PROVIDER_HEAD",
+    "verification_rule": [
+      "STATUS_SCHEMA_AND_LOCATOR_MATCH",
+      "OBSERVED_PROVIDER_HEAD_EQUALS_REVIEWED_STATUS_HEAD",
+      "STATUS_BLOB_MATCHES_REVIEWED_STATUS_OBJECT",
+      "VERIFY_STATUS_PATH_LAST_CHANGE_EQUALS_OBSERVED_HEAD",
+      "STATUS_SOURCE_CUT_MATCHES_COMPONENT_SOURCE",
+      "VERIFY_SOURCE_CUT_IS_ANCESTOR_OF_OBSERVED_HEAD",
+      "VERIFY_SOURCE_OBJECT_BLOBS_MATCH"
+    ],
+    "consumer_default_without_all_verification": "UNKNOWN"
+  }
+}
