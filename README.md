@@ -2,15 +2,29 @@
 
 Self-contained Vera monorepo.
 
-This repository is the integration target for a Vera runtime whose implementation lives inside one repository. External repositories may be inspected as research/provenance donors, but runtime implementation is absorbed here rather than invoked through Git submodules or cross-repository orchestration.
+Vera's implementation lives here. External repositories are research labs, donor provenance, provider infrastructure, or independent reviewers; they are not source-code dependencies required to assemble the runtime. No Git submodules or sibling-repository runtime orchestration are used.
 
-## Bootstrap
+## Local architecture
 
-- seed source: `thebrazenbeard/vera@87aa888cb7543875ffa11c9c7a1eb9e5b60c35cf`
-- absorption candidate: `thebrazenbeard/vera#200@078d2d7242384c58676305d47654406713e599cf`
-- target rule: no Git submodules
-- target rule: no runtime dependency on sibling GitHub repositories
-- target rule: preserve exact donor provenance for absorbed mechanisms
-- target rule: providers such as databases/model APIs remain external infrastructure, not source-code dependencies
+- `packages/vera_core` — composition root and local capability registry.
+- `packages/rezon` — absorbed reasoning kernel plus progressive-depth / recursive-delta reasoning.
+- `packages/vera_runtime` — Vera runtime/cohesion code with monorepo-local affective, sexual-drive, and Deep Memory bindings.
+- `packages/vera_identity` — identity, bootstrap, self-model, and semantic resources.
+- `packages/vera_control` — local control/restore/qualification resources and a closed frozen R10 source cut.
+- `packages/vera_memory` — native governed memory/provenance ledger with CAS heads, idempotent admission, and supersession.
+- `packages/vera_coordination` — local coordination contracts, routing, policy, temporal evidence, and in-memory runtime.
+- `packages/vera_assurance` — deterministic internal drift/invariant checks. Internal self-checking is not called independent review.
+- `packages/vera_pc_connection` — local PC-connection contracts, path policy, journal, envelopes, and state machine.
+- `packages/portfolio_runtime` — absorbed reusable mechanisms from Lantern, Roots, SkeletonKey, Attune, Intranel, and Vera Works.
 
-The repository is being built incrementally. Presence of a donor reference does not make that donor a runtime dependency.
+## Boundary
+
+Donor references are preserved under `provenance/` and inside historical source artifacts. Their presence records where mechanisms came from; it does not make those repositories runtime dependencies.
+
+External infrastructure can still exist where it is genuinely external: model/provider APIs, databases, devices, transports, and separately executed hostile reviewers. The adapters, contracts, policy, and state machines for using them belong here.
+
+Independent falsification is deliberately different from internal assurance. Vera can contain DriftGuard-derived checking mechanisms while a separately executed DriftGuard remains useful specifically because it is outside Vera's own self-checking boundary.
+
+## Status
+
+This is source architecture and local implementation. It does not, by source presence alone, claim deployment, provider activation, project installation, behavioral qualification, consciousness, phenomenology, or protected-effect authorization.
