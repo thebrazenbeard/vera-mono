@@ -1,0 +1,15 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/vera",
+  "donor_ref": "078d2d7242384c58676305d47654406713e599cf",
+  "donor_subject": "Vera identity, bootstrap, and schema resources",
+  "absorbed_target": "packages/vera_identity/src/vera_identity/resources",
+  "mode": "BYTE_COPY_RESOURCE_ABSORPTION",
+  "source_prefixes": [
+    "architecture/identity/",
+    "architecture/bootstrap/",
+    "schemas/"
+  ],
+  "source_file_count": 25,
+  "runtime_dependency_on_donor": false
+}
