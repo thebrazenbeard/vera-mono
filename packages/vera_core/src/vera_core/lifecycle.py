@@ -180,6 +180,7 @@ class NativeVeraLifecycle:
         assurance_policy: DriftPolicy | None = None,
         created_at: str | None = None,
     ) -> NativeLifecycleReceipt:
+        self.journal.verify_chain()
         observed_memory_head = self.memory.current_head
         if observed_memory_head != expected_memory_head:
             raise ValueError("memory head changed before lifecycle checkpoint")
@@ -290,6 +291,7 @@ class NativeVeraLifecycle:
         )
 
     def reconstruct(self, *, reconcile_journal: bool = True) -> LifecycleReconstruction:
+        self.journal.verify_chain()
         live_memory_head = self.memory.current_head
         control_digest = local_r10_source_digest()
         latest = self.checkpoints.latest()
@@ -375,26 +377,29 @@ class NativeVeraLifecycle:
             )
 
         reconciled = False
-        if not self.journal.has_event(
+        committed_in_journal = self.journal.has_event(
             accepted.checkpoint_id,
             "CURRENTNESS_COMMITTED",
-        ):
-            if reconcile_journal:
-                candidate = Snapshot(
-                    self.currentness_subject_id,
-                    expected_values,
-                )
-                self.journal.append(
-                    transition_id=accepted.checkpoint_id,
-                    event_type="RESTART_RECONCILED_COMMITTED",
-                    payload={
-                        "candidate_digest": candidate.digest,
-                        "currentness_generation": current.generation,
-                        "currentness_snapshot_digest": current.snapshot_digest,
-                        "currentness_payload_digest": current.payload_digest,
-                    },
-                )
-                reconciled = True
+        ) or self.journal.has_event(
+            accepted.checkpoint_id,
+            "RESTART_RECONCILED_COMMITTED",
+        )
+        if not committed_in_journal and reconcile_journal:
+            candidate = Snapshot(
+                self.currentness_subject_id,
+                expected_values,
+            )
+            self.journal.append(
+                transition_id=accepted.checkpoint_id,
+                event_type="RESTART_RECONCILED_COMMITTED",
+                payload={
+                    "candidate_digest": candidate.digest,
+                    "currentness_generation": current.generation,
+                    "currentness_snapshot_digest": current.snapshot_digest,
+                    "currentness_payload_digest": current.payload_digest,
+                },
+            )
+            reconciled = True
 
         if latest is not None and latest.generation > accepted.generation:
             event = self.journal.latest(latest.checkpoint_id)
