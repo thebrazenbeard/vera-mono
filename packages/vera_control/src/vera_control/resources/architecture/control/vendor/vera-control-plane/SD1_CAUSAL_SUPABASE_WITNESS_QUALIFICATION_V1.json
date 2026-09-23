@@ -1,0 +1,75 @@
+{
+  "schema": "SD1_SUPABASE_WITNESS_QUALIFICATION_CONTRACT_V1",
+  "status": "SOURCE_ACCEPTANCE_CONTRACT / NO_QUALIFICATION_ARTIFACT / NO_PROVIDER_EFFECT",
+  "artifact_schema": "SD1_SUPABASE_WITNESS_QUALIFICATION_V1",
+  "required_evidence_gates": {
+    "independent_exact_head_source_review": "SOURCE_REVIEW_ONLY",
+    "disposable_postgres_semantics": "NON_PRODUCTION_PROVIDER_SEMANTICS",
+    "production_permission_readback": "READ_ONLY_PROVIDER_PERMISSION_EVIDENCE",
+    "controller_integration_replay": "CONTROLLER_INTEGRATION_TEST_ONLY",
+    "provider_source_binding_readback": "READ_ONLY_DEPLOYED_SOURCE_BINDING"
+  },
+  "artifact_gate_shape": {
+    "each_gate_fields": [
+      "result",
+      "evidence_sha256"
+    ],
+    "required_result": "PASS",
+    "evidence_digest": "LOWERCASE_SHA256_OF_DURABLE_EVIDENCE_ARTIFACT",
+    "missing_gate": "REJECT",
+    "nonpass_gate": "REJECT",
+    "malformed_digest": "REJECT"
+  },
+  "state_separation": {
+    "source_review_pass": "DOES_NOT_IMPLY_PROVIDER_QUALIFICATION",
+    "qualification_artifact_pass": "DOES_NOT_IMPLY_CURRENT_PROVIDER_ROUTE_OR_CAUSAL_DATA_COLLECTION",
+    "provider_readback_pass": "DOES_NOT_IMPLY_PROJECT_INSTALL_OR_CONTROL_CAUSALITY",
+    "production_witness_constructible": "DOES_NOT_AUTHORIZE_FIRST_CAUSAL_MUTATION",
+    "causal_collection": "SEPARATE_PROTECTED_EFFECT",
+    "control_causality": "REMAINS_UNRESOLVED_UNTIL_FROZEN_CAUSAL_PROTOCOL_EXECUTES"
+  },
+  "current_frontier": {
+    "qualification_artifact": "UNBOUND",
+    "production_witness": "NOT_CONSTRUCTIBLE",
+    "causal_data_collection": "HOLD",
+    "control_causality": "UNRESOLVED"
+  },
+  "implementation_subject_binding": {
+    "digest_algorithm": "SHA256_CANONICAL_JSON_SEMANTIC_PROJECTION_V1",
+    "subject_projection_excludes": [
+      "current_frontier.qualification_artifact",
+      "current_frontier.production_witness",
+      "current_frontier.causal_data_collection",
+      "current_frontier.control_causality"
+    ],
+    "rule": "The qualification artifact MUST bind this acceptance contract's canonical semantic projection. Top-level status remains bound into the semantic subject. Only the declared mutable current_frontier leaves are excluded; every excluded current_frontier leaf must remain inside its exact declared value domain, and unknown keys/values are invalid. Evidence-gate definitions, artifact shape, state-separation rules, value-domain rules, non-effects, status, and any undeclared semantics remain bound."
+  },
+  "non_effects": [
+    "NOT_PROVIDER_MUTATION",
+    "NOT_CREDENTIAL_PROVISIONING",
+    "NOT_CAUSAL_DATA_COLLECTION",
+    "NOT_PROJECT_INSTALL",
+    "NOT_CURRENT_ROUTE_QUALIFICATION",
+    "NOT_CONTROL_CAUSALITY_PASS",
+    "NOT_GLOBAL_QUALIFICATION",
+    "NOT_MERGE_AUTHORITY"
+  ],
+  "current_frontier_allowed_values": {
+    "qualification_artifact": [
+      "UNBOUND",
+      "PINNED"
+    ],
+    "production_witness": [
+      "NOT_CONSTRUCTIBLE",
+      "CONSTRUCTIBLE"
+    ],
+    "causal_data_collection": [
+      "HOLD",
+      "READY"
+    ],
+    "control_causality": [
+      "UNRESOLVED",
+      "PENDING_EXECUTION"
+    ]
+  }
+}
