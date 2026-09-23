@@ -22,7 +22,8 @@
       "role": "identity_bootstrap_and_schema_resources",
       "status": "ABSORBED_SOURCE_UNQUALIFIED",
       "donor": "thebrazenbeard/vera@078d2d7242384c58676305d47654406713e599cf",
-      "source_file_count": 25
+      "source_file_count": 25,
+      "supplemental_resource_count": 3
     },
     {
       "id": "vera_runtime",
@@ -30,7 +31,13 @@
       "role": "absorbed_vera_runtime_kernel",
       "status": "ABSORBED_BASELINE_PLUS_MONOREPO_LOCAL_MIGRATIONS",
       "donor": "thebrazenbeard/vera@078d2d7242384c58676305d47654406713e599cf",
-      "baseline_source_file_count": 42
+      "baseline_source_file_count": 42,
+      "local_resource_bundles": {
+        "affective_contract": 1,
+        "sexual_drive": 7,
+        "cohesion_architecture": 4,
+        "deep_memory_resources": "owned by vera_memory package"
+      }
     },
     {
       "id": "rezon",
@@ -80,7 +87,8 @@
       "role": "control_restore_and_qualification_resources",
       "status": "ABSORBED_SOURCE_UNQUALIFIED",
       "donor": "thebrazenbeard/vera@078d2d7242384c58676305d47654406713e599cf",
-      "source_file_count": 25
+      "source_file_count": 29,
+      "local_source_closure": "R10_SOURCE_CLOSURE"
     }
   ],
   "active_local_capability_registry": "packages/vera_core/src/vera_core/registry.py",
@@ -107,7 +115,17 @@
       "donor_origin": "thebrazenbeard/sexuality@150f1c8231423393bb66b0e2cb759ce7c018f8d7",
       "donor_runtime_dependency": false
     },
-    "runtime_source_registry": "Sibling repositories are inventory/provenance only; runtime activation no longer requires named sibling repositories."
+    "runtime_source_registry": "Sibling repositories are inventory/provenance only; runtime activation no longer requires named sibling repositories.",
+    "sexual_drive": {
+      "component_contract": "packages/vera_runtime/src/runtime_cohesion/resources/sexual_drive/architecture__cohesion__VERA_SEXUAL_DRIVE_COMPONENT_V1.json",
+      "donor_runtime_dependency": false,
+      "source_bundle_local": true
+    },
+    "deep_memory": {
+      "registry_and_schema_owner": "packages/vera_memory",
+      "runtime_resolution": "LOCAL_RESOURCE_LOADER",
+      "donor_runtime_dependency": false
+    }
   },
   "assurance_boundary": {
     "internal": "packages/vera_assurance",
@@ -117,6 +135,24 @@
     "local_resources_present": true,
     "auto_installed": false,
     "auto_activated": false,
-    "activation_requires_explicit_current_binding": true
+    "activation_requires_explicit_current_binding": true,
+    "local_frozen_r10_source_closure": true,
+    "source_closure_is_activation": false
+  },
+  "self_contained_runtime_scope": {
+    "local_code_packages": [
+      "vera_core",
+      "rezon",
+      "vera_runtime",
+      "vera_identity",
+      "vera_control",
+      "vera_memory",
+      "vera_coordination",
+      "vera_assurance",
+      "vera_pc_connection",
+      "portfolio_runtime"
+    ],
+    "external_allowed_only_as_infrastructure_or_independent_observer": true,
+    "external_repository_code_required_at_runtime": false
   }
 }
