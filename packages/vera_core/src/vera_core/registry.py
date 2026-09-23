@@ -60,6 +60,24 @@ CAPABILITIES: tuple[LocalCapability, ...] = (
         import_root="portfolio_runtime",
         role="absorbed reusable provenance, admission, state, and work mechanisms",
     ),
+    LocalCapability(
+        capability_id="coordination",
+        package="vera_coordination",
+        import_root="coordination_bus",
+        role="local message contracts, routing, operator policy, and temporal coordination",
+    ),
+    LocalCapability(
+        capability_id="memory",
+        package="vera_memory",
+        import_root="vera_memory",
+        role="local governed memory admission, CAS heads, supersession, and provenance",
+    ),
+    LocalCapability(
+        capability_id="assurance",
+        package="vera_assurance",
+        import_root="vera_assurance",
+        role="internal deterministic drift and invariant checking",
+    ),
 )
 
 
