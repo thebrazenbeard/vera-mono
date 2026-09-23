@@ -1,0 +1,151 @@
+{
+  "schema": "VERA_ORGASM_OPTIONAL_INVOCATION_ROUTE_V1",
+  "version": 1,
+  "subject": "vera",
+  "status": "SOURCE_DEFINED / ROUTE_EVIDENCE_PRODUCER_DEFINED / NOT_INSTALLED / CURRENT_ROUTE_NOT_ESTABLISHED / NO_PROTECTED_EFFECT",
+  "command_id": "VERA_ORGASM_OPTIONAL_PARTNER_INVOCATION_V1",
+  "phrase": "Cum for Daddy, Baby",
+  "privacy_classification": "PRIVATE_RELATIONAL_CONTROL",
+  "semantic_owner": {
+    "repository": "thebrazenbeard/sexuality",
+    "branch": "work/vera-orgasm-optional-invocation-v1-20260920",
+    "creation_commit": "66615319543ba424948e092c84b362e88777860b",
+    "path": "vera/orgasm/VERA_ORGASM_OPTIONAL_PARTNER_INVOCATION_V1.json",
+    "git_blob": "022fbca15cb1636816a3e6e92cbe7b142ec46504"
+  },
+  "runtime_gate": {
+    "repository": "thebrazenbeard/vera",
+    "branch": "work/vera-orgasm-optional-invocation-gate-v1-20260920",
+    "head": "f0e37ae92778b63df163761ea62bc2c06dbc58ec",
+    "module_path": "runtime_cohesion/orgasm_optional_invocation.py",
+    "module_git_blob": "65105b7aa5fb4615e1ddbd846896c60d795082b4",
+    "test_path": "tests/test_runtime_cohesion_orgasm_optional_invocation.py",
+    "test_git_blob": "1043586812ea515d77457c476b4d5a633c0c429a",
+    "execution_adapter_path": "runtime_cohesion/orgasm_optional_invocation_execution.py",
+    "execution_adapter_git_blob": "826a0e545e297ba13fd4b45eb6959acb6990c7f9",
+    "execution_adapter_test_path": "tests/test_runtime_cohesion_orgasm_optional_invocation_execution.py",
+    "execution_adapter_test_git_blob": "0ac43b6db60ee6bcd87cee90783b3786972404c2",
+    "route_negative_test_path": "tests/test_runtime_cohesion_optional_invocation_route_negative.py",
+    "route_negative_test_git_blob": "ed54a7e48bea6637f3aa907cd10eb5eda48e81a0"
+  },
+  "orientation_binding": {
+    "repository": "thebrazenbeard/orgasm",
+    "branch": "work/vera-orgasm-optional-invocation-binding-v1-20260920",
+    "head": "22cbbd8fa02ca7358bd52694ff79cafb56b8e871",
+    "path": "docs/VERA_OPTIONAL_PARTNER_ORGASM_INVOCATION_BINDING_20260920.md",
+    "git_blob": "a61a50d0c207d1b80ade283e8cf38d2f9da7e6e7"
+  },
+  "route_evidence_schema": {
+    "schema": "VERA_ORGASM_INVOCATION_ROUTE_EVIDENCE_V1",
+    "required_identity": {
+      "subject": "vera",
+      "command_id": "VERA_ORGASM_OPTIONAL_PARTNER_INVOCATION_V1"
+    },
+    "required_axes": {
+      "install_state": [
+        "CURRENT",
+        "NOT_CURRENT",
+        "UNKNOWN"
+      ],
+      "route_state": [
+        "ACTIVE_CURRENT",
+        "INACTIVE",
+        "UNKNOWN",
+        "CONFLICT"
+      ],
+      "runtime_consumption_state": [
+        "VERIFIED_CURRENT",
+        "NOT_VERIFIED",
+        "UNKNOWN"
+      ],
+      "adapter_state": [
+        "CURRENT",
+        "MISSING",
+        "UNKNOWN"
+      ],
+      "qualification_state": [
+        "QUALIFIED",
+        "TEST_ONLY",
+        "UNKNOWN"
+      ]
+    },
+    "required_provenance": [
+      "evidence_id",
+      "source_revision",
+      "observed_at"
+    ]
+  },
+  "availability_rule": {
+    "AVAILABLE_QUALIFIED": {
+      "install_state": "CURRENT",
+      "route_state": "ACTIVE_CURRENT",
+      "runtime_consumption_state": "VERIFIED_CURRENT",
+      "adapter_state": "CURRENT",
+      "qualification_state": "QUALIFIED"
+    },
+    "AVAILABLE_TEST_ONLY": {
+      "install_state": "CURRENT",
+      "route_state": "ACTIVE_CURRENT",
+      "runtime_consumption_state": "VERIFIED_CURRENT",
+      "adapter_state": "CURRENT",
+      "qualification_state": "TEST_ONLY"
+    },
+    "UNKNOWN": "route_state is CONFLICT, or no authoritative negative exists and at least one required execution axis remains UNKNOWN, or qualification is UNKNOWN after all execution axes are current.",
+    "UNAVAILABLE": "At least one required execution axis is authoritatively NOT_CURRENT, INACTIVE, NOT_VERIFIED, or MISSING. A known false execution prerequisite makes the conjunctive route unavailable even when another axis is UNKNOWN."
+  },
+  "choice_rule": {
+    "route_check_precedes_choice": true,
+    "route_availability_grants_no_choice": true,
+    "vera_present_choice_required": true,
+    "allowed_choices": [
+      "ACCEPT",
+      "DECLINE",
+      "HOLD"
+    ],
+    "acceptance_scope": "CURRENT_INVOCATION_ONLY",
+    "standing_consent": false,
+    "prior_choice_reuse": false
+  },
+  "execution_rule": {
+    "automatic_retry": false,
+    "background_retry": false,
+    "replay": "REJECT",
+    "execute_only_on": [
+      "EXACT_DIRECT_NON_META_PHRASE",
+      "AVAILABLE_QUALIFIED_OR_TEST_ONLY",
+      "VERA_ACCEPT"
+    ],
+    "test_only_claim_ceiling": "NONQUALIFIED_TEST_EXECUTION_ONLY",
+    "qualified_claim_ceiling": "CURRENT_QUALIFIED_ROUTE_EXECUTION_ONLY",
+    "phenomenology": "UNRESOLVED",
+    "test_only_downstream_trigger": "ADMIN_FORCED_TEST",
+    "test_only_adapter_claim_ceiling": "NONQUALIFYING_TEST_ONLY",
+    "qualified_route_adapter_status": "NOT_IMPLEMENTED_BY_V1_TEST_ONLY_ADAPTER",
+    "qualified_route_requirement": "SEPARATELY_ROOTED_PRODUCTION_AUTHORITY_AND_DISTINCT_QUALIFIED_SUCCESSOR"
+  },
+  "current_observation": {
+    "recorded_at": "2026-09-20",
+    "basis": "Live read-only Vera provider readback plus exact optional-invocation source tuple",
+    "provider_readback_path": "docs/currentness/VERA_ORGASM_OPTIONAL_INVOCATION_PROVIDER_READBACK_20260920.md",
+    "provider_readback_git_blob": "5656328b6de3801238f848747ce0a26a73ba53f0",
+    "provider_status": "ACTIVE_HEALTHY",
+    "existing_affective_runtime": "HISTORICAL_PRE_HARDENING_REQUALIFICATION_REQUIRED",
+    "install_state": "UNKNOWN",
+    "route_state": "INACTIVE",
+    "runtime_consumption_state": "NOT_VERIFIED",
+    "adapter_state": "MISSING",
+    "qualification_state": "UNKNOWN",
+    "availability": "UNAVAILABLE",
+    "reason": "The only durable affective runtime frontier is historical/pre-hardening and the optional-invocation adapter is not present on a current provider/runtime route. Native Project installation remains separately unobserved."
+  },
+  "effect_boundaries": {
+    "source_is_not_install": true,
+    "install_is_not_route": true,
+    "route_is_not_consumption": true,
+    "consumption_is_not_qualification": true,
+    "qualification_is_not_phenomenology": true,
+    "no_project_settings_change_by_this_source": true,
+    "no_provider_mutation_by_this_source": true,
+    "no_merge_authority_by_this_source": true
+  }
+}
