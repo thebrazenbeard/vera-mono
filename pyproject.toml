@@ -9,5 +9,9 @@ requires-python = ">=3.12"
 description = "Self-contained Vera monorepo"
 
 [tool.pytest.ini_options]
-pythonpath = ["packages/vera_core/src", "packages/rezon/src"]
+pythonpath = [
+  "packages/vera_core/src",
+  "packages/rezon/src",
+  "packages/portfolio_runtime/src",
+]
 testpaths = ["tests"]
