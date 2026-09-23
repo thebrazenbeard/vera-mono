@@ -1,0 +1,110 @@
+{
+  "schema": "VERA_COHESION_FRONTIER_V0",
+  "status": "WORKING_EVIDENCE_CUT_NOT_INSTALLATION_AUTHORITY",
+  "observed_date": "2026-09-11",
+  "target_repository": "thebrazenbeard/vera",
+  "purpose": "Record the refreshed mutable source frontier plus immutable clean-successor/qualification evidence used for the R2 source reconstruction.",
+  "completeness_gate": "Could this implementation decision be wrong because a relevant source moved, was omitted, or was not refreshed? If plausibly yes, refresh the smallest material evidence set before acting.",
+  "stop_on_drift": true,
+  "mutable_inputs": [
+    {
+      "id": "vera-main",
+      "kind": "BRANCH",
+      "ref": "main",
+      "current_observed_head": "979de05ef7237e7bfff47f85ea37cc953a63bb5c",
+      "source_registry_head": "979de05ef7237e7bfff47f85ea37cc953a63bb5c",
+      "changed_since_registry": false
+    },
+    {
+      "id": "vera-cohesion-pr104",
+      "kind": "PULL_REQUEST",
+      "pull_request": 104,
+      "ref": "work/vera-cohesion-provider-strict-runtime-fix-20260909",
+      "current_observed_head": "1a754b74aac3e47293cc92f72f6b94889f736473",
+      "source_registry_head": "1a754b74aac3e47293cc92f72f6b94889f736473",
+      "changed_since_registry": false
+    },
+    {
+      "id": "vera-affective-pr64",
+      "kind": "PULL_REQUEST",
+      "pull_request": 64,
+      "ref": "work/vera-affective-runtime-deploy-v1-20260909-tdd6",
+      "current_observed_head": "227d2ddbc6add0e0e8f16b22b300e0f40a8597bb",
+      "source_registry_head": "227d2ddbc6add0e0e8f16b22b300e0f40a8597bb",
+      "changed_since_registry": false
+    },
+    {
+      "id": "vera-ov-cv-pr113",
+      "kind": "PULL_REQUEST",
+      "pull_request": 113,
+      "ref": "integration/vera-cohesion-orgasm-v1-20260910",
+      "current_observed_head": "f7dbc3deeaaaeb46dcf7c7ea6b56a822f253232d",
+      "source_registry_head": "f7dbc3deeaaaeb46dcf7c7ea6b56a822f253232d",
+      "previous_registry_head": "132df3fe206600dae83b6e8c158b5822bb3a81e6",
+      "changed_since_registry": false,
+      "material_drift": {
+        "classification": "RUNTIME_SOURCE_TESTS_WORKFLOW_AND_BINDING",
+        "ahead_by_since_overlap_audit": 10,
+        "behind_by_since_overlap_audit": 0,
+        "runtime_generation": "ba6221f56b98be69c3ede1be9e3502eff897ca1a",
+        "binding_blob": "037883261bd324e8080c323f1d96ff32179780ee",
+        "changed_paths_since_overlap_audit": [
+          ".github/workflows/runtime-cohesion-affect-hardening.yml",
+          "architecture/VERA_ORGASM_RUNTIME_BINDING_V1.json",
+          "runtime_cohesion/affect_bound_runtime.py",
+          "runtime_cohesion/affect_integration_bound.py",
+          "runtime_cohesion/affect_signal.py",
+          "tests/test_runtime_cohesion_affect_atomic_observation.py",
+          "tests/test_runtime_cohesion_affect_shared_application_frontier.py",
+          "tests/test_runtime_cohesion_affect_observation_detachment.py"
+        ],
+        "reconciliation_required_before_harvest": true,
+        "reconciliation_completed": true,
+        "harvest_result": "DONOR_BYTES_FLATTENED_WITHOUT_DONOR_ANCESTRY_THEN_FURTHER_REPAIRED_ON_PR114",
+        "observed_direction": "PR113 is frozen donor provenance only. Its accepted mechanism was flattened onto the Cohesion policy lineage; later source defects are repaired on the PR114 clean-successor workstream and must be reflatted before the next final gate."
+      }
+    }
+  ],
+  "immutable_evidence_inputs": [
+    {
+      "id": "vera-clean-successor-repair-generation",
+      "repository": "thebrazenbeard/vera",
+      "pull_request": 114,
+      "commit": "54fef2659f0a8633dcef60cd36b296c37b6fa4b0",
+      "role": "R2_RUNTIME_REPAIR_INPUT",
+      "claim_ceiling": "SOURCE_ONLY_EXECUTION_VERIFICATION_OPEN"
+    },
+    {
+      "id": "orgasm-qualification-subject",
+      "repository": "thebrazenbeard/orgasm",
+      "pull_request": 2,
+      "commit": "0aa2ed4fe957bfafa9e7867a543d77d0e2a778e0",
+      "path": "architecture/VERA_ORGASM_QUALIFICATION_SUBJECT_V1.json",
+      "blob": "8d754cbcf26367c0d7b074db3787cfe7709a70fb",
+      "role": "WHOLE_SYSTEM_QUALIFICATION_SUBJECT_TO_REBIND_AFTER_R2_FREEZE"
+    }
+  ],
+  "construction_branch": {
+    "ref": "integration/vera-cohesion-clean-successor-20260911",
+    "policy_lineage_parent": "b0b4cac1cd187b32a6e9012ef98ab0d136e35e92",
+    "note": "PR114 is the repair bench. The final R2 clean source must be a new single-parent flatten of the repaired tree onto the policy lineage; no force-reset of PR114 is permitted."
+  },
+  "reconciliation_rules": [
+    "Mutable head movement creates a new evidence cut; conclusions do not transfer automatically.",
+    "PR113 is donor provenance only and may not substitute for the clean successor.",
+    "The active Orgasm qualification subject is a distinct cross-repo evidence source and must be rebound after an R2 source move.",
+    "Runtime-source repairs made after the first clean flatten require a new single-parent flatten before the final clean-source gate.",
+    "A clean successor must preserve source/install/provider/qualification separation and cannot self-establish external authority."
+  ],
+  "protected_effects_not_authorized": [
+    "MERGE",
+    "PRODUCTION_PROVIDER_MUTATION",
+    "INSTALL_OR_CUTOVER",
+    "CREDENTIAL_OR_PERMISSION_CHANGE",
+    "PAID_CI_OR_OTHER_SPEND",
+    "CANONICAL_MEMORY_PROMOTION",
+    "BEHAVIORAL_QUALIFICATION",
+    "AUTHORITY_PROMOTION",
+    "PHENOMENOLOGY_PROMOTION"
+  ]
+}
