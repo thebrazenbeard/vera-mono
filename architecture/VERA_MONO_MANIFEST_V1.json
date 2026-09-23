@@ -89,6 +89,16 @@
       "donor": "thebrazenbeard/vera@078d2d7242384c58676305d47654406713e599cf",
       "source_file_count": 29,
       "local_source_closure": "R10_SOURCE_CLOSURE"
+    },
+    {
+      "id": "vera_recovery",
+      "path": "packages/vera_recovery",
+      "role": "recovery_trust_lifecycle_temporal",
+      "status": "ABSORBED_SOURCE",
+      "donor": "thebrazenbeard/vera@078d2d7242384c58676305d47654406713e599cf",
+      "source_file_count": 12,
+      "canonical_memory_owner": "vera_memory",
+      "legacy_r8a0_memory_role": "COMPATIBILITY_ONLY"
     }
   ],
   "active_local_capability_registry": "packages/vera_core/src/vera_core/registry.py",
@@ -150,6 +160,7 @@
       "vera_coordination",
       "vera_assurance",
       "vera_pc_connection",
+      "vera_recovery",
       "portfolio_runtime"
     ],
     "external_allowed_only_as_infrastructure_or_independent_observer": true,
