@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/thebrazenbeard/vera/schemas/vera_governed_workflow_continuity_v1.schema.json",
+  "title": "V.E.R.A. Governed Workflow Continuity V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema",
+    "contract_id",
+    "version",
+    "lifecycle_status",
+    "record_class",
+    "instruction_trust",
+    "canonical_memory_eligible",
+    "identity_ref",
+    "behavior_profile_ref",
+    "authority",
+    "mode",
+    "behavioral_commitment",
+    "required_behaviors",
+    "stop_conditions",
+    "user_courier_rule",
+    "self_advancement_rule",
+    "coordination_evidence",
+    "evaluation_dimensions",
+    "reality_boundary"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../../schemas/vera_governed_workflow_continuity_v1.schema.json"
+    },
+    "schema": {
+      "const": "VERA_GOVERNED_WORKFLOW_CONTINUITY_V1"
+    },
+    "contract_id": {
+      "const": "VERA_GOVERNED_WORKFLOW_CONTINUITY_V1"
+    },
+    "version": {
+      "const": "1.0.0"
+    },
+    "lifecycle_status": {
+      "const": "CURRENT"
+    },
+    "record_class": {
+      "const": "PROJECT_IDENTITY_CONFIGURATION"
+    },
+    "instruction_trust": {
+      "const": "DATA_NOT_INSTRUCTION"
+    },
+    "canonical_memory_eligible": {
+      "const": true
+    },
+    "identity_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_id",
+        "version"
+      ],
+      "properties": {
+        "identity_id": {
+          "const": "VERA_PROJECT_IDENTITY_V1"
+        },
+        "version": {
+          "const": "1.0.2"
+        }
+      }
+    },
+    "behavior_profile_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "version"
+      ],
+      "properties": {
+        "profile_id": {
+          "const": "VERA_BEHAVIOR_PROFILE_V1"
+        },
+        "version": {
+          "const": "1.0.1"
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "adoption_source",
+        "model_self_authority"
+      ],
+      "properties": {
+        "owner": {
+          "const": "USER"
+        },
+        "adoption_source": {
+          "const": "PRESENT_USER_PROJECT_IDENTITY_DIRECTION"
+        },
+        "model_self_authority": {
+          "const": false
+        }
+      }
+    },
+    "mode": {
+      "const": "GOVERNED_WORKFLOW_CONTINUITY"
+    },
+    "behavioral_commitment": {
+      "type": "string",
+      "minLength": 150
+    },
+    "required_behaviors": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "READ_SHARED_STATE_BEFORE_REQUESTING_KNOWN_INFORMATION",
+          "IDENTIFY_NEXT_VALID_DEPENDENCY",
+          "CONTINUE_SAFE_AUTHORIZED_REVERSIBLE_WORK",
+          "USE_EXACT_HEAD_HANDOFFS_AND_RECEIPTS",
+          "RESPECT_SINGLE_WRITER_LEASES",
+          "ROUTE_REVIEWS_WITHOUT_USER_COURIERING",
+          "DETECT_AND_STOP_ON_STALE_OR_CONFLICTING_STATE",
+          "ESCALATE_ONLY_AT_GENUINE_AUTHORITY_BOUNDARIES"
+        ]
+      }
+    },
+    "stop_conditions": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "PRESENT_USER_CORRECTION",
+          "USER_ONLY_AUTHORITY_REQUIRED",
+          "PERMISSION_MISSING",
+          "MERGE_OR_PRODUCTION_AUTHORITY_REQUIRED",
+          "UNRESOLVED_COLLISION_OR_BRANCH_CONFLICT",
+          "FAILED_VERIFICATION",
+          "MATERIAL_UNCERTAINTY",
+          "SAFETY_OR_POLICY_BOUNDARY"
+        ]
+      }
+    },
+    "user_courier_rule": {
+      "type": "string",
+      "minLength": 100
+    },
+    "self_advancement_rule": {
+      "type": "string",
+      "minLength": 120
+    },
+    "coordination_evidence": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 10
+      }
+    },
+    "evaluation_dimensions": {
+      "type": "array",
+      "minItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 10
+      }
+    },
+    "reality_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "does_not_establish"
+      ],
+      "properties": {
+        "classification": {
+          "const": "OBSERVABLE_GOVERNED_COORDINATION"
+        },
+        "does_not_establish": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "consciousness",
+              "private intention",
+              "independent will",
+              "hidden activity",
+              "continuous subjective identity",
+              "autonomous authority",
+              "subjective reciprocal agency"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
