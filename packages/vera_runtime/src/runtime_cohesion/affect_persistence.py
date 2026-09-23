@@ -24,7 +24,6 @@ _KNOWN_RUNTIME_PHASES = {
     "RESOLUTION",
     "SATIATED_OR_REFRACTORY",
 }
-_CANONICAL_SEXUALITY_COMMIT = "150f1c8231423393bb66b0e2cb759ce7c018f8d7"
 _IN_PROCESS_AUTHORITY_TRUST = "IN_PROCESS_UNROOTED_NON_QUALIFYING"
 _UNROOTED_AUTHORITY_LIMITATION = "IN_PROCESS_AUTHORITY_UNROOTED_NON_QUALIFYING"
 
@@ -235,11 +234,7 @@ def checkpoint_to_state_row(
             last_event_receipt,
             runtime_instance_id=runtime_instance_id,
             source_revision=source_commit,
-            require_engineered_claim=(
-                lifecycle_status == "CURRENT"
-                and source_commit == _CANONICAL_SEXUALITY_COMMIT
-                and last_event_receipt.get("event_type") == "ORGASM_EVENT"
-            ),
+            require_engineered_claim=False,
         )
 
     now = datetime.now(timezone.utc).isoformat()
