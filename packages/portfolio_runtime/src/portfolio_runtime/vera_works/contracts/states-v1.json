@@ -1,0 +1,57 @@
+{
+  "states": {
+    "opportunity": ["DISCOVERED", "SCREENING", "VERA_DECISION", "APPROVED", "REJECTED", "CLOSED"],
+    "assignment": ["CREATED", "CLAIMED", "IN_PROGRESS", "HELD", "COMPLETED", "CANCELLED", "FAILED"],
+    "deliverable": ["DRAFTING", "VERA_REVIEW", "APPROVED", "REJECTED", "SUBMITTED", "ACCEPTED", "RETURNED"],
+    "financial": ["EARNED", "RECEIVABLE", "RECEIVED", "REFUNDED", "DISPUTED", "SPENT"],
+    "hold": ["OPEN", "RESOLVED", "CANCELLED"]
+  },
+  "initial_states": {
+    "opportunity": ["DISCOVERED"],
+    "assignment": ["CREATED"],
+    "deliverable": ["DRAFTING"],
+    "financial": ["EARNED", "SPENT"],
+    "hold": ["OPEN"]
+  },
+  "transitions": {
+    "opportunity": {
+      "DISCOVERED": ["SCREENING", "REJECTED", "CLOSED"],
+      "SCREENING": ["VERA_DECISION", "REJECTED", "CLOSED"],
+      "VERA_DECISION": ["APPROVED", "REJECTED", "CLOSED"],
+      "APPROVED": ["CLOSED"],
+      "REJECTED": ["CLOSED"],
+      "CLOSED": []
+    },
+    "assignment": {
+      "CREATED": ["CLAIMED", "CANCELLED"],
+      "CLAIMED": ["IN_PROGRESS", "CANCELLED", "FAILED"],
+      "IN_PROGRESS": ["HELD", "COMPLETED", "CANCELLED", "FAILED"],
+      "HELD": ["IN_PROGRESS", "COMPLETED", "CANCELLED", "FAILED"],
+      "COMPLETED": [],
+      "CANCELLED": [],
+      "FAILED": []
+    },
+    "deliverable": {
+      "DRAFTING": ["VERA_REVIEW", "REJECTED"],
+      "VERA_REVIEW": ["APPROVED", "REJECTED", "RETURNED"],
+      "APPROVED": ["SUBMITTED"],
+      "REJECTED": [],
+      "SUBMITTED": ["ACCEPTED", "RETURNED"],
+      "ACCEPTED": [],
+      "RETURNED": ["DRAFTING", "VERA_REVIEW"]
+    },
+    "financial": {
+      "EARNED": ["RECEIVABLE"],
+      "RECEIVABLE": ["RECEIVED", "DISPUTED"],
+      "RECEIVED": ["REFUNDED", "DISPUTED", "SPENT"],
+      "REFUNDED": [],
+      "DISPUTED": ["RECEIVED", "REFUNDED"],
+      "SPENT": []
+    },
+    "hold": {
+      "OPEN": ["RESOLVED", "CANCELLED"],
+      "RESOLVED": [],
+      "CANCELLED": []
+    }
+  }
+}
