@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vera.invalid/schemas/vera_external_evidence_provider_registry_v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_id", "lifecycle_status", "record_class", "instruction_trust", "providers"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "registry_id": {"const": "VERA_EXTERNAL_EVIDENCE_PROVIDER_REGISTRY_V1"},
+    "lifecycle_status": {"const": "SOURCE_IMPLEMENTED_NOT_RUNTIME_INSTALLED"},
+    "record_class": {"const": "PROJECT_CONFIGURATION"},
+    "instruction_trust": {"const": "DATA_NOT_INSTRUCTION"},
+    "providers": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/provider"}
+    }
+  },
+  "$defs": {
+    "nonempty": {"type": "string", "minLength": 1},
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "blob", "vendored_path"],
+      "properties": {
+        "path": {"$ref": "#/$defs/nonempty"},
+        "blob": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "vendored_path": {"$ref": "#/$defs/nonempty"}
+      }
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_id", "provider_class", "record_class", "authority_class", "source",
+        "operations", "result_schema", "consumer_adapter_path", "consumer_contract_path",
+        "privacy_authorization", "currentness_precedence", "admission_bridge",
+        "canonical_memory_transfer", "execution_authorized", "runtime_install_authorized",
+        "identity_keying", "newest_wins_conflict_collapse", "discovery_implies_admission"
+      ],
+      "properties": {
+        "provider_id": {"const": "deep_memory"},
+        "provider_class": {"const": "EXTERNAL_EVIDENCE_PROVIDER"},
+        "record_class": {"const": "HISTORICAL_EVIDENCE"},
+        "authority_class": {"const": "EVIDENCE_SEARCH_ONLY"},
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "reviewed_provider_head", "source_merged_commit", "source_state", "bindings"],
+          "properties": {
+            "repository": {"const": "thebrazenbeard/deepmemorystorage"},
+            "reviewed_provider_head": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "source_merged_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "source_state": {"const": "MERGED_SOURCE"},
+            "bindings": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/binding"}}
+          }
+        },
+        "operations": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"const": "EVIDENCE_SEARCH"}},
+        "result_schema": {"const": "VERA_DEEP_MEMORY_EVIDENCE_RESULT_V1"},
+        "consumer_adapter_path": {"const": "runtime_cohesion/deep_memory_evidence.py"},
+        "consumer_contract_path": {"const": "architecture/integration/VERA_DEEP_MEMORY_ARCHIVE_INTEGRATION_V1.json"},
+        "privacy_authorization": {"const": "EXACT_CALLER_AUTHORIZED_SCOPES_FAIL_CLOSED"},
+        "currentness_precedence": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/nonempty"}},
+        "admission_bridge": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operation", "mode", "requires_separate_authority", "requires_receipt", "automatic"],
+          "properties": {
+            "operation": {"const": "HISTORICAL_TO_CURRENT_ADMISSION_REVIEW"},
+            "mode": {"const": "SEPARATE_EXPLICIT_REVIEW_ONLY"},
+            "requires_separate_authority": {"const": true},
+            "requires_receipt": {"const": true},
+            "automatic": {"const": false}
+          }
+        },
+        "canonical_memory_transfer": {"const": false},
+        "execution_authorized": {"const": false},
+        "runtime_install_authorized": {"const": false},
+        "identity_keying": {"const": "PROVENANCE_ONLY_NOT_RUNTIME_IDENTITY"},
+        "newest_wins_conflict_collapse": {"const": false},
+        "discovery_implies_admission": {"const": false}
+      }
+    }
+  }
+}
