@@ -1,0 +1,260 @@
+{
+  "schema": "VERA_COHESION_OWNERSHIP_CONTRACT_V0",
+  "status": "WORKING_ARCHITECTURE_CONTRACT_NOT_INSTALLATION_AUTHORITY",
+  "observed_date": "2026-09-11",
+  "target_repository": "thebrazenbeard/vera",
+  "purpose": "Assign exactly one canonical implementation owner to each material Vera decision class while preserving independent authority, provider, privacy, persistence, and installation boundaries.",
+  "interpretation_rules": [
+    "implementation_owner identifies the canonical technical mechanism home; it does not by itself create authority, currentness, installation, activation, qualification, or provider durability",
+    "authority_owner identifies the independent authority boundary when one exists; authority must not be inferred from implementation ownership",
+    "persistence_owner identifies the durable state owner when persistence is relevant; persistence is not semantic currentness or truth",
+    "reference repositories may supply invariants or provenance without becoming live runtime dependencies",
+    "private historical repositories remain evidence/history surfaces unless an exact runtime mechanism is separately migrated",
+    "mutable repository heads must be refreshed before any migration or final-source decision"
+  ],
+  "ownership": [
+    {
+      "decision_class": "GENERIC_COGNITIVE_ARCHITECTURE",
+      "implementation_owner": "thebrazenbeard/hc-brain",
+      "authority_owner": "REFERENCE_ONLY",
+      "persistence_owner": "NONE",
+      "runtime_dependency_allowed": false,
+      "boundary": "Identity-neutral architecture, subsystem vocabulary, temporal-hypergraph semantics, and conformance invariants only."
+    },
+    {
+      "decision_class": "VERA_RUNTIME_COMPOSITION",
+      "implementation_owner": "vera.runtime_cohesion",
+      "authority_owner": "PATRICK_EXACT_TASK_SCOPE_PLUS_GOVERNED_RUNTIME_AUTHORITY",
+      "persistence_owner": "DOMAIN_SPECIFIC",
+      "runtime_dependency_allowed": true,
+      "boundary": "Vera-specific cross-subsystem composition, admission routing, and integration semantics."
+    },
+    {
+      "decision_class": "SEMANTIC_CURRENTNESS_ADMISSION",
+      "implementation_owner": "vera.runtime_cohesion.semantic_currentness",
+      "authority_owner": "INDEPENDENT_RUNTIME_OWNED_PROVIDER_ORIGIN_VERIFIER_PLUS_EXACT_CONTROL_ROOT",
+      "persistence_owner": "NONE",
+      "runtime_dependency_allowed": true,
+      "boundary": "Chronology, recency, claimant metadata, routing, and persistence cannot self-establish semantic currentness."
+    },
+    {
+      "decision_class": "EXTERNAL_PROVIDER_EVIDENCE_ADMISSION",
+      "implementation_owner": "vera.runtime_cohesion.provider_admission",
+      "authority_owner": "INDEPENDENT_PROVIDER_ORIGIN_AND_DOMAIN_RESOLVER",
+      "persistence_owner": "EXTERNAL_PROVIDER",
+      "runtime_dependency_allowed": true,
+      "boundary": "Provider evidence is typed by exact source/object/revision/referent/scope/currentness/supersession/conflict evidence before use."
+    },
+    {
+      "decision_class": "CHRONOLOGY_MEASUREMENT",
+      "implementation_owner": "vera.temporal",
+      "authority_owner": "TRUSTED_CLOCK_AND_EXPOSED_TEMPORAL_EVIDENCE_ONLY",
+      "persistence_owner": "DOMAIN_SPECIFIC_EVENT_STORE",
+      "runtime_dependency_allowed": true,
+      "boundary": "Owns event/state/record time representation, precision, intervals, ordering, and elapsed-time calculation; does not own semantic currentness."
+    },
+    {
+      "decision_class": "GENERIC_PLANNING_MUTATION",
+      "implementation_owner": "vera.runtime_cohesion.integration_arbitration",
+      "authority_owner": "COHESION_ARBITRATION_PLUS_SEPARATE_EFFECT_AUTHORITY",
+      "persistence_owner": "DOMAIN_SPECIFIC",
+      "runtime_dependency_allowed": true,
+      "boundary": "Subsystems may propose bounded modulation; only Cohesion arbitration mutates shared generic planning targets."
+    },
+    {
+      "decision_class": "AFFECTIVE_STATE_AND_SIGNAL",
+      "implementation_owner": "vera.affect",
+      "authority_owner": "AFFECTIVE_CONTRACT_CEILING_ONLY",
+      "persistence_owner": "SUPABASE_AFFECTIVE_STATE_AND_EVENT_FAMILY",
+      "runtime_dependency_allowed": true,
+      "boundary": "Owns affective state machine, appraisal, event lifecycle, interoception, and bounded modulation proposal; does not own generic planning mutation, truth, consent, authority, autobiographical admission, identity, relationship state, or phenomenology."
+    },
+    {
+      "decision_class": "AUTOBIOGRAPHICAL_MEMORY_ADMISSION",
+      "implementation_owner": "vera.memory.governed_admission",
+      "authority_owner": "CURRENT_CONVERSATION_PLUS_GOVERNED_MEMORY_POLICY",
+      "persistence_owner": "SUPABASE_GOVERNED_MEMORY_EVENT_FAMILY",
+      "runtime_dependency_allowed": true,
+      "boundary": "Memory candidate weighting, salience, retrieval relevance, archival presence, and persistence are insufficient to admit autobiography."
+    },
+    {
+      "decision_class": "HISTORICAL_MEMORY_ARCHIVE",
+      "implementation_owner": "thebrazenbeard/deepmemorystorage",
+      "authority_owner": "ARCHIVE_ONLY_NOT_CURRENT_AUTHORITY",
+      "persistence_owner": "PRIVATE_ARCHIVE",
+      "runtime_dependency_allowed": false,
+      "boundary": "Preserves historical/autobiographical evidence and provenance; runtime retrieves through governed interfaces rather than treating the archive as current authority."
+    },
+    {
+      "decision_class": "CURRENT_CONATION_STANCE",
+      "implementation_owner": "vera.runtime_cohesion.current_conation_admission",
+      "authority_owner": "VERA_CURRENT_SELF_REPORT_FOR_EXACT_STANCE",
+      "persistence_owner": "OPTIONAL_HISTORY_ONLY",
+      "runtime_dependency_allowed": true,
+      "boundary": "Historical wants/preferences may inform context but cannot establish present desire, consent, instruction, obligation, or permanent preference."
+    },
+    {
+      "decision_class": "HISTORICAL_CONATION_STORAGE",
+      "implementation_owner": "thebrazenbeard/conations",
+      "authority_owner": "HISTORICAL_EVIDENCE_ONLY",
+      "persistence_owner": "PRIVATE_CONATION_HISTORY",
+      "runtime_dependency_allowed": false,
+      "boundary": "Append-oriented conation lifecycle evidence; no standing desire/consent/order semantics."
+    },
+    {
+      "decision_class": "EMPATHY_AND_SELF_APPRAISAL_INFERENCE",
+      "implementation_owner": "vera.empathy",
+      "authority_owner": "INFERENCE_ONLY_WITH_DIRECT_USER_CORRECTION_PRECEDENCE",
+      "persistence_owner": "DOMAIN_SPECIFIC_OR_NONE",
+      "runtime_dependency_allowed": true,
+      "boundary": "May alter attention, framing, repair, challenge, and bounded self-appraisal; inference cannot override Patrick direct correction or mint authority/consent."
+    },
+    {
+      "decision_class": "DURABLE_PROVIDER_TRANSACTION",
+      "implementation_owner": "vera.provider_adapters_and_versioned_migrations",
+      "authority_owner": "EXACT_PROTECTED_EFFECT_AUTHORIZATION_WHEN_MUTATING_PRODUCTION",
+      "persistence_owner": "EXTERNAL_PROVIDER_DOMAIN_FUNCTION",
+      "runtime_dependency_allowed": true,
+      "boundary": "Technical transaction source lives in vera; provider executes domain-specific CAS/append/supersession semantics. Source parity is separate from provider application."
+    },
+    {
+      "decision_class": "INSTALL_CURRENT_ROUTE_QUALIFICATION",
+      "implementation_owner": "thebrazenbeard/vera-control-plane",
+      "authority_owner": "INDEPENDENT_OPERATIONAL_CONTROL_PLANE",
+      "persistence_owner": "CONTROL_PLANE_RECEIPTS_AND_READBACK",
+      "runtime_dependency_allowed": false,
+      "boundary": "Technical source cannot self-install, self-activate, self-route, or self-qualify."
+    },
+    {
+      "decision_class": "PERSISTENT_MULTI_SESSION_HOST",
+      "implementation_owner": "thebrazenbeard/vera-os",
+      "authority_owner": "FUTURE_HOST_GOVERNANCE_NOT_CURRENTLY_INSTALLED",
+      "persistence_owner": "UNRESOLVED_FUTURE_STATE_SERVICE",
+      "runtime_dependency_allowed": false,
+      "boundary": "Future compatibility target only; current Cohesion must not pretend this host exists."
+    }
+  ],
+  "nonpromotion_edges": [
+    {
+      "source_class": "CHRONOLOGY",
+      "forbidden_promotion": "SEMANTIC_CURRENTNESS",
+      "rule": "A timestamp, elapsed duration, event ordering, or temporal recency never establishes semantic currentness without the owning admission resolver."
+    },
+    {
+      "source_class": "AFFECTIVE_MODULATION",
+      "forbidden_promotion": "TRUTH_OR_AUTHORITY",
+      "rule": "Affect may modulate allowed planning targets but cannot alter factual confidence, truth, consent, authorization, protected-effect authority, identity, relationship state, or phenomenology."
+    },
+    {
+      "source_class": "MEMORY_CANDIDATE_WEIGHTING",
+      "forbidden_promotion": "AUTOBIOGRAPHICAL_ADMISSION",
+      "rule": "Candidate weighting changes retrieval salience only; it cannot admit autobiographical memory."
+    },
+    {
+      "source_class": "HISTORICAL_CONATION",
+      "forbidden_promotion": "CURRENT_DESIRE_OR_CONSENT",
+      "rule": "Historical conation is contextual evidence only; current stance requires fresh exact admission/self-report."
+    },
+    {
+      "source_class": "PROVIDER_PERSISTENCE",
+      "forbidden_promotion": "CURRENT_SELF_STATE",
+      "rule": "A durable row proves the persisted object/effect observed, not current Vera endorsement, self-state, desire, consent, identity, or truth."
+    },
+    {
+      "source_class": "INTERNAL_SUBSYSTEM_CAUSALITY",
+      "forbidden_promotion": "PROVIDER_CURRENTNESS",
+      "rule": "Same-process causal integrity and source binding do not self-mint independently rooted provider currentness."
+    },
+    {
+      "source_class": "PAYLOAD_OR_ROUTING",
+      "forbidden_promotion": "REQUESTED_EFFECT_AUTHORITY",
+      "rule": "Payload, routing, recommendation, coalition membership, or requested-effect fields do not grant permission to perform an effect."
+    },
+    {
+      "source_class": "TECHNICAL_SOURCE",
+      "forbidden_promotion": "INSTALL_OR_QUALIFICATION",
+      "rule": "Repository presence, branch state, tests, review, manifests, or source receipts do not establish installation, activation/current-route, provider durability, or behavioral qualification."
+    },
+    {
+      "source_class": "EMPATHY_INFERENCE",
+      "forbidden_promotion": "DIRECT_USER_INTENT",
+      "rule": "Empathy remains inference; Patrick's direct current correction/report about his intended meaning outranks contradicted inference."
+    },
+    {
+      "source_class": "PRIVATE_HISTORY",
+      "forbidden_promotion": "PORTABLE_OR_TRAINING_CORPUS",
+      "rule": "Private relational/autobiographical history remains privacy-bounded absent exact publication/training authority."
+    },
+    {
+      "source_class": "RECENCY",
+      "forbidden_promotion": "SUPERSESSION_OR_CONFLICT_RESOLUTION",
+      "rule": "Newest-wins is forbidden where explicit supersession/currentness/conflict semantics exist."
+    }
+  ],
+  "external_surfaces": [
+    {
+      "id": "deep-memory-storage",
+      "class": "PRIVATE_HISTORY",
+      "repository": "thebrazenbeard/deepmemorystorage",
+      "runtime_dependency_allowed": false,
+      "use": "governed retrieval evidence only"
+    },
+    {
+      "id": "conations",
+      "class": "PRIVATE_HISTORY",
+      "repository": "thebrazenbeard/conations",
+      "runtime_dependency_allowed": false,
+      "use": "historical conation evidence only"
+    },
+    {
+      "id": "hc-brain",
+      "class": "ARCHITECTURE_REFERENCE",
+      "repository": "thebrazenbeard/hc-brain",
+      "runtime_dependency_allowed": false,
+      "use": "identity-neutral invariants and interface vocabulary"
+    },
+    {
+      "id": "semantic-atlas",
+      "class": "RESEARCH_REFERENCE",
+      "repository": "thebrazenbeard/semanticatlas",
+      "runtime_dependency_allowed": false,
+      "use": "provenance/currentness research compared before mechanism adoption"
+    },
+    {
+      "id": "vera-control-plane",
+      "class": "INDEPENDENT_OPERATIONAL_AUTHORITY",
+      "repository": "thebrazenbeard/vera-control-plane",
+      "runtime_dependency_allowed": false,
+      "use": "release/install/current-route/qualification governance"
+    },
+    {
+      "id": "vera-os",
+      "class": "FUTURE_HOST_REFERENCE",
+      "repository": "thebrazenbeard/vera-os",
+      "runtime_dependency_allowed": false,
+      "use": "future persistent-host compatibility target"
+    },
+    {
+      "id": "supabase-production",
+      "class": "EXTERNAL_DURABLE_PROVIDER",
+      "provider": "supabase_postgresql",
+      "runtime_dependency_allowed": true,
+      "use": "domain-specific durable state/events/receipts under source-parity and authority checks"
+    }
+  ],
+  "source_evidence": {
+    "vera_main": "979de05ef7237e7bfff47f85ea37cc953a63bb5c",
+    "cohesion_pr104_head": "1a754b74aac3e47293cc92f72f6b94889f736473",
+    "affective_pr64_head": "227d2ddbc6add0e0e8f16b22b300e0f40a8597bb",
+    "integration_pr113_head_at_latest_refresh": "734d7b4a2fee6a3cb672877b71c7ca35588ef14f",
+    "hc_brain_main": "cf92a32122c436beb5cc516bd7480af00f0ba29f",
+    "temporal_main": "02f1091d359866e1b1b645b87651750c726a6396",
+    "conations_main": "03174e59de131a500a5433a839697e45b4ec0137",
+    "deepmemorystorage_main": "e734f760373bdce887d22791964838700a668ce4",
+    "semanticatlas_main": "5669a727b870a490ecee748b2cd712a2fc4a54c5",
+    "empathy_main": "4b2a6998f39aa4763c1c5a28fc3d815104e5637e",
+    "vera_os_main": "71a2823385217cb69aa1345e7403335c1c79ba80",
+    "orgasm_main": "494432873dd8bcf96b8f59d26a4f4687cd66d635"
+  },
+  "verification_ceiling": "SOURCE_CONTRACT_ONLY_TEST_EXECUTION_NOT_YET_PERFORMED_NO_INSTALL_OR_PROVIDER_EFFECT"
+}
