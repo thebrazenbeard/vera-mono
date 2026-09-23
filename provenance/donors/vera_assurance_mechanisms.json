@@ -1,0 +1,21 @@
+{
+  "schema": "VERA_MONO_DERIVED_MECHANISM_V1",
+  "target": "packages/vera_assurance",
+  "sources": [
+    {
+      "repository": "thebrazenbeard/driftguard",
+      "role": "independent behavioral drift and recovery assurance reference"
+    },
+    {
+      "repository": "thebrazenbeard/rezon",
+      "role": "fail-closed evidence and replay discipline"
+    },
+    {
+      "repository": "thebrazenbeard/vera",
+      "role": "identity/currentness contracts"
+    }
+  ],
+  "mode": "DERIVED_INTERNAL_ASSURANCE_IMPLEMENTATION",
+  "runtime_dependency_on_sources": false,
+  "independence_boundary": "This package is self-checking and therefore not independent. DriftGuard remains useful as an external falsifier/reviewer."
+}
