@@ -17,5 +17,22 @@
   ],
   "mode": "DERIVED_INTERNAL_ASSURANCE_IMPLEMENTATION",
   "runtime_dependency_on_sources": false,
-  "independence_boundary": "This package is self-checking and therefore not independent. DriftGuard remains useful as an external falsifier/reviewer."
+  "independence_boundary": "This package is self-checking and therefore not independent. DriftGuard remains useful as an external falsifier/reviewer.",
+  "absorbed_mechanisms": [
+    "evidence_class_separation",
+    "atomic_local_currentness_snapshot_with_generation_cas",
+    "single_use_effect_claim",
+    "ambiguous_effect_no_blind_retry",
+    "no_operator_abort_after_dispatch_claim",
+    "two_key_dispatch_boundary_mechanical_permit_plus_external_authority_currentness_evidence",
+    "deterministic_drift_comparison"
+  ],
+  "rejected_promotions": [
+    "internal_self_check_as_independent_review",
+    "holdout_digest_as_nonaccess_proof",
+    "drift_alarm_as_identity_loss",
+    "local_currentness_as_global_vera_currentness",
+    "mechanical_permit_as_protected_effect_authority"
+  ],
+  "driftguard_observed_main": "52fa829c629fa0f3e729204912db9f9f783f322a"
 }
