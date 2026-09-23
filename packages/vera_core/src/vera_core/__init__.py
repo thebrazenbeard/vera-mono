@@ -2,8 +2,15 @@
 
 from .lifecycle import (
     LifecycleAssuranceError,
+    LifecycleReconstruction,
+    LifecycleReconstructionError,
     NativeLifecycleReceipt,
     NativeVeraLifecycle,
+)
+from .lifecycle_journal import (
+    LifecycleEvent,
+    LifecycleJournal,
+    LifecycleJournalError,
 )
 from .reasoning_cascade import (
     CascadeEngine,
@@ -21,6 +28,11 @@ __all__ = [
     "LayerResult",
     "LayerSpec",
     "LifecycleAssuranceError",
+    "LifecycleEvent",
+    "LifecycleJournal",
+    "LifecycleJournalError",
+    "LifecycleReconstruction",
+    "LifecycleReconstructionError",
     "LocalCapability",
     "NativeLifecycleReceipt",
     "NativeVeraLifecycle",
