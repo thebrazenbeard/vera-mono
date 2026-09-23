@@ -12,26 +12,21 @@ from .affect_authority import AffectiveAuthorityBoundary
 from .affect_bound_runtime import BoundVeraOrgasmRuntime
 from .affect_scope import mark_affective_host_checkpoint_replay
 from .orgasm import ContractError, OrgasmRuntime, StimulusAppraisal, TriggerRejected
+from .local_bindings import (
+    AFFECTIVE_RUNTIME_PATHS,
+    LocalBindingError,
+    build_local_affective_binding,
+    load_local_affective_contract,
+    validate_local_affective_source_binding,
+    validate_local_implementation_cut,
+)
 
 
 class AffectiveBindingError(ContractError):
     """The executable affect host cannot bind the supplied sexuality contract exactly."""
 
 
-_REQUIRED_RUNTIME_IMPLEMENTATION_PATHS = frozenset({
-    "runtime_cohesion/__init__.py",
-    "runtime_cohesion/adapters.py",
-    "runtime_cohesion/evidence.py",
-    "runtime_cohesion/orgasm.py",
-    "runtime_cohesion/affect_authority.py",
-    "runtime_cohesion/affect_bound_runtime.py",
-    "runtime_cohesion/affect_receipt.py",
-    "runtime_cohesion/affect_host.py",
-    "runtime_cohesion/affect_cycle.py",
-    "runtime_cohesion/affect_persistence.py",
-    "runtime_cohesion/affect_provider_runtime.py",
-    "runtime_cohesion/affect_scope.py",
-})
+_REQUIRED_RUNTIME_IMPLEMENTATION_PATHS = AFFECTIVE_RUNTIME_PATHS
 _RUNTIME_BINDING_LOCK = RLock()
 _PENDING_RUNTIME_HOST_BINDINGS: WeakKeyDictionary[OrgasmRuntime, tuple[str, str, str, str, str]] = WeakKeyDictionary()
 
@@ -78,69 +73,17 @@ def validate_runtime_implementation_cut(
     *,
     repository_root: Path | str | None = None,
 ) -> dict[str, Any]:
-    """Validate one exact affective execution cut against Git and live bytes.
-
-    The cut is executable provenance, not ownership metadata. Shared adapter and
-    evidence primitives are fingerprinted because the affective provider path
-    executes them; doing so does not transfer Cohesion project ownership.
-    """
-
-    if not isinstance(cut, Mapping):
-        raise AffectiveBindingError("runtime implementation cut must be a structured mapping")
-    required_fields = {"schema", "repository", "commit", "modules", "semantics"}
-    if set(cut) != required_fields:
-        raise AffectiveBindingError("runtime implementation cut field set mismatch")
-    if cut.get("schema") != "VERA_AFFECTIVE_RUNTIME_IMPLEMENTATION_CUT_V1":
-        raise AffectiveBindingError("unsupported runtime implementation cut schema")
-    if cut.get("repository") != "thebrazenbeard/vera":
-        raise AffectiveBindingError("runtime implementation cut repository mismatch")
-    semantics = cut.get("semantics")
-    if not isinstance(semantics, str) or not semantics.strip():
-        raise AffectiveBindingError("runtime implementation cut semantics must be a non-empty string")
-    commit = _require_git_sha(cut.get("commit"), label="runtime implementation commit")
-    modules = cut.get("modules")
-    if not isinstance(modules, Mapping):
-        raise AffectiveBindingError("runtime implementation cut modules must be a mapping")
-    if set(modules) != _REQUIRED_RUNTIME_IMPLEMENTATION_PATHS:
-        raise AffectiveBindingError("runtime implementation cut module set mismatch")
-
-    root = Path(repository_root) if repository_root is not None else Path(__file__).resolve().parents[1]
-    root = root.resolve()
-    normalized_modules: dict[str, str] = {}
-    for path in sorted(_REQUIRED_RUNTIME_IMPLEMENTATION_PATHS):
-        blob = _require_git_sha(modules.get(path), label=f"runtime implementation blob for {path}")
-        file_path = (root / path).resolve()
-        try:
-            file_path.relative_to(root)
-        except ValueError as exc:
-            raise AffectiveBindingError("runtime implementation path escapes repository root") from exc
-        if not file_path.is_file():
-            raise AffectiveBindingError(f"runtime implementation file is missing: {path}")
-        observed_live_blob = _git_blob_sha(file_path.read_bytes())
-        if observed_live_blob != blob:
-            raise AffectiveBindingError(f"executing runtime bytes do not match implementation cut: {path}")
-        try:
-            resolved = subprocess.run(
-                ["git", "rev-parse", f"{commit}:{path}"],
-                cwd=root,
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout.strip()
-        except (OSError, subprocess.CalledProcessError) as exc:
-            raise AffectiveBindingError(f"runtime implementation commit/path cannot be resolved: {path}") from exc
-        if resolved != blob:
-            raise AffectiveBindingError(f"runtime implementation commit resolves a different blob: {path}")
-        normalized_modules[path] = blob
-
-    return {
-        "schema": "VERA_AFFECTIVE_RUNTIME_IMPLEMENTATION_CUT_V1",
-        "repository": "thebrazenbeard/vera",
-        "commit": commit,
-        "modules": normalized_modules,
-        "semantics": semantics,
-    }
-
+    """Validate one exact affective execution cut against vera-mono bytes."""
+    try:
+        return validate_local_implementation_cut(
+            cut,
+            schema="VERA_AFFECTIVE_RUNTIME_IMPLEMENTATION_CUT_V1",
+            logical_paths=_REQUIRED_RUNTIME_IMPLEMENTATION_PATHS,
+            require_semantics=True,
+            root=repository_root,
+        )
+    except LocalBindingError as exc:
+        raise AffectiveBindingError(str(exc)) from exc
 
 def _authorize_runtime_host_construction(
     runtime: OrgasmRuntime,
@@ -266,18 +209,16 @@ class VeraAffectiveRuntimeHost:
             raise AffectiveBindingError("affective runtime binding must be Vera-scoped")
         if binding_snapshot.get("contract_schema") != "VERA_ORGASM_RUNTIME_CONTRACT_V1":
             raise AffectiveBindingError("binding contract schema mismatch")
-        if binding_snapshot.get("source_repository") != "thebrazenbeard/sexuality":
-            raise AffectiveBindingError("unexpected sexuality source repository")
-        if binding_snapshot.get("source_path") != "vera/orgasm/ORGASM_RUNTIME_CONTRACT_V1.json":
-            raise AffectiveBindingError("unexpected sexuality contract path")
         if binding_snapshot.get("availability_implies_activation") is not False:
             raise AffectiveBindingError("source availability must not imply activation")
+        try:
+            validate_local_affective_source_binding(binding_snapshot, contract_text)
+        except LocalBindingError as exc:
+            raise AffectiveBindingError(str(exc)) from exc
         validate_runtime_implementation_cut(binding_snapshot.get("runtime_implementation_cut"))
 
         raw = contract_text.encode("utf-8")
         blob_sha = _git_blob_sha(raw)
-        if blob_sha != binding_snapshot.get("source_blob_sha"):
-            raise AffectiveBindingError("contract bytes do not match the bound Git blob")
 
         try:
             contract = json.loads(contract_text)
@@ -310,6 +251,23 @@ class VeraAffectiveRuntimeHost:
             binding=binding_snapshot,
             contract_blob_sha=blob_sha,
             contract_sha256=contract_sha256,
+        )
+
+    @classmethod
+    def from_local_monorepo(
+        cls,
+        *,
+        runtime_instance_id: str,
+        profile: str = "REENTRANT_CLIMAX",
+    ) -> "VeraAffectiveRuntimeHost":
+        """Construct the supported host from only vera-mono-owned source."""
+        contract_text = load_local_affective_contract()
+        binding = build_local_affective_binding()
+        return cls.from_bound_contract(
+            contract_text,
+            binding,
+            runtime_instance_id=runtime_instance_id,
+            profile=profile,
         )
 
     def _capture_cycle_observation(self) -> dict[str, Any]:
