@@ -1,0 +1,67 @@
+{
+  "schema": "VERA_MONO_NATIVE_LIFECYCLE_V1",
+  "purpose": "One monorepo-owned lifecycle connecting canonical memory, recovery evidence, local control currentness, and internal assurance.",
+  "canonical_owners": {
+    "memory": "vera_memory.MemoryLedger",
+    "recovery": "vera_recovery.NativeRecoveryCheckpointStore",
+    "control": "vera_control.local_profile",
+    "currentness": "vera_assurance.AtomicCurrentnessStore",
+    "assurance": "vera_assurance.compare_snapshots",
+    "composition": "vera_core.NativeVeraLifecycle"
+  },
+  "transition": [
+    {
+      "step": 1,
+      "name": "MEMORY_HEAD_VERIFY",
+      "effect": "Require exact caller-expected vera_memory head."
+    },
+    {
+      "step": 2,
+      "name": "RECOVERY_CHECKPOINT_APPEND",
+      "effect": "Append CAS-bound durable transition evidence containing memory and control digests."
+    },
+    {
+      "step": 3,
+      "name": "CONTROL_SOURCE_VERIFY",
+      "effect": "Verify all frozen R10 local source blobs and compute one stable source-closure digest."
+    },
+    {
+      "step": 4,
+      "name": "CURRENTNESS_CANDIDATE",
+      "effect": "Build candidate from project/identity/runtime/memory/checkpoint/control."
+    },
+    {
+      "step": 5,
+      "name": "INTERNAL_ASSURANCE",
+      "effect": "Block on drift in critical project, identity, or control-source fields. Mutable lifecycle heads may advance."
+    },
+    {
+      "step": 6,
+      "name": "CURRENTNESS_COMMIT",
+      "effect": "Commit candidate with generation CAS only after assurance does not block."
+    }
+  ],
+  "portability": {
+    "interprocess_lock": "SQLite EXCLUSIVE transaction",
+    "recovery_state_root": "VERA_MONO_STATE_DIR or user-local .vera-mono/state",
+    "windows_liveness": "OpenProcess + GetExitCodeProcess",
+    "posix_liveness": "kill(pid, 0)",
+    "forbidden_runtime_assumptions": [
+      "fcntl",
+      "/etc/vera"
+    ]
+  },
+  "boundaries": {
+    "recovery_checkpoint_is_authority": false,
+    "internal_assurance_is_independent_review": false,
+    "currentness_commit_is_protected_effect_authority": false,
+    "external_DriftGuard_may_remain_independent_reviewer": true
+  },
+  "failure_semantics": {
+    "stale_memory_head": "FAIL_CLOSED_BEFORE_CHECKPOINT",
+    "stale_checkpoint_head": "FAIL_CLOSED_AT_RECOVERY_CAS",
+    "invalid_control_source_closure": "FAIL_CLOSED_BEFORE_CURRENTNESS",
+    "assurance_block": "CHECKPOINT_REMAINS_TRANSITION_EVIDENCE_CURRENTNESS_NOT_COMMITTED",
+    "stale_currentness_generation": "FAIL_CLOSED_AT_CURRENTNESS_CAS"
+  }
+}
