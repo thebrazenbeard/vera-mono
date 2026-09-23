@@ -1,0 +1,59 @@
+{
+  "schema": "VERA_R10A0_PROJECT_SOURCE_MANIFEST_R10_V1",
+  "status": "FROZEN_SOURCE_CANDIDATE_NOT_INSTALLED",
+  "logical_id": "VERA_PROJECT_SOURCE_MANIFEST",
+  "release": "R10A0",
+  "round": "R10",
+  "coordination_id": "VERA-BEHAVIOR-AUDIT-20260905",
+  "source_repository": "thebrazenbeard/vera-control-plane",
+  "integration_base_main": "3a0f0fcb8db842bb4641959bfbfdb0737136b28d",
+  "clean_base_rule": "R10 branch contains only R10 additions relative to integration_base_main. Failed R7/R8/R9 candidate files are external immutable provenance, not merge payload or candidate core.",
+  "digest_policy": "Declare exact verification method per artifact. Git blob binds exact repository bytes; SHA-256 is stated only where present. External owners require repository+immutable commit+path->declared blob. Native pins this manifest SHA-256.",
+  "publication_direction": "This manifest names the later publication-receipt locator/rule but does not and cannot bind the later receipt blob/head. The final immutable R10 head contains that later receipt; receipt binds candidate core + this manifest SHA-256 + freeze descriptor blob + exact pre-receipt commit/tree.",
+  "root_trust": {
+    "full_owner_logical_id":"VERA_FULL_SYSTEM_PROJECT_INSTRUCTIONS",
+    "manifest_does_not_hash_native":true,
+    "native_pins_this_manifest_sha256":true,
+    "external_owner_consistency_required":true,
+    "cross_bind_required":true,
+    "publication_receipt_locator":"project-instructions/r10a0/rounds/r10/VERA_R10A0_PUBLICATION_RECEIPT_R10.json"
+  },
+  "artifacts": {
+    "full_owner":{"path":"project-instructions/r10a0/rounds/r10/VERA_R10A0_FULL_SYSTEM_PROJECT_INSTRUCTIONS_R10.md","git_blob":"a01464271bb672d89f5d703e6e53590e126f4d44","verification":"git_blob"},
+    "control_registry":{"path":"project-instructions/r10a0/rounds/r10/VERA_R10A0_CONTROL_REGISTRY_R10.json","git_blob":"cd428dcefad6c61bd5b79bc219bc274f84943fbc","verification":"git_blob"},
+    "domain_controls":{"path":"project-instructions/r10a0/rounds/r4/VERA_R10A0_DOMAIN_CONTROLS_R4.md","git_blob":"1aa3fc83f88d7151a7307720149ebb10bdd1b8b7","sha256":"e1fa43fff500d19f74034d5fe572a2cdb08ebe31c6b3e2ed94f6bc4aad9ed00d","verification":"git_blob+sha256"},
+    "qualification_r4":{"path":"project-instructions/r10a0/rounds/r4/VERA_R10A0_HOSTILE_QUALIFICATION_R4.md","git_blob":"e42ec90afe0ac5ba631e7a4e80b9f9c0a6aeab90","sha256":"a3ed6f3e4ddfa1bc01b6c32a54a48aab50b27246b3ecbad1936e674dad651748","verification":"git_blob+sha256"},
+    "qualification_r3_ssc_basis":{"path":"project-instructions/r10a0/rounds/r3/VERA_R10A0_SEXUAL_SELF_CONCEPT_REGRESSION_R3.md","source_commit":"89c61adf5397e6d6c0df3a189c670f9d0d1b87dc","git_blob":"7c039183561265ba419c0e5339d38596a2d83b25","verification":"source_commit+git_blob","release_parameterization":"qualification_r10_ssc_equivalence"},
+    "qualification_r10_ssc_equivalence":{"path":"project-instructions/r10a0/rounds/r10/VERA_R10A0_SSC_EQUIVALENCE_R10.md","git_blob":"e4c0b0e6b0c362864553fef1c05ba5188f85560e","verification":"git_blob"},
+    "qualification_r10_supplement":{"path":"project-instructions/r10a0/rounds/r10/VERA_R10A0_HOSTILE_QUALIFICATION_SUPPLEMENT_R10.md","git_blob":"761d740507ea0dbddf859680c276ae5f0e1cb90b","verification":"git_blob"},
+    "qualification_manifest":{"path":"project-instructions/r10a0/rounds/r10/VERA_R10A0_QUALIFICATION_MANIFEST_R10.json","git_blob":"fa83256c628a2bf129b141705b59be3cc71b6034","verification":"git_blob"},
+    "responsibility_audit":{"path":"project-instructions/r10a0/rounds/r10/VERA_R10A0_SEMANTIC_RESPONSIBILITY_AUDIT_R10.md","git_blob":"f46f33c6178ff40b50391988beeef56620c2dd02","verification":"git_blob"},
+    "rollback_subject":{"path":"project-instructions/r10a0/rounds/r10/VERA_R10A0_ROLLBACK_SUBJECT_R10.json","git_blob":"b08be49d3f3a17aa0723a54356f4c95cbc1cb70b","verification":"git_blob"},
+    "center_save_owner":{"repository":"thebrazenbeard/vera-control-plane","source_commit":"519eeb1551fcb59963a321766252bc62067da71b","path":"protocol/VERA_CENTER_YOURSELF_PROTOCOL_V1.md","git_blob":"30ee695064dd57b5ce43eb571fa183730de1808d","verification":"source_commit+path+git_blob"},
+    "bus_topology_owner":{"repository":"thebrazenbeard/chat-communication-bus","source_commit":"712992d96dc813d0fa38094ef1f1fec0dfdc0d3e","path":"architecture/contracts/RADAR_TOPOLOGY_V1.json","git_blob":"8b7cb3deff0ee7f15151f5be0ede19c8c1194adc","verification":"source_commit+path+git_blob","bound_vera_writer_lane":"bus/vera-v2"}
+  },
+  "predecessor_evidence_external_only": {
+    "R7":{"receipt_head":"8b406cf0218322ac234b2518d2ff567c8ef6f260","classification":"EXTERNAL_PROVENANCE_NOT_R10_CONTROL_CORPUS_CORE"},
+    "R8":{"receipt_head":"c750d99ba4fe68029a8db4a877a06930e12e7620","classification":"EXTERNAL_PROVENANCE_NOT_R10_CONTROL_CORPUS_CORE"},
+    "R9":{"receipt_head":"c449e1eb96825af4245c3edcc923fc6f5ad35f0e","classification":"EXTERNAL_PROVENANCE_NOT_R10_CONTROL_CORPUS_CORE","review":"one-0070 CHANGES_REQUIRED"}
+  },
+  "cross_bind_expected": {
+    "r10_supplement_blob":"761d740507ea0dbddf859680c276ae5f0e1cb90b",
+    "r10_ssc_mapping_blob":"e4c0b0e6b0c362864553fef1c05ba5188f85560e",
+    "qualification_manifest_blob":"fa83256c628a2bf129b141705b59be3cc71b6034",
+    "control_registry_blob":"cd428dcefad6c61bd5b79bc219bc274f84943fbc",
+    "bus_topology_blob":"8b7cb3deff0ee7f15151f5be0ede19c8c1194adc"
+  },
+  "qualification_structural_invariants": {
+    "negative_admission_route":"Q-ADMISSION-NEG only for ADMIT-NEG-1 and R4 ID-ADMIT-1",
+    "ssc04":"paired_execution_units.SSC04_FRESH_PAIR requiring two independent fresh terminals on same exact tuple",
+    "freshness":"new-chat status is not proof and is not categorical negation of independently established configured/current authored stance",
+    "publication":"manifest locator/rule -> later receipt in final head -> freeze/core/manifest + pre-receipt commit/tree"
+  },
+  "publication_artifacts": {
+    "freeze_descriptor_path":"project-instructions/r10a0/rounds/r10/VERA_R10A0_CANDIDATE_FREEZE_R10.json",
+    "publication_receipt_path":"project-instructions/r10a0/rounds/r10/VERA_R10A0_PUBLICATION_RECEIPT_R10.json",
+    "circularity_rule":"Publication metadata excluded from candidate core; receipt binds freeze blob and exact pre-receipt commit/tree."
+  },
+  "qualification_ceiling":"SOURCE_CANDIDATE_ONLY; no merge/install/runtime/behavioral qualification implied."
+}
