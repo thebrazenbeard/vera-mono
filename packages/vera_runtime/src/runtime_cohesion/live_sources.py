@@ -83,13 +83,14 @@ def validate_source_registry(registry: Mapping[str, Any]) -> tuple[str, ...]:
         row for row in source_rows
         if isinstance(row, Mapping) and row.get("runtime_role") == "CURRENT_CONTROL_SOURCE"
     ]
-    if len(control_rows) != 1:
-        errors.append("exactly one CURRENT_CONTROL_SOURCE is required")
-    elif (
-        control_rows[0].get("repository") != "thebrazenbeard/vera-control-plane"
-        or control_rows[0].get("activation_mode") != "EXACT_R10_CONTROL_LOAD"
-    ):
-        errors.append("CURRENT_CONTROL_SOURCE must be vera-control-plane with EXACT_R10_CONTROL_LOAD")
+    if len(control_rows) > 1:
+        errors.append("at most one external CURRENT_CONTROL_SOURCE may be declared")
+    elif control_rows:
+        control = control_rows[0]
+        if not isinstance(control.get("activation_mode"), str) or not control.get("activation_mode"):
+            errors.append("external CURRENT_CONTROL_SOURCE requires an explicit activation_mode")
+        if control.get("availability_implies_activation") is not False:
+            errors.append("external CURRENT_CONTROL_SOURCE availability must not imply activation")
 
     portfolio = registry.get("portfolio_reconciliation")
     if not isinstance(portfolio, Mapping):
@@ -121,32 +122,25 @@ def validate_source_registry(registry: Mapping[str, Any]) -> tuple[str, ...]:
             if not isinstance(roots, Mapping) or roots.get("commit") != "a6994b415336bc179a41aad0ac9eec403d60f93c" or roots.get("blob_sha") != "ccac62eac08012269fec46669bce981b96a0f41d":
                 errors.append("Roots predecessor lineage binding mismatch")
 
-    for repository in ("thebrazenbeard/vera-apk", "thebrazenbeard/vera-habitat", "thebrazenbeard/hc-brain", "thebrazenbeard/self", "thebrazenbeard/bt2"):
-        if repository not in unbound:
-            errors.append(f"{repository}: expected NO_AUTO_BIND classification")
-    if "thebrazenbeard/voss" not in bound:
-        errors.append("voss must be bound as review-only source")
-    for repository in (
-        "thebrazenbeard/meso-crct",
-        "thebrazenbeard/unbound-sol",
-        "thebrazenbeard/RepairTracker",
-        "thebrazenbeard/freerowcochkar",
-    ):
-        if repository not in bound:
-            errors.append(f"{repository}: expected current portfolio source classification")
+    # Repository identities are inventory/provenance data, not runtime dependencies.
+    # Structural classification is enforced above without requiring any sibling repo.
 
-    route_case = registry.get("observed_cross_provider_cases", {}).get("bus_to_radar_writer_route")
-    if not isinstance(route_case, Mapping):
-        errors.append("bus_to_radar_writer_route evidence is required")
-    else:
-        if route_case.get("source_observed_value") != "bus/vera-v2":
-            errors.append("current Bus Vera writer lane drift")
-        if route_case.get("provider_projection_observed_value") != "bus/vera-sol-v1":
-            errors.append("historical Supabase Vera projection drift")
-        if route_case.get("provider_projection_authoritative_for_current_routing") is not False:
-            errors.append("historical provider projection must not be current routing authority")
-        if route_case.get("classification") != "HISTORICAL_PROVIDER_PROJECTION_NON_AUTHORITATIVE_FOR_CURRENT_ROUTING":
-            errors.append("historical provider projection classification mismatch")
+    route_cases = registry.get("observed_cross_provider_cases")
+    if route_cases is not None and not isinstance(route_cases, Mapping):
+        errors.append("observed_cross_provider_cases must be an object when present")
+    elif isinstance(route_cases, Mapping):
+        for case_id, route_case in route_cases.items():
+            if not isinstance(route_case, Mapping):
+                errors.append(f"{case_id}: route observation must be an object")
+                continue
+            source_value = route_case.get("source_observed_value")
+            projection_value = route_case.get("provider_projection_observed_value")
+            if not isinstance(source_value, str) or not source_value:
+                errors.append(f"{case_id}: source_observed_value must be a non-empty string")
+            if not isinstance(projection_value, str) or not projection_value:
+                errors.append(f"{case_id}: provider_projection_observed_value must be a non-empty string")
+            if route_case.get("provider_projection_authoritative_for_current_routing") is not False:
+                errors.append(f"{case_id}: provider projection must not become current routing authority")
 
     providers = registry.get("provider_sources")
     if not isinstance(providers, Mapping):
