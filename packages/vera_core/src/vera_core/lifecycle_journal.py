@@ -155,6 +155,50 @@ class LifecycleJournal:
                 normalized_payload,
             )
 
+    def verify_chain(self) -> str:
+        """Verify sequence continuity, predecessor links, digests, and meta head."""
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT * FROM events ORDER BY sequence"
+            ).fetchall()
+            meta_sequence, meta_head = self._meta(db)
+
+        predecessor = self.GENESIS_HEAD
+        expected_sequence = 1
+        for row in rows:
+            event = self._row(row)
+            if event.sequence != expected_sequence:
+                raise LifecycleJournalError("lifecycle journal sequence gap")
+            if event.predecessor_event_digest != predecessor:
+                raise LifecycleJournalError(
+                    "lifecycle journal predecessor digest mismatch"
+                )
+            body = {
+                "schema": "VERA_MONO_LIFECYCLE_EVENT_V1",
+                "sequence": event.sequence,
+                "transition_id": event.transition_id,
+                "event_type": event.event_type,
+                "predecessor_event_digest": event.predecessor_event_digest,
+                "payload": dict(event.payload),
+            }
+            observed = sha256_hex(canonical_json_bytes(body))
+            if observed != event.event_digest:
+                raise LifecycleJournalError(
+                    "lifecycle journal event digest mismatch"
+                )
+            predecessor = event.event_digest
+            expected_sequence += 1
+
+        observed_sequence = expected_sequence - 1
+        if meta_sequence != observed_sequence:
+            raise LifecycleJournalError(
+                "lifecycle journal meta sequence mismatch"
+            )
+        expected_head = predecessor if rows else self.GENESIS_HEAD
+        if meta_head != expected_head:
+            raise LifecycleJournalError("lifecycle journal meta head mismatch")
+        return expected_head
+
     def events(self, transition_id: str | None = None) -> tuple[LifecycleEvent, ...]:
         with self._connect() as db:
             if transition_id is None:
