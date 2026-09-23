@@ -1,0 +1,11 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/vera",
+  "donor_ref": "078d2d7242384c58676305d47654406713e599cf",
+  "source_subtree": "coordination_bus/",
+  "absorbed_target": "packages/vera_coordination/src/coordination_bus",
+  "mode": "BYTE_COPY_SUBTREE_ABSORPTION",
+  "source_file_count": 8,
+  "runtime_dependency_on_donor": false,
+  "external_transport_boundary": "Transport providers may remain external, but coordination semantics and runtime code are local."
+}
