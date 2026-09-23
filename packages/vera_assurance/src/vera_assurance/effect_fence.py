@@ -5,7 +5,7 @@ from enum import StrEnum
 from pathlib import Path
 import sqlite3
 
-from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
+from portfolio_runtime.lantern.canonical import canonical_json, canonical_json_bytes, sha256_hex
 
 
 class EffectFenceError(ValueError):
@@ -263,10 +263,17 @@ class AtomicCurrentnessStore:
                     subject_id TEXT PRIMARY KEY,
                     generation INTEGER NOT NULL,
                     snapshot_digest TEXT NOT NULL,
-                    payload_digest TEXT NOT NULL
+                    payload_digest TEXT NOT NULL,
+                    payload_json TEXT
                 )
                 """
             )
+            columns = {
+                str(row[1])
+                for row in db.execute("PRAGMA table_info(currentness)").fetchall()
+            }
+            if "payload_json" not in columns:
+                db.execute("ALTER TABLE currentness ADD COLUMN payload_json TEXT")
 
     def publish(
         self,
@@ -277,7 +284,8 @@ class AtomicCurrentnessStore:
     ) -> CurrentnessSnapshot:
         if type(subject_id) is not str or not subject_id:
             raise ValueError("subject_id must be a non-empty exact string")
-        payload_digest = sha256_hex(canonical_json_bytes(payload))
+        payload_json = canonical_json(payload)
+        payload_digest = sha256_hex(payload_json.encode("utf-8"))
         with sqlite3.connect(self.path) as db:
             db.row_factory = sqlite3.Row
             db.execute("BEGIN IMMEDIATE")
@@ -299,14 +307,23 @@ class AtomicCurrentnessStore:
             )
             db.execute(
                 """
-                INSERT INTO currentness(subject_id,generation,snapshot_digest,payload_digest)
-                VALUES(?,?,?,?)
+                INSERT INTO currentness(
+                    subject_id,generation,snapshot_digest,payload_digest,payload_json
+                )
+                VALUES(?,?,?,?,?)
                 ON CONFLICT(subject_id) DO UPDATE SET
                     generation=excluded.generation,
                     snapshot_digest=excluded.snapshot_digest,
-                    payload_digest=excluded.payload_digest
+                    payload_digest=excluded.payload_digest,
+                    payload_json=excluded.payload_json
                 """,
-                (subject_id, generation, snapshot_digest, payload_digest),
+                (
+                    subject_id,
+                    generation,
+                    snapshot_digest,
+                    payload_digest,
+                    payload_json,
+                ),
             )
             db.commit()
             return CurrentnessSnapshot(subject_id, generation, snapshot_digest, payload_digest)
@@ -318,5 +335,28 @@ class AtomicCurrentnessStore:
         if row is None:
             raise KeyError(subject_id)
         return CurrentnessSnapshot(
-            row["subject_id"], int(row["generation"]), row["snapshot_digest"], row["payload_digest"]
+            row["subject_id"],
+            int(row["generation"]),
+            row["snapshot_digest"],
+            row["payload_digest"],
         )
+
+    def read_payload(self, subject_id: str) -> object:
+        with sqlite3.connect(self.path) as db:
+            db.row_factory = sqlite3.Row
+            row = db.execute(
+                "SELECT payload_json,payload_digest FROM currentness WHERE subject_id=?",
+                (subject_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(subject_id)
+        payload_json = row["payload_json"]
+        if payload_json is None:
+            raise EffectFenceError(
+                "currentness payload predates restart-reconstruction support"
+            )
+        if sha256_hex(payload_json.encode("utf-8")) != row["payload_digest"]:
+            raise EffectFenceError("currentness payload digest mismatch")
+        import json
+
+        return json.loads(payload_json)
