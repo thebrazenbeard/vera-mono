@@ -250,6 +250,27 @@ class NativeRecoveryCheckpointStore:
             strict_loads(row["payload_json"]),
         )
 
+    def read_digest(self, checkpoint_digest: str) -> NativeRecoveryCheckpoint:
+        checkpoint_digest = self._require_digest(
+            checkpoint_digest,
+            "checkpoint_digest",
+        )
+        with self._connect() as db:
+            row = db.execute(
+                """
+                SELECT payload_json,checkpoint_digest
+                FROM checkpoints
+                WHERE checkpoint_digest=?
+                """,
+                (checkpoint_digest,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(checkpoint_digest)
+        return self._from_row(
+            row["checkpoint_digest"],
+            strict_loads(row["payload_json"]),
+        )
+
     def latest(self) -> NativeRecoveryCheckpoint | None:
         with self._connect() as db:
             row = db.execute(
