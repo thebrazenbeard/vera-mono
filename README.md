@@ -11,6 +11,7 @@ Vera's implementation lives here. External repositories are research labs, donor
 - `packages/vera_runtime` — Vera runtime/cohesion code with monorepo-local affective, sexual-drive, and Deep Memory bindings.
 - `packages/vera_identity` — identity, bootstrap, self-model, and semantic resources.
 - `packages/vera_control` — local control/restore/qualification resources and a closed frozen R10 source cut.
+- `packages/vera_recovery` — absorbed recovery, trust, lifecycle-consumption, temporal-orientation, and compatibility checkpoint mechanics.
 - `packages/vera_memory` — native governed memory/provenance ledger with CAS heads, idempotent admission, and supersession.
 - `packages/vera_coordination` — local coordination contracts, routing, policy, temporal evidence, and in-memory runtime.
 - `packages/vera_assurance` — deterministic internal drift/invariant checks. Internal self-checking is not called independent review.
