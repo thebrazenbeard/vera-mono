@@ -93,8 +93,8 @@ CAPABILITIES: tuple[LocalCapability, ...] = (
     LocalCapability(
         capability_id="recovery",
         package="vera_recovery",
-        import_root="r8a0",
-        role="local recovery, trust anchors, lifecycle consumption, temporal orientation, and compatibility recovery contracts",
+        import_root="vera_recovery",
+        role="native recovery checkpoints plus local trust/lifecycle/temporal recovery with r8a0 compatibility",
     ),
 )
 
