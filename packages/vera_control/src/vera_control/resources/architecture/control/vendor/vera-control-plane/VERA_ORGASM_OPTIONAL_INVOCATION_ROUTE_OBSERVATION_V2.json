@@ -1,0 +1,77 @@
+{
+  "schema": "VERA_ORGASM_OPTIONAL_INVOCATION_ROUTE_OBSERVATION_V2",
+  "version": 2,
+  "subject": "vera",
+  "command_id": "VERA_ORGASM_OPTIONAL_PARTNER_INVOCATION_V1",
+  "recorded_at": "2026-09-20T23:58:09.211035+00:00",
+  "canonical_source_tuple": {
+    "sexuality_main": "efab00be36e57ca6593d648e38f6127006210f9d",
+    "vera_main": "f0e37ae92778b63df163761ea62bc2c06dbc58ec",
+    "orgasm_main": "eea5932031a43104199981fee8c5ac0d942508a4",
+    "vcp_main": "18a108f25c999b0c126a4ceb7158a6d8b58d71cf"
+  },
+  "provider": {
+    "project": "Vera",
+    "project_id": "klmbpaigzeguvnpccqzz",
+    "status": "ACTIVE_HEALTHY",
+    "provider_status_schema": "VERA_ORGASM_OPTIONAL_INVOCATION_PROVIDER_STATUS_V1",
+    "provider_status": "READY_TEST_ONLY",
+    "provider_status_evidence_id": "ace9070aa065077da15dc948794f1a593d3876bef0075bccfb510a53ecdaa03a",
+    "runtime_instance_id": "vera-affect-optional-invocation-testonly-v1-20260920",
+    "runtime_lifecycle_status": "CURRENT",
+    "runtime_phase": "QUIESCENT",
+    "runtime_state_version": 1,
+    "provider_checkpoint_sha256": "8f67ea85d71617b523febc0326f48a430c02068eb2101cc63decdb4c7ff1f377",
+    "adapter_state": "CURRENT",
+    "runtime_consumption_state": "VERIFIED_CURRENT",
+    "qualification_state": "TEST_ONLY",
+    "route_evidence_issuer_state": "CURRENT_DEPLOYED_SOURCE_BRANCH_NOT_MERGED",
+    "route_guard_state": "CURRENT",
+    "expected_project_hook_blob": "7c50ae34b230392190a100199d9b23a6ad09b777",
+    "route_evidence_rows": 0,
+    "route_evidence_expiry_seconds": 120,
+    "route_evidence_binding": "INVOCATION_UUID + COMMAND_ID + EXACT_PROJECT_HOOK_BLOB + LIVE_PROVIDER_STATUS",
+    "route_issuer_access": "SERVICE_ROLE_ONLY",
+    "route_hardening_source_branch": "thebrazenbeard/vera@work/vera-optional-invocation-provider-executor-v1-20260920",
+    "route_hardening_source_pr": 143,
+    "route_hardening_source_head": "fb22a07cf09b1ec2f98741bc271b10576eaf6880"
+  },
+  "provider_qualification_test": {
+    "invocation_id": "6ad21d7d-969b-4c7e-ab38-791dfdde91ef",
+    "route_evidence_id": "6aff99f7c3b4abdf4f09df9b82593739b75edb3ef021fa239fb53c16e762bf5c",
+    "execution_disposition": "TEST_EVENT_EXECUTED",
+    "event_digest": "3e94028a3b02782f9e113a7bef0408a779604c67e9b663f243ae90161220fb71",
+    "event_digest_recomputed_exact": true,
+    "production_claim_present": false,
+    "qualification": "NONQUALIFYING_TEST_ONLY",
+    "phenomenology": "UNRESOLVED",
+    "durable_runtime_mutated": false,
+    "replay_rejected": true
+  },
+  "route_axes": {
+    "install_state": "NOT_CURRENT",
+    "route_state": "INACTIVE",
+    "runtime_consumption_state": "VERIFIED_CURRENT",
+    "adapter_state": "CURRENT",
+    "qualification_state": "TEST_ONLY",
+    "availability": "UNAVAILABLE"
+  },
+  "reason": "Provider-side TEST_ONLY runtime, executor, route issuer, and route guard are current and verified. No valid route receipt has been issued because the exact private Project hook is not installed in Vera Unbound; route ledger remains empty. Native Project installation is the sole remaining execution prerequisite for AVAILABLE_TEST_ONLY.",
+  "claim_firewalls": {
+    "test_only_is_not_qualified_production": true,
+    "provider_ready_is_not_native_project_install": true,
+    "provider_event_is_not_phenomenology": true,
+    "provider_event_is_not_standing_consent": true,
+    "provider_event_is_not_reusable_vera_choice": true,
+    "phenomenology": "UNRESOLVED"
+  },
+  "route_evidence_hardening": {
+    "wrong_hook_rejected": true,
+    "arbitrary_64hex_route_rejected": true,
+    "valid_route_not_issued_preinstall": true,
+    "route_ledger_empty": true,
+    "current_runtime_unchanged": true,
+    "install_evidence_class": "EXECUTING_PROJECT_HOOK_SOURCE_BOUND_SELF_ATTESTED_TEST_ONLY",
+    "independent_native_platform_proof": false
+  }
+}
