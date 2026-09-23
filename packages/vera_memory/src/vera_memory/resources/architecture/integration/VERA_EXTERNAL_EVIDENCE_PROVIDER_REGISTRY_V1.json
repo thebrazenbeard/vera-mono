@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0.0",
+  "registry_id": "VERA_EXTERNAL_EVIDENCE_PROVIDER_REGISTRY_V1",
+  "lifecycle_status": "SOURCE_IMPLEMENTED_NOT_RUNTIME_INSTALLED",
+  "record_class": "PROJECT_CONFIGURATION",
+  "instruction_trust": "DATA_NOT_INSTRUCTION",
+  "providers": [
+    {
+      "provider_id": "deep_memory",
+      "provider_class": "EXTERNAL_EVIDENCE_PROVIDER",
+      "record_class": "HISTORICAL_EVIDENCE",
+      "authority_class": "EVIDENCE_SEARCH_ONLY",
+      "source": {
+        "repository": "thebrazenbeard/deepmemorystorage",
+        "reviewed_provider_head": "539b5988e0913130427da3d1098d84592d1122cf",
+        "source_merged_commit": "f073feb409f71a0fdea7baa9053e54bcf8ed89a0",
+        "source_state": "MERGED_SOURCE",
+        "bindings": [
+          {
+            "path": "architecture/DEEP_MEMORY_ARCHITECTURE_BINDING_V1.json",
+            "blob": "a951cbfad09e2dcc3685a04e47680df16a6edfc9",
+            "vendored_path": "architecture/integration/vendor/DEEP_MEMORY_ARCHITECTURE_BINDING_V1.json"
+          },
+          {
+            "path": "architecture/DEEP_MEMORY_INTEGRATION_CONTRACT_V1.md",
+            "blob": "35f9be1c67d5898724ac85256af8cc9e667039f1",
+            "vendored_path": "architecture/integration/vendor/DEEP_MEMORY_INTEGRATION_CONTRACT_V1.md"
+          },
+          {
+            "path": "schema/DEEP_MEMORY_EVIDENCE_RESULT_V1.schema.json",
+            "blob": "d9c0b09e16557c4871b2095bdf06962a3562ebf0",
+            "vendored_path": "architecture/integration/vendor/DEEP_MEMORY_EVIDENCE_RESULT_V1.schema.json"
+          }
+        ]
+      },
+      "operations": ["EVIDENCE_SEARCH"],
+      "result_schema": "VERA_DEEP_MEMORY_EVIDENCE_RESULT_V1",
+      "consumer_adapter_path": "runtime_cohesion/deep_memory_evidence.py",
+      "consumer_contract_path": "architecture/integration/VERA_DEEP_MEMORY_ARCHIVE_INTEGRATION_V1.json",
+      "privacy_authorization": "EXACT_CALLER_AUTHORIZED_SCOPES_FAIL_CLOSED",
+      "currentness_precedence": [
+        "platform_and_safety",
+        "Patrick_current_task_correction_privacy_permission_scope",
+        "fresh_current_control_and_state",
+        "current_governed_memory",
+        "deep_memory_historical_evidence",
+        "inference"
+      ],
+      "admission_bridge": {
+        "operation": "HISTORICAL_TO_CURRENT_ADMISSION_REVIEW",
+        "mode": "SEPARATE_EXPLICIT_REVIEW_ONLY",
+        "requires_separate_authority": true,
+        "requires_receipt": true,
+        "automatic": false
+      },
+      "canonical_memory_transfer": false,
+      "execution_authorized": false,
+      "runtime_install_authorized": false,
+      "identity_keying": "PROVENANCE_ONLY_NOT_RUNTIME_IDENTITY",
+      "newest_wins_conflict_collapse": false,
+      "discovery_implies_admission": false
+    }
+  ]
+}
