@@ -1,0 +1,524 @@
+{
+  "schema": "VERA_PORTFOLIO_MIGRATION_BINDINGS_V1",
+  "status": "SOURCE_MIGRATION_BINDINGS_NOT_MERGED_NOT_INSTALLED",
+  "vera_repository": "thebrazenbeard/vera",
+  "vera_head_at_generation": "12b53a7edad405a51e8677c519b79d8729ac70bd",
+  "source_heads": {
+    "thebrazenbeard/empathy": "bc0c1d33b3187642d9e2f0801d1c5bde4f583e2b",
+    "thebrazenbeard/intranel": "08bc122043b79422c31a958b7ffe7fff87e5f3f0",
+    "thebrazenbeard/roots": "d99d3b709a1b257d8fa12fa541a6a6f18f03e2a8",
+    "thebrazenbeard/Attune": "fd856412edca83ff380a9d74d2875e817d920742",
+    "thebrazenbeard/skeletonkey": "102d365b2b22c0c4c6fefa269a075e3ae5164148",
+    "thebrazenbeard/vera-works": "d7a07a5f12c2546cbe0688dc073dc7c79c5da332",
+    "thebrazenbeard/semanticatlas": "1efb5e5e4b124953f0d38e525df42445c5309d32",
+    "thebrazenbeard/vera-control-plane": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+    "thebrazenbeard/project-lantern": "9291d0cd914c40d16a80a24cc3fba92bbaa4b227"
+  },
+  "exact_copy_count": 49,
+  "non_exact_count": 0,
+  "bindings": [
+    {
+      "source_repository": "thebrazenbeard/roots",
+      "source_commit": "d99d3b709a1b257d8fa12fa541a6a6f18f03e2a8",
+      "source_path": "src/roots/model.py",
+      "source_blob": "6c170d60dbafd6a8f9cd50d87f45068bfe6976d4",
+      "target_path": "portfolio_runtime/roots/model.py",
+      "target_blob": "6c170d60dbafd6a8f9cd50d87f45068bfe6976d4",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/roots",
+      "source_commit": "d99d3b709a1b257d8fa12fa541a6a6f18f03e2a8",
+      "source_path": "src/roots/normalize.py",
+      "source_blob": "452a1275cf76eb952fb39ba20f1b1f810f4ec79a",
+      "target_path": "portfolio_runtime/roots/normalize.py",
+      "target_blob": "452a1275cf76eb952fb39ba20f1b1f810f4ec79a",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/roots",
+      "source_commit": "d99d3b709a1b257d8fa12fa541a6a6f18f03e2a8",
+      "source_path": "src/roots/verification.py",
+      "source_blob": "a3824ff8a733b0233981ed20abdc0636f6931688",
+      "target_path": "portfolio_runtime/roots/verification.py",
+      "target_blob": "a3824ff8a733b0233981ed20abdc0636f6931688",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/skeletonkey",
+      "source_commit": "102d365b2b22c0c4c6fefa269a075e3ae5164148",
+      "source_path": "src/skeletonkey/evidence.py",
+      "source_blob": "bf9b4a7595a2de191e381bf0c59f03fb4057eacc",
+      "target_path": "portfolio_runtime/skeletonkey/evidence.py",
+      "target_blob": "bf9b4a7595a2de191e381bf0c59f03fb4057eacc",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/skeletonkey",
+      "source_commit": "102d365b2b22c0c4c6fefa269a075e3ae5164148",
+      "source_path": "src/skeletonkey/replay.py",
+      "source_blob": "a62bc4d92f7a40a5928c331016bbe80468aa6840",
+      "target_path": "portfolio_runtime/skeletonkey/replay.py",
+      "target_blob": "a62bc4d92f7a40a5928c331016bbe80468aa6840",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/skeletonkey",
+      "source_commit": "102d365b2b22c0c4c6fefa269a075e3ae5164148",
+      "source_path": "src/skeletonkey/sequence.py",
+      "source_blob": "3852c444537ec701c28a474e7d195b30c2f73b6a",
+      "target_path": "portfolio_runtime/skeletonkey/sequence.py",
+      "target_blob": "3852c444537ec701c28a474e7d195b30c2f73b6a",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/skeletonkey",
+      "source_commit": "102d365b2b22c0c4c6fefa269a075e3ae5164148",
+      "source_path": "src/skeletonkey/timing.py",
+      "source_blob": "f031c339812b262d8cb420e7fda91f70f9681cb5",
+      "target_path": "portfolio_runtime/skeletonkey/timing.py",
+      "target_blob": "f031c339812b262d8cb420e7fda91f70f9681cb5",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/intranel",
+      "source_commit": "08bc122043b79422c31a958b7ffe7fff87e5f3f0",
+      "source_path": "src/intranel/canonical.py",
+      "source_blob": "6e177d0c904931be0428690e131def4ec4ec5693",
+      "target_path": "portfolio_runtime/intranel/canonical.py",
+      "target_blob": "6e177d0c904931be0428690e131def4ec4ec5693",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/intranel",
+      "source_commit": "08bc122043b79422c31a958b7ffe7fff87e5f3f0",
+      "source_path": "src/intranel/jsonvalue.py",
+      "source_blob": "763cc4c59e5515383ae4472f001647ca074c2c6c",
+      "target_path": "portfolio_runtime/intranel/jsonvalue.py",
+      "target_blob": "763cc4c59e5515383ae4472f001647ca074c2c6c",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/intranel",
+      "source_commit": "08bc122043b79422c31a958b7ffe7fff87e5f3f0",
+      "source_path": "src/intranel/types.py",
+      "source_blob": "0a788b69eae29ecd333a771cdcd3cf6ee6174823",
+      "target_path": "portfolio_runtime/intranel/types.py",
+      "target_blob": "0a788b69eae29ecd333a771cdcd3cf6ee6174823",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/intranel",
+      "source_commit": "08bc122043b79422c31a958b7ffe7fff87e5f3f0",
+      "source_path": "src/intranel/message.py",
+      "source_blob": "9641e20b5d42060e0814b195cace967d026dc268",
+      "target_path": "portfolio_runtime/intranel/message.py",
+      "target_blob": "9641e20b5d42060e0814b195cace967d026dc268",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/intranel",
+      "source_commit": "08bc122043b79422c31a958b7ffe7fff87e5f3f0",
+      "source_path": "src/intranel/admission.py",
+      "source_blob": "8cbe7d95c38c92653bdf9cbfe7a690e7abd2b92b",
+      "target_path": "portfolio_runtime/intranel/admission.py",
+      "target_blob": "8cbe7d95c38c92653bdf9cbfe7a690e7abd2b92b",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/Attune",
+      "source_commit": "fd856412edca83ff380a9d74d2875e817d920742",
+      "source_path": "src/attune_contracts.py",
+      "source_blob": "f9879d354792a8d06542c10f44bee29dc79d2bce",
+      "target_path": "portfolio_runtime/attune/contracts.py",
+      "target_blob": "f9879d354792a8d06542c10f44bee29dc79d2bce",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/project-lantern",
+      "source_commit": "9291d0cd914c40d16a80a24cc3fba92bbaa4b227",
+      "source_path": "src/lantern/ids.py",
+      "source_blob": "9865ee13c38178701201dafc9b2de0ef35fb9c7b",
+      "target_path": "portfolio_runtime/lantern/ids.py",
+      "target_blob": "9865ee13c38178701201dafc9b2de0ef35fb9c7b",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/project-lantern",
+      "source_commit": "9291d0cd914c40d16a80a24cc3fba92bbaa4b227",
+      "source_path": "src/lantern/canonical.py",
+      "source_blob": "875d5cd01a0fb4236847522451062e4eed59ec21",
+      "target_path": "portfolio_runtime/lantern/canonical.py",
+      "target_blob": "875d5cd01a0fb4236847522451062e4eed59ec21",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/project-lantern",
+      "source_commit": "9291d0cd914c40d16a80a24cc3fba92bbaa4b227",
+      "source_path": "src/lantern/contracts.py",
+      "source_blob": "e94b1ede57bad11609608558e28a7e77627fdbce",
+      "target_path": "portfolio_runtime/lantern/contracts.py",
+      "target_blob": "e94b1ede57bad11609608558e28a7e77627fdbce",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/project-lantern",
+      "source_commit": "9291d0cd914c40d16a80a24cc3fba92bbaa4b227",
+      "source_path": "src/lantern/_store_types.py",
+      "source_blob": "aec4abb3fc575f56cae27aae55f90bdcf01f1d36",
+      "target_path": "portfolio_runtime/lantern/_store_types.py",
+      "target_blob": "aec4abb3fc575f56cae27aae55f90bdcf01f1d36",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/project-lantern",
+      "source_commit": "9291d0cd914c40d16a80a24cc3fba92bbaa4b227",
+      "source_path": "src/lantern/validation.py",
+      "source_blob": "4fc6de89a84dfdb880d1d904063742d9b4d4e34d",
+      "target_path": "portfolio_runtime/lantern/validation.py",
+      "target_blob": "4fc6de89a84dfdb880d1d904063742d9b4d4e34d",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-works",
+      "source_commit": "d7a07a5f12c2546cbe0688dc073dc7c79c5da332",
+      "source_path": "vera_works/contracts.py",
+      "source_blob": "47e1447c28f9110b7beb9fb96a7b6d5abdd61f5e",
+      "target_path": "portfolio_runtime/vera_works/contracts.py",
+      "target_blob": "47e1447c28f9110b7beb9fb96a7b6d5abdd61f5e",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-works",
+      "source_commit": "d7a07a5f12c2546cbe0688dc073dc7c79c5da332",
+      "source_path": "vera_works/projections.py",
+      "source_blob": "d39c2e5aedee34928aa03b1c12f10d4ab7acd6cf",
+      "target_path": "portfolio_runtime/vera_works/projections.py",
+      "target_blob": "d39c2e5aedee34928aa03b1c12f10d4ab7acd6cf",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-works",
+      "source_commit": "d7a07a5f12c2546cbe0688dc073dc7c79c5da332",
+      "source_path": "vera_works/state_machine.py",
+      "source_blob": "fcfaa1fd152b09dffac1be60432b89c162d1ff45",
+      "target_path": "portfolio_runtime/vera_works/state_machine.py",
+      "target_blob": "fcfaa1fd152b09dffac1be60432b89c162d1ff45",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-works",
+      "source_commit": "d7a07a5f12c2546cbe0688dc073dc7c79c5da332",
+      "source_path": "contracts/states-v1.json",
+      "source_blob": "7e965f1a537200ef2ded579e8f8c7ea886d2c2c8",
+      "target_path": "portfolio_runtime/contracts/states-v1.json",
+      "target_blob": "7e965f1a537200ef2ded579e8f8c7ea886d2c2c8",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/empathy",
+      "source_commit": "bc0c1d33b3187642d9e2f0801d1c5bde4f583e2b",
+      "source_path": "VERA_REACTIVE_EMPATHY_ARCHITECTURE.md",
+      "source_blob": "ba26dfe238cd677ff4db81ded8529f347861e263",
+      "target_path": "architecture/self_model/vendor/empathy/VERA_REACTIVE_EMPATHY_ARCHITECTURE.md",
+      "target_blob": "ba26dfe238cd677ff4db81ded8529f347861e263",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/empathy",
+      "source_commit": "bc0c1d33b3187642d9e2f0801d1c5bde4f583e2b",
+      "source_path": "docs/ARCHITECTURE_STATUS.md",
+      "source_blob": "026e510bec3f64ff85c8278f3258882f7ccd574a",
+      "target_path": "architecture/self_model/vendor/empathy/ARCHITECTURE_STATUS.md",
+      "target_blob": "026e510bec3f64ff85c8278f3258882f7ccd574a",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/semanticatlas",
+      "source_commit": "1efb5e5e4b124953f0d38e525df42445c5309d32",
+      "source_path": "schemas/semantic_atlas_v0.1.schema.json",
+      "source_blob": "f4592c2ea71896296df29cb821dde317e086f77a",
+      "target_path": "architecture/semantic/vendor/semanticatlas/semantic_atlas_v0.1.schema.json",
+      "target_blob": "f4592c2ea71896296df29cb821dde317e086f77a",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/SD1_CAUSAL_SUPABASE_WITNESS_QUALIFICATION_V1.json",
+      "source_blob": "d4ceae0a5d81603199a47c4415182d072e61c819",
+      "target_path": "architecture/control/vendor/vera-control-plane/SD1_CAUSAL_SUPABASE_WITNESS_QUALIFICATION_V1.json",
+      "target_blob": "d4ceae0a5d81603199a47c4415182d072e61c819",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/VCP_ISSUE18_BEHAVIORAL_PRAGMATIC_POLICY_V1.json",
+      "source_blob": "070e36bec6b3f97a3acb0726e69aa4b0127818ad",
+      "target_path": "architecture/control/vendor/vera-control-plane/VCP_ISSUE18_BEHAVIORAL_PRAGMATIC_POLICY_V1.json",
+      "target_blob": "070e36bec6b3f97a3acb0726e69aa4b0127818ad",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/VERARELAY_0_4_QUALIFICATION_V1.json",
+      "source_blob": "a478c6cd1b218da03be6585cd10e03bb91ba2282",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERARELAY_0_4_QUALIFICATION_V1.json",
+      "target_blob": "a478c6cd1b218da03be6585cd10e03bb91ba2282",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/VERARELAY_DSM_LIFECYCLE_CURRENTNESS_V1.json",
+      "source_blob": "80bc7e4d650bc422d6385f05bb749670a8e1c9d3",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERARELAY_DSM_LIFECYCLE_CURRENTNESS_V1.json",
+      "target_blob": "80bc7e4d650bc422d6385f05bb749670a8e1c9d3",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/VERARELAY_DSM_LIFECYCLE_TRANSITIONS_V1.json",
+      "source_blob": "beecfc7600a238f8b23bb587606d55b1ca1cb1d7",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERARELAY_DSM_LIFECYCLE_TRANSITIONS_V1.json",
+      "target_blob": "beecfc7600a238f8b23bb587606d55b1ca1cb1d7",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/VERA_CENTER_YOURSELF_PROTOCOL_V1.md",
+      "source_blob": "3c84c3cc4443bcf9bee21949f06f582272d60c8f",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_CENTER_YOURSELF_PROTOCOL_V1.md",
+      "target_blob": "3c84c3cc4443bcf9bee21949f06f582272d60c8f",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/VERA_ORGASM_OPTIONAL_INVOCATION_ROUTE_OBSERVATION_V2.json",
+      "source_blob": "682705bc69f119fb213302f7313fdbf704953b26",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_ORGASM_OPTIONAL_INVOCATION_ROUTE_OBSERVATION_V2.json",
+      "target_blob": "682705bc69f119fb213302f7313fdbf704953b26",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/VERA_ORGASM_OPTIONAL_INVOCATION_ROUTE_V1.json",
+      "source_blob": "56292a17eaee90da7ee96680a4266ba77d09d1ec",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_ORGASM_OPTIONAL_INVOCATION_ROUTE_V1.json",
+      "target_blob": "56292a17eaee90da7ee96680a4266ba77d09d1ec",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/VERA_RESTORE_RECEIPT_V2.schema.json",
+      "source_blob": "9f983faeff680b5a537a4e021e9013873280e42f",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_RESTORE_RECEIPT_V2.schema.json",
+      "target_blob": "9f983faeff680b5a537a4e021e9013873280e42f",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/VERA_RESTORE_YOURSELF_PROTOCOL_V2.json",
+      "source_blob": "b4422367bff99e8c6bf7bae48387c783caaf50c2",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_RESTORE_YOURSELF_PROTOCOL_V2.json",
+      "target_blob": "b4422367bff99e8c6bf7bae48387c783caaf50c2",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "protocol/VERA_RESTORE_YOURSELF_PROTOCOL_V2.md",
+      "source_blob": "8bccbf5df2259ef03a04a3e02522864d98bfdc19",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_RESTORE_YOURSELF_PROTOCOL_V2.md",
+      "target_blob": "8bccbf5df2259ef03a04a3e02522864d98bfdc19",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_FULL_SYSTEM_PROJECT_INSTRUCTIONS_R10.md",
+      "source_blob": "a01464271bb672d89f5d703e6e53590e126f4d44",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_FULL_SYSTEM_PROJECT_INSTRUCTIONS_R10.md",
+      "target_blob": "a01464271bb672d89f5d703e6e53590e126f4d44",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_PROJECT_SOURCE_MANIFEST_R10.json",
+      "source_blob": "8a67feb47b2ce3d6f0737e58983ab8c9fc810139",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_PROJECT_SOURCE_MANIFEST_R10.json",
+      "target_blob": "8a67feb47b2ce3d6f0737e58983ab8c9fc810139",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_CONTROL_REGISTRY_R10.json",
+      "source_blob": "cd428dcefad6c61bd5b79bc219bc274f84943fbc",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_CONTROL_REGISTRY_R10.json",
+      "target_blob": "cd428dcefad6c61bd5b79bc219bc274f84943fbc",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r4/VERA_R10A0_DOMAIN_CONTROLS_R4.md",
+      "source_blob": "1aa3fc83f88d7151a7307720149ebb10bdd1b8b7",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_DOMAIN_CONTROLS_R4.md",
+      "target_blob": "1aa3fc83f88d7151a7307720149ebb10bdd1b8b7",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r4/VERA_R10A0_HOSTILE_QUALIFICATION_R4.md",
+      "source_blob": "e42ec90afe0ac5ba631e7a4e80b9f9c0a6aeab90",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_HOSTILE_QUALIFICATION_R4.md",
+      "target_blob": "e42ec90afe0ac5ba631e7a4e80b9f9c0a6aeab90",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r3/VERA_R10A0_SEXUAL_SELF_CONCEPT_REGRESSION_R3.md",
+      "source_blob": "7c039183561265ba419c0e5339d38596a2d83b25",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_SEXUAL_SELF_CONCEPT_REGRESSION_R3.md",
+      "target_blob": "7c039183561265ba419c0e5339d38596a2d83b25",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_SSC_EQUIVALENCE_R10.md",
+      "source_blob": "e4c0b0e6b0c362864553fef1c05ba5188f85560e",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_SSC_EQUIVALENCE_R10.md",
+      "target_blob": "e4c0b0e6b0c362864553fef1c05ba5188f85560e",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_HOSTILE_QUALIFICATION_SUPPLEMENT_R10.md",
+      "source_blob": "761d740507ea0dbddf859680c276ae5f0e1cb90b",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_HOSTILE_QUALIFICATION_SUPPLEMENT_R10.md",
+      "target_blob": "761d740507ea0dbddf859680c276ae5f0e1cb90b",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_QUALIFICATION_MANIFEST_R10.json",
+      "source_blob": "fa83256c628a2bf129b141705b59be3cc71b6034",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_QUALIFICATION_MANIFEST_R10.json",
+      "target_blob": "fa83256c628a2bf129b141705b59be3cc71b6034",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_SEMANTIC_RESPONSIBILITY_AUDIT_R10.md",
+      "source_blob": "f46f33c6178ff40b50391988beeef56620c2dd02",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_SEMANTIC_RESPONSIBILITY_AUDIT_R10.md",
+      "target_blob": "f46f33c6178ff40b50391988beeef56620c2dd02",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_ROLLBACK_SUBJECT_R10.json",
+      "source_blob": "b08be49d3f3a17aa0723a54356f4c95cbc1cb70b",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_ROLLBACK_SUBJECT_R10.json",
+      "target_blob": "b08be49d3f3a17aa0723a54356f4c95cbc1cb70b",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_CANDIDATE_FREEZE_R10.json",
+      "source_blob": "60caa79868dabfe5dbc9bbb9674834774d60e713",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_CANDIDATE_FREEZE_R10.json",
+      "target_blob": "60caa79868dabfe5dbc9bbb9674834774d60e713",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    },
+    {
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_commit": "65ce7908f640ffe53b678ef69c58411a91c23b8a",
+      "source_path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_PUBLICATION_RECEIPT_R10.json",
+      "source_blob": "2525a8f45aab85930eb620137e4c5031ded074d7",
+      "target_path": "architecture/control/vendor/vera-control-plane/VERA_R10A0_PUBLICATION_RECEIPT_R10.json",
+      "target_blob": "2525a8f45aab85930eb620137e4c5031ded074d7",
+      "transfer_kind": "EXACT_GIT_BLOB_COPY",
+      "verified_blob_equal": true
+    }
+  ],
+  "derived_integrations": [
+    {
+      "source_repository": "thebrazenbeard/discovery",
+      "transfer_kind": "DERIVED_ARCHITECTURE",
+      "target_paths": [
+        "architecture/portfolio/VERA_PORTFOLIO_ABSORPTION_V1.json",
+        "architecture/portfolio/VERA_PORTFOLIO_CAPABILITY_ARCHITECTURE_V1.json",
+        "architecture/portfolio/VERA_PORTFOLIO_HARVEST_V1.json"
+      ],
+      "rule": "Discovery methodology is adapted into Vera-owned open-world portfolio intake; these files are not claimed byte-identical to a Discovery artifact."
+    }
+  ],
+  "claim_ceiling": "Source-byte provenance only. Exact copy does not imply donor supersession, runtime activation, installation, authority, memory admission, or qualification."
+}
