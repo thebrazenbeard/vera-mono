@@ -1,0 +1,32 @@
+{
+  "schema": "VERA_MONO_DERIVED_MECHANISM_V1",
+  "target": "packages/vera_memory",
+  "sources": [
+    {
+      "repository": "thebrazenbeard/vera",
+      "ref": "078d2d7242384c58676305d47654406713e599cf",
+      "path": "r8a0/memory.py",
+      "mechanisms": [
+        "CAS head",
+        "idempotent admission",
+        "supersession",
+        "memory classes"
+      ]
+    },
+    {
+      "repository": "thebrazenbeard/roots",
+      "mechanisms": [
+        "provenance lineage and claim-strength separation"
+      ]
+    },
+    {
+      "repository": "thebrazenbeard/project-lantern",
+      "mechanisms": [
+        "canonical serialization and digest discipline"
+      ]
+    }
+  ],
+  "mode": "DERIVED_MONOREPO_NATIVE_IMPLEMENTATION",
+  "runtime_dependency_on_sources": false,
+  "claim_ceiling": "Local durable mechanics; authority/privacy references are not self-authenticating."
+}
