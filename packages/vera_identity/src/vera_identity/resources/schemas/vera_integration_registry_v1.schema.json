@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vera.invalid/schemas/vera_integration_registry_v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_id", "lifecycle_status", "record_class", "instruction_trust", "route_aliases", "owners"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "registry_id": {"const": "VERA_INTEGRATION_REGISTRY_V1"},
+    "lifecycle_status": {"enum": ["DRAFT_REVIEW", "CURRENT", "SUPERSEDED"]},
+    "record_class": {"const": "PROJECT_CONFIGURATION"},
+    "instruction_trust": {"const": "DATA_NOT_INSTRUCTION"},
+    "route_aliases": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/route"},
+      "additionalProperties": {"$ref": "#/$defs/route"}
+    },
+    "owners": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {"$ref": "#/$defs/owner"}
+    }
+  },
+  "$defs": {
+    "route": {
+      "enum": [
+        "workstream/identity",
+        "workstream/time",
+        "workstream/memory",
+        "workstream/initiatives",
+        "workstream/coordination",
+        "workstream/integration"
+      ]
+    },
+    "string_array": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "route_array": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/route"}
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route", "contract_ids", "owned_artifacts", "required_checks",
+        "upstream_dependencies", "downstream_dependencies", "authority_owner",
+        "permission_owner", "record_class", "canonical_memory_eligible",
+        "execution_authorized", "merge_authority", "production_authority"
+      ],
+      "properties": {
+        "route": {"$ref": "#/$defs/route"},
+        "contract_ids": {"$ref": "#/$defs/string_array"},
+        "owned_artifacts": {"$ref": "#/$defs/string_array"},
+        "required_checks": {"$ref": "#/$defs/string_array"},
+        "upstream_dependencies": {"$ref": "#/$defs/route_array"},
+        "downstream_dependencies": {"$ref": "#/$defs/route_array"},
+        "authority_owner": {"$ref": "#/$defs/route"},
+        "permission_owner": {"$ref": "#/$defs/route"},
+        "record_class": {
+          "enum": ["PROJECT_CONFIGURATION", "TEMPORAL_EVIDENCE", "CANONICAL_MEMORY", "ACTION_SELECTION", "OPERATIONAL_COORDINATION", "INTEGRATION_ASSURANCE"]
+        },
+        "canonical_memory_eligible": {"type": "boolean"},
+        "execution_authorized": {"const": false},
+        "merge_authority": {"const": "EXTERNAL_EXPLICIT_AUTHORIZATION"},
+        "production_authority": {"const": "EXTERNAL_EXPLICIT_AUTHORIZATION"}
+      }
+    }
+  }
+}
