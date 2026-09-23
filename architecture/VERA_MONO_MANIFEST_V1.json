@@ -65,6 +65,22 @@
       "path": "packages/vera_assurance",
       "role": "internal_drift_and_invariant_assurance",
       "status": "DERIVED_MONOREPO_NATIVE_NOT_INDEPENDENT"
+    },
+    {
+      "id": "vera_pc_connection",
+      "path": "packages/vera_pc_connection",
+      "role": "pc_connection_contracts_and_state_machine",
+      "status": "ABSORBED_SOURCE",
+      "donor": "thebrazenbeard/vera@078d2d7242384c58676305d47654406713e599cf",
+      "source_file_count": 9
+    },
+    {
+      "id": "vera_control",
+      "path": "packages/vera_control",
+      "role": "control_restore_and_qualification_resources",
+      "status": "ABSORBED_SOURCE_UNQUALIFIED",
+      "donor": "thebrazenbeard/vera@078d2d7242384c58676305d47654406713e599cf",
+      "source_file_count": 25
     }
   ],
   "active_local_capability_registry": "packages/vera_core/src/vera_core/registry.py",
@@ -96,5 +112,11 @@
   "assurance_boundary": {
     "internal": "packages/vera_assurance",
     "independent_external_review": "DriftGuard or another separately executed evaluator remains required for independent falsification claims."
+  },
+  "control_boundary": {
+    "local_resources_present": true,
+    "auto_installed": false,
+    "auto_activated": false,
+    "activation_requires_explicit_current_binding": true
   }
 }
