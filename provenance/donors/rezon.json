@@ -3,7 +3,11 @@
   "donor": "thebrazenbeard/rezon",
   "donor_ref": "9b04cb6d669ec3e361433d85fced8231c574efe5",
   "absorbed_target": "packages/rezon",
-  "mode": "BYTE_COPY_SOURCE_ABSORPTION",
+  "mode": "BYTE_COPY_DONOR_SOURCE_WITH_MONOREPO_LOCAL_EXTENSIONS",
+  "byte_copied_subtree": "src/rezon/*.py as observed at donor ref",
+  "local_extensions": [
+    "packages/rezon/src/rezon/cascade.py"
+  ],
   "runtime_dependency_on_donor": false,
-  "note": "Donor repository is provenance/research after absorption. vera-mono executes its local copy."
+  "note": "Donor repository is research/provenance after absorption. vera-mono executes its local source."
 }
