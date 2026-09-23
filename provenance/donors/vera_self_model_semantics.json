@@ -1,0 +1,14 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/vera",
+  "donor_ref": "078d2d7242384c58676305d47654406713e599cf",
+  "source_paths": [
+    "architecture/self_model/vendor/empathy/ARCHITECTURE_STATUS.md",
+    "architecture/self_model/vendor/empathy/VERA_REACTIVE_EMPATHY_ARCHITECTURE.md",
+    "architecture/semantic/vendor/semanticatlas/semantic_atlas_v0.1.schema.json"
+  ],
+  "absorbed_target": "packages/vera_identity/src/vera_identity/resources/architecture",
+  "mode": "BYTE_COPY_SELF_MODEL_AND_SEMANTIC_RESOURCES",
+  "runtime_dependency_on_donor": false,
+  "qualification_boundary": "Resources are local architecture/schema inputs; presence does not establish self-state, empathy, or semantic currentness."
+}
