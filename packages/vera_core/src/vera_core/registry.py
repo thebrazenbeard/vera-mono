@@ -90,6 +90,12 @@ CAPABILITIES: tuple[LocalCapability, ...] = (
         import_root="vera_control",
         role="local Vera control-plane architecture and restore resources",
     ),
+    LocalCapability(
+        capability_id="recovery",
+        package="vera_recovery",
+        import_root="r8a0",
+        role="local recovery, trust anchors, lifecycle consumption, temporal orientation, and compatibility recovery contracts",
+    ),
 )
 
 
