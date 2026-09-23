@@ -1,0 +1,32 @@
+{
+  "schema": "VERA_MONO_MANIFEST_V1",
+  "repository": "thebrazenbeard/vera-mono",
+  "architecture": "SELF_CONTAINED_MONOREPO",
+  "rules": {
+    "git_submodules": false,
+    "sibling_repo_runtime_dependencies": false,
+    "cross_repo_orchestration": false,
+    "donor_repositories": "RESEARCH_AND_PROVENANCE_ONLY",
+    "provider_infrastructure": "EXTERNAL_ALLOWED_VIA_LOCAL_ADAPTERS"
+  },
+  "packages": [
+    {
+      "id": "rezon",
+      "path": "packages/rezon",
+      "role": "reasoning_kernel",
+      "status": "ABSORBED_SOURCE",
+      "donor": "thebrazenbeard/rezon@9b04cb6d669ec3e361433d85fced8231c574efe5"
+    },
+    {
+      "id": "vera_core",
+      "path": "packages/vera_core",
+      "role": "composition_root_and_runtime_contracts",
+      "status": "ACTIVE_BOOTSTRAP"
+    }
+  ],
+  "source_seeds": [
+    "thebrazenbeard/vera@87aa888cb7543875ffa11c9c7a1eb9e5b60c35cf",
+    "thebrazenbeard/vera#200@078d2d7242384c58676305d47654406713e599cf"
+  ],
+  "claim_ceiling": "SOURCE_ARCHITECTURE_AND_LOCAL_CODE_ONLY_NOT_DEPLOYED_NOT_RUNTIME_QUALIFIED"
+}
