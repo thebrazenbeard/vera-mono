@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "repository": "thebrazenbeard/chat-communication-bus",
+  "current_protocol_branch": "bus/protocol-v2",
+  "integration_branch": "radar/control-plane-v1",
+  "required_writer_lanes": {
+    "brigit": {
+      "writer": "Brigit",
+      "branch": "bus/bridget-v1",
+      "legacy_spelling": true
+    },
+    "eight": {
+      "writer": "Eight",
+      "branch": "bus/eight-v2",
+      "legacy_spelling": false
+    },
+    "five-five": {
+      "writer": "Five-Five",
+      "branch": "bus/five-five-v2",
+      "legacy_spelling": false
+    },
+    "five": {
+      "writer": "Five",
+      "branch": "bus/five-v2",
+      "legacy_spelling": false
+    },
+    "fng": {
+      "writer": "FNG",
+      "branch": "bus/fng-v2",
+      "legacy_spelling": false
+    },
+    "four": {
+      "writer": "Four",
+      "branch": "bus/four-v2",
+      "legacy_spelling": false
+    },
+    "hephaestus": {
+      "writer": "Hephaestus",
+      "branch": "bus/hephaestus-v3",
+      "legacy_spelling": false
+    },
+    "masa": {
+      "writer": "Masa",
+      "branch": "bus/masa-v2",
+      "legacy_spelling": false
+    },
+    "mune": {
+      "writer": "Mune",
+      "branch": "bus/mune-v2",
+      "legacy_spelling": false
+    },
+    "nine": {
+      "writer": "Nine",
+      "branch": "bus/nine-v2",
+      "legacy_spelling": false
+    },
+    "one": {
+      "writer": "One",
+      "branch": "bus/one-v2",
+      "legacy_spelling": false
+    },
+    "radar": {
+      "writer": "Radar",
+      "branch": "bus/radar-v2",
+      "legacy_spelling": false
+    },
+    "seven": {
+      "writer": "Seven",
+      "branch": "bus/seven-v2",
+      "legacy_spelling": false
+    },
+    "six": {
+      "writer": "Six",
+      "branch": "bus/six-v2",
+      "legacy_spelling": false
+    },
+    "thirteen": {
+      "writer": "Thirteen",
+      "branch": "bus/thirteen-v2",
+      "legacy_spelling": false
+    },
+    "three": {
+      "writer": "Three",
+      "branch": "bus/three-v2",
+      "legacy_spelling": false
+    },
+    "two": {
+      "writer": "Two",
+      "branch": "bus/two-v2",
+      "legacy_spelling": false
+    },
+    "vera": {
+      "writer": "Vera",
+      "branch": "bus/vera-v2",
+      "legacy_spelling": false
+    },
+    "yang": {
+      "writer": "Yang",
+      "branch": "bus/yang-v2",
+      "legacy_spelling": false
+    },
+    "yin": {
+      "writer": "Yin",
+      "branch": "bus/yin-v2",
+      "legacy_spelling": false
+    },
+    "parallax": {
+      "writer": "Parallax",
+      "branch": "bus/parallax-v1",
+      "legacy_spelling": false,
+      "onboarding_status": "TOPOLOGY_PR_PENDING"
+    }
+  },
+  "excluded_branches": {
+    "bus/bridget-v1-tempcheck": "temporary_diagnostic",
+    "bus/hephaestus-v1": "malformed_historical_non_mailbox"
+  },
+  "archived_identities_not_required": [
+    "bob",
+    "voss"
+  ],
+  "notes": [
+    "Absence of a required lane is ACTION_REQUIRED rather than permission failure when lane creation is already assigned.",
+    "Branch addresses are provenance; logical aliases may normalize without renaming historical branches.",
+    "Writer-lane health requires structural mailbox evidence; a matching branch name alone is discovery-only evidence.",
+    "No lanes are invented for Ten, Eleven, or Twelve without evidence that those identities are active.",
+    "required_writer_lanes is the authoritative current write-routing registry. A historical lane may remain readable provenance but does not count as current-route compliance when this registry names a different branch.",
+    "Brigit remains on bus/bridget-v1 as an explicit legacy exception after append-only correction of the duplicate-message-id failure; bus/brigit-v2 remains inert until a separate topology activation.",
+    "Parallax is topology-registered by a reviewed onboarding PR; bus/parallax-v1 must remain inert until that PR is merged and its first append passes the current Writer Lane Guard."
+  ]
+}
