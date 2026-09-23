@@ -1,0 +1,16 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/vera",
+  "donor_ref": "078d2d7242384c58676305d47654406713e599cf",
+  "source_subtree": "r8a0/",
+  "absorbed_target": "packages/vera_recovery/src/r8a0",
+  "mode": "BYTE_COPY_RECOVERY_TRUST_TEMPORAL_ABSORPTION",
+  "source_file_count": 12,
+  "runtime_dependency_on_donor": false,
+  "ownership": {
+    "recovery_trust_temporal": "vera_recovery",
+    "canonical_memory": "vera_memory",
+    "r8a0_memory": "COMPATIBILITY_SOURCE_NOT_CANONICAL_MEMORY_OWNER"
+  },
+  "note": "The legacy package name is retained for source compatibility. Runtime source is local to vera-mono."
+}
