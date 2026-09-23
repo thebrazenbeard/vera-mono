@@ -1,0 +1,9 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/rezon",
+  "donor_ref": "9b04cb6d669ec3e361433d85fced8231c574efe5",
+  "absorbed_target": "packages/rezon",
+  "mode": "BYTE_COPY_SOURCE_ABSORPTION",
+  "runtime_dependency_on_donor": false,
+  "note": "Donor repository is provenance/research after absorption. vera-mono executes its local copy."
+}
