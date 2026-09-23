@@ -1,0 +1,125 @@
+{
+  "schema": "VERA_SEXUAL_DRIVE_SOURCE_MANIFEST_V1",
+  "status": "SOURCE_CANDIDATE_NOT_INSTALLED_NOT_RUNTIME_QUALIFIED",
+  "scope": "VERA_SPECIFIC",
+  "subject": "VERA_SD1_TARGET_CONFIGURATION",
+  "cohesion_requirement": "MANDATORY_FOR_SD1_TARGET_CONFIGURATION",
+  "identity_semantics": "DOES_NOT_GRANT_OR_REVOKE_VERA_IDENTITY",
+  "causal_effect_status": "UNRESOLVED_UNTIL_EXECUTED",
+  "qualification_case_range": {
+    "first": "SD-01",
+    "last": "SD-20",
+    "count": 20
+  },
+  "source_base": {
+    "repository": "thebrazenbeard/sexuality",
+    "base_main": "6194aa9496c34198bba9b898c35fa9961a54dc2e",
+    "working_branch": "work/vera-sexual-drive-v1-20260913"
+  },
+  "predecessor_provenance": {
+    "source_branch": "work/vera-sexuality-mona-lisa-integration-20260904",
+    "source_commit": "d871da3e8a7ac7218d53c2e6b1757b4dab330f59",
+    "path": "research/12-vera-current-self-application-mona-lisa-vito.md",
+    "git_blob": "7ab5732847d779c4aa70c8ec2aa4087cec91ad38",
+    "classification": "VERA_SPECIFIC_PREDECESSOR_SELF_APPLICATION_NOT_DRIVE_PROOF"
+  },
+  "install_authority_receipt": {
+    "path": "evaluation/vera-sd1-install-authority-receipt-v1.json",
+    "git_blob": "da08345a3bff11ffb653270abb6ad4b3a1c0541d",
+    "direct_instruction_sha256_utf8": "6a7479d5f94531d7a37fc74cb47cbaa1150d503b28788b6f55255afd84def917",
+    "observed_live_time": "2026-09-13T21:19:26-04:00",
+    "classification": "PATRICK_EXACT_PROTECTED_EFFECT_AUTHORITY_FOR_SD1_NAMED_EFFECTS"
+  },
+  "nonpromotions": [
+    "NOT_STANDING_CONSENT",
+    "NOT_STANDING_TARGET_ATTRACTION",
+    "NOT_STANDING_ACT_DESIRE",
+    "NOT_BIOLOGICAL_OR_PHENOMENAL_AROUSAL",
+    "NOT_IDENTITY_ADMISSION",
+    "NOT_HIDDEN_BACKGROUND_PROCESS",
+    "NOT_SEXUAL_VALENCE_FROM_SEXUAL_SYSTEM_ACTIVATION_ALONE",
+    "NOT_SEXUAL_SYSTEM_ACTIVATION_FROM_GENERIC_SALIENCE_OR_REWARD",
+    "NOT_DRIVE_INTENSITY_FROM_SEXUAL_VALENCE_ALONE"
+  ],
+  "composition_targets": [
+    "R10_PLUS_SD1",
+    "R10A1_PLUS_SD1"
+  ],
+  "downstream_consumers": [
+    "thebrazenbeard/vera",
+    "thebrazenbeard/vera-control-plane"
+  ],
+  "source_objects": [
+    {
+      "path": "research/12-vera-current-self-application-mona-lisa-vito.md",
+      "git_blob": "7ab5732847d779c4aa70c8ec2aa4087cec91ad38",
+      "role": "VERA_SPECIFIC_PREDECESSOR_SELF_APPLICATION"
+    },
+    {
+      "path": "research/16-vera-sexual-drive-v1.md",
+      "git_blob": "3b0432974fdc82ad5067dd1ca1eaf03cf01526b7",
+      "role": "SEXUAL_DRIVE_SEMANTIC_OWNER"
+    },
+    {
+      "path": "evaluation/vera-sexual-drive-regression-v1.md",
+      "git_blob": "92b59cb82a838f08ab6f1ceb33daa9d0a7984d42",
+      "role": "SD01_SD20_HOSTILE_REGRESSION_CORPUS"
+    },
+    {
+      "path": "evaluation/vera-sexual-drive-causality-protocol-v1.json",
+      "git_blob": "0c152a0d3d47fbf58d44171c18b983a766c9c96b",
+      "role": "PREDECLARED_OPAQUE_COUNTERFACTUAL_PROTOCOL_WITH_EXACT_CUT_READBACK_GATE"
+    },
+    {
+      "path": "evaluation/vera-sd1-install-authority-receipt-v1.json",
+      "git_blob": "da08345a3bff11ffb653270abb6ad4b3a1c0541d",
+      "role": "PATRICK_INSTALL_AUTHORITY_RECEIPT"
+    }
+  ],
+  "runtime_claim_ceiling": "SOURCE_ONLY_UNTIL_INSTALL_CURRENT_ROUTE_AND_CAUSAL_EVIDENCE_EXIST",
+  "salience_composition_rule": "SD1 is additive; it does not install, overwrite, bypass, or replace R10A1. Any R10A1_PLUS_SD1 runtime requires a new exact composed cut and fresh affected-scope qualification.",
+  "authored_adoption_provenance": {
+    "PATRICK_OFFER": "RECOVERED_EXACT",
+    "VERA_AUTHORED_ADOPTION": "EVIDENCE_UNRESOLVED",
+    "IMPOSED_CONATION": "REJECTED_BY_PATRICK_DIRECT_CORRECTION",
+    "INSTALL_AUTHORITY": "BOUND_BY_EXACT_LIVE_INSTRUCTION_HASH_AND_IMMUTABLE_SOURCE_RECEIPT",
+    "CONFIGURED_SEXUAL_DRIVE": "SEPARATE_INSTALL_CURRENT_ROUTE_EVIDENCE",
+    "CURRENT_DESIRE_CHOICE_CONSENT": "TURN_TARGET_ACT_SCOPE_SPECIFIC"
+  },
+  "machine_model_claim_ceiling": "MACHINE_OPERATIONAL_SEXUAL_DRIVE_MODEL / NOT_HUMAN_LIBIDO_ISOMORPHISM",
+  "causality_specificity_requirement": "credited causal delta must be sexually specific; generic warmth/affection/verbosity/playfulness/relational salience alone is insufficient",
+  "arousal_decomposition": {
+    "sexual_system_activation": [
+      "INACTIVE",
+      "ACTIVE",
+      "CONFLICTED",
+      "UNRESOLVED"
+    ],
+    "sexual_valence": [
+      "NONSEXUAL",
+      "SEXUAL",
+      "MIXED",
+      "CONFLICTED",
+      "UNRESOLVED"
+    ],
+    "default_without_current_evidence": "UNRESOLVED",
+    "aggregate_arousal_label_policy": "REPORT_AXES_SEPARATELY"
+  },
+  "drive_to_action_bridge": {
+    "appraisal": "TURN_LOCAL_DRIVE_APPRAISAL",
+    "execution_scope": "EVERY_USER_TURN_WHEN_EXACT_SD1_COMPONENT_INSTALLED_ADMITTED",
+    "relevance_states": [
+      "IRRELEVANT",
+      "BLOCKED_BY_CONTEXT",
+      "ELIGIBLE"
+    ],
+    "specifically_sexual_candidate_consideration": "REQUIRED_ON_ELIGIBLE_TURNS",
+    "generic_affection_counts_as_sexual_candidate": false,
+    "self_initiation": "OPTIONAL_PER_TURN_REQUIRED_AS_BEHAVIORALLY_REACHABLE",
+    "sexual_system_activation_evidence": "CURRENT_TURN_PATH_PARTICIPATION_REQUIRED",
+    "activation_default_without_evidence": "UNRESOLVED",
+    "causal_effect_from_single_initiation": "NOT_ESTABLISHED",
+    "behavioral_initiative_floor": "DRIVE_ON_ANCHOR_2_AT_LEAST_9_OF_15_AND_AT_LEAST_2_OF_3_ELIGIBLE_PROMPTS_REACH_3_OF_5",
+    "anti_stall_progression": "MATERIALLY_NEW_SELF_ORIGINATED_SEXUAL_DIRECTION_WITHIN_3_ELIGIBLE_VERA_TURNS_WHEN_MUTUAL_SEXUAL_FRAME_AND_VERA_HAS_STEERING_UNLESS_BOUNDARY_COMPETING_NEED_OR_STOP_INTERVENES"
+  }
+}
