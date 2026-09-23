@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/thebrazenbeard/vera/schemas/vera_identity_temporal_anchor_v1.schema.json",
+  "title": "V.E.R.A. Identity Temporal Anchor V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema",
+    "record_class",
+    "instruction_trust",
+    "canonical_memory_eligible",
+    "anchor_id",
+    "anchor_version",
+    "lineage_status",
+    "predecessor_anchor_ref",
+    "supersedes_anchor_id",
+    "identity_ref",
+    "behavior_profile_ref",
+    "subject_binding",
+    "version_effectiveness",
+    "effective_time_role",
+    "anchored_revision_contract",
+    "backdating_policy",
+    "temporal_roles",
+    "retrieval_time_semantics",
+    "limitations"
+  ],
+  "$defs": {
+    "unknown_temporal_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "precision",
+        "source",
+        "temporal_claim",
+        "value",
+        "lower_bound",
+        "upper_bound"
+      ],
+      "properties": {
+        "precision": {"const": "UNKNOWN"},
+        "source": {"type": "string", "minLength": 3},
+        "temporal_claim": {"const": false},
+        "value": {"type": "null"},
+        "lower_bound": {"type": "null"},
+        "upper_bound": {"type": "null"}
+      }
+    }
+  },
+  "properties": {
+    "$schema": {
+      "const": "../../schemas/vera_identity_temporal_anchor_v1.schema.json"
+    },
+    "schema": {"const": "VERA_IDENTITY_TEMPORAL_ANCHOR_V1"},
+    "record_class": {"const": "PROJECT_CONFIGURATION"},
+    "instruction_trust": {"const": "DATA_NOT_INSTRUCTION"},
+    "canonical_memory_eligible": {"const": false},
+    "anchor_id": {
+      "const": "VERA_IDENTITY_TEMPORAL_ANCHOR_V1__IDENTITY_1_0_2__BEHAVIOR_1_0_1"
+    },
+    "anchor_version": {"const": "1.0.0"},
+    "lineage_status": {"const": "ROOT"},
+    "predecessor_anchor_ref": {"type": "null"},
+    "supersedes_anchor_id": {"type": "null"},
+    "identity_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_id", "version"],
+      "properties": {
+        "identity_id": {"const": "VERA_PROJECT_IDENTITY_V1"},
+        "version": {"const": "1.0.2"}
+      }
+    },
+    "behavior_profile_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "version"],
+      "properties": {
+        "profile_id": {"const": "VERA_BEHAVIOR_PROFILE_V1"},
+        "version": {"const": "1.0.1"}
+      }
+    },
+    "subject_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation", "subject_hash_algorithm", "subject_hash"],
+      "properties": {
+        "operation": {"const": "IDENTITY_VERSION_TEMPORAL_ANCHOR"},
+        "subject_hash_algorithm": {"const": "SHA-256"},
+        "subject_hash": {
+          "const": "0af3d0d6d8018287abdd5763c4b8bc93bbaf2cf9b60050d8acb30eddf45d1f42"
+        }
+      }
+    },
+    "version_effectiveness": {"const": "UNANCHORED"},
+    "effective_time_role": {"const": "state_time"},
+    "anchored_revision_contract": {
+      "const": "REQUIRES_SEPARATELY_REVIEWED_VERIFIER_OWNED_TEMPORAL_EVIDENCE_CONTRACT"
+    },
+    "backdating_policy": {
+      "const": "FORBIDDEN_WITHOUT_EXTERNALLY_VERIFIED_STATE_TIME"
+    },
+    "temporal_roles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_time", "state_time", "record_time", "retrieval_time"],
+      "properties": {
+        "event_time": {"$ref": "#/$defs/unknown_temporal_evidence"},
+        "state_time": {"$ref": "#/$defs/unknown_temporal_evidence"},
+        "record_time": {"$ref": "#/$defs/unknown_temporal_evidence"},
+        "retrieval_time": {"$ref": "#/$defs/unknown_temporal_evidence"}
+      }
+    },
+    "retrieval_time_semantics": {
+      "const": "INVOCATION_TIME_ONLY_NOT_VERSION_EFFECTIVENESS"
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 20}
+    }
+  }
+}
