@@ -8,9 +8,14 @@ from typing import Any, Callable, Mapping
 
 from jsonschema import Draft202012Validator
 
-ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_REGISTRY = ROOT / "architecture" / "integration" / "VERA_EXTERNAL_EVIDENCE_PROVIDER_REGISTRY_V1.json"
-RESULT_SCHEMA = ROOT / "architecture" / "integration" / "vendor" / "DEEP_MEMORY_EVIDENCE_RESULT_V1.schema.json"
+from vera_memory.resources import resource_path
+
+DEFAULT_REGISTRY = resource_path(
+    "architecture/integration/VERA_EXTERNAL_EVIDENCE_PROVIDER_REGISTRY_V1.json"
+)
+RESULT_SCHEMA = resource_path(
+    "architecture/integration/vendor/DEEP_MEMORY_EVIDENCE_RESULT_V1.schema.json"
+)
 
 EVIDENCE_SEARCH = "EVIDENCE_SEARCH"
 ADMISSION_REVIEW = "HISTORICAL_TO_CURRENT_ADMISSION_REVIEW"
