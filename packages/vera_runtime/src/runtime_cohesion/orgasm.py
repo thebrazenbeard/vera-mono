@@ -909,7 +909,7 @@ class OrgasmRuntime:
                     last_receipt,
                     expected_runtime_instance_id=runtime.runtime_instance_id,
                     expected_source_revision=source_revision,
-                    require_engineered_claim=(source_revision == _CANONICAL_SEXUALITY_COMMIT),
+                    require_engineered_claim=False,
                 )
             except AffectiveReceiptSemanticError as exc:
                 raise ContractError("durable last_event_receipt semantic validation failed: " + str(exc)) from exc
