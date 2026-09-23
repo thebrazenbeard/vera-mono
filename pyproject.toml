@@ -19,5 +19,7 @@ pythonpath = [
   "packages/vera_coordination/src",
   "packages/vera_memory/src",
   "packages/vera_assurance/src",
+  "packages/vera_pc_connection/src",
+  "packages/vera_control/src",
 ]
 testpaths = ["tests"]
