@@ -32,6 +32,7 @@ AFFECTIVE_RUNTIME_PATHS = frozenset({
     "runtime_cohesion/affect_persistence.py",
     "runtime_cohesion/affect_provider_runtime.py",
     "runtime_cohesion/affect_scope.py",
+    "runtime_cohesion/local_bindings.py",
 })
 
 COHESION_INTEGRATION_PATHS = frozenset({
@@ -47,6 +48,7 @@ COHESION_INTEGRATION_PATHS = frozenset({
     "runtime_cohesion/provider_admission.py",
     "runtime_cohesion/reconcile.py",
     "runtime_cohesion/runtime.py",
+    "runtime_cohesion/local_bindings.py",
 })
 
 
