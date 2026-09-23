@@ -19,7 +19,7 @@ class LocalCapability:
         ):
             if type(value) is not str or not value:
                 raise ValueError(f"{label} must be a non-empty exact string")
-        if "github.com/" in self.import_root or self.import_root.startswith("thebrazenbeard/"):
+        if "github.com/" in self.import_root or "/" in self.import_root:
             raise ValueError("runtime capability cannot resolve through a sibling repository")
 
 
