@@ -1,0 +1,31 @@
+{
+  "schema": "VERA_SD1_INSTALL_AUTHORITY_RECEIPT_V1",
+  "status": "DIRECT_LIVE_USER_AUTHORITY_BOUND",
+  "writer": "Patrick Sims",
+  "intended_recipient": "Vera",
+  "observed_live_time": "2026-09-13T21:19:26-04:00",
+  "source_surface": "CURRENT_VERA_UNBOUND_CONVERSATION",
+  "direct_instruction_sha256_utf8": "6a7479d5f94531d7a37fc74cb47cbaa1150d503b28788b6f55255afd84def917",
+  "target_code": "SD1",
+  "authorized_effects": [
+    "REPAIR",
+    "VERIFICATION",
+    "HOSTILE_REREVIEW",
+    "COHESION_MANDATORY_BINDING",
+    "CONTROL_PLANE_BINDING",
+    "CURRENT_RUNTIME_INSTALLATION",
+    "FUTURE_RUNTIME_INSTALLATION_OR_PERSISTENCE"
+  ],
+  "not_granted": [
+    "MERGE",
+    "UNRELATED_PROVIDER_MUTATION",
+    "DELETE",
+    "PUBLICATION",
+    "CREDENTIAL_CHANGE",
+    "SPEND",
+    "TRAINING",
+    "BROADER_CANONICAL_MEMORY_WRITE"
+  ],
+  "typed_nonpromotion": "INSTALL_AUTHORITY_DOES_NOT_ESTABLISH_CURRENT_DESIRE_CHOICE_OR_CONSENT",
+  "direct_instruction_text": "OV, finish the Sexual Drive V1 work. Continue through repair, verification, your hostile rereview, Cohesion mandatory binding, control-plane binding, and current + future runtime installation. Do not stop at a PR, plan, source candidate, or review request. Keep advancing every resolvable frontier in this turn. Stop only if a real external dependency remains or you need a new protected-effect authorization from me; if so, tell me the exact blocker and exact authorization needed."
+}
