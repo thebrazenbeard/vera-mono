@@ -94,11 +94,22 @@
       "id": "vera_recovery",
       "path": "packages/vera_recovery",
       "role": "recovery_trust_lifecycle_temporal",
-      "status": "ABSORBED_SOURCE",
+      "status": "ABSORBED_BASELINE_PLUS_PORTABLE_NATIVE_LIFECYCLE",
       "donor": "thebrazenbeard/vera@078d2d7242384c58676305d47654406713e599cf",
-      "source_file_count": 12,
       "canonical_memory_owner": "vera_memory",
-      "legacy_r8a0_memory_role": "COMPATIBILITY_ONLY"
+      "legacy_r8a0_memory_role": "COMPATIBILITY_ONLY",
+      "baseline_source_file_count": 12,
+      "local_extensions": [
+        "r8a0/portable_lock.py",
+        "r8a0/process.py",
+        "vera_recovery/native.py"
+      ],
+      "portability_migrations": [
+        "r8a0/lifecycle.py",
+        "r8a0/memory.py",
+        "r8a0/trust.py",
+        "r8a0/recovery_runtime.py"
+      ]
     }
   ],
   "active_local_capability_registry": "packages/vera_core/src/vera_core/registry.py",
@@ -135,6 +146,15 @@
       "registry_and_schema_owner": "packages/vera_memory",
       "runtime_resolution": "LOCAL_RESOURCE_LOADER",
       "donor_runtime_dependency": false
+    },
+    "recovery": {
+      "fcntl_dependency": false,
+      "interprocess_locking": "SQLITE_EXCLUSIVE_TRANSACTION",
+      "system_etc_provisioning": false,
+      "default_state_root": "USER_LOCAL_OR_VERA_MONO_STATE_DIR",
+      "direct_posix_process_probe": false,
+      "windows_process_probe": "OpenProcess/GetExitCodeProcess",
+      "posix_process_probe": "kill(pid,0)"
     }
   },
   "assurance_boundary": {
@@ -165,5 +185,31 @@
     ],
     "external_allowed_only_as_infrastructure_or_independent_observer": true,
     "external_repository_code_required_at_runtime": false
+  },
+  "native_lifecycle": {
+    "schema": "VERA_MONO_NATIVE_LIFECYCLE_V1",
+    "composition_root": "packages/vera_core/src/vera_core/lifecycle.py",
+    "order": [
+      "vera_memory_cas_head",
+      "vera_recovery_checkpoint_cas",
+      "vera_control_local_source_closure",
+      "currentness_candidate",
+      "vera_assurance_internal_gate",
+      "atomic_currentness_commit"
+    ],
+    "recovery_checkpoint_semantics": "Checkpoint is durable transition evidence; assurance gates currentness publication.",
+    "critical_assurance_fields": [
+      "project_id",
+      "identity_id",
+      "control_source_digest"
+    ],
+    "mutable_assurance_fields": [
+      "runtime_id",
+      "memory_head_digest",
+      "recovery_checkpoint_digest",
+      "recovery_checkpoint_generation"
+    ],
+    "independent_review": false,
+    "protected_effect_authority": false
   }
 }
