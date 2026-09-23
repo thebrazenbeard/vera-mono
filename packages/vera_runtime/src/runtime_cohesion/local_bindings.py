@@ -172,6 +172,31 @@ def validate_local_affective_source_binding(
     return normalized
 
 
+def validate_local_affective_provenance(
+    source: Mapping[str, Any],
+    *,
+    root: Path | str | None = None,
+) -> dict[str, Any]:
+    """Validate signal/checkpoint source metadata against the local contract copy."""
+    if not isinstance(source, Mapping):
+        raise LocalBindingError("affective source provenance must be a mapping")
+    expected = {
+        "source_repository": MONOREPO_REPOSITORY,
+        "source_path": AFFECTIVE_CONTRACT_REPO_PATH,
+        "source_blob_sha": AFFECTIVE_CONTRACT_BLOB,
+    }
+    for key, value in expected.items():
+        if source.get(key) != value:
+            raise LocalBindingError(f"local affective provenance mismatch: {key}")
+    commit = _require_git_sha(source.get("source_commit"), label="local affective provenance commit")
+    repo = monorepo_root(root)
+    if _git(repo, "rev-parse", f"{commit}:{AFFECTIVE_CONTRACT_REPO_PATH}") != AFFECTIVE_CONTRACT_BLOB:
+        raise LocalBindingError("local affective provenance commit does not bind admitted contract")
+    normalized = dict(source)
+    normalized["source_commit"] = commit
+    return normalized
+
+
 def build_local_implementation_cut(
     *,
     schema: str,
