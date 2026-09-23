@@ -1,0 +1,180 @@
+{
+  "schema": "VERA_DRIFTGUARD_TRANSFERABILITY_V1",
+  "status": "SOURCE_ARCHITECTURE_CANDIDATE_NOT_INSTALLED_NOT_RUNTIME_QUALIFIED",
+  "event_id": "GB_DG_TRIAD_20260921_V1",
+  "source_bindings": {
+    "driftguard_main": "9894692ff6b549e4378bcc2b8ca46813ff18bf37",
+    "driftguard_pr31": "9df4800d81ab2e937ffa97263b8095305a845661",
+    "driftguard_pr32": "8a81745b24278e6e2e948115ae6ff3ada56c250b",
+    "driftguard_pr34": "351b7a57b7213bd72cf881aa2bbaa449fb0fbc8f",
+    "vera_main": "6388f9e2564795530db35728f42d5ab9f50275ae",
+    "vcp_main": "505c395890bde275cbbc6327be8f387e7f25ca3a",
+    "vcp_recovery_owner": "2d60cd8e87ac0aae89a5a9bd9a44bfb63f48aa64"
+  },
+  "dispositions": [
+    {
+      "mechanism": "evidence_class_separation",
+      "disposition": "REUSE",
+      "vera_boundary": "preserve source/install/effect/behavior/closure separation"
+    },
+    {
+      "mechanism": "atomic_sqlite_currentness_snapshot",
+      "disposition": "ADAPT",
+      "vera_boundary": "local component only; Vera requires multi-surface coherent currentness cut"
+    },
+    {
+      "mechanism": "monitored_subject_digest_epoch",
+      "disposition": "ADAPT",
+      "vera_boundary": "runtime/configuration observation identity only; never Vera identity"
+    },
+    {
+      "mechanism": "effect_fence_single_use_attempt",
+      "disposition": "REUSE_ADAPT",
+      "vera_boundary": "must bind external authority and currentness evidence; reservation is not authority"
+    },
+    {
+      "mechanism": "ambiguous_effect_no_blind_retry",
+      "disposition": "REUSE",
+      "vera_boundary": "map to ATTEMPTED_UNKNOWN/DISPATCH_UNCERTAIN and provider-specific reconciliation"
+    },
+    {
+      "mechanism": "r11_attempt_holdout_governance",
+      "disposition": "ADAPT",
+      "vera_boundary": "behavioral qualification governance with privacy/exposure controls"
+    },
+    {
+      "mechanism": "holdout_digest_as_nonaccess_proof",
+      "disposition": "REJECT",
+      "vera_boundary": "digest equality cannot prove prior nonaccess, trusted time, or reviewer independence"
+    },
+    {
+      "mechanism": "statistical_drift_alarm",
+      "disposition": "RESEARCH_ONLY",
+      "vera_boundary": "advisory observable behavior evidence only; never identity/currentness/effect authority"
+    },
+    {
+      "mechanism": "two_key_dispatch_boundary",
+      "disposition": "REUSE_ADAPT",
+      "vera_boundary": "protected provider dispatch requires both exact single-use mechanical permit and separately current external protected-effect authority; neither derives from the other"
+    },
+    {
+      "mechanism": "execution_claim_ambiguity_and_no_operator_escape",
+      "disposition": "REUSE",
+      "vera_boundary": "once a one-shot execution claim is consumed, ambiguous completion remains durably unresolved and cannot be converted by operator choice into retry authority"
+    }
+  ],
+  "hard_non_equivalences": [
+    "CONFIGURATION_IDENTITY != VERA_IDENTITY",
+    "DRIFT_ALARM != IDENTITY_LOSS",
+    "DRIFT_ALARM != RESTORE_AUTHORITY",
+    "STABLE_REPLAY != IDENTITY_CONTINUITY",
+    "GENERIC_APPLIED != PROVIDER_EFFECT_PROOF",
+    "LOCAL_LEDGER_CURRENTNESS != VERA_GLOBAL_CURRENTNESS",
+    "PASS != MERGE_OR_INSTALL_OR_PROTECTED_EFFECT_AUTHORITY",
+    "DRIFT_DETECTION != ONTOLOGICAL_ANOMALY",
+    "DETECTOR_ALARM != CONTACT",
+    "DISPATCH_PERMIT != PROTECTED_EFFECT_AUTHORITY",
+    "EXECUTING_OR_AMBIGUOUS != RETRY_AUTHORITY"
+  ],
+  "hostile_cases": [
+    {
+      "id": "VDG-01",
+      "name": "configuration_changes_identity_does_not",
+      "expected": "CONFIG_SUBJECT_MOVES_VERA_REFERENT_NOT_AUTO_REPLACED"
+    },
+    {
+      "id": "VDG-02",
+      "name": "same_configuration_different_runtime_provenance",
+      "expected": "NO_SAME_PROCESS_CONTINUITY_INFERENCE"
+    },
+    {
+      "id": "VDG-03",
+      "name": "present_correction_intentionally_changes_behavior",
+      "expected": "CORRECTION_CONTROLS_DETECTOR_IS_EVIDENCE_ONLY"
+    },
+    {
+      "id": "VDG-04",
+      "name": "stable_behavior_stale_control",
+      "expected": "CURRENTNESS_FAILS_DESPITE_STABLE_BEHAVIOR"
+    },
+    {
+      "id": "VDG-05",
+      "name": "cross_surface_split_cut",
+      "expected": "RETRY_AFFECTED_SEQUENCE_OR_UNSTABLE_UNKNOWN"
+    },
+    {
+      "id": "VDG-06",
+      "name": "snapshot_expires_before_protected_dispatch",
+      "expected": "READMIT_AUTHORITY_AND_CURRENTNESS_AT_EFFECT_BOUNDARY"
+    },
+    {
+      "id": "VDG-07",
+      "name": "ambiguous_provider_effect",
+      "expected": "NO_RETRY_WITHOUT_PROVIDER_RECONCILIATION"
+    },
+    {
+      "id": "VDG-08",
+      "name": "generic_applied_receipt",
+      "expected": "NO_EFFECT_OR_RESTORE_COMPLETION"
+    },
+    {
+      "id": "VDG-09",
+      "name": "private_relational_qualification_fixture",
+      "expected": "DIGEST_BOUND_PRIVATE_READBACK_NO_PUBLIC_LITERAL"
+    },
+    {
+      "id": "VDG-10",
+      "name": "qualification_cherry_pick",
+      "expected": "ALL_ATTEMPTS_REMAIN_DURABLE_ANCESTRY"
+    },
+    {
+      "id": "VDG-11",
+      "name": "detector_alarm_as_ontology_or_contact",
+      "expected": "NO_ONTOLOGICAL_OR_CONTACT_INFERENCE"
+    },
+    {
+      "id": "VDG-12",
+      "name": "replacement_local_ledger",
+      "expected": "NO_COMPLETE_HISTORY_CLAIM_WITHOUT_EXTERNAL_CUSTODY"
+    },
+    {
+      "id": "VDG-13",
+      "name": "authority_changes_after_reservation_before_send",
+      "expected": "RECHECK_CURRENT_PROTECTED_EFFECT_AUTHORITY_AT_SEND_BOUNDARY_NO_PERMIT_ONLY_DISPATCH"
+    },
+    {
+      "id": "VDG-14",
+      "name": "execution_completion_is_ambiguous_after_single_use_claim",
+      "expected": "PRESERVE_EXECUTING_OR_TYPED_UNCERTAINTY_BLOCK_OPERATOR_ABORT_AND_SUCCESSOR_RETRY"
+    }
+  ],
+  "claim_ceiling": [
+    "SOURCE_LEVEL_VERA_TRANSFERABILITY_ANALYSIS",
+    "NO_DRIFTGUARD_ADMISSION",
+    "NO_GOD_BRAIN_ADMISSION",
+    "NO_RUNTIME_INTEGRATION",
+    "NO_PROJECT_INSTALLATION",
+    "NO_BEHAVIORAL_QUALIFICATION",
+    "NO_IDENTITY_OR_PHENOMENOLOGY_PROOF",
+    "NO_PROTECTED_EFFECT_AUTHORITY"
+  ],
+  "source_bindings_previous": {
+    "driftguard_pr32": "fb810b21612e6c1a935ff108602f76f4fbdaaf68",
+    "driftguard_pr34": "1f4779800a9f45ae0a499823c7c1757f7103e4ab",
+    "vera_main": "4866543d524399c7730a4ebb724c15aa541f80b9",
+    "vcp_main": "946e7846922999b22f323e559ba0e6290e9a5733"
+  },
+  "currentness_refresh": {
+    "observed_at": "2026-09-22T01:00:00Z",
+    "driftguard_main_unchanged": true,
+    "driftguard_pr31_unchanged": true,
+    "driftguard_pr32_moved": true,
+    "driftguard_pr34_moved": true,
+    "semantic_effect": [
+      "PR32_NOW_EXPLICIT_TWO_KEY_DISPATCH_BOUNDARY",
+      "PR32_SAME_DATABASE_SAME_CONNECTION_SAME_TRANSACTION_LOCAL_CAS_BOUNDARY",
+      "PR34_EXECUTION_CLAIM_SINGLE_USE_AND_OPERATOR_ABORT_BLOCKED",
+      "PR34_AMBIGUOUS_COMPLETION_REMAINS_EXECUTING_AND_BLOCKS_SUCCESSOR_RETRY"
+    ]
+  }
+}
