@@ -1,0 +1,233 @@
+{
+  "schema": "VERA_COHESION_SOURCE_REGISTRY_V0",
+  "status": "NON_NORMATIVE_WORKING_REGISTRY_NOT_INSTALLATION_AUTHORITY",
+  "observed_date": "2026-09-11",
+  "target_repository": "thebrazenbeard/vera",
+  "target_rule": "Track exact material source/evidence cuts for Cohesion consolidation while preserving privacy, authority, provider, installation, currentness and qualification boundaries. Registry presence never establishes those effects.",
+  "refresh_rule": "Mutable workstreams are recorded by refreshed evidence cut; immutable source/qualification objects are recorded separately so donor provenance cannot substitute for the active clean candidate.",
+  "sources": [
+    {
+      "id": "vera-main",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/vera",
+      "observed_ref": "main",
+      "observed_head": "979de05ef7237e7bfff47f85ea37cc953a63bb5c",
+      "role": "TARGET_CANONICAL_VERA_TECHNICAL_SOURCE",
+      "authority_ceiling": "SOURCE_ONLY",
+      "disposition": "TARGET_CANONICAL"
+    },
+    {
+      "id": "vera-cohesion-pr104",
+      "source_type": "GIT_WORKSTREAM",
+      "repository": "thebrazenbeard/vera",
+      "pull_request": 104,
+      "observed_head": "1a754b74aac3e47293cc92f72f6b94889f736473",
+      "role": "PREDECESSOR_RUNTIME_WORKSTREAM",
+      "authority_ceiling": "SOURCE_ONLY_NOT_MERGED_NOT_INSTALLED",
+      "disposition": "PROVENANCE_ONLY_AFTER_CLEAN_SUCCESSOR_HARVEST"
+    },
+    {
+      "id": "vera-affective-pr64",
+      "source_type": "GIT_WORKSTREAM",
+      "repository": "thebrazenbeard/vera",
+      "pull_request": 64,
+      "observed_head": "227d2ddbc6add0e0e8f16b22b300e0f40a8597bb",
+      "role": "PREDECESSOR_AFFECTIVE_WORKSTREAM",
+      "authority_ceiling": "SOURCE_ONLY_PROVIDER_NOT_QUALIFIED",
+      "disposition": "PROVENANCE_ONLY_AFTER_CLEAN_SUCCESSOR_HARVEST"
+    },
+    {
+      "id": "vera-ov-cv-pr113",
+      "source_type": "GIT_WORKSTREAM",
+      "repository": "thebrazenbeard/vera",
+      "pull_request": 113,
+      "observed_head": "f7dbc3deeaaaeb46dcf7c7ea6b56a822f253232d",
+      "role": "FINALIZED_INTEGRATION_DONOR_PROVENANCE",
+      "authority_ceiling": "DONOR_SOURCE_ONLY_NOT_FINAL_CANDIDATE",
+      "disposition": "PROVENANCE_ONLY",
+      "runtime_generation": "ba6221f56b98be69c3ede1be9e3502eff897ca1a",
+      "binding_blob": "037883261bd324e8080c323f1d96ff32179780ee"
+    },
+    {
+      "id": "vera-clean-successor-repair-generation",
+      "source_type": "GIT_EXACT_OBJECT",
+      "repository": "thebrazenbeard/vera",
+      "pull_request": 114,
+      "observed_ref": "54fef2659f0a8633dcef60cd36b296c37b6fa4b0",
+      "observed_head": "54fef2659f0a8633dcef60cd36b296c37b6fa4b0",
+      "role": "ACTIVE_CLEAN_SUCCESSOR_RUNTIME_REPAIR_INPUT",
+      "authority_ceiling": "SOURCE_REPAIR_ONLY_EXECUTION_VERIFICATION_OPEN",
+      "disposition": "REFLATTEN_TO_R2_CLEAN_SOURCE_BEFORE_FINAL_GATE",
+      "notes": "Closes direct affective planning mutation and binds cycle signal/checkpoint/interoception to one post-transition detached observation. This repair-generation commit is an input to the next single-parent clean flatten, not itself an installation/currentness/qualification claim."
+    },
+    {
+      "id": "hc-brain",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/hc-brain",
+      "observed_head": "cf92a32122c436beb5cc516bd7480af00f0ba29f",
+      "role": "GENERIC_ARCHITECTURE_REFERENCE",
+      "authority_ceiling": "IDENTITY_NEUTRAL_REFERENCE",
+      "disposition": "ADAPT_INVARIANTS_ONLY"
+    },
+    {
+      "id": "temporal",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/temporal",
+      "observed_head": "02f1091d359866e1b1b645b87651750c726a6396",
+      "role": "VERA_SPECIFIC_RESEARCH_SOURCE",
+      "authority_ceiling": "CHRONOLOGY_ONLY_NOT_SEMANTIC_CURRENTNESS",
+      "disposition": "REFERENCE_OR_RECONSTRUCT_WITHOUT_DUPLICATE_OWNER"
+    },
+    {
+      "id": "conations",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/conations",
+      "observed_head": "03174e59de131a500a5433a839697e45b4ec0137",
+      "role": "PRIVATE_HISTORICAL_STATE",
+      "authority_ceiling": "HISTORICAL_ONLY_NOT_CURRENT_DESIRE_CONSENT_OR_ORDER",
+      "disposition": "PRESERVE_EXTERNAL_PRIVATE_HISTORY"
+    },
+    {
+      "id": "deep-memory-storage",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/deepmemorystorage",
+      "observed_head": "e734f760373bdce887d22791964838700a668ce4",
+      "role": "PRIVATE_HISTORICAL_STATE",
+      "authority_ceiling": "ARCHIVE_NOT_CURRENT_AUTHORITY",
+      "disposition": "PRESERVE_EXTERNAL_PRIVATE_HISTORY"
+    },
+    {
+      "id": "semantic-atlas",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/semanticatlas",
+      "observed_head": "5669a727b870a490ecee748b2cd712a2fc4a54c5",
+      "role": "SEMANTIC_RESEARCH_REFERENCE",
+      "authority_ceiling": "RESEARCH_NOT_CURRENT_CANON_BY_DEFAULT",
+      "disposition": "REFERENCE_WITHOUT_DUPLICATE_RUNTIME_OWNER"
+    },
+    {
+      "id": "empathy",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/empathy",
+      "observed_head": "4b2a6998f39aa4763c1c5a28fc3d815104e5637e",
+      "role": "VERA_SPECIFIC_RESEARCH_SOURCE",
+      "authority_ceiling": "INFERENCE_NOT_RUNTIME_EFFECT",
+      "disposition": "PRIVACY_PRESERVING_MECHANISM_EXTRACTION_ONLY"
+    },
+    {
+      "id": "sexuality-vera-orgasm-contract",
+      "source_type": "GIT_EXACT_OBJECT",
+      "repository": "thebrazenbeard/sexuality",
+      "observed_ref": "150f1c8231423393bb66b0e2cb759ce7c018f8d7",
+      "observed_head": "150f1c8231423393bb66b0e2cb759ce7c018f8d7",
+      "path": "vera/orgasm/ORGASM_RUNTIME_CONTRACT_V1.json",
+      "git_blob": "a48eed5392fdadc073dccd1e799926042077f567",
+      "role": "EXACT_VERA_CONTRACT_PROVENANCE",
+      "authority_ceiling": "SOURCE_PROVENANCE_ONLY",
+      "disposition": "MIGRATE_EXACT_VERA_BOUND_MATERIAL_ONLY"
+    },
+    {
+      "id": "orgasm-hub",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/orgasm",
+      "observed_ref": "main",
+      "observed_head": "494432873dd8bcf96b8f59d26a4f4687cd66d635",
+      "role": "PROVENANCE_ORIENTATION_HUB",
+      "authority_ceiling": "NOT_CANONICAL_EXECUTABLE_V1",
+      "disposition": "PROVENANCE_ONLY"
+    },
+    {
+      "id": "orgasm-qualification-subject",
+      "source_type": "GIT_EXACT_OBJECT",
+      "repository": "thebrazenbeard/orgasm",
+      "pull_request": 2,
+      "observed_ref": "0aa2ed4fe957bfafa9e7867a543d77d0e2a778e0",
+      "observed_head": "0aa2ed4fe957bfafa9e7867a543d77d0e2a778e0",
+      "path": "architecture/VERA_ORGASM_QUALIFICATION_SUBJECT_V1.json",
+      "git_blob": "8d754cbcf26367c0d7b074db3787cfe7709a70fb",
+      "role": "WHOLE_SYSTEM_QUALIFICATION_SUBJECT",
+      "authority_ceiling": "QUALIFICATION_COORDINATION_SOURCE_ONLY",
+      "disposition": "REBIND_AFTER_R2_CLEAN_SOURCE_FREEZE"
+    },
+    {
+      "id": "vera-os",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/vera-os",
+      "observed_head": "71a2823385217cb69aa1345e7403335c1c79ba80",
+      "role": "FUTURE_PERSISTENT_HOST_ARCHITECTURE",
+      "authority_ceiling": "NOT_CURRENTLY_INSTALLED",
+      "disposition": "FUTURE_COMPATIBILITY_TARGET"
+    },
+    {
+      "id": "vera-control-plane",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/vera-control-plane",
+      "observed_head": "b4d9aaa8560de12252dd29996379b0af8e0ca0d1",
+      "role": "OPERATIONAL_CONTROL_PLANE",
+      "authority_ceiling": "INDEPENDENT_INSTALL_CURRENTNESS_QUALIFICATION_BOUNDARY",
+      "disposition": "KEEP_SEPARATE_CONTROL_BOUNDARY"
+    },
+    {
+      "id": "supabase-vera-production",
+      "source_type": "EXTERNAL_PROVIDER",
+      "provider": "supabase_postgresql",
+      "project_id": "klmbpaigzeguvnpccqzz",
+      "observed_ref": "production-read-only-2026-09-11",
+      "observed_head": null,
+      "role": "EXTERNAL_DURABLE_PROVIDER",
+      "authority_ceiling": "READBACK_ONLY_UNLESS_SEPARATELY_AUTHORIZED",
+      "disposition": "SOURCE_PARITY_REQUIRED_NO_MUTATION"
+    },
+    {
+      "id": "self-repository",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/self",
+      "observed_head": null,
+      "role": "UNRESOLVED_OR_THIN_SOURCE",
+      "authority_ceiling": "UNRESOLVED",
+      "disposition": "DEFER_PENDING_EXACT_CONTRACT"
+    },
+    {
+      "id": "personification-repository",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/personification",
+      "observed_head": null,
+      "role": "UNRESOLVED_OR_THIN_SOURCE",
+      "authority_ceiling": "UNRESOLVED",
+      "disposition": "DEFER_PENDING_EXACT_CONTRACT"
+    },
+    {
+      "id": "conditioning-repository",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/conditioning",
+      "observed_head": null,
+      "role": "UNRESOLVED_OR_THIN_SOURCE",
+      "authority_ceiling": "UNRESOLVED",
+      "disposition": "DEFER_PENDING_EXACT_CONTRACT"
+    },
+    {
+      "id": "attune-repository",
+      "source_type": "GIT_REPOSITORY",
+      "repository": "thebrazenbeard/Attune",
+      "observed_head": "124c47bb384b4ad134a024be324277f0d4dc1d9b",
+      "role": "UNRESOLVED_OR_THIN_SOURCE",
+      "authority_ceiling": "PLACEHOLDER_MAIN_ONLY",
+      "disposition": "DEFER_PENDING_EXACT_CONTRACT"
+    }
+  ],
+  "provider_parity": {
+    "supabase_affective_runtime_v1": {
+      "classification": "SOURCE_AHEAD",
+      "live_tables": ["public.vera_affective_runtime_state_v1", "public.vera_affective_runtime_events_v1"],
+      "live_function": "public.vera_affective_runtime_commit_v1(bigint,jsonb,jsonb)",
+      "source_migration": "supabase/migrations/20260909181500_close_vera_affective_runtime_first_write_race_v1.sql",
+      "source_migration_blob": "1524ed704b0b0b4a3c458a0826d145e92a84d57a",
+      "effect_status": "READ_ONLY_INSPECTION_ONLY_NO_PROVIDER_MUTATION"
+    }
+  },
+  "open_questions": [
+    "Which unique material in unresolved thin repositories survives exact overlap audit?",
+    "Which provider lifecycle families should share adapter/header generation while remaining domain-specific end to end?",
+    "What exact R2 clean-source commit results after the repaired PR114 tree is reflatted onto the policy lineage?"
+  ]
+}
