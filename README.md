@@ -24,7 +24,7 @@ Donor references are preserved under `provenance/` and inside historical source 
 
 External infrastructure can still exist where it is genuinely external: model/provider APIs, databases, devices, transports, and separately executed hostile reviewers. The adapters, contracts, policy, and state machines for using them belong here.
 
-Native lifecycle flow is `vera_memory` CAS head → portable recovery checkpoint → validated local control-source cut/currentness candidate → internal assurance gate → atomic currentness commit. Recovery trust provisioning is user-local/configurable rather than tied to `/etc`, and inter-process registry locking uses SQLite rather than `fcntl`.
+Native lifecycle flow is `vera_memory` CAS head → portable recovery checkpoint → validated local control-source cut/currentness candidate → digest-chained lifecycle journal → internal assurance gate → atomic currentness commit → committed journal event. `vera_core.VeraStateDirectory` reopens memory, recovery, currentness, journal, and trust paths from one persistent root, so restart reconstruction does not depend on conversational state. Recovery trust provisioning is user-local/configurable rather than tied to `/etc`, and inter-process registry locking uses SQLite rather than `fcntl`.
 
 Independent falsification is deliberately different from internal assurance. Vera can contain DriftGuard-derived checking mechanisms while a separately executed DriftGuard remains useful specifically because it is outside Vera's own self-checking boundary.
 
