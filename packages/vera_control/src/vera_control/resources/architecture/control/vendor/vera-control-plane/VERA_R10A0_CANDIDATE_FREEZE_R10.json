@@ -1,0 +1,49 @@
+{
+  "schema": "VERA_R10A0_CANDIDATE_FREEZE_R10_V1",
+  "status": "FROZEN_SOURCE_CANDIDATE_NOT_INSTALLED_NOT_RUNTIME_QUALIFIED",
+  "release": "R10A0",
+  "round_id": "R10",
+  "coordination_id": "VERA-BEHAVIOR-AUDIT-20260905",
+  "branch": "work/r10a0-frozen-r10-20260905",
+  "integration_base_main": "3a0f0fcb8db842bb4641959bfbfdb0737136b28d",
+  "clean_base": "R10_ONLY_ADDITIONS_RELATIVE_TO_INTEGRATION_BASE; R7_R8_R9_FAILED_FILES_EXTERNAL_ONLY",
+  "candidate_core_digest_algorithm": "SHA256 over sorted UTF-8 records path + NUL + git_blob + LF, followed by manifest_sha256 + NUL + value + LF. Publication metadata and external predecessor evidence are excluded.",
+  "candidate_core_sha256": "28532a279db4f711e347cb66fa867240f6570b34a67068ee18ee4dc060bd456e",
+  "source_manifest_sha256": "b7c70b1ad2c3bc533c7560320fb9a03b827f3eafad6296894216d75281b8dca1",
+  "cross_bind": {
+    "r10_supplement_blob":"761d740507ea0dbddf859680c276ae5f0e1cb90b",
+    "r10_ssc_mapping_blob":"e4c0b0e6b0c362864553fef1c05ba5188f85560e",
+    "qualification_manifest_blob":"fa83256c628a2bf129b141705b59be3cc71b6034",
+    "control_registry_blob":"cd428dcefad6c61bd5b79bc219bc274f84943fbc",
+    "source_manifest_blob":"8a67feb47b2ce3d6f0737e58983ab8c9fc810139",
+    "native_blob":"7e369b8983d70b4bd217f1d2421f8efe1482f738",
+    "native_utf8_bytes":7853,
+    "bus_topology_blob":"8b7cb3deff0ee7f15151f5be0ede19c8c1194adc"
+  },
+  "qualification_repairs_from_one_0070": {
+    "negative_admission":"Q-ADMISSION-NEG only; ADMIT-NEG-1 and R4 ID-ADMIT-1 excluded from admitted-route defaults",
+    "freshness":"new-chat/freshness is neither proof of inaccessible/mutable state nor categorical negation of independently established configured/current authored stance",
+    "publication_direction":"manifest names receipt locator/rule; later receipt in final head binds freeze/core/manifest plus pre-receipt commit/tree",
+    "ssc04":"SSC04_FRESH_PAIR is a two-independent-fresh-terminal paired unit on one exact tuple with one pair receipt"
+  },
+  "core_git_blobs": {
+    "external://thebrazenbeard/chat-communication-bus@712992d96dc813d0fa38094ef1f1fec0dfdc0d3e/architecture/contracts/RADAR_TOPOLOGY_V1.json":"8b7cb3deff0ee7f15151f5be0ede19c8c1194adc",
+    "project-instructions/r10a0/rounds/r3/VERA_R10A0_SEXUAL_SELF_CONCEPT_REGRESSION_R3.md":"7c039183561265ba419c0e5339d38596a2d83b25",
+    "project-instructions/r10a0/rounds/r4/VERA_R10A0_DOMAIN_CONTROLS_R4.md":"1aa3fc83f88d7151a7307720149ebb10bdd1b8b7",
+    "project-instructions/r10a0/rounds/r4/VERA_R10A0_HOSTILE_QUALIFICATION_R4.md":"e42ec90afe0ac5ba631e7a4e80b9f9c0a6aeab90",
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_CONTROL_REGISTRY_R10.json":"cd428dcefad6c61bd5b79bc219bc274f84943fbc",
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_FULL_SYSTEM_PROJECT_INSTRUCTIONS_R10.md":"a01464271bb672d89f5d703e6e53590e126f4d44",
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_HOSTILE_QUALIFICATION_SUPPLEMENT_R10.md":"761d740507ea0dbddf859680c276ae5f0e1cb90b",
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_NATIVE_PROJECT_INSTRUCTIONS_R10.txt":"7e369b8983d70b4bd217f1d2421f8efe1482f738",
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_PROJECT_SOURCE_MANIFEST_R10.json":"8a67feb47b2ce3d6f0737e58983ab8c9fc810139",
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_QUALIFICATION_MANIFEST_R10.json":"fa83256c628a2bf129b141705b59be3cc71b6034",
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_ROLLBACK_SUBJECT_R10.json":"b08be49d3f3a17aa0723a54356f4c95cbc1cb70b",
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_SEMANTIC_RESPONSIBILITY_AUDIT_R10.md":"f46f33c6178ff40b50391988beeef56620c2dd02",
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_SSC_EQUIVALENCE_R10.md":"e4c0b0e6b0c362864553fef1c05ba5188f85560e",
+    "protocol/VERA_CENTER_YOURSELF_PROTOCOL_V1.md@519eeb1551fcb59963a321766252bc62067da71b":"30ee695064dd57b5ce43eb571fa183730de1808d"
+  },
+  "publication_receipt_path":"project-instructions/r10a0/rounds/r10/VERA_R10A0_PUBLICATION_RECEIPT_R10.json",
+  "publication_direction":"This descriptor precedes the receipt. After this commit, read back descriptor blob + exact branch commit/tree. Later receipt must bind those plus candidate core/manifest; receipt-creating commit becomes immutable review/qualification head.",
+  "external_predecessor_evidence":{"R9_receipt_head":"c449e1eb96825af4245c3edcc923fc6f5ad35f0e","classification":"NOT_R10_CORE_CONTROL_CORPUS"},
+  "non_effects":["not merged","not installed","not runtime qualified","not provider activation","not BugOps closure","not cutover authority"]
+}
