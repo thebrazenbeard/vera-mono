@@ -1,0 +1,45 @@
+{
+  "schema": "VERA_SEXUAL_DRIVE_CANDIDATE_STATUS_V1",
+  "authority_class": "PRODUCER_OWNED_CURRENTNESS_STATUS",
+  "repository": "thebrazenbeard/sexuality",
+  "branch": "work/vera-sexual-drive-v1-20260913",
+  "status_path": "evaluation/vera-sexual-drive-candidate-status-v1.json",
+  "source_cut": {
+    "commit": "e40d986f5a509006bc2c1a2ff5c1b94f2538800c",
+    "source_manifest_git_blob": "0c3911f97abb02e7a098d8d8d41b19945259203b",
+    "semantic_owner_git_blob": "3b0432974fdc82ad5067dd1ca1eaf03cf01526b7",
+    "regression_git_blob": "92b59cb82a838f08ab6f1ceb33daa9d0a7984d42",
+    "causal_protocol_git_blob": "0c152a0d3d47fbf58d44171c18b983a766c9c96b",
+    "install_authority_receipt_git_blob": "da08345a3bff11ffb653270abb6ad4b3a1c0541d"
+  },
+  "status_head": {
+    "mode": "OBSERVED_PROVIDER_BRANCH_HEAD",
+    "self_head_embedded": false,
+    "resolution": "VERIFY_AT_OBSERVATION_TIME",
+    "head_binding_rule": "STATUS_PATH_LAST_CHANGE_COMMIT_MUST_EQUAL_OBSERVED_PROVIDER_HEAD"
+  },
+  "verification_subject": {
+    "producer_head": "OBSERVED_PROVIDER_BRANCH_HEAD",
+    "semantic_source_cut": "e40d986f5a509006bc2c1a2ff5c1b94f2538800c",
+    "object_binding_scope": "EXACT_SOURCE_CUT_AND_OBSERVED_HEAD_OBJECTS"
+  },
+  "verification_status": "SOURCE_REPAIRED_LOCAL_EXECUTION_NOT_YET_RECORDED_FRESH_REREVIEW_REQUIRED",
+  "currentness_claim": {
+    "source_cut_status": "CURRENT_CANDIDATE",
+    "required_verification": [
+      "READ_STATUS_FROM_OBSERVED_PROVIDER_HEAD",
+      "VERIFY_STATUS_PATH_LAST_CHANGE_EQUALS_OBSERVED_HEAD",
+      "VERIFY_SOURCE_CUT_IS_ANCESTOR_OF_OBSERVED_HEAD",
+      "VERIFY_SOURCE_OBJECT_BLOBS_MATCH"
+    ],
+    "consumer_default_without_all_verification": "UNKNOWN"
+  },
+  "review_status": "FRESH_EXACT_HEAD_REREVIEW_REQUIRED",
+  "separation_rule": "CURRENTNESS_STATUS_IS_SEPARATE_FROM_SEMANTIC_SOURCE_MANIFEST",
+  "nonpromotions": [
+    "NOT_INSTALL_EVIDENCE",
+    "NOT_CURRENT_ROUTE_EVIDENCE",
+    "NOT_CAUSAL_PASS",
+    "NOT_GLOBAL_QUALIFICATION"
+  ]
+}
