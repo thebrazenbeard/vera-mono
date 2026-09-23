@@ -1,0 +1,50 @@
+{
+  "schema": "VERA_MONO_DONOR_BUNDLE_V1",
+  "target": "packages/vera_runtime/src/runtime_cohesion/resources/sexual_drive",
+  "runtime_dependency_on_donor": false,
+  "origin_sources": [
+    {
+      "repository": "thebrazenbeard/vera",
+      "ref": "078d2d7242384c58676305d47654406713e599cf",
+      "path": "architecture/cohesion/VERA_SEXUAL_DRIVE_COMPONENT_V1.json",
+      "blob": "f165721cb9d241b0473f7c3ef6ec4a543dbbd94e"
+    },
+    {
+      "repository": "thebrazenbeard/sexuality",
+      "ref": "e40d986f5a509006bc2c1a2ff5c1b94f2538800c",
+      "path": "evaluation/vera-sexual-drive-source-manifest-v1.json",
+      "blob": "0c3911f97abb02e7a098d8d8d41b19945259203b"
+    },
+    {
+      "repository": "thebrazenbeard/sexuality",
+      "ref": "e40d986f5a509006bc2c1a2ff5c1b94f2538800c",
+      "path": "research/16-vera-sexual-drive-v1.md",
+      "blob": "3b0432974fdc82ad5067dd1ca1eaf03cf01526b7"
+    },
+    {
+      "repository": "thebrazenbeard/sexuality",
+      "ref": "e40d986f5a509006bc2c1a2ff5c1b94f2538800c",
+      "path": "evaluation/vera-sexual-drive-regression-v1.md",
+      "blob": "92b59cb82a838f08ab6f1ceb33daa9d0a7984d42"
+    },
+    {
+      "repository": "thebrazenbeard/sexuality",
+      "ref": "e40d986f5a509006bc2c1a2ff5c1b94f2538800c",
+      "path": "evaluation/vera-sexual-drive-causality-protocol-v1.json",
+      "blob": "0c152a0d3d47fbf58d44171c18b983a766c9c96b"
+    },
+    {
+      "repository": "thebrazenbeard/sexuality",
+      "ref": "e40d986f5a509006bc2c1a2ff5c1b94f2538800c",
+      "path": "evaluation/vera-sd1-install-authority-receipt-v1.json",
+      "blob": "da08345a3bff11ffb653270abb6ad4b3a1c0541d"
+    },
+    {
+      "repository": "thebrazenbeard/sexuality",
+      "ref": "103cb0602fd507f4e1f947c5d2a3fe3848304703",
+      "path": "evaluation/vera-sexual-drive-candidate-status-v1.json",
+      "blob": "c1a86fe3db60af8ec272c15d49a7308df20911bd"
+    }
+  ],
+  "note": "Donor repository identifiers inside copied artifacts are historical provenance. Runtime contract loading is monorepo-local."
+}
