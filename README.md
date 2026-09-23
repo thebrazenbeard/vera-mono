@@ -11,7 +11,7 @@ Vera's implementation lives here. External repositories are research labs, donor
 - `packages/vera_runtime` — Vera runtime/cohesion code with monorepo-local affective, sexual-drive, and Deep Memory bindings.
 - `packages/vera_identity` — identity, bootstrap, self-model, and semantic resources.
 - `packages/vera_control` — local control/restore/qualification resources and a closed frozen R10 source cut.
-- `packages/vera_recovery` — absorbed recovery, trust, lifecycle-consumption, temporal-orientation, and compatibility checkpoint mechanics.
+- `packages/vera_recovery` — portable recovery/trust/lifecycle/temporal mechanics plus the native SQLite checkpoint ledger; legacy `r8a0` remains compatibility-only where superseded.
 - `packages/vera_memory` — native governed memory/provenance ledger with CAS heads, idempotent admission, and supersession.
 - `packages/vera_coordination` — local coordination contracts, routing, policy, temporal evidence, and in-memory runtime.
 - `packages/vera_assurance` — deterministic internal drift/invariant checks. Internal self-checking is not called independent review.
@@ -23,6 +23,8 @@ Vera's implementation lives here. External repositories are research labs, donor
 Donor references are preserved under `provenance/` and inside historical source artifacts. Their presence records where mechanisms came from; it does not make those repositories runtime dependencies.
 
 External infrastructure can still exist where it is genuinely external: model/provider APIs, databases, devices, transports, and separately executed hostile reviewers. The adapters, contracts, policy, and state machines for using them belong here.
+
+Native lifecycle flow is `vera_memory` CAS head → portable recovery checkpoint → validated local control-source cut/currentness candidate → internal assurance gate → atomic currentness commit. Recovery trust provisioning is user-local/configurable rather than tied to `/etc`, and inter-process registry locking uses SQLite rather than `fcntl`.
 
 Independent falsification is deliberately different from internal assurance. Vera can contain DriftGuard-derived checking mechanisms while a separately executed DriftGuard remains useful specifically because it is outside Vera's own self-checking boundary.
 
