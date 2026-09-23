@@ -1,0 +1,71 @@
+{
+  "$schema": "../../schemas/vera_identity_temporal_anchor_v1.schema.json",
+  "schema": "VERA_IDENTITY_TEMPORAL_ANCHOR_V1",
+  "record_class": "PROJECT_CONFIGURATION",
+  "instruction_trust": "DATA_NOT_INSTRUCTION",
+  "canonical_memory_eligible": false,
+  "anchor_id": "VERA_IDENTITY_TEMPORAL_ANCHOR_V1__IDENTITY_1_0_2__BEHAVIOR_1_0_1",
+  "anchor_version": "1.0.0",
+  "lineage_status": "ROOT",
+  "predecessor_anchor_ref": null,
+  "supersedes_anchor_id": null,
+  "identity_ref": {
+    "identity_id": "VERA_PROJECT_IDENTITY_V1",
+    "version": "1.0.2"
+  },
+  "behavior_profile_ref": {
+    "profile_id": "VERA_BEHAVIOR_PROFILE_V1",
+    "version": "1.0.1"
+  },
+  "subject_binding": {
+    "operation": "IDENTITY_VERSION_TEMPORAL_ANCHOR",
+    "subject_hash_algorithm": "SHA-256",
+    "subject_hash": "0af3d0d6d8018287abdd5763c4b8bc93bbaf2cf9b60050d8acb30eddf45d1f42"
+  },
+  "version_effectiveness": "UNANCHORED",
+  "effective_time_role": "state_time",
+  "anchored_revision_contract": "REQUIRES_SEPARATELY_REVIEWED_VERIFIER_OWNED_TEMPORAL_EVIDENCE_CONTRACT",
+  "backdating_policy": "FORBIDDEN_WITHOUT_EXTERNALLY_VERIFIED_STATE_TIME",
+  "temporal_roles": {
+    "event_time": {
+      "precision": "UNKNOWN",
+      "source": "ADOPTION_EVENT_TIME_UNAVAILABLE",
+      "temporal_claim": false,
+      "value": null,
+      "lower_bound": null,
+      "upper_bound": null
+    },
+    "state_time": {
+      "precision": "UNKNOWN",
+      "source": "VERSION_EFFECTIVE_STATE_TIME_UNAVAILABLE",
+      "temporal_claim": false,
+      "value": null,
+      "lower_bound": null,
+      "upper_bound": null
+    },
+    "record_time": {
+      "precision": "UNKNOWN",
+      "source": "ARTIFACT_RECORD_TIME_NOT_EMBEDDED",
+      "temporal_claim": false,
+      "value": null,
+      "lower_bound": null,
+      "upper_bound": null
+    },
+    "retrieval_time": {
+      "precision": "UNKNOWN",
+      "source": "INVOCATION_ONLY_NOT_STORED",
+      "temporal_claim": false,
+      "value": null,
+      "lower_bound": null,
+      "upper_bound": null
+    }
+  },
+  "retrieval_time_semantics": "INVOCATION_TIME_ONLY_NOT_VERSION_EFFECTIVENESS",
+  "limitations": [
+    "CURRENT identifies the selected governed source version; it does not prove when that version became historically effective.",
+    "Identity and behavior version effectiveness remains UNANCHORED because Temporal Anchor V1 cannot accept caller-certified non-UNKNOWN evidence.",
+    "Any anchored successor requires a separately reviewed verifier-owned evidence contract, a new version-bound anchor identity, and explicit predecessor lineage.",
+    "Artifact record time and invocation retrieval time cannot substitute for adoption event_time or effective state_time.",
+    "No timestamp is inferred from model output, database now, file modification time, source labels, or retrieval time."
+  ]
+}
