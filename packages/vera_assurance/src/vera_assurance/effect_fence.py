@@ -334,11 +334,24 @@ class AtomicCurrentnessStore:
             row = db.execute("SELECT * FROM currentness WHERE subject_id=?", (subject_id,)).fetchone()
         if row is None:
             raise KeyError(subject_id)
+        generation = int(row["generation"])
+        payload_digest = str(row["payload_digest"])
+        expected_snapshot = sha256_hex(
+            canonical_json_bytes(
+                {
+                    "subject_id": str(row["subject_id"]),
+                    "generation": generation,
+                    "payload_digest": payload_digest,
+                }
+            )
+        )
+        if expected_snapshot != row["snapshot_digest"]:
+            raise EffectFenceError("currentness snapshot digest mismatch")
         return CurrentnessSnapshot(
             row["subject_id"],
-            int(row["generation"]),
+            generation,
             row["snapshot_digest"],
-            row["payload_digest"],
+            payload_digest,
         )
 
     def read_payload(self, subject_id: str) -> object:
