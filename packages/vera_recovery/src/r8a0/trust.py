@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -15,10 +16,38 @@ class TrustRegistryError(ValueError):
     pass
 
 
-# Runtime provisioning owns these paths. Recovery requests cannot override them.
-AUTHORITY_ROOT_CONFIG_PATH = Path("/etc/vera/r8a0-authority-root.json")
-TRUST_REGISTRY_CONFIG_PATH = Path("/etc/vera/r8a0-trust-registry.json")
-LIFECYCLE_REGISTRY_KEY_PATH = Path("/etc/vera/r8a0-lifecycle-registry.key")
+def _default_state_root() -> Path:
+    configured = os.environ.get("VERA_MONO_STATE_DIR")
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return (Path.home() / ".vera-mono" / "state").resolve()
+
+
+PROVISIONING_ROOT = _default_state_root()
+AUTHORITY_ROOT_CONFIG_PATH = PROVISIONING_ROOT / "recovery" / "trust" / "authority-root.json"
+TRUST_REGISTRY_CONFIG_PATH = PROVISIONING_ROOT / "recovery" / "trust" / "trust-registry.json"
+LIFECYCLE_REGISTRY_KEY_PATH = PROVISIONING_ROOT / "recovery" / "trust" / "lifecycle-registry.key"
+
+
+def configure_provisioning_root(root: str | Path) -> Path:
+    """Set the process-owned recovery provisioning root.
+
+    Recovery requests still cannot choose trust material. A host/bootstrap layer
+    may configure one local state root before recovery begins.
+    """
+    global PROVISIONING_ROOT
+    global AUTHORITY_ROOT_CONFIG_PATH
+    global TRUST_REGISTRY_CONFIG_PATH
+    global LIFECYCLE_REGISTRY_KEY_PATH
+
+    candidate = Path(root).expanduser().resolve()
+    if not candidate.is_absolute():
+        raise TrustRegistryError("recovery provisioning root must resolve absolutely")
+    PROVISIONING_ROOT = candidate
+    AUTHORITY_ROOT_CONFIG_PATH = candidate / "recovery" / "trust" / "authority-root.json"
+    TRUST_REGISTRY_CONFIG_PATH = candidate / "recovery" / "trust" / "trust-registry.json"
+    LIFECYCLE_REGISTRY_KEY_PATH = candidate / "recovery" / "trust" / "lifecycle-registry.key"
+    return candidate
 
 TRUST_KINDS = ("temporal", "lifecycle", "supervisor", "state")
 ROOT_FIELDS = {"schema", "root_id", "issuer", "public_key"}
