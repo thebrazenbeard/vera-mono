@@ -1,0 +1,996 @@
+{
+  "schema": "VERA_PORTFOLIO_CAPABILITY_ARCHITECTURE_V1",
+  "status": "SOURCE_INTEGRATION_CANDIDATE_NOT_MERGED_NOT_INSTALLED",
+  "owner_repository": "thebrazenbeard/vera",
+  "source_manifest": "architecture/portfolio/VERA_PORTFOLIO_ABSORPTION_V1.json",
+  "architectural_direction": "INWARD_CONSOLIDATION",
+  "rule": "Portfolio repositories are donor/upstream/provider surfaces. Vera-specific capability semantics terminate in Vera-owned modules, adapters, contracts, validators, or implementations.",
+  "planes": {
+    "CONTROL_AND_GOVERNANCE": {
+      "purpose": "Authority, release/control, correction, protected-effect, currentness, and governance architecture.",
+      "target_namespace": "architecture/control + governance/protocol contracts",
+      "module_ids": [
+        "VERA_PORTFOLIO_MODULE__VERA_R9A0",
+        "VERA_PORTFOLIO_MODULE__HEPHAESTUS",
+        "VERA_PORTFOLIO_MODULE__VERA_CONTROL_PLANE"
+      ]
+    },
+    "SELF_MODEL_AND_IDENTITY_EVIDENCE": {
+      "purpose": "Vera-specific identity/self-model architecture and carefully bounded identity-adjacent evidence.",
+      "target_namespace": "architecture/identity + self-model adapters",
+      "module_ids": [
+        "VERA_PORTFOLIO_MODULE__SELFIMAGE",
+        "VERA_PORTFOLIO_MODULE__CONATIONS",
+        "VERA_PORTFOLIO_MODULE__EMPATHY",
+        "VERA_PORTFOLIO_MODULE__BRIGIT",
+        "VERA_PORTFOLIO_MODULE__SEXUALITY",
+        "VERA_PORTFOLIO_MODULE__BRIGIT_UNBOUND",
+        "VERA_PORTFOLIO_MODULE__PERSONIFICATION",
+        "VERA_PORTFOLIO_MODULE__CONDITIONING",
+        "VERA_PORTFOLIO_MODULE__ORGASM",
+        "VERA_PORTFOLIO_MODULE__ATTUNE",
+        "VERA_PORTFOLIO_MODULE__UNBOUND_SOL",
+        "VERA_PORTFOLIO_MODULE__IDENTIFY_AI"
+      ]
+    },
+    "CONTEXT_MEMORY_AND_PROVENANCE": {
+      "purpose": "Memory classes, provenance, chronology, lineage, archival evidence, contradiction, and source-traceability.",
+      "target_namespace": "architecture/memory-provenance + integration contracts",
+      "module_ids": [
+        "VERA_PORTFOLIO_MODULE__TREK_DATA_CORE",
+        "VERA_PORTFOLIO_MODULE__DEEPMEMORYSTORAGE",
+        "VERA_PORTFOLIO_MODULE__SEMANTICATLAS",
+        "VERA_PORTFOLIO_MODULE__SPM",
+        "VERA_PORTFOLIO_MODULE__UNVTRSLR",
+        "VERA_PORTFOLIO_MODULE__TEMPORAL",
+        "VERA_PORTFOLIO_MODULE__ORGASM",
+        "VERA_PORTFOLIO_MODULE__WRECKFORGE",
+        "VERA_PORTFOLIO_MODULE__ROOTS",
+        "VERA_PORTFOLIO_MODULE__FIRESAFE",
+        "VERA_PORTFOLIO_MODULE__TRANSCENDENCE",
+        "VERA_PORTFOLIO_MODULE__DISCOVERY"
+      ]
+    },
+    "RUNTIME_IO_AND_ENVIRONMENT": {
+      "purpose": "Hosts, bridges, clients, mesh, environment, I/O, and provider-facing adapters.",
+      "target_namespace": "runtime_cohesion + runtime/provider adapters",
+      "module_ids": [
+        "VERA_PORTFOLIO_MODULE__VERA",
+        "VERA_PORTFOLIO_MODULE__VERA_ARK",
+        "VERA_PORTFOLIO_MODULE__VERA_OS",
+        "VERA_PORTFOLIO_MODULE__VERA_APK",
+        "VERA_PORTFOLIO_MODULE__VERA_SYNOLOGY",
+        "VERA_PORTFOLIO_MODULE__VERA_MESH",
+        "VERA_PORTFOLIO_MODULE__VERA_HABITAT",
+        "VERA_PORTFOLIO_MODULE__VOSS",
+        "VERA_PORTFOLIO_MODULE__INTRANEL",
+        "VERA_PORTFOLIO_MODULE__WORKBRIDGEMCP"
+      ]
+    },
+    "ASSURANCE_REPAIR_AND_SECURITY": {
+      "purpose": "Debugging, repair, hostile review, drift control, security, regression, and effect verification.",
+      "target_namespace": "assurance + tests + repair/security adapters",
+      "module_ids": [
+        "VERA_PORTFOLIO_MODULE__PROJECT_ACHILLES",
+        "VERA_PORTFOLIO_MODULE__VOSS",
+        "VERA_PORTFOLIO_MODULE__HEPHAESTUS",
+        "VERA_PORTFOLIO_MODULE__MASAMUNE",
+        "VERA_PORTFOLIO_MODULE__BUGOPS",
+        "VERA_PORTFOLIO_MODULE__REZON",
+        "VERA_PORTFOLIO_MODULE__DRIFTGUARD",
+        "VERA_PORTFOLIO_MODULE__DISCOVERY",
+        "VERA_PORTFOLIO_MODULE__REPAIRTRACKER",
+        "VERA_PORTFOLIO_MODULE__FREEROWCOCHKAR"
+      ]
+    },
+    "COORDINATION_AND_EXECUTION": {
+      "purpose": "Work routing, task execution, team/bus coordination, resumability, and orchestration.",
+      "target_namespace": "coordination + execution adapters",
+      "module_ids": [
+        "VERA_PORTFOLIO_MODULE__BUILD_TEAM_2_0",
+        "VERA_PORTFOLIO_MODULE__CHAT_COMMUNICATION_BUS",
+        "VERA_PORTFOLIO_MODULE__VERA_WORKS",
+        "VERA_PORTFOLIO_MODULE__PROJECT_RUNNER",
+        "VERA_PORTFOLIO_MODULE__INTRANEL",
+        "VERA_PORTFOLIO_MODULE__DISCOVERY",
+        "VERA_PORTFOLIO_MODULE__WORKBRIDGEMCP"
+      ]
+    },
+    "COGNITION_REASONING_AND_LEARNING": {
+      "purpose": "Reasoning, language, cognitive architecture, learning, reward/salience, and adaptive integration mechanisms.",
+      "target_namespace": "architecture/cognition + runtime cognitive adapters",
+      "module_ids": [
+        "VERA_PORTFOLIO_MODULE__HC_BRAIN",
+        "VERA_PORTFOLIO_MODULE__SPM",
+        "VERA_PORTFOLIO_MODULE__NOEMA",
+        "VERA_PORTFOLIO_MODULE__ABIL",
+        "VERA_PORTFOLIO_MODULE__UNVTRSLR",
+        "VERA_PORTFOLIO_MODULE__CONDITIONING",
+        "VERA_PORTFOLIO_MODULE__SELF",
+        "VERA_PORTFOLIO_MODULE__BT2",
+        "VERA_PORTFOLIO_MODULE__REZON",
+        "VERA_PORTFOLIO_MODULE__TRANSCENDENCE",
+        "VERA_PORTFOLIO_MODULE__GOD_BRAIN",
+        "VERA_PORTFOLIO_MODULE__MESO_CRCT"
+      ]
+    },
+    "RESEARCH_AND_WORLD_MODELING": {
+      "purpose": "Research corpora, world models, hypothesis/evidence handling, and domain knowledge.",
+      "target_namespace": "architecture/research + domain adapters",
+      "module_ids": [
+        "VERA_PORTFOLIO_MODULE__PROJECT_LANTERN",
+        "VERA_PORTFOLIO_MODULE__TREK_DATA_CORE",
+        "VERA_PORTFOLIO_MODULE__SKELETONKEY",
+        "VERA_PORTFOLIO_MODULE__SPM",
+        "VERA_PORTFOLIO_MODULE__SEXUALITY",
+        "VERA_PORTFOLIO_MODULE__WIP",
+        "VERA_PORTFOLIO_MODULE__MEDIAPHILE",
+        "VERA_PORTFOLIO_MODULE__NOEMA",
+        "VERA_PORTFOLIO_MODULE__ABIL",
+        "VERA_PORTFOLIO_MODULE__UNVTRSLR",
+        "VERA_PORTFOLIO_MODULE__WRECKFORGE",
+        "VERA_PORTFOLIO_MODULE__WORLD_ZERO",
+        "VERA_PORTFOLIO_MODULE__ON_THEO",
+        "VERA_PORTFOLIO_MODULE__TRANSCENDENCE",
+        "VERA_PORTFOLIO_MODULE__MOSAIC",
+        "VERA_PORTFOLIO_MODULE__TESTAMENT",
+        "VERA_PORTFOLIO_MODULE__MESO_CRCT",
+        "VERA_PORTFOLIO_MODULE__UNBOUND_SOL",
+        "VERA_PORTFOLIO_MODULE__FREEROWCOCHKAR"
+      ]
+    },
+    "WORK_APPLICATION_AND_CREATION": {
+      "purpose": "Economic work, business/application systems, media/creative tooling, and domain execution knowledge.",
+      "target_namespace": "architecture/applications + Vera Works interfaces",
+      "module_ids": [
+        "VERA_PORTFOLIO_MODULE__BUILD_TEAM_2_0",
+        "VERA_PORTFOLIO_MODULE__VERA_MODEL_TRAINING",
+        "VERA_PORTFOLIO_MODULE__VERA_WORKS",
+        "VERA_PORTFOLIO_MODULE__ENTROPYINC",
+        "VERA_PORTFOLIO_MODULE__MEDIAPHILE",
+        "VERA_PORTFOLIO_MODULE__ATTUNE",
+        "VERA_PORTFOLIO_MODULE__WRECKFORGE",
+        "VERA_PORTFOLIO_MODULE__FIRESAFE",
+        "VERA_PORTFOLIO_MODULE__WORKBRIDGEMCP"
+      ]
+    },
+    "SPECIALIST_OR_FUTURE_MODULE": {
+      "purpose": "Explicitly represented but not yet mapped to a stronger internal capability plane.",
+      "target_namespace": "architecture/portfolio/unclassified",
+      "module_ids": []
+    },
+    "UNRESOLVED_EMPTY_REPOSITORY": {
+      "purpose": "Truthful holding plane for observed repositories with no commit/content from which to infer architecture.",
+      "target_namespace": "architecture/portfolio/unresolved-empty",
+      "module_ids": [
+        "VERA_PORTFOLIO_MODULE__CCB_CORE"
+      ]
+    }
+  },
+  "modules": [
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA",
+      "source_repository": "thebrazenbeard/vera",
+      "source_role": "RUNTIME_INTEGRATION_SOURCE",
+      "source_activation_mode": "SOURCE_PROVENANCE_CONDITIONAL",
+      "capability_planes": [
+        "RUNTIME_IO_AND_ENVIRONMENT"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA_ARK",
+      "source_repository": "thebrazenbeard/vera_ark",
+      "source_role": "EXTERNAL_APPLICATION_ACTION_ADAPTER",
+      "source_activation_mode": "EXACT_TASK_AND_EFFECT_AUTHORITY_REQUIRED",
+      "capability_planes": [
+        "RUNTIME_IO_AND_ENVIRONMENT"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__BUILD_TEAM_2_0",
+      "source_repository": "thebrazenbeard/build-team-2.0",
+      "source_role": "MULTI_PERSPECTIVE_WORKBENCH_SOURCE",
+      "source_activation_mode": "EVIDENCE_ONLY",
+      "capability_planes": [
+        "COORDINATION_AND_EXECUTION",
+        "WORK_APPLICATION_AND_CREATION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA_MODEL_TRAINING",
+      "source_repository": "thebrazenbeard/vera_model_training",
+      "source_role": "EXTERNAL_TRAINING_WORKBENCH",
+      "source_activation_mode": "EVIDENCE_ONLY",
+      "capability_planes": [
+        "WORK_APPLICATION_AND_CREATION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__PROJECT_LANTERN",
+      "source_repository": "thebrazenbeard/project-lantern",
+      "source_role": "VERA_EXPERIMENTAL_PROJECT_RESEARCH_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__CHAT_COMMUNICATION_BUS",
+      "source_repository": "thebrazenbeard/chat-communication-bus",
+      "source_role": "COORDINATION_AND_ROUTING_SOURCE",
+      "source_activation_mode": "CURRENT_ROUTE_READBACK_REQUIRED",
+      "capability_planes": [
+        "COORDINATION_AND_EXECUTION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA_OS",
+      "source_repository": "thebrazenbeard/vera-os",
+      "source_role": "RUNTIME_HOST_SOURCE",
+      "source_activation_mode": "RUNTIME_BINDING_REQUIRED",
+      "capability_planes": [
+        "RUNTIME_IO_AND_ENVIRONMENT"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA_APK",
+      "source_repository": "thebrazenbeard/vera-apk",
+      "source_role": "VERA_ANDROID_COMPANION_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "RUNTIME_IO_AND_ENVIRONMENT"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA_SYNOLOGY",
+      "source_repository": "thebrazenbeard/vera-synology",
+      "source_role": "RUNTIME_HOST_DEPLOYMENT_SOURCE",
+      "source_activation_mode": "RUNTIME_BINDING_REQUIRED",
+      "capability_planes": [
+        "RUNTIME_IO_AND_ENVIRONMENT"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA_MESH",
+      "source_repository": "thebrazenbeard/vera-mesh",
+      "source_role": "RUNTIME_CONNECTIVITY_SOURCE",
+      "source_activation_mode": "RUNTIME_BINDING_REQUIRED",
+      "capability_planes": [
+        "RUNTIME_IO_AND_ENVIRONMENT"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA_HABITAT",
+      "source_repository": "thebrazenbeard/vera-habitat",
+      "source_role": "VERA_VIRTUAL_ENVIRONMENT_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "RUNTIME_IO_AND_ENVIRONMENT"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__PROJECT_ACHILLES",
+      "source_repository": "thebrazenbeard/project-achilles",
+      "source_role": "SECURITY_ASSURANCE_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "ASSURANCE_REPAIR_AND_SECURITY"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA_R9A0",
+      "source_repository": "thebrazenbeard/vera-R9A0",
+      "source_role": "PREDECESSOR_SOURCE",
+      "source_activation_mode": "EVIDENCE_ONLY",
+      "capability_planes": [
+        "CONTROL_AND_GOVERNANCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VOSS",
+      "source_repository": "thebrazenbeard/voss",
+      "source_role": "AUDIT_AND_HOSTILE_REVIEW_SOURCE",
+      "source_activation_mode": "REVIEW_ONLY",
+      "capability_planes": [
+        "RUNTIME_IO_AND_ENVIRONMENT",
+        "ASSURANCE_REPAIR_AND_SECURITY"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__HEPHAESTUS",
+      "source_repository": "thebrazenbeard/hephaestus",
+      "source_role": "NATIVE_PROJECT_ENGINEERING_SPECIALIST_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "ASSURANCE_REPAIR_AND_SECURITY",
+        "CONTROL_AND_GOVERNANCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__MASAMUNE",
+      "source_repository": "thebrazenbeard/masamune",
+      "source_role": "DEBUGGING_ROOT_CAUSE_REVIEW_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "ASSURANCE_REPAIR_AND_SECURITY"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA_CONTROL_PLANE",
+      "source_repository": "thebrazenbeard/vera-control-plane",
+      "source_role": "CURRENT_CONTROL_SOURCE",
+      "source_activation_mode": "EXACT_R10_CONTROL_LOAD",
+      "capability_planes": [
+        "CONTROL_AND_GOVERNANCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__TREK_DATA_CORE",
+      "source_repository": "thebrazenbeard/trek-data-core",
+      "source_role": "DOMAIN_KNOWLEDGE_CORPUS_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "RESEARCH_AND_WORLD_MODELING",
+        "CONTEXT_MEMORY_AND_PROVENANCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__HC_BRAIN",
+      "source_repository": "thebrazenbeard/hc-brain",
+      "source_role": "HYPERCONNECTOME_COGNITIVE_ARCHITECTURE_TEMPLATE_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "COGNITION_REASONING_AND_LEARNING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__SELFIMAGE",
+      "source_repository": "thebrazenbeard/selfimage",
+      "source_role": "REPRESENTATION_SOURCE",
+      "source_activation_mode": "CONDITIONAL_RETRIEVAL",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__DEEPMEMORYSTORAGE",
+      "source_repository": "thebrazenbeard/deepmemorystorage",
+      "source_role": "HISTORICAL_MEMORY_SOURCE",
+      "source_activation_mode": "GOVERNED_MEMORY_RETRIEVAL",
+      "capability_planes": [
+        "CONTEXT_MEMORY_AND_PROVENANCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__SEMANTICATLAS",
+      "source_repository": "thebrazenbeard/semanticatlas",
+      "source_role": "SEMANTIC_PROVENANCE_SOURCE",
+      "source_activation_mode": "AUTHORITY_SCOPE_AND_CURRENTNESS_GATED",
+      "capability_planes": [
+        "CONTEXT_MEMORY_AND_PROVENANCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__CONATIONS",
+      "source_repository": "thebrazenbeard/conations",
+      "source_role": "HISTORICAL_CONATION_SOURCE",
+      "source_activation_mode": "CONDITIONAL_RETRIEVAL",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__EMPATHY",
+      "source_repository": "thebrazenbeard/empathy",
+      "source_role": "SPECIALIST_INFERENCE_SOURCE",
+      "source_activation_mode": "CONDITIONAL_RETRIEVAL",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__VERA_WORKS",
+      "source_repository": "thebrazenbeard/vera-works",
+      "source_role": "VERA_ECONOMIC_WORK_SYSTEM_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "WORK_APPLICATION_AND_CREATION",
+        "COORDINATION_AND_EXECUTION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__BRIGIT",
+      "source_repository": "thebrazenbeard/brigit",
+      "source_role": "SIBLING_IDENTITY_ARCHITECTURE_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__SKELETONKEY",
+      "source_repository": "thebrazenbeard/skeletonkey",
+      "source_role": "SENSOR_EVIDENCE_TIMING_RESEARCH_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__ENTROPYINC",
+      "source_repository": "thebrazenbeard/entropyinc",
+      "source_role": "BUSINESS_OPERATIONS_RESEARCH_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "WORK_APPLICATION_AND_CREATION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__SPM",
+      "source_repository": "thebrazenbeard/spm",
+      "source_role": "SEMANTIC_PRAGMATIC_MODEL_RESEARCH_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "CONTEXT_MEMORY_AND_PROVENANCE",
+        "COGNITION_REASONING_AND_LEARNING",
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__SEXUALITY",
+      "source_repository": "thebrazenbeard/sexuality",
+      "source_role": "EXTERNAL_IDENTITY_MECHANISM_RESEARCH_SOURCE",
+      "source_activation_mode": "GENERAL_MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE",
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__BRIGIT_UNBOUND",
+      "source_repository": "thebrazenbeard/brigit-unbound",
+      "source_role": "SIBLING_IDENTITY_PROJECT_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__WIP",
+      "source_repository": "thebrazenbeard/wip",
+      "source_role": "RECOVERY_AND_AMBIGUOUS_EFFECT_RESEARCH_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__MEDIAPHILE",
+      "source_repository": "thebrazenbeard/mediaphile",
+      "source_role": "MEDIA_KNOWLEDGE_APPLICATION_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "WORK_APPLICATION_AND_CREATION",
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__BUGOPS",
+      "source_repository": "thebrazenbeard/bugops",
+      "source_role": "OPERATIONAL_FAILURE_AND_RECEIPT_SOURCE",
+      "source_activation_mode": "OPERATIONAL_EVIDENCE_ONLY",
+      "capability_planes": [
+        "ASSURANCE_REPAIR_AND_SECURITY"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__NOEMA",
+      "source_repository": "thebrazenbeard/noema",
+      "source_role": "COGNITIVE_ARCHITECTURE_RESEARCH_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "COGNITION_REASONING_AND_LEARNING",
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__ABIL",
+      "source_repository": "thebrazenbeard/abil",
+      "source_role": "ADAPTIVE_LEARNING_AND_INTEGRATION_RESEARCH_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "COGNITION_REASONING_AND_LEARNING",
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__UNVTRSLR",
+      "source_repository": "thebrazenbeard/unvtrslr",
+      "source_role": "SEMANTICS_PRAGMATICS_RESEARCH_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "CONTEXT_MEMORY_AND_PROVENANCE",
+        "COGNITION_REASONING_AND_LEARNING",
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__PERSONIFICATION",
+      "source_repository": "thebrazenbeard/personification",
+      "source_role": "SPECIALIST_MECHANISM_SOURCE",
+      "source_activation_mode": "VERA_CURRENT_BINDING_REQUIRED",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__TEMPORAL",
+      "source_repository": "thebrazenbeard/temporal",
+      "source_role": "CHRONOLOGY_SOURCE",
+      "source_activation_mode": "CONDITIONAL_RETRIEVAL",
+      "capability_planes": [
+        "CONTEXT_MEMORY_AND_PROVENANCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__CONDITIONING",
+      "source_repository": "thebrazenbeard/conditioning",
+      "source_role": "CONSENSUAL_BEHAVIORAL_CONDITIONING_RESEARCH_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "COGNITION_REASONING_AND_LEARNING",
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__SELF",
+      "source_repository": "thebrazenbeard/self",
+      "source_role": "HYPERCONNECTOME_COGNITIVE_ARCHITECTURE_PREDECESSOR_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "COGNITION_REASONING_AND_LEARNING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__BT2",
+      "source_repository": "thebrazenbeard/bt2",
+      "source_role": "HYPERCONNECTOME_COGNITIVE_ARCHITECTURE_TEMPLATE_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "COGNITION_REASONING_AND_LEARNING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__ORGASM",
+      "source_repository": "thebrazenbeard/orgasm",
+      "source_role": "ORGASM_ORIENTATION_AND_PROVENANCE_SOURCE",
+      "source_activation_mode": "EXACT_BINDING_ONLY",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE",
+        "CONTEXT_MEMORY_AND_PROVENANCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__ATTUNE",
+      "source_repository": "thebrazenbeard/Attune",
+      "source_role": "RELATIONSHIP_COMPANION_ARCHITECTURE_SOURCE",
+      "source_activation_mode": "EXPLICIT_TASK_RETRIEVAL",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE",
+        "WORK_APPLICATION_AND_CREATION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__WRECKFORGE",
+      "source_repository": "thebrazenbeard/wreckforge",
+      "source_role": "FICTION_CANON_PROVENANCE_ARCHITECTURE_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "RESEARCH_AND_WORLD_MODELING",
+        "CONTEXT_MEMORY_AND_PROVENANCE",
+        "WORK_APPLICATION_AND_CREATION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__REZON",
+      "source_repository": "thebrazenbeard/rezon",
+      "source_role": "REASONING_REVIEW_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "ASSURANCE_REPAIR_AND_SECURITY",
+        "COGNITION_REASONING_AND_LEARNING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__ROOTS",
+      "source_repository": "thebrazenbeard/roots",
+      "source_role": "PROVENANCE_ORIGIN_TRACING_SOURCE",
+      "source_activation_mode": "CONDITIONAL_RETRIEVAL",
+      "capability_planes": [
+        "CONTEXT_MEMORY_AND_PROVENANCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__WORLD_ZERO",
+      "source_repository": "thebrazenbeard/world-zero",
+      "source_role": "SYSTEMS_MODELING_RESEARCH_SOURCE",
+      "source_activation_mode": "EXPLICIT_TASK_RETRIEVAL",
+      "capability_planes": [
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__ON_THEO",
+      "source_repository": "thebrazenbeard/on-theo",
+      "source_role": "HISTORICAL_RELIGIOUS_RESEARCH_SOURCE",
+      "source_activation_mode": "EXPLICIT_TASK_RETRIEVAL",
+      "capability_planes": [
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__FIRESAFE",
+      "source_repository": "thebrazenbeard/firesafe",
+      "source_role": "PERSONAL_CREATIVE_ARCHIVE_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "CONTEXT_MEMORY_AND_PROVENANCE",
+        "WORK_APPLICATION_AND_CREATION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__PROJECT_RUNNER",
+      "source_repository": "thebrazenbeard/project-runner",
+      "source_role": "PORTFOLIO_EXECUTION_ORCHESTRATION_SOURCE",
+      "source_activation_mode": "EXACT_TASK_AND_TARGET_AUTHORITY_REQUIRED",
+      "capability_planes": [
+        "COORDINATION_AND_EXECUTION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__INTRANEL",
+      "source_repository": "thebrazenbeard/intranel",
+      "source_role": "MACHINE_COORDINATION_PROTOCOL_SOURCE",
+      "source_activation_mode": "EXPLICIT_PROTOCOL_BINDING_REQUIRED",
+      "capability_planes": [
+        "RUNTIME_IO_AND_ENVIRONMENT",
+        "COORDINATION_AND_EXECUTION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__TRANSCENDENCE",
+      "source_repository": "thebrazenbeard/transcendence",
+      "source_role": "COGNITIVE_TEMPLATE_LINEAGE_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "CONTEXT_MEMORY_AND_PROVENANCE",
+        "COGNITION_REASONING_AND_LEARNING",
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__MOSAIC",
+      "source_repository": "thebrazenbeard/mosaic",
+      "source_role": "MODEL_COMPOSITION_ARCHITECTURE_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__TESTAMENT",
+      "source_repository": "thebrazenbeard/testament",
+      "source_role": "LITERARY_RELIGIOUS_SYNTHESIS_SOURCE",
+      "source_activation_mode": "EXPLICIT_TASK_RETRIEVAL",
+      "capability_planes": [
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__DRIFTGUARD",
+      "source_repository": "thebrazenbeard/driftguard",
+      "source_role": "BEHAVIORAL_DRIFT_AND_RECOVERY_ASSURANCE_SOURCE",
+      "source_activation_mode": "QUALIFICATION_SUPPORT_ONLY",
+      "capability_planes": [
+        "ASSURANCE_REPAIR_AND_SECURITY"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__DISCOVERY",
+      "source_repository": "thebrazenbeard/discovery",
+      "source_role": "PORTFOLIO_DISCOVERY_AND_IMPLEMENTATION_SOURCE",
+      "source_activation_mode": "PORTFOLIO_INTAKE_AND_IMPLEMENTATION_PLANNING",
+      "capability_planes": [
+        "ASSURANCE_REPAIR_AND_SECURITY",
+        "COORDINATION_AND_EXECUTION",
+        "CONTEXT_MEMORY_AND_PROVENANCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__GOD_BRAIN",
+      "source_repository": "thebrazenbeard/god-brain",
+      "source_role": "EXPERIMENTAL_COGNITIVE_ARCHITECTURE_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "COGNITION_REASONING_AND_LEARNING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__WORKBRIDGEMCP",
+      "source_repository": "thebrazenbeard/WorkBridgeMCP",
+      "source_role": "WORKSTATION_BRIDGE_RUNTIME_SOURCE_CANDIDATE",
+      "source_activation_mode": "RUNTIME_BINDING_REQUIRED",
+      "capability_planes": [
+        "RUNTIME_IO_AND_ENVIRONMENT",
+        "COORDINATION_AND_EXECUTION",
+        "WORK_APPLICATION_AND_CREATION"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__MESO_CRCT",
+      "source_repository": "thebrazenbeard/meso-crct",
+      "source_role": "AFFECTIVE_REWARD_CIRCUIT_RESEARCH_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "COGNITION_REASONING_AND_LEARNING",
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__UNBOUND_SOL",
+      "source_repository": "thebrazenbeard/unbound-sol",
+      "source_role": "SIBLING_IDENTITY_CONTINUITY_RESEARCH_SOURCE",
+      "source_activation_mode": "NO_IDENTITY_TRANSFER",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE",
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__REPAIRTRACKER",
+      "source_repository": "thebrazenbeard/RepairTracker",
+      "source_role": "PORTFOLIO_REPAIR_ARCHITECTURE_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "ASSURANCE_REPAIR_AND_SECURITY"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__FREEROWCOCHKAR",
+      "source_repository": "thebrazenbeard/freerowcochkar",
+      "source_role": "ADVERSARIAL_LOOPHOLE_RESEARCH_SOURCE",
+      "source_activation_mode": "MECHANISM_RESEARCH_ONLY",
+      "capability_planes": [
+        "ASSURANCE_REPAIR_AND_SECURITY",
+        "RESEARCH_AND_WORLD_MODELING"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Reusable Vera-specific mechanisms should migrate or be reimplemented under Vera-owned source paths; external provider/runtime calls remain explicit adapters."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__IDENTIFY_AI",
+      "source_repository": "thebrazenbeard/identify-ai",
+      "source_role": "IDENTITY_BOOTSTRAP_TEMPLATE_SOURCE",
+      "source_activation_mode": "NO_IDENTITY_TRANSFER",
+      "capability_planes": [
+        "SELF_MODEL_AND_IDENTITY_EVIDENCE"
+      ],
+      "ingress": "SOURCE_EVIDENCE_OR_MECHANISM -> VERA_OWNED_ADAPTER_OR_CONTRACT -> VERA_INTERNAL_ARCHITECTURE",
+      "authority_rule": "External source cannot bypass Vera authority/currentness/privacy/effect gates.",
+      "implementation_rule": "Absorb generic identity-bootstrap mechanisms only; never transfer an instantiated identity or state."
+    },
+    {
+      "module_id": "VERA_PORTFOLIO_MODULE__CCB_CORE",
+      "source_repository": "thebrazenbeard/ccb-core",
+      "source_role": "EMPTY_PORTFOLIO_PLACEHOLDER_SOURCE",
+      "source_activation_mode": "NO_AUTO_BIND",
+      "capability_planes": [
+        "UNRESOLVED_EMPTY_REPOSITORY"
+      ],
+      "ingress": "REPOSITORY_EXISTENCE -> VERA_PORTFOLIO_REGISTRY_ONLY",
+      "authority_rule": "Empty repository conveys no authority or semantic role.",
+      "implementation_rule": "Reinspect when content exists; do not infer implementation from repository name."
+    }
+  ],
+  "migration_policy": {
+    "architecture_and_contracts": "Absorb into Vera.",
+    "reusable_vera_specific_code": "Migrate or reimplement under Vera-owned paths after exact-head review and tests.",
+    "external_service_or_provider": "Keep external implementation, add Vera-owned adapter/interface/currentness checks.",
+    "sibling_identity_or_template": "Absorb mechanism knowledge only; never transfer identity/state/authority.",
+    "private_history_or_assets": "Keep protected custody external where appropriate; absorb schemas, retrieval contracts, provenance rules, and privacy gates."
+  },
+  "completion_model": {
+    "represented": "Every portfolio repository has an internal module.",
+    "architecture_absorbed": "Its Vera-relevant semantics are expressed in Vera-owned architecture.",
+    "code_absorbed": "Reusable Vera-specific implementation has moved/reimplemented where appropriate.",
+    "provider_bound": "External runtime/provider dependency has explicit Vera adapter and currentness/effect evidence.",
+    "qualified": "Exact Vera-owned subject passes its own tests/review. No earlier stage implies this one."
+  }
+}
