@@ -1,0 +1,11 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/vera",
+  "donor_ref": "078d2d7242384c58676305d47654406713e599cf",
+  "source_subtree": "pc_connection/",
+  "absorbed_target": "packages/vera_pc_connection/src/pc_connection",
+  "mode": "BYTE_COPY_SUBTREE_ABSORPTION",
+  "source_file_count": 9,
+  "runtime_dependency_on_donor": false,
+  "effect_boundary": "Package defines local contracts/state/journal mechanics. It does not connect to, authorize, or mutate a computer by itself."
+}
