@@ -12,23 +12,16 @@ from weakref import WeakKeyDictionary
 from .affect_host import VeraAffectiveRuntimeHost, validate_runtime_implementation_cut
 from .affect_integration import AffectiveModulationApplication, AffectiveModulationArbiter
 from .affect_signal import build_affective_modulation_signal
+from .local_bindings import (
+    COHESION_INTEGRATION_PATHS,
+    LocalBindingError,
+    validate_local_implementation_cut,
+)
 
 
 _INTEGRATION_CUT_SCHEMA = "VERA_COHESION_AFFECTIVE_INTEGRATION_CUT_V1"
-_REQUIRED_INTEGRATION_PATHS = frozenset({
-    "runtime_cohesion/__init__.py",
-    "runtime_cohesion/adapters.py",
-    "runtime_cohesion/affect_integration.py",
-    "runtime_cohesion/affect_integration_bound.py",
-    "runtime_cohesion/affect_signal.py",
-    "runtime_cohesion/audit.py",
-    "runtime_cohesion/executor.py",
-    "runtime_cohesion/item_typing.py",
-    "runtime_cohesion/origin.py",
-    "runtime_cohesion/provider_admission.py",
-    "runtime_cohesion/reconcile.py",
-    "runtime_cohesion/runtime.py",
-})
+_REQUIRED_INTEGRATION_PATHS = COHESION_INTEGRATION_PATHS
+
 
 
 def _require_git_sha(value: Any, *, label: str) -> str:
@@ -51,53 +44,17 @@ def validate_cohesion_affective_integration_cut(
     *,
     repository_root: Path | str | None = None,
 ) -> dict[str, Any]:
-    """Cross-bind the CV-owned affective application cut to Git and live bytes."""
-    if not isinstance(cut, Mapping):
-        raise ValueError("Cohesion affective integration cut must be a structured mapping")
-    if cut.get("schema") != _INTEGRATION_CUT_SCHEMA:
-        raise ValueError("unsupported Cohesion affective integration cut schema")
-    if cut.get("repository") != "thebrazenbeard/vera":
-        raise ValueError("Cohesion affective integration cut repository mismatch")
-    commit = _require_git_sha(cut.get("commit"), label="Cohesion affective integration commit")
-    modules = cut.get("modules")
-    if not isinstance(modules, Mapping) or set(modules) != _REQUIRED_INTEGRATION_PATHS:
-        raise ValueError("Cohesion affective integration cut module set mismatch")
-
-    root = Path(repository_root) if repository_root is not None else Path(__file__).resolve().parents[1]
-    root = root.resolve()
-    normalized: dict[str, str] = {}
-    for path in sorted(_REQUIRED_INTEGRATION_PATHS):
-        blob = _require_git_sha(modules[path], label=f"Cohesion integration blob for {path}")
-        file_path = (root / path).resolve()
-        try:
-            file_path.relative_to(root)
-        except ValueError as exc:
-            raise ValueError("Cohesion integration path escapes repository root") from exc
-        if not file_path.is_file():
-            raise ValueError(f"Cohesion integration file is missing: {path}")
-        if _git_blob_sha(file_path.read_bytes()) != blob:
-            raise ValueError(f"executing Cohesion integration bytes do not match cut: {path}")
-        try:
-            resolved = subprocess.run(
-                ["git", "rev-parse", f"{commit}:{path}"],
-                cwd=root,
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout.strip()
-        except (OSError, subprocess.CalledProcessError) as exc:
-            raise ValueError(f"Cohesion integration commit/path cannot be resolved: {path}") from exc
-        if resolved != blob:
-            raise ValueError(f"Cohesion integration commit resolves a different blob: {path}")
-        normalized[path] = blob
-
-    return {
-        "schema": _INTEGRATION_CUT_SCHEMA,
-        "repository": "thebrazenbeard/vera",
-        "commit": commit,
-        "modules": normalized,
-    }
-
+    """Validate the Cohesion application cut against local vera-mono bytes."""
+    try:
+        return validate_local_implementation_cut(
+            cut,
+            schema=_INTEGRATION_CUT_SCHEMA,
+            logical_paths=_REQUIRED_INTEGRATION_PATHS,
+            require_semantics=False,
+            root=repository_root,
+        )
+    except LocalBindingError as exc:
+        raise ValueError(str(exc)) from exc
 
 def _cut_digest(cut: Mapping[str, Any]) -> str:
     canonical = json.dumps(dict(cut), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
