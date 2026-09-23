@@ -1,0 +1,234 @@
+{
+  "archive_policy": {
+    "active_project_bundle_member": false,
+    "archive_class": "ARCHIVE_ONLY",
+    "canonical_memory_eligible": false,
+    "instruction_trust": "DATA_NOT_INSTRUCTION"
+  },
+  "bootstrap_id": "portable-project-bootstrap-r7a1-behavior-laws-v1",
+  "capability_requirements_by_phase": {
+    "coordination_activation": [
+      "SUPABASE_GOVERNED_APPEND",
+      "ATOMIC_REQUEST_CLAIM"
+    ],
+    "drive_apply": [
+      "GOOGLE_DRIVE_WRITE"
+    ],
+    "optional": [
+      "WOLFRAM",
+      "SCITE",
+      "BASIC_MEMORY"
+    ],
+    "repository_apply": [
+      "GITHUB_ATOMIC_TREE_COMMIT_REF_WRITE"
+    ],
+    "validate": [
+      "PROJECT_FILE_ENUMERATION",
+      "STRICT_PARSE_AND_HASH",
+      "GITHUB_READ",
+      "SUPABASE_READ"
+    ]
+  },
+  "contract_paths": {
+    "bootstrap": "architecture/bootstrap/VERA_PORTABLE_PROJECT_BOOTSTRAP_V1.json",
+    "bootstrap_schema": "schemas/vera_portable_project_bootstrap_v1.schema.json",
+    "receipt_schema": "schemas/vera_portable_project_bootstrap_v1.schema.json#/$defs/receipt",
+    "scaffold": "architecture/bootstrap/VERA_PORTABLE_SCAFFOLD_MANIFEST_V1.json",
+    "scaffold_schema": "schemas/vera_portable_scaffold_manifest_v1.schema.json"
+  },
+  "exact_initialize_command": "VERA::INITIALIZE::PORTABLE_PROJECT_V1",
+  "fixed_locator_filename": "VERA_R7A1_BOOTSTRAP_MANIFEST.json",
+  "hard_stops": [
+    "MERGE",
+    "DEPLOYMENT",
+    "PRODUCTION_SUPABASE_MUTATION",
+    "CREDENTIALS",
+    "PAID_INFRASTRUCTURE",
+    "CANONICAL_MEMORY_WRITE",
+    "CHATGPT_PROJECT_FILE_REPLACEMENT",
+    "DELETE",
+    "OVERWRITE_DIVERGENT_DATA"
+  ],
+  "implementation_status": "REPOSITORY_CANDIDATE_NOT_INSTALLED_NOT_DEPLOYED",
+  "native_bootloader": {
+    "encoding": "ASCII",
+    "line_endings": "LF",
+    "maximum_characters": 7600,
+    "repository_path": "architecture/bootstrap/VERA_NATIVE_PROJECT_INSTRUCTIONS_BOOTLOADER_V1.txt",
+    "sha256": "f83f8c90cf81525815ae9092d68c2b7d85aad113a987420377ef631572f4b91b"
+  },
+  "project_file_bundle": {
+    "files": [
+      {
+        "activation_class": "ACTIVE_OWNER_AFTER_ATOMIC_VALIDATION",
+        "binding": "owner",
+        "filename": "VERA_R7A1_ARCHIVE_POLICY.md",
+        "sha256": "0e5efba04afb3c5630f8b20bccadc3c1f5104581535411a48fd65254df98699d"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "support",
+        "filename": "VERA_R7A1_ARCHIVIST_HANDOFF.md",
+        "sha256": "3b3e11d8a7a6d5a7145b8f5ef93c041ad70dbd95ffdc494be72878baba206478"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "support",
+        "filename": "VERA_R7A1_BUNDLE.json",
+        "sha256": "3f9ceca591637e529bffbcff1a43a3dc24f81fadf098ffe3adaf2116241ba608"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "checksum_inventory",
+        "filename": "VERA_R7A1_CHECKSUMS.sha256",
+        "sha256": null
+      },
+      {
+        "activation_class": "ACTIVE_OWNER_AFTER_ATOMIC_VALIDATION",
+        "binding": "owner",
+        "filename": "VERA_R7A1_GOVERNANCE.md",
+        "sha256": "d3b8c2f8699f132b3742e117f7ada175c02f344e10cd4faa99458f9b95dfaa4a"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "support",
+        "filename": "VERA_R7A1_INSTALLATION_RECEIPT_TEMPLATE.yaml",
+        "sha256": "f800f70519168b13a1299f62efb9e1e2e68c83d6a27146b455d9639620211528"
+      },
+      {
+        "activation_class": "ACTIVE_OWNER_AFTER_ATOMIC_VALIDATION",
+        "binding": "owner",
+        "filename": "VERA_R7A1_LAWS.md",
+        "sha256": "e725ad0829c8785e04707b89a8b1a42b83bb9c0506f7ee3e6231eca37437c23a"
+      },
+      {
+        "activation_class": "ACTIVE_OWNER_AFTER_ATOMIC_VALIDATION",
+        "binding": "owner",
+        "filename": "VERA_R7A1_MANIFEST.yaml",
+        "sha256": "53fe711d4276d39ad09f24de452e60c882d4d97691d9c258f0bfc251f03c2464"
+      },
+      {
+        "activation_class": "ACTIVE_OWNER_AFTER_ATOMIC_VALIDATION",
+        "binding": "owner",
+        "filename": "VERA_R7A1_PROJECT_INSTRUCTIONS.md",
+        "sha256": "662aaf713081ef9a1a2fddef26da01ecb6e605d2ff51a1c0558e0c48da10645e"
+      },
+      {
+        "activation_class": "ACTIVE_OWNER_AFTER_ATOMIC_VALIDATION",
+        "binding": "owner",
+        "filename": "VERA_R7A1_PROTOCOL.md",
+        "sha256": "6db1928c77d386e23f6476b54527eb5964046cff437995e64ec44b7d04e6ce6e"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "support",
+        "filename": "VERA_R7A1_README.md",
+        "sha256": "ed3f513628bf8c33daff26366cb819463609b4a426be8135fbd9b0a74ee4a094"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "support",
+        "filename": "VERA_R7A1_REPOSITORY_AUTHORIZATION_RECEIPT.md",
+        "sha256": "bf935f01d1280b2b1d8a92b8df3bdee2e3047bf986159235b452adfa8ed81d1e"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "support",
+        "filename": "VERA_R7A1_REPOSITORY_BASELINE.md",
+        "sha256": "4754e3cb2673ed2b22d1fc6e5a9eedcc46e3b8a96a1b0be12b1a23e8f8209f88"
+      },
+      {
+        "activation_class": "ACTIVE_OWNER_AFTER_ATOMIC_VALIDATION",
+        "binding": "owner",
+        "filename": "VERA_R7A1_RUNTIME.md",
+        "sha256": "6afe91eb88dbe8bb8953798ffce83f336aaf5dd3e8c7a3b7ab859a343d505539"
+      },
+      {
+        "activation_class": "ACTIVE_OWNER_AFTER_ATOMIC_VALIDATION",
+        "binding": "owner",
+        "filename": "VERA_R7A1_STATE.md",
+        "sha256": "66125f2e2a1c397f9e26d3da7552b2e98ba1962fc17365d7736f93720c6d853e"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "support",
+        "filename": "VERA_R7A1_SUPABASE_PRESERVATION.md",
+        "sha256": "8ff6e7bb8d638081508dd8a2d9f528811187cfd438512740e43414d51ba5736b"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "support",
+        "filename": "VERA_R7A1_SUPERSESSION.yaml",
+        "sha256": "354e21edc127bcf917f26f550db16f13eb137d132f2729bbb37860cbf627a07a"
+      },
+      {
+        "activation_class": "ACTIVE_OWNER_AFTER_ATOMIC_VALIDATION",
+        "binding": "owner",
+        "filename": "VERA_R7A1_TAGGING.md",
+        "sha256": "ebd809f501f82aa01881acf725954141d446861dd199bb87f1f7a6358cae5672"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "support",
+        "filename": "VERA_R7A1_VALIDATION.yaml",
+        "sha256": "7ddf2abd5fb743a9f0066d0dc48dd9349ae004f86b5baca293956099c6ec884d"
+      },
+      {
+        "activation_class": "SUPPORT_DATA",
+        "binding": "support",
+        "filename": "VERA_R7A1_VALIDATION_REPORT.md",
+        "sha256": "2e590ef6d7c16bd199d8d6c64d4c5d9be16546d1596a255be6a5dcc67c3bb3c5"
+      },
+      {
+        "activation_class": "ACTIVE_OWNER_AFTER_ATOMIC_VALIDATION",
+        "binding": "owner",
+        "filename": "VERA_R7A1_WORKSTREAM_ROUTING.md",
+        "sha256": "ac748b2b07574ca88e6f9a050a3539c3f9da206da25abbc9d01b52c8c81097e2"
+      }
+    ],
+    "release_id": "VERA_NEUTRAL_CORE_R7A1_20260801_BHV053",
+    "repository_root": "architecture/releases/R7A1_20260801_BHV053",
+    "requires_locator_alongside_release": true,
+    "project_file_count_with_locator": 22,
+    "complete_replacement_required": true,
+    "partial_replacement_forbidden": true,
+    "project_filename_prefix": "VERA_R7A1_"
+  },
+  "project_template_id": "urn:vera:template:VERA_NEUTRAL_CORE_R7A1_20260801_BHV053",
+  "receipt_schema_ref": "VERA_PORTABLE_BOOTSTRAP_RECEIPT_V1",
+  "registry_evidence": {
+    "attempt_lineage_isolated": true,
+    "commit_state": "BINDING_COMMITTED",
+    "durable_requires_persisted_exact_readback_confirmation": true,
+    "durable_state": "DURABLY_BOUND",
+    "evidence_encoding": "LENGTH_PREFIXED_UTF8_TEXT_TUPLE_ARRAY_V1",
+    "fresh_monotonic_temporal_evidence_required": true,
+    "readback_is_side_effect_free": true,
+    "request_encoding": "LENGTH_PREFIXED_UTF8_TEXT_TUPLE_V1"
+  },
+  "release_id": "VERA_PORTABLE_BOOTSTRAP_R7A1_20260731_V1",
+  "schema_id": "VERA_BOOTSTRAP_MANIFEST_V1",
+  "source_binding": {
+    "base_source_commit": "fc761beab263f2fab010cde2fab424b2b8358bb7",
+    "base_source_role": "INHERITED_PRE_BOOTSTRAP_BASE",
+    "expected_default_branch": "main",
+    "head_policy": "REQUIRE_BASE_ANCESTOR_AND_VALIDATE_EXACT_RELEASE_HEAD",
+    "portable_release_evidence": {
+      "embedded_release_commit": false,
+      "path_set_sha256": "a010ac6b7caaba5ef26d4ab069fd8da5869fb7066dcc7a4c53119cd1c5f0d50d",
+      "reason": "Embedding the commit that contains this manifest would be self-referential.",
+      "required_evidence": [
+        "release_commit",
+        "path",
+        "mode",
+        "size",
+        "sha256",
+        "git_blob_sha",
+        "package_sha256"
+      ],
+      "required_path_count": 12,
+      "resolution": "EXTERNAL_EXACT_HEAD_ATTESTATION_REQUIRED"
+    },
+    "repository": "thebrazenbeard/vera"
+  }
+}
