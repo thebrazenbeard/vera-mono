@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://semanticatlas.local/schemas/semantic_atlas_v0.1.schema.json",
+  "title": "Semantic Atlas canonical object schema v0.1",
+  "oneOf": [
+    {"$ref": "#/$defs/source_instance"},
+    {"$ref": "#/$defs/evidence_span"},
+    {"$ref": "#/$defs/evidence_projection"},
+    {"$ref": "#/$defs/node"},
+    {"$ref": "#/$defs/node_definition"},
+    {"$ref": "#/$defs/relation_type"},
+    {"$ref": "#/$defs/proposition"},
+    {"$ref": "#/$defs/interpretation"},
+    {"$ref": "#/$defs/adjudication"},
+    {"$ref": "#/$defs/lifecycle_event"}
+  ],
+  "$defs": {
+    "uuid_id": {"type": "string", "pattern": "^(SRCI|EVID|EPROJ|NODE|NDEF|RTYPE|PROP|INTP|ADJ|LIFE)-[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "semantic_principal": {"enum": ["VERA", "PATRICK", "JOINT", "OTHER", "NONE", "UNKNOWN", "NOT_APPLICABLE"]},
+    "claim_class": {"enum": ["SEMANTIC_MEANING", "EXTERNAL_FACT", "UNIVERSAL_ONTOLOGY", "COMMAND_AUTHORITY", "MIXED", "UNKNOWN", "NOT_APPLICABLE"]},
+    "semantic_authorship": {
+      "type": "object", "additionalProperties": false,
+      "required": ["semantic_author", "endorsement_owner", "claim_class"],
+      "properties": {
+        "semantic_author": {"$ref": "#/$defs/semantic_principal"},
+        "endorsement_owner": {"$ref": "#/$defs/semantic_principal"},
+        "claim_class": {"$ref": "#/$defs/claim_class"}
+      }
+    },
+    "temporal_scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "start", "end"],
+      "properties": {
+        "kind": {"enum": ["CURRENT", "HISTORICAL", "AT_TIME", "INTERVAL", "TIMELESS", "UNKNOWN"]},
+        "start": {"type": ["string", "null"]},
+        "end": {"type": ["string", "null"]}
+      }
+    },
+    "semantic_axes": {
+      "type": "object", "additionalProperties": false,
+      "required": ["currentness", "support", "truth", "authority_context", "provenance", "salience", "consent", "identity_relevance", "lifecycle"],
+      "properties": {
+        "currentness": {"enum": ["CURRENT", "HISTORICAL", "AT_TIME", "INTERVAL", "TIMELESS", "UNKNOWN", "NOT_APPLICABLE"]},
+        "support": {"enum": ["SUPPORTED", "PARTIALLY_SUPPORTED", "CONTESTED", "UNRESOLVED", "UNSUPPORTED", "UNKNOWN", "NOT_APPLICABLE"]},
+        "truth": {"enum": ["ACCEPTED", "CONTESTED", "REJECTED", "UNRESOLVED", "UNKNOWN", "NOT_APPLICABLE"]},
+        "authority_context": {"enum": ["CURRENT_PROJECT_AUTHORITY_INPUT", "HISTORICAL_AUTHORITY_AT_TIME", "SOURCE_GOVERNING_AT_TIME", "RESEARCH_ONLY", "NONE", "UNKNOWN", "NOT_APPLICABLE"]},
+        "provenance": {"enum": ["PRIMARY_SOURCE", "DERIVED_SOURCE", "INTERPRETATION", "USER_STATEMENT", "ASSISTANT_INFERENCE", "MIXED", "UNKNOWN", "NOT_APPLICABLE"]},
+        "salience": {"enum": ["HIGH", "MEDIUM", "LOW", "UNKNOWN", "NOT_APPLICABLE"]},
+        "consent": {"enum": ["PRESENT", "ABSENT", "REVOKED", "UNKNOWN", "NOT_APPLICABLE"]},
+        "identity_relevance": {"enum": ["DIRECT", "INDIRECT", "NONE", "UNKNOWN", "NOT_APPLICABLE"]},
+        "lifecycle": {"enum": ["ACTIVE", "SUPERSEDED", "RETRACTED", "RETIRED", "REOPENED", "REINSTATED", "UNRESOLVED", "UNKNOWN", "NOT_APPLICABLE"]}
+      }
+    },
+    "source_instance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "object_type", "id", "title", "source_class", "retrieval_surface", "embedded_time_start", "embedded_time_end", "locator", "content_sha256"],
+      "properties": {
+        "schema_version": {"const": "0.1"}, "object_type": {"const": "source_instance"}, "id": {"type": "string", "pattern": "^SRCI-"},
+        "legacy_source_id": {"type": ["string", "null"]}, "title": {"type": "string", "minLength": 1}, "source_class": {"type": "string", "minLength": 1},
+        "retrieval_surface": {"type": "string", "minLength": 1}, "embedded_time_start": {"type": ["string", "null"]}, "embedded_time_end": {"type": ["string", "null"]},
+        "locator": {"type": ["string", "null"]}, "content_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}
+      }
+    },
+    "evidence_span": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "object_type", "id", "source_instance_id", "source_version_ref", "locator", "digest_basis", "representation_contract", "span_sha256", "byte_start", "byte_end_exclusive", "text_encoding", "normalization", "extractor_identity", "extractor_version"],
+      "properties": {
+        "schema_version": {"const": "0.1"},
+        "object_type": {"const": "evidence_span"},
+        "id": {"type": "string", "pattern": "^EVID-"},
+        "source_instance_id": {"type": "string", "pattern": "^SRCI-"},
+        "source_version_ref": {"type": "string", "minLength": 1},
+        "locator": {"type": "string", "minLength": 1},
+        "digest_basis": {"enum": ["SOURCE_BYTES_RANGE", "EXACT_UTF8_SPAN", "VERIFIED_EXTRACTION_REPRESENTATION"]},
+        "representation_contract": {"type": "string", "minLength": 1},
+        "span_sha256": {"$ref": "#/$defs/sha256"},
+        "byte_start": {"type": ["integer", "null"], "minimum": 0},
+        "byte_end_exclusive": {"type": ["integer", "null"], "minimum": 0},
+        "text_encoding": {"enum": ["UTF-8", null]},
+        "normalization": {"enum": ["NONE", null]},
+        "extractor_identity": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+        "extractor_version": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+        "excerpt": {"type": ["string", "null"]},
+        "notes": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"digest_basis": {"const": "SOURCE_BYTES_RANGE"}}, "required": ["digest_basis"]},
+          "then": {
+            "properties": {
+              "byte_start": {"type": "integer", "minimum": 0},
+              "byte_end_exclusive": {"type": "integer", "minimum": 1},
+              "text_encoding": {"type": "null"},
+              "normalization": {"type": "null"},
+              "extractor_identity": {"type": "null"},
+              "extractor_version": {"type": "null"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"digest_basis": {"const": "EXACT_UTF8_SPAN"}}, "required": ["digest_basis"]},
+          "then": {
+            "properties": {
+              "byte_start": {"type": "null"},
+              "byte_end_exclusive": {"type": "null"},
+              "text_encoding": {"const": "UTF-8"},
+              "normalization": {"const": "NONE"},
+              "extractor_identity": {"type": "null"},
+              "extractor_version": {"type": "null"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"digest_basis": {"const": "VERIFIED_EXTRACTION_REPRESENTATION"}}, "required": ["digest_basis"]},
+          "then": {
+            "properties": {
+              "byte_start": {"type": "null"},
+              "byte_end_exclusive": {"type": "null"},
+              "extractor_identity": {"type": "string", "minLength": 1},
+              "extractor_version": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      ]
+    },
+    "evidence_projection": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "object_type", "id", "source_instance_id", "source_evidence_span_id", "projection_kind", "representation", "representation_sha256", "transformation_kind", "fidelity_class", "scope", "raw_source_digest_state", "raw_source_sha256"],
+      "properties": {
+        "schema_version": {"const": "0.1"},
+        "object_type": {"const": "evidence_projection"},
+        "id": {"type": "string", "pattern": "^EPROJ-"},
+        "source_instance_id": {"type": "string", "pattern": "^SRCI-"},
+        "source_evidence_span_id": {"oneOf": [{"type": "string", "pattern": "^EVID-"}, {"type": "null"}]},
+        "projection_kind": {"enum": ["PRIVACY_MINIMIZED", "REDACTED_DERIVATIVE", "NORMALIZED_DERIVATIVE", "SEMANTIC_SUMMARY", "OTHER"]},
+        "representation": {"type": "string", "minLength": 1},
+        "representation_sha256": {"$ref": "#/$defs/sha256"},
+        "transformation_kind": {"type": "string", "minLength": 1},
+        "fidelity_class": {"enum": ["SEMANTIC_SUMMARY_NOT_QUOTATION", "REDACTED_NOT_VERBATIM", "NORMALIZED_CONTENT_PRESERVING", "OTHER_DERIVED", "UNKNOWN"]},
+        "scope": {"type": "string", "minLength": 1},
+        "raw_source_digest_state": {"enum": ["VERIFIED", "WITHHELD_FOR_PRIVACY", "UNAVAILABLE_OR_NOT_CAPTURED"]},
+        "raw_source_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "notes": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"raw_source_digest_state": {"const": "VERIFIED"}}},
+          "then": {"properties": {"raw_source_sha256": {"$ref": "#/$defs/sha256"}}}
+        },
+        {
+          "if": {"properties": {"raw_source_digest_state": {"enum": ["WITHHELD_FOR_PRIVACY", "UNAVAILABLE_OR_NOT_CAPTURED"]}}},
+          "then": {"properties": {"raw_source_sha256": {"type": "null"}}}
+        }
+      ]
+    },
+    "node": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "object_type", "id", "primary_label", "node_kind"],
+      "properties": {
+        "schema_version": {"const": "0.1"}, "object_type": {"const": "node"}, "id": {"type": "string", "pattern": "^NODE-"},
+        "primary_label": {"type": "string", "minLength": 1}, "aliases": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "node_kind": {"type": "string", "minLength": 1}, "notes": {"type": ["string", "null"]}
+      }
+    },
+    "node_definition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "object_type", "id", "node_id", "definition", "scope", "accepted_by_adjudication_id", "predecessor_definition_id", "semantic_authorship"],
+      "properties": {
+        "schema_version": {"const": "0.1"}, "object_type": {"const": "node_definition"}, "id": {"type": "string", "pattern": "^NDEF-"},
+        "node_id": {"type": "string", "pattern": "^NODE-"}, "definition": {"type": "string", "minLength": 1}, "scope": {"type": "string", "minLength": 1},
+        "accepted_by_adjudication_id": {"type": "string", "pattern": "^ADJ-"}, "predecessor_definition_id": {"type": ["string", "null"]},
+        "semantic_authorship": {"$ref": "#/$defs/semantic_authorship"}
+      }
+    },
+    "relation_type": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "object_type", "id", "code", "family", "description", "symmetry", "transitivity", "current_canon_eligible"],
+      "properties": {
+        "schema_version": {"const": "0.1"}, "object_type": {"const": "relation_type"}, "id": {"type": "string", "pattern": "^RTYPE-"},
+        "code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"}, "family": {"enum": ["LIFECYCLE_LINEAGE", "EPISTEMIC", "IDENTITY_EQUIVALENCE", "PROVENANCE_HISTORY"]},
+        "description": {"type": "string", "minLength": 1}, "symmetry": {"enum": ["SYMMETRIC", "ASYMMETRIC", "UNKNOWN"]}, "transitivity": {"enum": ["TRANSITIVE", "INTRANSITIVE", "UNKNOWN"]},
+        "current_canon_eligible": {"type": "boolean"}
+      }
+    },
+    "proposition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "object_type", "id", "subject_id", "predicate_code", "object", "evidence_ids", "evidence_projection_ids", "temporal_scope", "axes", "semantic_authorship"],
+      "properties": {
+        "schema_version": {"const": "0.1"}, "object_type": {"const": "proposition"}, "id": {"type": "string", "pattern": "^PROP-"},
+        "subject_id": {"$ref": "#/$defs/uuid_id"}, "predicate_code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+        "object": {"oneOf": [
+          {"type": "object", "additionalProperties": false, "required": ["kind", "id"], "properties": {"kind": {"const": "OBJECT_REF"}, "id": {"$ref": "#/$defs/uuid_id"}}},
+          {"type": "object", "additionalProperties": false, "required": ["kind", "value", "datatype"], "properties": {"kind": {"const": "LITERAL"}, "value": {}, "datatype": {"type": ["string", "null"]}}}
+        ]},
+        "evidence_ids": {"type": "array", "items": {"type": "string", "pattern": "^EVID-"}, "uniqueItems": true},
+        "evidence_projection_ids": {"type": "array", "items": {"type": "string", "pattern": "^EPROJ-"}, "uniqueItems": true},
+        "temporal_scope": {"$ref": "#/$defs/temporal_scope"}, "axes": {"$ref": "#/$defs/semantic_axes"}, "semantic_authorship": {"$ref": "#/$defs/semantic_authorship"}, "notes": {"type": ["string", "null"]}
+      }
+    },
+    "interpretation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "object_type", "id", "evidence_ids", "evidence_projection_ids", "text", "method", "knowledge_ceiling", "candidate_proposition_ids", "semantic_authorship"],
+      "properties": {
+        "schema_version": {"const": "0.1"}, "object_type": {"const": "interpretation"}, "id": {"type": "string", "pattern": "^INTP-"},
+        "evidence_ids": {"type": "array", "items": {"type": "string", "pattern": "^EVID-"}, "uniqueItems": true},
+        "evidence_projection_ids": {"type": "array", "items": {"type": "string", "pattern": "^EPROJ-"}, "uniqueItems": true},
+        "text": {"type": "string", "minLength": 1},
+        "method": {"type": "string", "minLength": 1}, "knowledge_ceiling": {"type": "string", "minLength": 1}, "candidate_proposition_ids": {"type": "array", "items": {"type": "string", "pattern": "^PROP-"}, "uniqueItems": true},
+        "semantic_authorship": {"$ref": "#/$defs/semantic_authorship"}
+      }
+    },
+    "adjudication": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "object_type", "id", "subject_id", "decision", "authority_scope", "decided_by", "rationale", "evidence_ids", "evidence_projection_ids", "supersedes_adjudication_ids"],
+      "properties": {
+        "schema_version": {"const": "0.1"}, "object_type": {"const": "adjudication"}, "id": {"type": "string", "pattern": "^ADJ-"}, "subject_id": {"$ref": "#/$defs/uuid_id"},
+        "decision": {"enum": ["ACCEPT", "REJECT", "REFINE", "SUPERSEDE", "RETRACT", "REOPEN", "REINSTATE", "DEFER", "UNRESOLVED"]}, "authority_scope": {"enum": ["CURRENT_CANON", "HISTORICAL_ONLY", "RESEARCH_ONLY", "NONE"]},
+        "decided_by": {"$ref": "#/$defs/semantic_principal"}, "rationale": {"type": "string", "minLength": 1},
+        "evidence_ids": {"type": "array", "items": {"type": "string", "pattern": "^EVID-"}, "uniqueItems": true},
+        "evidence_projection_ids": {"type": "array", "items": {"type": "string", "pattern": "^EPROJ-"}, "uniqueItems": true},
+        "supersedes_adjudication_ids": {"type": "array", "items": {"type": "string", "pattern": "^ADJ-"}, "uniqueItems": true}
+      }
+    },
+    "lifecycle_event": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "object_type", "id", "subject_id", "event_type", "caused_by_adjudication_id", "successor_id"],
+      "properties": {
+        "schema_version": {"const": "0.1"}, "object_type": {"const": "lifecycle_event"}, "id": {"type": "string", "pattern": "^LIFE-"}, "subject_id": {"$ref": "#/$defs/uuid_id"},
+        "event_type": {"enum": ["SUPERSEDED", "REFINED", "RETRACTED", "RETIRED", "CORRECTED", "REOPENED", "REINSTATED"]}, "caused_by_adjudication_id": {"type": "string", "pattern": "^ADJ-"},
+        "successor_id": {"oneOf": [{"$ref": "#/$defs/uuid_id"}, {"type": "null"}]}, "notes": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
