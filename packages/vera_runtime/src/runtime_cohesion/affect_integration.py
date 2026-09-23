@@ -6,14 +6,10 @@ import json
 import math
 from typing import Any, Mapping
 
+from .local_bindings import LocalBindingError, validate_local_affective_provenance
+
 
 _SIGNAL_SCHEMA = "VERA_AFFECTIVE_MODULATION_SIGNAL_V1"
-_CANONICAL_SOURCE = {
-    "source_repository": "thebrazenbeard/sexuality",
-    "source_commit": "150f1c8231423393bb66b0e2cb759ce7c018f8d7",
-    "source_path": "vera/orgasm/ORGASM_RUNTIME_CONTRACT_V1.json",
-    "source_blob_sha": "a48eed5392fdadc073dccd1e799926042077f567",
-}
 _ALLOWED_NUMERIC_TARGETS = {
     "valuation",
     "salience",
@@ -133,9 +129,10 @@ def _validate_signal(
     source = signal.get("source_binding")
     if not isinstance(source, Mapping):
         raise ValueError("affective modulation signal requires exact source binding")
-    for key, expected in _CANONICAL_SOURCE.items():
-        if source.get(key) != expected:
-            raise ValueError(f"affective modulation signal source mismatch: {key}")
+    try:
+        validate_local_affective_provenance(source)
+    except LocalBindingError as exc:
+        raise ValueError(str(exc)) from exc
     _require_hex(source.get("source_sha256"), length=64, label="source_sha256")
 
     digest = _require_hex(signal.get("signal_digest"), length=64, label="signal_digest")
