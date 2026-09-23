@@ -1,6 +1,9 @@
 from pathlib import Path
 
+import os
+
 import r8a0.lifecycle as lifecycle_module
+import r8a0.process as process_module
 import r8a0.memory as memory_module
 import r8a0.trust as trust_module
 
@@ -14,6 +17,8 @@ def test_recovery_layer_has_no_unix_only_fcntl_or_etc_vera_dependency():
             violations.append((path.name, "fcntl"))
         if "/etc/vera" in text:
             violations.append((path.name, "/etc/vera"))
+        if "os.kill(" in text and path.name != "process.py":
+            violations.append((path.name, "direct os.kill"))
     assert violations == []
 
 
@@ -51,3 +56,8 @@ def test_lifecycle_registry_uses_portable_sqlite_lock(tmp_path):
     assert next_head != head
     assert registry.lock.suffix == ".sqlite3"
     assert registry.event("term-1")["state"] == "CONSUMED"
+
+
+def test_process_liveness_is_hidden_behind_portable_adapter():
+    assert process_module.process_is_alive(os.getpid()) is True
+    assert process_module.process_is_alive(-1) is False
