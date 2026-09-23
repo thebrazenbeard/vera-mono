@@ -1,0 +1,193 @@
+{
+  "schema": "VERARELAY_DSM_LIFECYCLE_CURRENTNESS_V1",
+  "status": "SOURCE_CONTROL_CONTRACT_ONLY",
+  "subject": {
+    "component": "VeraRelay",
+    "frozen_predecessor": "0.3.0-0005",
+    "target_successor": "0.4.0",
+    "live_predecessor_mutation": "FORBIDDEN_WITHOUT_PATRICK_EXACT_AUTHORITY"
+  },
+  "observers": {
+    "DSM_PACKAGE_STATUS": "PACKAGE_FRAMEWORK_OBSERVER",
+    "START_STOP_STATUS": "PACKAGE_LIFECYCLE_SCRIPT_OBSERVER",
+    "PROCESS_OWNERSHIP": "OS_PROCESS_OBSERVER",
+    "APPLICATION_HEALTH": "APPLICATION_OBSERVER",
+    "PORT_LISTENER": "TRANSPORT_OBSERVER"
+  },
+  "observer_non_implications": [
+    "APPLICATION_HEALTH_OK_NE_DSM_RUNNING",
+    "PORT_LISTENER_NE_OWNED_PROCESS",
+    "PROCESS_EXISTS_NE_DSM_LIFECYCLE_BOUND",
+    "DSM_RUNNING_NE_APPLICATION_HEALTHY",
+    "START_STOP_STATUS_ZERO_NE_CURRENT_RELEASE_QUALIFIED"
+  ],
+  "states": {
+    "STOPPED": {
+      "requires": [
+        "NO_OWNED_RUNTIME_PROCESS",
+        "NO_PACKAGE_SERVICE_ACTIVE",
+        "NO_VERARELAY_OWNED_LISTENER"
+      ]
+    },
+    "RUNNING_CURRENT": {
+      "requires": [
+        "DSM_STATUS_RUNNING",
+        "START_STOP_STATUS_ZERO",
+        "OWNED_RUNTIME_PROCESS_VERIFIED",
+        "APPLICATION_HEALTH_PASS",
+        "EXPECTED_RELEASE_IDENTITY"
+      ]
+    },
+    "ORPHANED_RUNTIME": {
+      "definition": "OWNED_RUNTIME_PROCESS_OR_HEALTHY_APPLICATION_WITH_DSM_OR_SCRIPT_REPORTING_NOT_RUNNING"
+    },
+    "BROKEN": {
+      "definition": "LIFECYCLE_OR_INTEGRITY_STATE_REQUIRES_REPAIR_OR_REINSTALL"
+    },
+    "UNKNOWN": {
+      "definition": "OBSERVERS_DIVERGE_WITHOUT_SUFFICIENT_OWNERSHIP_EVIDENCE"
+    }
+  },
+  "status_exit_codes": {
+    "0": "RUNNING",
+    "1": "PROGRAM_DEAD_PID_EXISTS",
+    "2": "PROGRAM_DEAD_LOCK_EXISTS",
+    "3": "NOT_RUNNING",
+    "4": "UNKNOWN",
+    "150": "BROKEN_REINSTALL"
+  },
+  "ownership": {
+    "port_only": "FORBIDDEN",
+    "pid_only": "INSUFFICIENT",
+    "minimum_process_proof": [
+      "PACKAGE_USER_MATCH",
+      "EXPECTED_EXECUTABLE_OR_INTERPRETER",
+      "EXPECTED_PACKAGE_PATH_ARGUMENT",
+      "PROCESS_START_IDENTITY_OR_EQUIVALENT_REUSE_PROTECTION"
+    ],
+    "preferred_supervision": "DSM_MANAGED_SYSTEMD_UNIT",
+    "systemd_package_framework_path": "conf/systemd/pkg-* OR pkguser-* AS APPROPRIATE",
+    "systemd_control": "synosystemctl",
+    "unrelated_listener": "NEVER_ADOPT_OR_TERMINATE"
+  },
+  "pid_record": {
+    "if_used": [
+      "ATOMIC_WRITE",
+      "PACKAGE_OWNED_LOCATION",
+      "START_IDENTITY_BOUND",
+      "STALE_PID_REJECTED",
+      "PID_REUSE_REJECTED"
+    ],
+    "missing_pid_with_owned_runtime": "ORPHANED_RUNTIME_NOT_STOPPED"
+  },
+  "lifecycle": {
+    "start": {
+      "success_requires": [
+        "EXACTLY_ONE_OWNED_RUNTIME",
+        "APPLICATION_HEALTH_PASS",
+        "STATUS_ZERO_AFTER_START"
+      ]
+    },
+    "stop": {
+      "success_requires": [
+        "NO_OWNED_RUNTIME_PROCESS",
+        "NO_OWNED_CHILD_PROCESS",
+        "NO_OWNED_LISTENER",
+        "STATUS_THREE_AFTER_STOP"
+      ],
+      "missing_pid_behavior": "RECONCILE_OWNERSHIP_AND_STOP_OR_FAIL_NOT_SILENT_SUCCESS"
+    },
+    "upgrade": {
+      "preconditions": [
+        "CAPTURE_PREDECESSOR_STATE",
+        "STOP_PREDECESSOR_CONFIRMED",
+        "NO_PREDECESSOR_OWNED_PROCESS_SURVIVES"
+      ],
+      "postconditions": [
+        "EXPECTED_NEW_RELEASE_IDENTITY",
+        "STATUS_AND_HEALTH_CONVERGE",
+        "NO_STALE_PREDECESSOR_PID_OR_UNIT_STATE"
+      ]
+    },
+    "uninstall": {
+      "success_requires": [
+        "NO_OWNED_RUNTIME_PROCESS",
+        "NO_OWNED_CHILD_PROCESS",
+        "NO_PACKAGE_SERVICE_UNIT",
+        "NO_PACKAGE_OWNED_RUNTIME_FILES_OUTSIDE_PRESERVED_USER_DATA_POLICY"
+      ]
+    },
+    "reboot": {
+      "success_requires": [
+        "PACKAGE_FRAMEWORK_CAN_REESTABLISH_SINGLE_OWNED_RUNTIME",
+        "STATUS_AND_APPLICATION_HEALTH_CONVERGE"
+      ]
+    }
+  },
+  "health": {
+    "required_dimensions": [
+      "PROCESS",
+      "SUPERVISOR",
+      "DATABASE",
+      "AUDIT",
+      "AUTH",
+      "STORAGE",
+      "TRANSPORT",
+      "PAIRING",
+      "WRITE_AVAILABILITY"
+    ],
+    "overall_ok_requires_supervisor_bound": true,
+    "orphaned_runtime_health": "DEGRADED_LIFECYCLE_UNBOUND"
+  },
+  "release": {
+    "beta_removal_requires": [
+      "SOURCE_PASS",
+      "BUILD_PASS",
+      "CONFORMANCE_PASS",
+      "DEVICE_LIFECYCLE_PASS",
+      "SECURITY_HOSTILE_PASS"
+    ],
+    "beta_field_is_not_release_authority": true,
+    "description_must_not_overclaim_security": true
+  },
+  "hostile_acceptance": [
+    "MISSING_PID_LIVE_OWNED_RUNTIME",
+    "STALE_PID_DEAD_PROCESS",
+    "PID_REUSE_UNRELATED_PROCESS",
+    "UNRELATED_PROCESS_ON_17443",
+    "DOUBLE_START",
+    "PARTIAL_START",
+    "STOP_WITH_MISSING_PID",
+    "STOP_CHILD_SURVIVES",
+    "UPGRADE_PREDECESSOR_SURVIVES",
+    "UNINSTALL_PROCESS_LEFTOVER",
+    "REBOOT_RECONCILIATION",
+    "HEALTH_OK_DSM_STOPPED",
+    "DSM_RUNNING_HEALTH_RED",
+    "SYSTEMD_UNIT_STALE",
+    "PACKAGE_USER_MISMATCH"
+  ],
+  "frozen_predecessor_observation": {
+    "observed_at": "2026-09-20",
+    "evidence_source": "thebrazenbeard/vera-mesh#13",
+    "version": "0.3.0-0005",
+    "application_health": "OK",
+    "owned_runtime_processes_observed": true,
+    "dsm_status": "STOP_ERROR_263",
+    "start_stop_status": 3,
+    "classification": "ORPHANED_RUNTIME",
+    "release_classification": "FROZEN_PREDECESSOR_BETA"
+  },
+  "current_device_observation": {
+    "status": "UNKNOWN_FRESH_READBACK_REQUIRED",
+    "frozen_observation_is_not_current_device_state": true,
+    "required_before_runtime_or_deployment_claim": [
+      "FRESH_DSM_PACKAGE_STATUS",
+      "FRESH_START_STOP_STATUS",
+      "FRESH_EXACT_PROCESS_OWNERSHIP",
+      "FRESH_APPLICATION_HEALTH",
+      "FRESH_LISTENER_OWNERSHIP",
+      "OBSERVED_AT"
+    ]
+  }
+}
