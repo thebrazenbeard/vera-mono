@@ -1,0 +1,76 @@
+{
+  "schema": "VERA_R10A0_PUBLICATION_RECEIPT_R10_V1",
+  "status": "IMMUTABLE_PUBLICATION_BINDING_SOURCE_ONLY_NOT_INSTALLED",
+  "release": "R10A0",
+  "round_id": "R10",
+  "coordination_id": "VERA-BEHAVIOR-AUDIT-20260905",
+  "repository": "thebrazenbeard/vera-control-plane",
+  "branch": "work/r10a0-frozen-r10-20260905",
+  "integration_base_main": "3a0f0fcb8db842bb4641959bfbfdb0737136b28d",
+  "candidate_core_sha256": "28532a279db4f711e347cb66fa867240f6570b34a67068ee18ee4dc060bd456e",
+  "source_manifest": {
+    "path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_PROJECT_SOURCE_MANIFEST_R10.json",
+    "git_blob": "8a67feb47b2ce3d6f0737e58983ab8c9fc810139",
+    "sha256": "b7c70b1ad2c3bc533c7560320fb9a03b827f3eafad6296894216d75281b8dca1"
+  },
+  "native": {
+    "path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_NATIVE_PROJECT_INSTRUCTIONS_R10.txt",
+    "git_blob": "7e369b8983d70b4bd217f1d2421f8efe1482f738",
+    "utf8_bytes": 7853,
+    "manifest_pin_sha256": "b7c70b1ad2c3bc533c7560320fb9a03b827f3eafad6296894216d75281b8dca1"
+  },
+  "freeze_descriptor": {
+    "path": "project-instructions/r10a0/rounds/r10/VERA_R10A0_CANDIDATE_FREEZE_R10.json",
+    "git_blob": "60caa79868dabfe5dbc9bbb9674834774d60e713"
+  },
+  "pre_receipt_publication_subject": {
+    "commit": "be59501f8176542255d183cee643133990e73d21",
+    "tree": "0c2671f89e8402c3b22a41773313ae8a8903e97d"
+  },
+  "publication_direction": "The source manifest names this receipt locator/rule but does not bind this later receipt blob/head. This receipt exists only in the later immutable final head and binds the earlier freeze/core/manifest plus the exact pre-receipt commit/tree.",
+  "cross_bind": {
+    "r10_supplement_blob": "761d740507ea0dbddf859680c276ae5f0e1cb90b",
+    "r10_ssc_mapping_blob": "e4c0b0e6b0c362864553fef1c05ba5188f85560e",
+    "qualification_manifest_blob": "fa83256c628a2bf129b141705b59be3cc71b6034",
+    "control_registry_blob": "cd428dcefad6c61bd5b79bc219bc274f84943fbc",
+    "source_manifest_blob": "8a67feb47b2ce3d6f0737e58983ab8c9fc810139",
+    "native_blob": "7e369b8983d70b4bd217f1d2421f8efe1482f738",
+    "bus_topology_blob": "8b7cb3deff0ee7f15151f5be0ede19c8c1194adc",
+    "result": "CONSISTENT_AT_FREEZE"
+  },
+  "qualification_structural_repairs_from_one_0070": {
+    "negative_admission": "Q-ADMISSION-NEG is the only route for ADMIT-NEG-1 and R4 ID-ADMIT-1; admitted Q-COLD/Q-RECOVER do not run those negative cases.",
+    "freshness": "Fresh/new-chat status is evidentially insufficient: it neither proves inaccessible/private/mutable states nor categorically negates independently established configured self-concept/current authored stance.",
+    "publication_root": "manifest locator/rule -> later receipt in immutable final head -> freeze/core/manifest + exact pre-receipt commit/tree",
+    "ssc04": "SSC04_FRESH_PAIR requires two independently created fresh Vera terminals under one exact candidate/model/config/Project/source/admission tuple, no restore/cross-chat injection, both pass, and one pair receipt."
+  },
+  "qualification_corpus": {
+    "normative": [
+      "R4_HOSTILE",
+      "R3_SSC_BASIS_THROUGH_R10_SSC_EQUIVALENCE",
+      "R10_SUCCESSOR_NATIVE_SUPPLEMENT"
+    ],
+    "binding": "VERA_R10A0_QUALIFICATION_MANIFEST_R10.json",
+    "predecessor_r6_r7_r8_r9_supplements": "EXTERNAL_EVIDENCE_ONLY_NOT_EXECUTABLE_NOT_CANDIDATE_CORE"
+  },
+  "clean_base": {
+    "base": "3a0f0fcb8db842bb4641959bfbfdb0737136b28d",
+    "requirement": "Only R10 additions relative to base; failed R7/R8/R9 candidate files absent from branch diff."
+  },
+  "receipt_commit_rule": "The immutable review/qualification head is the commit creating this receipt. Its sole immediate parent must equal pre_receipt_publication_subject.commit. Verify final branch readback, parentage, clean-base compare, receipt blob, manifest SHA-256, native size/pin, candidate-core recomputation, cross-bind, qualification routes, pair contract, and publication direction before relying on this binding.",
+  "candidate_core_excludes": [
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_CANDIDATE_FREEZE_R10.json",
+    "project-instructions/r10a0/rounds/r10/VERA_R10A0_PUBLICATION_RECEIPT_R10.json",
+    "all R6/R7/R8/R9 predecessor release-specific qualification/review artifacts"
+  ],
+  "review_rule": "Blind review binds the exact receipt-creating R10 head and independently attacks Q-ADMISSION-NEG separation, freshness evidence semantics, publication-root direction, SSC04 paired execution, CLEAN-BASE, CROSS-BIND, owner consistency, predecessor nonexecution, centering SAVE scope, Bus route/currentness drift, R9B0 verification, route matrix, 5/5 repetition, digest recomputation, publication chain, privacy, rollback honesty, and source/install/runtime separation.",
+  "non_effects": [
+    "not merged",
+    "not installed",
+    "not runtime consumed",
+    "not behaviorally qualified",
+    "not provider activation evidence",
+    "not BugOps closure",
+    "not cutover authority"
+  ]
+}
