@@ -78,6 +78,18 @@ CAPABILITIES: tuple[LocalCapability, ...] = (
         import_root="vera_assurance",
         role="internal deterministic drift and invariant checking",
     ),
+    LocalCapability(
+        capability_id="pc_connection",
+        package="vera_pc_connection",
+        import_root="pc_connection",
+        role="local computer-connection contracts, journaling, path policy, and state machine",
+    ),
+    LocalCapability(
+        capability_id="control",
+        package="vera_control",
+        import_root="vera_control",
+        role="local Vera control-plane architecture and restore resources",
+    ),
 )
 
 
