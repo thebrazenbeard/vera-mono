@@ -1,0 +1,15 @@
+{
+  "schema": "VERA_WORKFLOW_CONTINUITY_CURRENT_POINTER_V1",
+  "current_contract_id": "VERA_GOVERNED_WORKFLOW_CONTINUITY_V2",
+  "current_contract_version": "2.0.0",
+  "current_contract_path": "architecture/identity/VERA_GOVERNED_WORKFLOW_CONTINUITY_V2.json",
+  "current_document_path": "docs/GOVERNED_WORKFLOW_CONTINUITY_V2.md",
+  "execution_precedence_path": "docs/PROTOCOL_EXECUTION_PRECEDENCE_V2.md",
+  "turn_taking_path": "docs/WORKSTREAM_TURN_TAKING_PROTOCOL_V2.md",
+  "supersedes_for_current_routing": [
+    "VERA_GOVERNED_WORKFLOW_CONTINUITY_V1"
+  ],
+  "coordination_surface": "GITHUB_ONLY",
+  "authority_source": "Patrick present protocol correction 2026-09-02",
+  "truth_ceiling": "This pointer resolves current source routing only; it is not proof of live ChatGPT Project installation or downstream runtime consumption."
+}
