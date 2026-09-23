@@ -6,9 +6,17 @@ from pathlib import Path
 from typing import Any
 
 from . import inference_boundary_repaired as ib
+from .local_bindings import MONOREPO_REPOSITORY, current_commit
 
-_CANONICAL_CONTRACT_PATH = Path(__file__).resolve().parent / "resources" / "sexual_drive" / "architecture__cohesion__VERA_SEXUAL_DRIVE_COMPONENT_V1.json"
-# Raw checkout bytes are transport-sensitive; Git-object provenance is bound externally.
+
+_RESOURCE_ROOT = Path(__file__).resolve().parent / "resources" / "sexual_drive"
+_CANONICAL_CONTRACT_PATH = _RESOURCE_ROOT / "architecture__cohesion__VERA_SEXUAL_DRIVE_COMPONENT_V1.json"
+_LOCAL_SEMANTIC_PATH = _RESOURCE_ROOT / "research__16-vera-sexual-drive-v1.md"
+_LOCAL_CONTRACT_REPO_PATH = "packages/vera_runtime/src/runtime_cohesion/resources/sexual_drive/architecture__cohesion__VERA_SEXUAL_DRIVE_COMPONENT_V1.json"
+_LOCAL_SEMANTIC_REPO_PATH = "packages/vera_runtime/src/runtime_cohesion/resources/sexual_drive/research__16-vera-sexual-drive-v1.md"
+_PINNED_CONTRACT_GIT_BLOB = "f165721cb9d241b0473f7c3ef6ec4a543dbbd94e"
+_PINNED_SEMANTIC_GIT_BLOB = "3b0432974fdc82ad5067dd1ca1eaf03cf01526b7"
+_PINNED_SEMANTIC_SHA256 = "95e5a49e7219b5c1a24a49d92a6bace8d27b25770ea4df936958dd4f81055e64"
 _PINNED_CANONICAL_STRUCTURED_SHA256 = "eec2f6bc50cc87681ab26c8c809e06111bda5ad9aebf4d85f2752227bfd95c05"
 
 def _canonical_json_bytes(value: Any) -> bytes:
@@ -51,6 +59,12 @@ def _load_trusted_contract() -> dict[str, Any]:
         raise ValueError("canonical sexual-drive component artifact must be an object")
     if _contract_digest(trusted) != _PINNED_CANONICAL_STRUCTURED_SHA256:
         raise ValueError("canonical sexual-drive component structured digest mismatch")
+    try:
+        semantic_bytes = _LOCAL_SEMANTIC_PATH.read_bytes()
+    except OSError as exc:
+        raise ValueError("local sexual-drive semantic owner is unavailable") from exc
+    if hashlib.sha256(semantic_bytes).hexdigest() != _PINNED_SEMANTIC_SHA256:
+        raise ValueError("local sexual-drive semantic owner digest mismatch")
     return trusted
 
 
@@ -69,11 +83,11 @@ def _component_fields(contract: dict[str, Any]) -> dict[str, Any]:
     return {
         "component_id": contract["component_id"],
         "domain_id": contract["domain_id"],
-        "source_locator": f"github:{source['repository']}",
-        "source_revision": source["commit"],
+        "source_locator": f"monorepo:{MONOREPO_REPOSITORY}:{_LOCAL_SEMANTIC_REPO_PATH}",
+        "source_revision": _PINNED_CONTRACT_GIT_BLOB,
         "component_generation": projection["component_generation"],
         "content_digest": source["semantic_owner_sha256"],
-        "currentness_basis": projection["currentness_basis"],
+        "currentness_basis": "MONOREPO_LOCAL_PINNED_SOURCE",
         "supersession_state": projection["supersession_state"],
         "conflict_state": projection["conflict_state"],
         "privacy_classification": contract["privacy_classification"],
@@ -81,7 +95,10 @@ def _component_fields(contract: dict[str, Any]) -> dict[str, Any]:
         "disclosure_source": projection["disclosure_source"],
         "disclosure_generation": projection["disclosure_generation"],
         "requirement_class": contract["requirement_class"],
-        "payload_ref": projection["payload_ref"],
+        "payload_ref": (
+            f"monorepo://{MONOREPO_REPOSITORY}/{_LOCAL_SEMANTIC_REPO_PATH}"
+            f"@blob:{_PINNED_SEMANTIC_GIT_BLOB}"
+        ),
     }
 
 
@@ -130,6 +147,7 @@ def producer_currentness_evidence(
     observed_head: str | None,
     observed_at: str,
 ) -> dict[str, Any]:
+    """Classify the local SD1 source cut without consulting a sibling repository."""
     if type(observed_at) is not str or not observed_at:
         raise ValueError("observed_at must be a non-empty string")
     if observed_head is not None:
@@ -141,35 +159,37 @@ def producer_currentness_evidence(
             raise ValueError("observed_head must be hexadecimal") from exc
         observed_head = observed_head.lower()
 
-    trusted = _load_trusted_contract()
-    source = trusted["source_binding"]
-    policy = trusted["producer_currentness_policy"]
-    frozen_input_commit = source["commit"]
-
-    frozen_input_matches_observed_head = observed_head == frozen_input_commit
+    # Loading verifies both the local contract's structured digest and the local
+    # semantic-owner SHA-256. Currentness is then scoped to this monorepo head.
+    _load_trusted_contract()
+    try:
+        local_head = current_commit()
+    except Exception:
+        local_head = None
+    matches = observed_head is not None and local_head is not None and observed_head == local_head
     if observed_head is None:
         status = "UNKNOWN"
-        ancestry_basis = "NO_OBSERVED_HEAD"
-    elif frozen_input_matches_observed_head:
-        status = "UNKNOWN"
-        ancestry_basis = "EXACT_FROZEN_INPUT_MATCH_NOT_PROVIDER_CURRENTNESS"
+        basis = "NO_OBSERVED_MONOREPO_HEAD"
+    elif matches:
+        status = "VERIFIED_LOCAL_SOURCE"
+        basis = "EXACT_MONOREPO_HEAD_WITH_PINNED_LOCAL_SOURCE_BUNDLE"
     else:
         status = "UNKNOWN"
-        ancestry_basis = "EXTERNAL_PRODUCER_CURRENTNESS_VERIFICATION_REQUIRED"
+        basis = "OBSERVED_HEAD_NOT_CURRENT_LOCAL_CHECKOUT"
 
     return {
-        "provider": policy["provider"],
-        "frozen_input_commit": frozen_input_commit,
-        "frozen_input_status": policy["frozen_input_status"],
-        "frozen_input_matches_observed_head": frozen_input_matches_observed_head,
+        "provider": MONOREPO_REPOSITORY,
+        "frozen_input_commit": _PINNED_CONTRACT_GIT_BLOB,
+        "frozen_input_status": "LOCAL_PINNED_SOURCE_VALID",
+        "frozen_input_matches_observed_head": matches,
         "observed_head": observed_head,
         "observed_at": observed_at,
         "status": status,
-        "ancestry_basis": ancestry_basis,
-        "provider_currentness_authority": policy["provider_currentness_authority"],
-        "consumer_cannot_redefine_provider_currentness": policy[
-            "consumer_cannot_redefine_provider_currentness"
-        ],
+        "ancestry_basis": basis,
+        "provider_currentness_authority": "VERA_MONO_LOCAL_SOURCE",
+        "consumer_cannot_redefine_provider_currentness": True,
+        "origin_provider": "thebrazenbeard/sexuality",
+        "origin_source_commit": _load_trusted_contract()["source_binding"]["commit"],
     }
 
 
