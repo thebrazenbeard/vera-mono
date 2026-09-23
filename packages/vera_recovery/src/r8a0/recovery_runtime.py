@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import hashlib
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .canonical import canonical_sha256, strict_loads
 from .lifecycle import LifecycleRegistry
+from .process import process_is_alive as _alive
 from .recovery_core import (
     MAX_CLOCK_SKEW, MAX_LIFECYCLE_AGE, CheckpointState, RecoveryError,
     _utc_now, checkpoint_state_from_mapping, verify_state_attestations,
@@ -16,15 +16,6 @@ from .recovery_core import (
 from .recovery_evidence import read_checkpoint_receipt, read_exit_attestation, read_termination_intent
 from .temporal import OrientationGate, OrientationState, TimeEvidence, parse_time
 from .trust import load_lifecycle_registry_key, load_trust_registry
-def _alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-        return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-
 
 def _validate_lifecycle_order(
     *,
