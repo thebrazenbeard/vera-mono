@@ -1,0 +1,10 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/vera",
+  "donor_ref": "078d2d7242384c58676305d47654406713e599cf",
+  "source_subtree": "architecture/control/",
+  "absorbed_target": "packages/vera_control/src/vera_control/resources/architecture/control",
+  "mode": "BYTE_COPY_CONTROL_RESOURCE_ABSORPTION",
+  "runtime_dependency_on_donor": false,
+  "authority_boundary": "Local source availability does not itself install, activate, or authorize a control profile."
+}
