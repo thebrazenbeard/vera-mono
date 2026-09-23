@@ -295,6 +295,8 @@ class NativeRecoveryCheckpointStore:
     ) -> NativeRecoveryCheckpoint:
         if payload.get("schema") != "VERA_MONO_RECOVERY_CHECKPOINT_V1":
             raise NativeCheckpointError("unsupported recovery checkpoint schema")
+        if canonical_sha256(dict(payload)) != checkpoint_digest:
+            raise NativeCheckpointError("recovery checkpoint digest mismatch")
         return NativeRecoveryCheckpoint(
             checkpoint_id=str(payload["checkpoint_id"]),
             generation=int(payload["generation"]),
