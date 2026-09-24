@@ -1,0 +1,62 @@
+{
+  "schema": "VERA_MONO_PROVIDER_EXECUTION_BINDING_V1",
+  "purpose": "Persist enough non-secret provider request identity to survive restart without persisting arbitrary provider payload bytes or silently refreshing lifecycle authority.",
+  "owner": "vera_core.ProviderExecutionBindingStore",
+  "state_path": "<vera-state-root>/provider/execution-bindings.sqlite",
+  "binding": {
+    "primary_key": "effect_id",
+    "append_only_per_effect_id": true,
+    "persisted": [
+      "effect_id",
+      "provider_id",
+      "operation",
+      "request_digest",
+      "authority_subject",
+      "exact AcceptedLifecyclePermit"
+    ],
+    "not_persisted": [
+      "request_payload",
+      "provider credentials",
+      "authority verifier secrets",
+      "authority envelope or signature token"
+    ],
+    "request_payload_persisted": false
+  },
+  "prepare": {
+    "method": "QualifiedVeraRuntime.prepare_provider_effect",
+    "creates_binding_before_external_execution": true,
+    "same_effect_id_changed_metadata": "FAIL_CLOSED"
+  },
+  "restart": {
+    "method": "QualifiedVeraRuntime.rehydrate_provider_effect",
+    "requires_request_payload_resupply": true,
+    "recomputes_provider_request_digest": true,
+    "changed_payload": "FAIL_CLOSED",
+    "preserves_original_lifecycle_permit": true,
+    "preserves_original_authority_subject": true,
+    "automatically_refreshes_lifecycle_permit": false,
+    "execution_after_lifecycle_advance": "DENIED_AS_STALE"
+  },
+  "execution": {
+    "qualified_method": "QualifiedVeraRuntime.execute_provider_effect",
+    "host_transport_contract": "vera_core.ProviderExecutionTransport",
+    "provider_transport_identity_must_match": true,
+    "trusted_authority_verifier_required": true,
+    "lifecycle_permit_validation_required": true,
+    "outbound_trust_currentness_required": true,
+    "effect_fence_required": true,
+    "outbound_audit_required": true
+  },
+  "restart_context": {
+    "key": "provider_execution_bindings",
+    "exposes_payload": false,
+    "exposes_digest_and_identity_metadata": true
+  },
+  "boundaries": {
+    "binding_is_not_effect_authority": true,
+    "binding_is_not_provider_activation": true,
+    "binding_does_not_prove_effect_execution": true,
+    "digest_match_does_not_override_stale_lifecycle": true,
+    "source_presence_is_not_deployment": true
+  }
+}
