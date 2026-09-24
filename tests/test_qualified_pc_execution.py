@@ -18,6 +18,7 @@ from vera_core import (
     PCJournalEventEvidence,
     QualifiedPCExecutionAdapter,
     QualifiedVeraRuntime,
+    TaskPacket,
     VeraStateDirectory,
 )
 from vera_memory import AdmissionRequest, MemoryClass
@@ -712,3 +713,43 @@ def test_qualified_pc_adapter_uses_runtime_binding_store_by_default(tmp_path):
     assert binding["effect_id"] == f"pc:{prepared.job.envelope_id}"
     assert binding["attempt_id"] == lease().attempt_id
     assert binding["lifecycle_permit_digest"] == prepared.permit.permit_digest
+
+
+def test_task_pc_execution_binding_persists_task_provenance(tmp_path):
+    state, runtime, _, prepared, _, _ = runtime_and_adapter(tmp_path)
+    runtime.start_task(
+        "task-pc-provenance",
+        TaskPacket(
+            purpose="Bind exact PC execution to task ownership.",
+            subject="pc-task-provenance",
+            completion_state="PC task binding is durable.",
+            evidence_requirements=("PC binding digest",),
+            writable_scope=("local-test-state",),
+            non_targets=("deployment",),
+            forbidden_shortcuts_or_effects=("no post-hoc task claim",),
+            priority_order=("correctness", "evidence"),
+            unknowns=(),
+            return_shape=("binding",),
+            relevant_surfaces=("source",),
+        ),
+    )
+    task_prepared = runtime.prepare_task_pc_job(
+        "task-pc-provenance",
+        "dep-pc-provenance",
+        job=prepared.job,
+        authorization=prepared.authorization,
+    )
+    assert task_prepared.task_dependency is not None
+    assert task_prepared.task_dependency.task_id == "task-pc-provenance"
+
+    store = state.pc_execution_binding_store()
+    binding = store.bind(task_prepared, lease())
+    reopened = state.pc_execution_binding_store().read(
+        lease().job_id,
+        lease().attempt_id,
+    )
+    assert reopened.binding_digest == binding.binding_digest
+    assert (
+        reopened.prepared.task_dependency
+        == task_prepared.task_dependency
+    )
