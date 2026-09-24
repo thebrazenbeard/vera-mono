@@ -14,6 +14,10 @@ from .effect_recovery import (
     LifecycleEffectRecovery,
     reconciliation_subject,
 )
+from .execution_adapters import (
+    PCExecutionTransport,
+    ProviderExecutionTransport,
+)
 from .lifecycle import (
     AcceptedLifecyclePermit,
     LifecycleActionDenied,
@@ -104,6 +108,8 @@ __all__ = [
     "PCJobAuthorityVerifier",
     "ProviderAuthorityEnvelope",
     "ProviderAuthorityVerifier",
+    "PCExecutionTransport",
+    "ProviderExecutionTransport",
     "PCExecutionBinding",
     "PCExecutionBindingError",
     "PCExecutionBindingStore",
