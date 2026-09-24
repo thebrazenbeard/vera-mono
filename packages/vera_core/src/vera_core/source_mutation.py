@@ -262,6 +262,7 @@ class SourceMutationRecoveryAssessment:
     writable_scope_current: bool
     delegation_current: bool
     provider_binding_current: bool
+    provider_authority_current: bool
     transport_available: bool
     content_rehydration_required: bool
     dispatch_candidate_allowed: bool
@@ -692,6 +693,14 @@ class QualifiedSourceMutationAdapter:
             provider_binding_current = False
             provider = None
 
+        try:
+            self.runtime.effects.provider_authority_currentness(
+                binding.provider_id
+            )
+            provider_authority_current = True
+        except (PermissionError, ValueError):
+            provider_authority_current = False
+
         transport = self.transports.get(
             (binding.repository, binding.ref)
         )
@@ -710,6 +719,8 @@ class QualifiedSourceMutationAdapter:
             reasons.append("delegation ownership is no longer current")
         if not provider_binding_current:
             reasons.append("provider execution binding is missing or changed")
+        if not provider_authority_current:
+            reasons.append("provider authority currentness is stale or unavailable")
         if not transport_available:
             reasons.append("source mutation transport is unavailable")
 
@@ -734,6 +745,7 @@ class QualifiedSourceMutationAdapter:
             and writable_scope_current
             and delegation_current
             and provider_binding_current
+            and provider_authority_current
             and transport_available
         )
         if dispatch_candidate_allowed:
@@ -761,6 +773,7 @@ class QualifiedSourceMutationAdapter:
             writable_scope_current=writable_scope_current,
             delegation_current=delegation_current,
             provider_binding_current=provider_binding_current,
+            provider_authority_current=provider_authority_current,
             transport_available=transport_available,
             content_rehydration_required=(
                 binding.operation == "WRITE_FILE"
