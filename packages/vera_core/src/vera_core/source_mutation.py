@@ -501,16 +501,6 @@ class QualifiedSourceMutationAdapter:
                     "source mutation request changed after preparation"
                 )
 
-            outbound = self.runtime.dispatch_provider_effect(
-                prepared.provider_dispatch,
-                authority=authority,
-                execute=lambda: transport.mutate(payload),
-            )
-            result = outbound.value
-            if type(result) is not SourceMutationTransportResult:
-                raise SourceMutationError(
-                    "source mutation transport returned unexpected result type"
-                )
             expected = {
                 "repository": request.repository,
                 "ref": request.ref,
@@ -519,14 +509,28 @@ class QualifiedSourceMutationAdapter:
                 "destination_path": request.normalized_destination_path,
                 "previous_ref_head": request.expected_ref_head,
             }
-            for key, value in expected.items():
-                if getattr(result, key) != value:
+
+            def execute_transport() -> SourceMutationTransportResult:
+                result = transport.mutate(payload)
+                if type(result) is not SourceMutationTransportResult:
                     raise SourceMutationError(
-                        f"source mutation result mismatch at {key}"
+                        "source mutation transport returned unexpected result type"
                     )
-            _require_text(result.new_ref_head, "new_ref_head")
-            _require_text(result.result_id, "result_id")
+                for key, value in expected.items():
+                    if getattr(result, key) != value:
+                        raise SourceMutationError(
+                            f"source mutation result mismatch at {key}"
+                        )
+                _require_text(result.new_ref_head, "new_ref_head")
+                _require_text(result.result_id, "result_id")
+                return result
+
+            outbound = self.runtime.dispatch_provider_effect(
+                prepared.provider_dispatch,
+                authority=authority,
+                execute=execute_transport,
+            )
             return SourceMutationResult(
-                transport_result=result,
+                transport_result=outbound.value,
                 outbound_result=outbound,
             )
