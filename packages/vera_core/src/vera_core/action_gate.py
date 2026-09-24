@@ -8,10 +8,15 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, TypeVar
 
 from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
-from vera_assurance import EffectFence, EffectReceipt
+from vera_assurance import EffectFence, EffectFenceError, EffectReceipt, EffectState
 from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 from pc_connection.validation import utc_microseconds
 
+from .coordination_command_journal import (
+    CoordinationCommandJournal,
+    CoordinationCommandJournalError,
+    CoordinationCommandRecoveryAssessment,
+)
 from .lifecycle import (
     AcceptedLifecyclePermit,
     LifecycleActionDenied,
@@ -138,6 +143,40 @@ class LifecycleEffectGateway:
         self._provider_authority_verifiers = registry
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
+    @staticmethod
+    def effect_request_digest(
+        *,
+        permit: AcceptedLifecyclePermit,
+        effect_id: str,
+        effect_kind: str,
+        request_payload: Any,
+    ) -> str:
+        return _digest(
+            {
+                "schema": "VERA_MONO_LIFECYCLE_BOUND_EFFECT_REQUEST_V1",
+                "effect_id": effect_id,
+                "effect_kind": effect_kind,
+                "request_payload": _normalize(request_payload),
+                "lifecycle_permit_digest": permit.permit_digest,
+            }
+        )
+
+    @staticmethod
+    def mechanical_permit_digest(
+        *,
+        permit: AcceptedLifecyclePermit,
+        effect_id: str,
+        request_digest: str,
+    ) -> str:
+        return _digest(
+            {
+                "schema": "VERA_MONO_EFFECT_MECHANICAL_PERMIT_V1",
+                "effect_id": effect_id,
+                "request_digest": request_digest,
+                "lifecycle_permit_digest": permit.permit_digest,
+            }
+        )
+
     def _dispatch_verified(
         self,
         *,
@@ -152,21 +191,16 @@ class LifecycleEffectGateway:
             raise OutboundActionError("effect_id must be a non-empty exact string")
         if type(effect_kind) is not str or not effect_kind:
             raise OutboundActionError("effect_kind must be a non-empty exact string")
-        normalized_request = {
-            "schema": "VERA_MONO_LIFECYCLE_BOUND_EFFECT_REQUEST_V1",
-            "effect_id": effect_id,
-            "effect_kind": effect_kind,
-            "request_payload": _normalize(request_payload),
-            "lifecycle_permit_digest": permit.permit_digest,
-        }
-        request_digest = _digest(normalized_request)
-        mechanical_permit_digest = _digest(
-            {
-                "schema": "VERA_MONO_EFFECT_MECHANICAL_PERMIT_V1",
-                "effect_id": effect_id,
-                "request_digest": request_digest,
-                "lifecycle_permit_digest": permit.permit_digest,
-            }
+        request_digest = self.effect_request_digest(
+            permit=permit,
+            effect_id=effect_id,
+            effect_kind=effect_kind,
+            request_payload=request_payload,
+        )
+        mechanical_permit_digest = self.mechanical_permit_digest(
+            permit=permit,
+            effect_id=effect_id,
+            request_digest=request_digest,
         )
 
         with self.lifecycle.action_lock():
@@ -626,9 +660,18 @@ class LifecycleBoundCoordinationBus:
         bus: Any,
         fence: EffectFence,
         audit: OutboundExecutionAudit | None = None,
+        command_journal: CoordinationCommandJournal | None = None,
     ):
         self.lifecycle = lifecycle
         self.bus = bus
+        if (
+            command_journal is not None
+            and type(command_journal) is not CoordinationCommandJournal
+        ):
+            raise TypeError(
+                "command_journal must be exact CoordinationCommandJournal"
+            )
+        self.command_journal = command_journal
         self.effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -676,16 +719,45 @@ class LifecycleBoundCoordinationBus:
                 "command": command,
             }
         )
-        return self.effects._dispatch_verified(
+        effect_id = f"coordination:{command_id}"
+        effect_kind = f"COORDINATION/{command}"
+        request_payload = {
+            "command": command,
+            "actor": actor_binding,
+            "args": args,
+            "kwargs": call_kwargs,
+        }
+        request_digest = self.effects.effect_request_digest(
             permit=permit,
-            effect_id=f"coordination:{command_id}",
-            effect_kind=f"COORDINATION/{command}",
-            request_payload={
+            effect_id=effect_id,
+            effect_kind=effect_kind,
+            request_payload=request_payload,
+        )
+        invocation_digest = _digest(
+            {
+                "schema": "VERA_MONO_COORDINATION_INVOCATION_V1",
                 "command": command,
                 "actor": actor_binding,
                 "args": args,
                 "kwargs": call_kwargs,
-            },
+            }
+        )
+        if self.command_journal is not None:
+            self.command_journal.bind(
+                command_id=command_id,
+                effect_id=effect_id,
+                command=command,
+                actor_workstream=str(actor_binding["workstream"]),
+                lifecycle_permit_digest=permit.permit_digest,
+                invocation_digest=invocation_digest,
+                request_digest=request_digest,
+            )
+
+        result = self.effects._dispatch_verified(
+            permit=permit,
+            effect_id=effect_id,
+            effect_kind=effect_kind,
+            request_payload=request_payload,
             verify_authority=lambda: VerifiedAuthorityEvidence(
                 evidence_digest=authority_binding_digest,
                 details={
@@ -696,3 +768,233 @@ class LifecycleBoundCoordinationBus:
             ),
             execute=lambda: method(actor, *args, **call_kwargs),
         )
+        if result.request_digest != request_digest:
+            raise CoordinationCommandJournalError(
+                "coordination effect request digest diverged from prepared binding"
+            )
+        if self.command_journal is not None:
+            receipt = getattr(result.value, "receipt", None)
+            if receipt is None:
+                raise CoordinationCommandJournalError(
+                    "coordination command returned no receipted result"
+                )
+            self.command_journal.record_result(
+                command_id,
+                result_digest=result.result_digest,
+                result_class=str(receipt.result_class),
+                database_write_confirmed=bool(
+                    receipt.database_write_confirmed
+                ),
+                event_id=receipt.event_id,
+                event_sequence=receipt.event_sequence,
+            )
+        return result
+
+    def assess_command(
+        self,
+        command_id: str,
+    ) -> CoordinationCommandRecoveryAssessment:
+        if self.command_journal is None:
+            raise ValueError(
+                "coordination recovery requires a CoordinationCommandJournal"
+            )
+        binding = self.command_journal.read_binding(command_id)
+        result = self.command_journal.read_result(command_id)
+        if self.effects.audit is not None:
+            self.effects.audit.verify_fence_consistency(self.effects.fence)
+        try:
+            fence = self.effects.fence.read(binding.effect_id)
+        except KeyError:
+            fence = None
+
+        lifecycle_current: bool | None
+        try:
+            current = self.lifecycle.accepted_action_permit()
+            lifecycle_current = (
+                current.permit_digest == binding.lifecycle_permit_digest
+            )
+        except (LifecycleActionDenied, EffectFenceError):
+            lifecycle_current = None
+
+        fence_state = None if fence is None else fence.state.value
+        if result is not None:
+            if (
+                fence is not None
+                and fence.state in {
+                    EffectState.COMMITTED,
+                    EffectState.RECONCILED_COMMITTED,
+                }
+                and fence.result_digest == result.result_digest
+            ):
+                return CoordinationCommandRecoveryAssessment(
+                    command_id=binding.command_id,
+                    effect_id=binding.effect_id,
+                    command=binding.command,
+                    actor_workstream=binding.actor_workstream,
+                    request_digest=binding.request_digest,
+                    result_recorded=True,
+                    fence_state=fence_state,
+                    lifecycle_permit_current=lifecycle_current,
+                    retry_candidate_allowed=False,
+                    pre_dispatch_cancel_allowed=False,
+                    recovery_required=False,
+                    terminal=True,
+                    reason=(
+                        "coordination result journal and terminal effect fence agree"
+                    ),
+                )
+            return CoordinationCommandRecoveryAssessment(
+                command_id=binding.command_id,
+                effect_id=binding.effect_id,
+                command=binding.command,
+                actor_workstream=binding.actor_workstream,
+                request_digest=binding.request_digest,
+                result_recorded=True,
+                fence_state=fence_state,
+                lifecycle_permit_current=lifecycle_current,
+                retry_candidate_allowed=False,
+                pre_dispatch_cancel_allowed=False,
+                recovery_required=True,
+                terminal=False,
+                reason=(
+                    "coordination result evidence does not match terminal "
+                    "mechanical effect state"
+                ),
+            )
+
+        if fence is None:
+            return CoordinationCommandRecoveryAssessment(
+                command_id=binding.command_id,
+                effect_id=binding.effect_id,
+                command=binding.command,
+                actor_workstream=binding.actor_workstream,
+                request_digest=binding.request_digest,
+                result_recorded=False,
+                fence_state=None,
+                lifecycle_permit_current=lifecycle_current,
+                retry_candidate_allowed=(lifecycle_current is True),
+                pre_dispatch_cancel_allowed=False,
+                recovery_required=False,
+                terminal=False,
+                reason=(
+                    "coordination command is bound but no mechanical effect "
+                    "exists"
+                    if lifecycle_current is True
+                    else "coordination command binding is not current for retry"
+                ),
+            )
+
+        if fence.state is EffectState.RESERVED:
+            return CoordinationCommandRecoveryAssessment(
+                command_id=binding.command_id,
+                effect_id=binding.effect_id,
+                command=binding.command,
+                actor_workstream=binding.actor_workstream,
+                request_digest=binding.request_digest,
+                result_recorded=False,
+                fence_state=fence_state,
+                lifecycle_permit_current=lifecycle_current,
+                retry_candidate_allowed=False,
+                pre_dispatch_cancel_allowed=True,
+                recovery_required=False,
+                terminal=False,
+                reason=(
+                    "coordination effect is durably reserved pre-dispatch; "
+                    "cancel it rather than reusing the effect identity"
+                ),
+            )
+
+        if fence.state in {
+            EffectState.EXECUTING,
+            EffectState.ATTEMPTED_UNKNOWN,
+            EffectState.COMMITTED,
+            EffectState.RECONCILED_COMMITTED,
+        }:
+            return CoordinationCommandRecoveryAssessment(
+                command_id=binding.command_id,
+                effect_id=binding.effect_id,
+                command=binding.command,
+                actor_workstream=binding.actor_workstream,
+                request_digest=binding.request_digest,
+                result_recorded=False,
+                fence_state=fence_state,
+                lifecycle_permit_current=lifecycle_current,
+                retry_candidate_allowed=False,
+                pre_dispatch_cancel_allowed=False,
+                recovery_required=True,
+                terminal=False,
+                reason=(
+                    "coordination effect may have executed but durable command "
+                    "result evidence is missing; do not replay"
+                ),
+            )
+
+        return CoordinationCommandRecoveryAssessment(
+            command_id=binding.command_id,
+            effect_id=binding.effect_id,
+            command=binding.command,
+            actor_workstream=binding.actor_workstream,
+            request_digest=binding.request_digest,
+            result_recorded=False,
+            fence_state=fence_state,
+            lifecycle_permit_current=lifecycle_current,
+            retry_candidate_allowed=False,
+            pre_dispatch_cancel_allowed=False,
+            recovery_required=False,
+            terminal=True,
+            reason=(
+                "coordination effect reached a terminal no-replay mechanical state"
+            ),
+        )
+
+    def recover_commands(
+        self,
+    ) -> tuple[CoordinationCommandRecoveryAssessment, ...]:
+        if self.command_journal is None:
+            return ()
+        return tuple(
+            self.assess_command(binding.command_id)
+            for binding in self.command_journal.bindings()
+        )
+
+    def cancel_reserved_command(
+        self,
+        command_id: str,
+    ) -> CoordinationCommandRecoveryAssessment:
+        assessment = self.assess_command(command_id)
+        if not assessment.pre_dispatch_cancel_allowed:
+            raise EffectFenceError(
+                "coordination command has no proven pre-dispatch reservation"
+            )
+        with self.lifecycle.action_lock():
+            cancelled = self.effects.fence.cancel_before_dispatch(
+                assessment.effect_id
+            )
+            previous = (
+                None
+                if self.effects.audit is None
+                else self.effects.audit.latest(assessment.effect_id)
+            )
+            if self.effects.audit is not None:
+                if previous is None:
+                    raise CoordinationCommandJournalError(
+                        "qualified coordination reservation is missing audit evidence"
+                    )
+                self.effects.audit.append(
+                    effect_id=assessment.effect_id,
+                    effect_kind=previous.effect_kind,
+                    event_type="CANCELLED_PRE_DISPATCH",
+                    payload={
+                        "request_digest": cancelled.request_digest,
+                        "mechanical_permit_digest": (
+                            cancelled.mechanical_permit_digest
+                        ),
+                        "authority_evidence_digest": (
+                            cancelled.authority_evidence_digest
+                        ),
+                        "currentness_evidence_digest": (
+                            cancelled.currentness_evidence_digest
+                        ),
+                    },
+                )
+        return self.assess_command(command_id)
