@@ -45,6 +45,7 @@ from .provider_execution_binding import (
 from .state import VeraStateDirectory
 from .task_execution import (
     TaskCloseoutAssessment,
+    TaskDependencyAssessment,
     TaskExecutionError,
     TaskExecutionLedger,
     TaskPacket,
@@ -260,6 +261,21 @@ class QualifiedVeraRuntime:
             lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
         )
 
+    def bind_task_dependency(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        kind: str,
+        target_id: str,
+    ) -> TaskState:
+        return self.tasks.bind_dependency(
+            task_id,
+            dependency_id,
+            kind=kind,
+            target_id=target_id,
+        )
+
     def record_task_correction(
         self,
         task_id: str,
@@ -317,6 +333,213 @@ class QualifiedVeraRuntime:
             regression_guard=regression_guard,
             blocker_classification=blocker_classification,
         )
+
+    def assess_task_dependencies(
+        self,
+        task_id: str,
+    ) -> tuple[TaskDependencyAssessment, ...]:
+        state = self.tasks.read(task_id)
+        if not state.dependencies:
+            return ()
+
+        self.audit.verify_fence_consistency(self.fence)
+        assessments: list[TaskDependencyAssessment] = []
+        success_states = {
+            EffectState.COMMITTED.value,
+            EffectState.RECONCILED_COMMITTED.value,
+        }
+
+        for dependency in state.dependencies:
+            if dependency.kind == "EFFECT":
+                try:
+                    receipt = self.fence.read(dependency.target_id)
+                except KeyError:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="MISSING",
+                            evidence_digest=None,
+                            reason=(
+                                "bound effect dependency has no mechanical "
+                                "effect record"
+                            ),
+                        )
+                    )
+                    continue
+
+                latest = self.audit.latest(dependency.target_id)
+                evidence_digest = (
+                    None if latest is None else latest.event_digest
+                )
+                if receipt.state.value in success_states:
+                    status = "SATISFIED"
+                    reason = (
+                        "qualified effect reached a successful terminal state"
+                    )
+                elif receipt.state in {
+                    EffectState.EXECUTING,
+                    EffectState.ATTEMPTED_UNKNOWN,
+                }:
+                    status = "RECOVERY_REQUIRED"
+                    reason = (
+                        "effect may have crossed dispatch and requires "
+                        "reconciliation"
+                    )
+                elif receipt.state in {
+                    EffectState.CANCELLED_PRE_DISPATCH,
+                    EffectState.RECONCILED_NO_EFFECT,
+                }:
+                    status = "TERMINAL_UNSATISFIED"
+                    reason = (
+                        "effect terminated without the required external effect"
+                    )
+                else:
+                    status = "PENDING"
+                    reason = "effect dependency has not reached terminal success"
+                assessments.append(
+                    TaskDependencyAssessment(
+                        dependency_id=dependency.dependency_id,
+                        kind=dependency.kind,
+                        target_id=dependency.target_id,
+                        status=status,
+                        evidence_digest=evidence_digest,
+                        reason=reason,
+                    )
+                )
+                continue
+
+            if dependency.kind == "COORDINATION_COMMAND":
+                if self.coordination is None:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="MISSING",
+                            evidence_digest=None,
+                            reason="qualified coordination runtime is unavailable",
+                        )
+                    )
+                    continue
+                try:
+                    command = self.coordination.assess_command(
+                        dependency.target_id
+                    )
+                except KeyError:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="MISSING",
+                            evidence_digest=None,
+                            reason=(
+                                "bound coordination command has no durable "
+                                "command binding"
+                            ),
+                        )
+                    )
+                    continue
+
+                result = self.coordination_commands.read_result(
+                    dependency.target_id
+                )
+                if (
+                    command.terminal
+                    and command.result_recorded
+                    and command.fence_state in success_states
+                    and result is not None
+                ):
+                    status = "SATISFIED"
+                    evidence_digest = result.result_record_digest
+                    reason = (
+                        "coordination command result and terminal effect agree"
+                    )
+                elif command.recovery_required:
+                    status = "RECOVERY_REQUIRED"
+                    evidence_digest = None
+                    reason = command.reason
+                elif command.terminal:
+                    status = "TERMINAL_UNSATISFIED"
+                    evidence_digest = None
+                    reason = command.reason
+                else:
+                    status = "PENDING"
+                    evidence_digest = None
+                    reason = command.reason
+                assessments.append(
+                    TaskDependencyAssessment(
+                        dependency_id=dependency.dependency_id,
+                        kind=dependency.kind,
+                        target_id=dependency.target_id,
+                        status=status,
+                        evidence_digest=evidence_digest,
+                        reason=reason,
+                    )
+                )
+                continue
+
+            if dependency.kind == "PROVIDER_EFFECT":
+                try:
+                    provider = self.assess_provider_effect(
+                        dependency.target_id
+                    )
+                except KeyError:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="MISSING",
+                            evidence_digest=None,
+                            reason=(
+                                "bound provider effect has no durable provider "
+                                "execution binding"
+                            ),
+                        )
+                    )
+                    continue
+
+                latest = self.audit.latest(provider.mechanical_effect_id)
+                evidence_digest = (
+                    None if latest is None else latest.event_digest
+                )
+                if (
+                    provider.terminal
+                    and provider.fence_state in success_states
+                ):
+                    status = "SATISFIED"
+                    reason = (
+                        "provider effect reached a successful terminal state"
+                    )
+                elif provider.recovery_required:
+                    status = "RECOVERY_REQUIRED"
+                    reason = provider.reason
+                elif provider.terminal:
+                    status = "TERMINAL_UNSATISFIED"
+                    reason = provider.reason
+                else:
+                    status = "PENDING"
+                    reason = provider.reason
+                assessments.append(
+                    TaskDependencyAssessment(
+                        dependency_id=dependency.dependency_id,
+                        kind=dependency.kind,
+                        target_id=dependency.target_id,
+                        status=status,
+                        evidence_digest=evidence_digest,
+                        reason=reason,
+                    )
+                )
+                continue
+
+            raise TaskExecutionError(
+                f"unsupported task dependency kind: {dependency.kind!r}"
+            )
+
+        return tuple(assessments)
 
     def assess_task_closeout(
         self,
@@ -376,6 +599,24 @@ class QualifiedVeraRuntime:
                 + ", ".join(provider_recovery_ids)
             )
 
+        dependency_assessments = self.assess_task_dependencies(
+            task_id
+        )
+        unsatisfied_dependency_ids = tuple(
+            assessment.dependency_id
+            for assessment in dependency_assessments
+            if not assessment.satisfied
+        )
+        if unsatisfied_dependency_ids:
+            reasons.append(
+                "task dependencies are not satisfied: "
+                + ", ".join(
+                    f"{assessment.dependency_id}({assessment.status})"
+                    for assessment in dependency_assessments
+                    if not assessment.satisfied
+                )
+            )
+
         unresolved_correction_ids = state.unresolved_correction_ids
         if unresolved_correction_ids:
             reasons.append(
@@ -399,6 +640,8 @@ class QualifiedVeraRuntime:
             unresolved_effect_ids=unresolved_effect_ids,
             coordination_recovery_ids=coordination_recovery_ids,
             provider_recovery_ids=provider_recovery_ids,
+            dependency_assessments=dependency_assessments,
+            unsatisfied_dependency_ids=unsatisfied_dependency_ids,
             unresolved_correction_ids=unresolved_correction_ids,
             supplied_blockers=blockers,
             ready=not reasons,
