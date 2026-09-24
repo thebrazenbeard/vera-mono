@@ -384,3 +384,46 @@ def test_github_ref_race_becomes_attempted_unknown_through_qualified_gate(tmp_pa
     assert receipt.state is EffectState.ATTEMPTED_UNKNOWN
     assert client.refs[(REPOSITORY, REF)] == "concurrent-head"
     assert client.ref_updates == []
+
+
+def test_github_move_ref_race_leaves_branch_without_partial_move():
+    client = FakeGitHubGitDataClient(
+        {
+            "src/a.py": GitHubPathState(
+                blob_sha="blob-source",
+                mode="100644",
+            )
+        },
+        race_on_update=True,
+    )
+    request = SourceMutationRequest(
+        mutation_id="mutation-move-race",
+        repository=REPOSITORY,
+        ref=REF,
+        subject="src/a.py",
+        actor_ref="vera",
+        operation="MOVE_FILE",
+        path="src/a.py",
+        destination_path="dst/a.py",
+        expected_ref_head=HEAD,
+        expected_blob_id="blob-source",
+        expected_destination_blob_id="ABSENT",
+    )
+
+    with pytest.raises(GitHubSourceCASMismatch):
+        transport(client).mutate(request.request_payload())
+
+    assert len(client.tree_calls) == 1
+    assert len(client.commit_calls) == 1
+    assert client.ref_updates == []
+    assert client.refs[(REPOSITORY, REF)] == "concurrent-head"
+    assert client.get_path(
+        REPOSITORY,
+        "src/a.py",
+        "concurrent-head",
+    ).blob_sha == "blob-source"
+    assert client.get_path(
+        REPOSITORY,
+        "dst/a.py",
+        "concurrent-head",
+    ) is None
