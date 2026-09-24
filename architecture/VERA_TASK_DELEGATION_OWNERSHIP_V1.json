@@ -32,7 +32,9 @@
     "task_subject_and_packet_digest_bound": true,
     "explicit_return_shape_required": true,
     "binding_evidence_required": true,
-    "allowed_and_prohibited_effects_must_be_disjoint": true
+    "allowed_and_prohibited_effects_must_be_disjoint": true,
+    "return_shape_is_enforced_on_return": true,
+    "return_shape_is_not_documentation_only": true
   },
   "lifecycle": {
     "active_owner_until": [
@@ -48,6 +50,8 @@
     "return_requires": [
       "return id",
       "summary",
+      "return_values mapping whose keys exactly equal the declared return_shape",
+      "non-empty value for every declared return field",
       "result evidence refs"
     ],
     "cancellation_requires": [
@@ -66,7 +70,9 @@
   "restart": {
     "conversational_state_required": false,
     "active_ownership_exposed_in_resume_context": true,
-    "task_context_exposes_all_delegations": true
+    "task_context_exposes_all_delegations": true,
+    "stale_owner_reference_after_reassignment": "DENY",
+    "owner_reference_after_return_or_cancel": "DENY"
   },
   "boundaries": {
     "delegation_does_not_grant_repository_or_provider_authority": true,
