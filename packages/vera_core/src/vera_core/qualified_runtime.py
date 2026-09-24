@@ -28,7 +28,7 @@ from .outbound_authority import (
 )
 from .outbound_audit import OutboundAuditConsistency, OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
-from .pc_execution_binding import PreparedPCDispatch
+from .pc_execution_binding import PCExecutionBindingStore, PreparedPCDispatch
 from .state import VeraStateDirectory
 
 
@@ -66,6 +66,7 @@ class QualifiedVeraRuntime:
     audit: OutboundExecutionAudit
     pc_execution_transport: PCExecutionTransport | None
     provider_execution_transports: Mapping[str, ProviderExecutionTransport]
+    pc_execution_bindings: PCExecutionBindingStore
 
     @classmethod
     def from_state_directory(
@@ -94,6 +95,7 @@ class QualifiedVeraRuntime:
         audit = state.outbound_execution_audit()
         with lifecycle.action_lock():
             audit.repair_from_fence(fence)
+        pc_execution_bindings = state.pc_execution_binding_store()
 
         if pc_authority_verifier is not None:
             outbound_trust.assert_current(
@@ -191,6 +193,7 @@ class QualifiedVeraRuntime:
             audit=audit,
             pc_execution_transport=pc_execution_transport,
             provider_execution_transports=provider_transports,
+            pc_execution_bindings=pc_execution_bindings,
         )
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
@@ -397,9 +400,7 @@ class QualifiedVeraRuntime:
             ),
             "repaired_effect_ids": list(integrity.repaired_effect_ids),
         }
-        context["pc_execution_bindings"] = {
-            "schema": "VERA_MONO_PC_EXECUTION_BINDING_CONTEXT_V1",
-            "binding_count": 0,
-            "bindings": [],
-        }
+        context["pc_execution_bindings"] = (
+            self.pc_execution_bindings.context()
+        )
         return context
