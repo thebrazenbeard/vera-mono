@@ -46,6 +46,7 @@ from .state import VeraStateDirectory
 from .task_execution import (
     TaskCloseoutAssessment,
     TaskDependencyAssessment,
+    TaskDependencyRef,
     TaskExecutionError,
     TaskExecutionLedger,
     TaskPacket,
@@ -349,6 +350,42 @@ class QualifiedVeraRuntime:
                 target_id=target_id,
             )
 
+    def _validate_task_dependency_ref(
+        self,
+        ref: TaskDependencyRef,
+        *,
+        expected_kind: str,
+        expected_target_id: str,
+    ) -> TaskDependencyRef:
+        if type(ref) is not TaskDependencyRef:
+            raise TaskExecutionError(
+                "task dependency provenance must be exact TaskDependencyRef"
+            )
+        state = self.tasks.read(ref.task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "task-bound outbound work cannot execute after task closeout"
+            )
+        active = {
+            item.dependency_id: item
+            for item in state.active_dependencies
+        }.get(ref.dependency_id)
+        if active is None:
+            raise TaskExecutionError(
+                "task-bound outbound work references inactive dependency"
+            )
+        if (
+            active.kind != expected_kind
+            or active.target_id != expected_target_id
+            or ref.kind != active.kind
+            or ref.target_id != active.target_id
+            or ref.binding_event_digest != active.event_digest
+        ):
+            raise TaskExecutionError(
+                "task dependency provenance does not match durable task binding"
+            )
+        return ref
+
     def cancel_task_dependency(
         self,
         task_id: str,
@@ -401,12 +438,13 @@ class QualifiedVeraRuntime:
                 raise TaskExecutionError(
                     "closed task cannot execute coordination dependency"
                 )
-            self._bind_task_dependency_unlocked(
+            bound = self._bind_task_dependency_unlocked(
                 task_id,
                 dependency_id,
                 kind="COORDINATION_COMMAND",
                 target_id=command_id,
             )
+            task_dependency = bound.dependency_ref(dependency_id)
             try:
                 return self.coordination.invoke(
                     command,
@@ -415,6 +453,7 @@ class QualifiedVeraRuntime:
                     command_id=command_id,
                     args=args,
                     kwargs=kwargs,
+                    task_dependency=task_dependency,
                 )
             except BaseException:
                 if not self._task_dependency_target_started(
@@ -447,18 +486,20 @@ class QualifiedVeraRuntime:
                 raise TaskExecutionError(
                     "closed task cannot prepare provider dependency"
                 )
-            self._bind_task_dependency_unlocked(
+            bound = self._bind_task_dependency_unlocked(
                 task_id,
                 dependency_id,
                 kind="PROVIDER_EFFECT",
                 target_id=effect_id,
             )
+            task_dependency = bound.dependency_ref(dependency_id)
             try:
                 return self.prepare_provider_effect(
                     effect_id=effect_id,
                     provider_id=provider_id,
                     operation=operation,
                     request_payload=request_payload,
+                    task_dependency=task_dependency,
                 )
             except BaseException:
                 if not self._task_dependency_target_started(
@@ -489,16 +530,18 @@ class QualifiedVeraRuntime:
                 raise TaskExecutionError(
                     "closed task cannot prepare PC dependency"
                 )
-            self._bind_task_dependency_unlocked(
+            bound = self._bind_task_dependency_unlocked(
                 task_id,
                 dependency_id,
                 kind="EFFECT",
                 target_id=f"pc:{job.envelope_id}",
             )
+            task_dependency = bound.dependency_ref(dependency_id)
             try:
                 return self.prepare_pc_job(
                     job=job,
                     authorization=authorization,
+                    task_dependency=task_dependency,
                 )
             except BaseException:
                 if not self._task_dependency_target_started(
@@ -995,10 +1038,17 @@ class QualifiedVeraRuntime:
         *,
         job: JobEnvelope,
         authorization: AuthorizationEnvelope,
+        task_dependency: TaskDependencyRef | None = None,
     ) -> PreparedPCDispatch:
         validate_pc_authorization_binding(job, authorization)
         if job.project_id != self.lifecycle.project_id:
             raise ValueError("PC job project does not match qualified runtime")
+        if task_dependency is not None:
+            self._validate_task_dependency_ref(
+                task_dependency,
+                expected_kind="EFFECT",
+                expected_target_id=f"pc:{job.envelope_id}",
+            )
         permit = self.accepted_permit()
         job_digest = job.digest()
         authorization_digest = authorization.digest()
@@ -1013,6 +1063,7 @@ class QualifiedVeraRuntime:
                 authorization_digest=authorization_digest,
                 lifecycle_permit_digest=permit.permit_digest,
             ),
+            task_dependency=task_dependency,
         )
 
     def dispatch_pc_job(
@@ -1028,12 +1079,19 @@ class QualifiedVeraRuntime:
             raise ValueError("prepared PC job changed after preparation")
         if prepared.authorization.digest() != prepared.authorization_digest:
             raise ValueError("prepared PC authorization changed after preparation")
+        if prepared.task_dependency is not None:
+            self._validate_task_dependency_ref(
+                prepared.task_dependency,
+                expected_kind="EFFECT",
+                expected_target_id=f"pc:{prepared.job.envelope_id}",
+            )
         return self.effects.dispatch_pc_job(
             permit=prepared.permit,
             job=prepared.job,
             authorization=prepared.authorization,
             authority_proof=authority_proof,
             execute=execute,
+            task_dependency=prepared.task_dependency,
         )
 
     def execute_pc_job(
@@ -1067,7 +1125,14 @@ class QualifiedVeraRuntime:
         provider_id: str,
         operation: str,
         request_payload: Any,
+        task_dependency: TaskDependencyRef | None = None,
     ) -> PreparedProviderDispatch:
+        if task_dependency is not None:
+            self._validate_task_dependency_ref(
+                task_dependency,
+                expected_kind="PROVIDER_EFFECT",
+                expected_target_id=effect_id,
+            )
         permit = self.accepted_permit()
         request_digest = self.effects.provider_request_digest(
             provider_id=provider_id,
@@ -1088,6 +1153,7 @@ class QualifiedVeraRuntime:
                 request_digest=request_digest,
                 lifecycle_permit_digest=permit.permit_digest,
             ),
+            task_dependency=task_dependency,
         )
         self.provider_execution_bindings.bind(prepared)
         return prepared
@@ -1116,6 +1182,7 @@ class QualifiedVeraRuntime:
             request_payload=request_payload,
             request_digest=binding.request_digest,
             authority_subject=binding.authority_subject,
+            task_dependency=binding.task_dependency,
         )
         self.provider_execution_bindings.bind(prepared)
         return prepared
@@ -1136,6 +1203,12 @@ class QualifiedVeraRuntime:
         )
         if observed_digest != prepared.request_digest:
             raise ValueError("prepared provider request changed after preparation")
+        if prepared.task_dependency is not None:
+            self._validate_task_dependency_ref(
+                prepared.task_dependency,
+                expected_kind="PROVIDER_EFFECT",
+                expected_target_id=prepared.effect_id,
+            )
         return self.effects.dispatch_provider_effect(
             permit=prepared.permit,
             effect_id=prepared.effect_id,
@@ -1144,6 +1217,7 @@ class QualifiedVeraRuntime:
             request_payload=prepared.request_payload,
             authority=authority,
             execute=execute,
+            task_dependency=prepared.task_dependency,
         )
 
     def execute_provider_effect(
@@ -1182,6 +1256,7 @@ class QualifiedVeraRuntime:
             request_payload=execution_payload,
             request_digest=prepared.request_digest,
             authority_subject=prepared.authority_subject,
+            task_dependency=prepared.task_dependency,
         )
         return self.dispatch_provider_effect(
             snapshotted,
