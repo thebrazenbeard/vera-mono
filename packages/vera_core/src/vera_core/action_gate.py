@@ -143,6 +143,7 @@ class LifecycleEffectGateway:
         )
 
         with self.lifecycle.action_lock():
+            self.fence.assert_clear()
             self.lifecycle.validate_action_permit(permit)
             authority_evidence_digest = verify_authority()
             self._require_sha256(
