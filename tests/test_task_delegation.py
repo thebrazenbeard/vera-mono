@@ -257,3 +257,68 @@ def test_restart_context_restores_active_delegation_owner(tmp_path):
             "return_shape": ["exact head", "changed files", "test evidence"],
         }
     ]
+
+
+def test_delegation_owner_reference_invalidates_on_reassignment_and_return(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-a", packet("task-a"))
+    delegated = delegate(runtime, "task-a")
+    original_ref = delegated.delegation_ref("d1")
+
+    assert runtime.validate_task_delegation(
+        original_ref,
+        actor_ref="worker/a",
+    ) == original_ref
+    with pytest.raises(TaskExecutionError):
+        runtime.validate_task_delegation(
+            original_ref,
+            actor_ref="worker/b",
+        )
+
+    reassigned = runtime.reassign_task_delegation(
+        "task-a",
+        "d1",
+        "reassign-1",
+        new_assignee_ref="worker/b",
+        evidence_refs=("bus:reassign-owner",),
+    )
+    current_ref = reassigned.delegation_ref("d1")
+    assert current_ref.assignee_ref == "worker/b"
+    assert current_ref.binding_event_digest != original_ref.binding_event_digest
+
+    with pytest.raises(TaskExecutionError):
+        runtime.validate_task_delegation(original_ref)
+    assert runtime.validate_task_delegation(
+        current_ref,
+        actor_ref="worker/b",
+    ) == current_ref
+
+    runtime.return_task_delegation(
+        "task-a",
+        "d1",
+        "return-owner",
+        summary="delegated scope returned",
+        result_evidence_refs=("bus:return-owner",),
+    )
+    with pytest.raises(TaskExecutionError):
+        runtime.validate_task_delegation(current_ref)
+
+
+def test_delegation_policy_rejects_conflicting_allowed_and_prohibited_effect(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-a", packet("task-a"))
+    with pytest.raises(TaskExecutionError):
+        runtime.delegate_task_work(
+            "task-a",
+            "d-conflict",
+            repository="thebrazenbeard/vera-mono",
+            ref="main@abc123",
+            subject="subject/conflict",
+            assignee_ref="worker/a",
+            allowed_effects=("merge",),
+            prohibited_effects=("merge",),
+            return_shape=("evidence",),
+            evidence_refs=("bus:delegation",),
+        )
