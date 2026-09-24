@@ -313,7 +313,9 @@
       "cross-ledger outbound integrity gating",
       "payload-safe provider execution binding and restart rehydration",
       "provider restart recovery assessment",
-      "detached provider transport payload snapshot"
+      "detached provider transport payload snapshot",
+      "persistent coordination repository",
+      "coordination command/result recovery journal"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -357,5 +359,21 @@
     "local_result_is_server_terminal": false,
     "production_pc_effect": false,
     "runtime_transport_method": "execute_via_runtime_transport"
+  },
+  "qualified_coordination_execution": {
+    "schema": "VERA_MONO_QUALIFIED_COORDINATION_EXECUTION_V1",
+    "contract": "architecture/VERA_QUALIFIED_COORDINATION_EXECUTION_V1.json",
+    "gateway": "vera_core.LifecycleBoundCoordinationBus",
+    "repository": "coordination_bus.SQLiteCoordinationRepository",
+    "command_journal": "vera_core.CoordinationCommandJournal",
+    "event_state_path": "coordination/events.sqlite",
+    "command_state_path": "coordination/commands.sqlite",
+    "persistent_default": true,
+    "command_id_single_use": true,
+    "command_projection_integrity": true,
+    "repository_cross_check": true,
+    "committed_missing_command_result": "RECOVERY_REQUIRED_NO_REPLAY",
+    "reserved": "CANCEL_PRE_DISPATCH_NO_EFFECT_ID_REUSE",
+    "source_presence_is_deployment": false
   }
 }
