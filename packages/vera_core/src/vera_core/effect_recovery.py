@@ -8,6 +8,7 @@ from typing import Protocol, runtime_checkable
 from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
 from vera_assurance import EffectFence, EffectReceipt, EffectState
 
+from .outbound_audit import OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 
 
@@ -190,6 +191,7 @@ class LifecycleEffectRecovery:
         fence: EffectFence,
         verifier: EffectReconciliationVerifier,
         outbound_trust_registry: OutboundTrustRegistry,
+        audit: OutboundExecutionAudit | None = None,
     ):
         if not isinstance(verifier, EffectReconciliationVerifier):
             raise TypeError(
@@ -202,6 +204,9 @@ class LifecycleEffectRecovery:
                 "outbound_trust_registry must be exact OutboundTrustRegistry"
             )
         self._outbound_trust_registry = outbound_trust_registry
+        if audit is not None and type(audit) is not OutboundExecutionAudit:
+            raise TypeError("audit must be exact OutboundExecutionAudit")
+        self.audit = audit
 
     def reconcile(
         self,
@@ -261,9 +266,54 @@ class LifecycleEffectRecovery:
                     }
                 )
             )
-            return self.fence.reconcile_unknown(
+            reconciled = self.fence.reconcile_unknown(
                 effect_id,
                 effect_occurred=effect_occurred,
                 result_digest=result_digest,
                 reconciliation_evidence_digest=evidence_digest,
             )
+            if self.audit is not None:
+                previous = self.audit.latest(effect_id)
+                if previous is None:
+                    raise EffectRecoveryAuthorityError(
+                        "qualified effect recovery is missing outbound audit evidence"
+                    )
+                self.audit.append(
+                    effect_id=effect_id,
+                    effect_kind=previous.effect_kind,
+                    event_type=(
+                        "RECONCILED_COMMITTED"
+                        if effect_occurred
+                        else "RECONCILED_NO_EFFECT"
+                    ),
+                    payload={
+                        "request_digest": reconciled.request_digest,
+                        "result_digest": reconciled.result_digest,
+                        "authority_evidence_digest": (
+                            reconciled.authority_evidence_digest
+                        ),
+                        "currentness_evidence_digest": (
+                            reconciled.currentness_evidence_digest
+                        ),
+                        "reconciliation_evidence_digest": (
+                            reconciled.reconciliation_evidence_digest
+                        ),
+                        "reconciliation_authority_currentness": {
+                            "authority_id": trust_receipt.authority_id,
+                            "authority_generation": (
+                                trust_receipt.authority_generation
+                            ),
+                            "revocation_epoch": trust_receipt.revocation_epoch,
+                            "key_id": trust_receipt.key_id,
+                            "key_digest": trust_receipt.key_digest,
+                            "registry_generation": (
+                                trust_receipt.registry_generation
+                            ),
+                            "registry_head_digest": (
+                                trust_receipt.registry_head_digest
+                            ),
+                            "receipt_digest": trust_receipt.receipt_digest,
+                        },
+                    },
+                )
+            return reconciled
