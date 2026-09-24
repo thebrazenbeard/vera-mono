@@ -321,7 +321,8 @@
       "task-scoped coordination/provider/PC dependency binding",
       "dependency-aware task restart and closeout gating",
       "durable delegated-subject ownership",
-      "delegation reassignment return and cancellation closeout gating"
+      "delegation reassignment return and cancellation closeout gating",
+      "delegated-subject mutation ownership guard"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -479,7 +480,13 @@
       "returned_or_cancelled_releases_subject": true,
       "active_delegation_blocks_closeout": true,
       "terminal_event_digest_auto_carried_into_closeout": true,
-      "restart_context_exposes_active_owners": true
+      "restart_context_exposes_active_owners": true,
+      "mutation_guard": {
+        "method": "QualifiedVeraRuntime.assert_task_subject_mutation_allowed",
+        "active_scope_requires_current_owner_ref": true,
+        "stale_or_wrong_assignee": "DENY",
+        "nondelegated_scope": "NO_DELEGATION_BLOCK"
+      }
     }
   }
 }
