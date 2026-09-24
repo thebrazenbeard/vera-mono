@@ -115,7 +115,22 @@ class VeraStateDirectory:
         return self.open().reconstruct()
 
     def resume_context(self) -> dict:
-        context = self.reconstruct().as_resume_context()
+        lifecycle = self.open()
+        context = lifecycle.reconstruct().as_resume_context()
         context["outbound_trust"] = self.outbound_trust_registry().context()
-        context["outbound_audit"] = self.outbound_execution_audit().context()
+        audit = self.outbound_execution_audit()
+        fence = lifecycle.effect_fence or self.effect_fence()
+        with lifecycle.action_lock():
+            integrity = audit.repair_from_fence(fence)
+        context["outbound_audit"] = audit.context()
+        context["outbound_effect_integrity"] = {
+            "schema": "VERA_MONO_OUTBOUND_EFFECT_INTEGRITY_V1",
+            "audit_head_digest": integrity.audit_head_digest,
+            "fence_effect_count": integrity.fence_effect_count,
+            "audited_effect_count": integrity.audited_effect_count,
+            "authority_only_effect_ids": list(
+                integrity.authority_only_effect_ids
+            ),
+            "repaired_effect_ids": list(integrity.repaired_effect_ids),
+        }
         return context
