@@ -211,6 +211,28 @@ class OutboundTrustRegistry:
             for row in rows
         )
 
+    def context(self) -> dict[str, Any]:
+        head = self.verify_chain()
+        states = self.states()
+        return {
+            "schema": "VERA_MONO_OUTBOUND_TRUST_CONTEXT_V1",
+            "registry_generation": self.generation,
+            "registry_head_digest": head,
+            "scopes": [
+                {
+                    "authority_id": state.authority_id,
+                    "role": state.role,
+                    "provider_id": state.provider_id,
+                    "authority_generation": state.authority_generation,
+                    "revocation_epoch": state.revocation_epoch,
+                    "key_id": state.key_id,
+                    "key_digest": state.key_digest,
+                    "enabled": state.enabled,
+                }
+                for state in states
+            ],
+        }
+
     @_trust_mutation_locked
     def register(
         self,
