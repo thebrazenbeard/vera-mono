@@ -1,0 +1,78 @@
+{
+  "schema": "VERA_MONO_TASK_DELEGATION_OWNERSHIP_V1",
+  "purpose": "Make delegated work an exact durable ownership transfer instead of conversational coordination, and prevent the same repository/ref/subject from being independently owned while delegation is active.",
+  "owner": "vera_core.TaskExecutionLedger",
+  "composition_root": "vera_core.QualifiedVeraRuntime",
+  "state_path": "tasks/tasks.sqlite",
+  "event_types": [
+    "TASK_DELEGATED",
+    "TASK_DELEGATION_REASSIGNED",
+    "TASK_DELEGATION_RETURNED",
+    "TASK_DELEGATION_CANCELLED"
+  ],
+  "binding": {
+    "required_fields": [
+      "task_id",
+      "delegation_id",
+      "repository",
+      "ref",
+      "subject",
+      "assignee_ref",
+      "allowed_effects",
+      "prohibited_effects",
+      "return_shape",
+      "evidence_refs"
+    ],
+    "subject_scope_key": [
+      "repository",
+      "ref",
+      "subject"
+    ],
+    "one_active_owner_per_subject_scope": true,
+    "task_subject_and_packet_digest_bound": true,
+    "explicit_return_shape_required": true,
+    "binding_evidence_required": true,
+    "allowed_and_prohibited_effects_must_be_disjoint": true
+  },
+  "lifecycle": {
+    "active_owner_until": [
+      "TASK_DELEGATION_RETURNED",
+      "TASK_DELEGATION_CANCELLED",
+      "TASK_DELEGATION_REASSIGNED changes assignee without releasing scope"
+    ],
+    "reassignment_requires": [
+      "new assignee",
+      "reassignment id",
+      "evidence refs"
+    ],
+    "return_requires": [
+      "return id",
+      "summary",
+      "result evidence refs"
+    ],
+    "cancellation_requires": [
+      "cancellation id",
+      "reason",
+      "evidence refs"
+    ],
+    "terminal_delegation_id_reuse": false,
+    "subject_scope_reusable_after_terminal_release": true
+  },
+  "closeout": {
+    "active_delegation": "DENY",
+    "returned_or_cancelled_delegation": "ALLOW_IF_OTHER_CLOSEOUT_GATES_PASS",
+    "terminal_delegation_event_digest_carried_into_closeout_evidence": true
+  },
+  "restart": {
+    "conversational_state_required": false,
+    "active_ownership_exposed_in_resume_context": true,
+    "task_context_exposes_all_delegations": true
+  },
+  "boundaries": {
+    "delegation_does_not_grant_repository_or_provider_authority": true,
+    "delegation_does_not_merge_or_deploy": true,
+    "task_ledger_is_local_evidence_not_remote_worker_liveness": true,
+    "assignee_identity_is_an_exact_reference_not_proof_of_active_process": true,
+    "source_presence_is_not_runtime_activation": true
+  }
+}
