@@ -158,3 +158,62 @@ def test_outbound_trust_chain_tamper_fails_currentness_read(tmp_path):
             key_id=pc.key_id,
             key_digest=pc.key_digest,
         )
+
+
+def test_outbound_trust_projection_tamper_fails_even_when_event_chain_is_intact(tmp_path):
+    registry = OutboundTrustRegistry(tmp_path / "outbound-trust.sqlite")
+    pc = HmacPCJobAuthority(
+        "issuer/pc",
+        b"p" * 32,
+        key_id="pc-v1",
+    )
+    registry.register(
+        authority_id=pc.authority_id,
+        role="PC",
+        key_id=pc.key_id,
+        key_digest=pc.key_digest,
+        expected_registry_generation=0,
+    )
+
+    with sqlite3.connect(registry.path) as db:
+        db.execute(
+            "UPDATE authorities SET key_digest=? WHERE role='PC'",
+            ("f" * 64,),
+        )
+
+    with pytest.raises(OutboundTrustError):
+        registry.verify_chain()
+    with pytest.raises(OutboundTrustError):
+        registry.assert_current(
+            authority_id=pc.authority_id,
+            role="PC",
+            key_id=pc.key_id,
+            key_digest="f" * 64,
+        )
+
+
+def test_outbound_trust_transition_history_rejects_semantically_invalid_event(tmp_path):
+    registry = OutboundTrustRegistry(tmp_path / "outbound-trust.sqlite")
+    pc = HmacPCJobAuthority(
+        "issuer/pc",
+        b"p" * 32,
+        key_id="pc-v1",
+    )
+    registry.register(
+        authority_id=pc.authority_id,
+        role="PC",
+        key_id=pc.key_id,
+        key_digest=pc.key_digest,
+        expected_registry_generation=0,
+    )
+
+    # The history digest chain is not enough by itself: transition semantics are
+    # replayed too. This direct corruption intentionally invalidates both and
+    # verifies fail-closed behavior at the registry boundary.
+    with sqlite3.connect(registry.path) as db:
+        db.execute(
+            "UPDATE events SET event_type='REVOKE' WHERE registry_generation=1"
+        )
+
+    with pytest.raises(OutboundTrustError):
+        registry.verify_chain()
