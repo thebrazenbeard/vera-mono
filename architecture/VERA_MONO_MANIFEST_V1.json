@@ -317,12 +317,19 @@
     "low_level_mechanisms_remain_available_but_not_runtime_qualified": true,
     "pc_adapter": [
       "prepare_pc_job",
-      "dispatch_pc_job"
+      "execute_pc_job"
     ],
     "provider_adapter": [
       "prepare_provider_effect",
-      "dispatch_provider_effect"
-    ]
+      "execute_provider_effect"
+    ],
+    "execution_transport_binding": {
+      "contract": "architecture/VERA_EXECUTION_TRANSPORT_BINDING_V1.json",
+      "pc_protocol": "vera_core.PCExecutionTransport",
+      "provider_protocol": "vera_core.ProviderExecutionTransport",
+      "transports_persisted": false,
+      "caller_callbacks_runtime_qualified": false
+    }
   },
   "qualified_pc_execution": {
     "schema": "VERA_MONO_QUALIFIED_PC_EXECUTION_V1",
@@ -335,6 +342,7 @@
     "pre_dispatch_reserved_effect": "CANCEL_AND_ABANDON_NO_EFFECT_ID_REUSE",
     "ambiguous_or_known_dispatched_missing_result": "RECOVERY_REQUIRED_NO_REPLAY",
     "local_result_is_server_terminal": false,
-    "production_pc_effect": false
+    "production_pc_effect": false,
+    "runtime_transport_method": "execute_via_runtime_transport"
   }
 }
