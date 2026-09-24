@@ -122,7 +122,8 @@
     "host source transport mutates using expected-head/blob CAS",
     "transport result identity is checked before effect can be COMMITTED",
     "restart dispatch candidate also requires live provider authority currentness",
-    "pre-dispatch cancellation requires current task/delegation ownership and exact RESERVED evidence"
+    "pre-dispatch cancellation requires current task/delegation ownership and exact RESERVED evidence",
+    "when the task declares SOURCE_VERIFY evidence, exact committed-source verification must PASS before the source dependency can be SATISFIED"
   ],
   "boundaries": {
     "writable_scope_is_not_repository_authority": true,
@@ -170,5 +171,48 @@
     "same_mutation_id_reuse": false,
     "replacement_requires_new_mutation_id_and_dependency_id": true,
     "executing_or_attempted_unknown": "DENY_CANCELLATION_REQUIRE_RECOVERY"
+  },
+  "exact_commit_verification": {
+    "contract": "architecture/VERA_SOURCE_VERIFICATION_V1.json",
+    "requirement_grammar": "SOURCE_VERIFY|<repository>|<ref>|<check-name>",
+    "store": "vera_core.SourceVerificationStore",
+    "adapter": "vera_core.QualifiedSourceVerificationAdapter",
+    "state_path": "source/verification.sqlite",
+    "prerequisite": "successful exact durable source mutation outcome bound to successful terminal mechanical effect",
+    "required_when": "owning TaskPacket.evidence_requirements contains matching SOURCE_VERIFY entry",
+    "task_dependency_success": "matching required checks must produce exact-commit PASS receipt",
+    "statuses": [
+      "PASS",
+      "FAIL",
+      "PENDING",
+      "UNAVAILABLE",
+      "STALE_HEAD"
+    ],
+    "stale_head": "PROVENANCE_MISMATCH",
+    "fail_pending_unavailable": "PENDING_TASK_DEPENDENCY",
+    "task_closed_new_observation": "DENY",
+    "restart_context": [
+      "source_verifications",
+      "source_verification_recovery"
+    ],
+    "github": {
+      "transport": "vera_core.GitHubSourceVerificationTransport",
+      "api_client": "vera_core.GitHubGitDataAPIClient",
+      "exact_commit_oid_required": true,
+      "exhaustive_status_check_rollup_pagination": true,
+      "context_types": [
+        "CheckRun",
+        "StatusContext"
+      ],
+      "missing_required_check": "UNAVAILABLE",
+      "moved_ref": "STALE_HEAD"
+    },
+    "boundaries": {
+      "pass_is_not_merge": true,
+      "pass_is_not_deploy": true,
+      "pass_is_not_install": true,
+      "pass_is_not_runtime_consumption": true,
+      "pass_is_not_independent_review": true
+    }
   }
 }
