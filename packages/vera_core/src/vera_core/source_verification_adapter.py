@@ -29,6 +29,8 @@ class SourceVerificationAssessment:
     transport_available: bool
     passed: bool
     reason: str
+    current_ref_head: str | None = None
+    current_ref_matches_commit: bool | None = None
 
 
 class QualifiedSourceVerificationAdapter:
@@ -232,6 +234,67 @@ class QualifiedSourceVerificationAdapter:
                 ),
             )
 
+        if latest.status == "PASS":
+            transport = self.transports.get(
+                (binding.repository, binding.ref)
+            )
+            if transport is None:
+                return SourceVerificationAssessment(
+                    mutation_id=mutation_id,
+                    repository=binding.repository,
+                    ref=binding.ref,
+                    commit_sha=outcome.new_ref_head,
+                    required_checks=requirements,
+                    verification_required=True,
+                    latest_status=latest.status,
+                    latest_receipt_digest=latest.receipt_digest,
+                    transport_available=False,
+                    passed=False,
+                    reason=(
+                        "stored exact-commit verification passed, but the "
+                        "current ref head cannot be refreshed because no "
+                        "verification transport is available"
+                    ),
+                )
+            current_ref_head = transport.observe_ref_head()
+            if current_ref_head != outcome.new_ref_head:
+                return SourceVerificationAssessment(
+                    mutation_id=mutation_id,
+                    repository=binding.repository,
+                    ref=binding.ref,
+                    commit_sha=outcome.new_ref_head,
+                    required_checks=requirements,
+                    verification_required=True,
+                    latest_status=latest.status,
+                    latest_receipt_digest=latest.receipt_digest,
+                    transport_available=True,
+                    passed=False,
+                    reason=(
+                        "source ref moved after the stored PASS observation; "
+                        "the exact committed source is no longer current"
+                    ),
+                    current_ref_head=current_ref_head,
+                    current_ref_matches_commit=False,
+                )
+            return SourceVerificationAssessment(
+                mutation_id=mutation_id,
+                repository=binding.repository,
+                ref=binding.ref,
+                commit_sha=outcome.new_ref_head,
+                required_checks=requirements,
+                verification_required=True,
+                latest_status=latest.status,
+                latest_receipt_digest=latest.receipt_digest,
+                transport_available=True,
+                passed=True,
+                reason=(
+                    "exact source verification passed and the live ref still "
+                    "names the verified commit"
+                ),
+                current_ref_head=current_ref_head,
+                current_ref_matches_commit=True,
+            )
+
         return SourceVerificationAssessment(
             mutation_id=mutation_id,
             repository=binding.repository,
@@ -242,12 +305,8 @@ class QualifiedSourceVerificationAdapter:
             latest_status=latest.status,
             latest_receipt_digest=latest.receipt_digest,
             transport_available=transport_available,
-            passed=latest.status == "PASS",
-            reason=(
-                "exact source verification passed"
-                if latest.status == "PASS"
-                else f"exact source verification is {latest.status}"
-            ),
+            passed=False,
+            reason=f"exact source verification is {latest.status}",
         )
 
     def verify_mutation(
