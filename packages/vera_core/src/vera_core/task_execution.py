@@ -529,6 +529,11 @@ class TaskExecutionLedger:
         state = self.read(task_id)
         if state.closed:
             raise TaskExecutionError("task is already closed")
+        if state.unresolved_correction_ids:
+            raise TaskExecutionError(
+                "task has unresolved correction recurrence gate: "
+                + ", ".join(state.unresolved_correction_ids)
+            )
         _require_text(closeout_id, "closeout_id")
         _require_text(claim_ceiling, "claim_ceiling")
         _require_text(next_frontier, "next_frontier")
@@ -634,13 +639,95 @@ class TaskExecutionLedger:
         )
 
         latest_checkpoint: Mapping[str, Any] | None = None
+        corrections: list[TaskCorrection] = []
+        unresolved_corrections: set[str] = set()
         closeout: TaskCloseout | None = None
         for event in events[1:]:
             if closeout is not None:
                 raise TaskExecutionError(
                     "task history continues after TASK_CLOSED"
                 )
-            if event.event_type == "TASK_CHECKPOINT":
+            if event.event_type == "TASK_CORRECTION":
+                correction_id = _require_text(
+                    event.payload.get("correction_id"),
+                    "correction_id",
+                )
+                if event.payload.get("subject") != packet.subject:
+                    raise TaskExecutionError(
+                        "correction subject diverges from task packet"
+                    )
+                if event.payload.get("packet_digest") != packet.packet_digest:
+                    raise TaskExecutionError(
+                        "correction packet digest mismatch"
+                    )
+                correction = TaskCorrection(
+                    correction_id=correction_id,
+                    summary=_require_text(
+                        event.payload.get("summary"),
+                        "correction summary",
+                    ),
+                    obsolete_route=_require_text(
+                        event.payload.get("obsolete_route"),
+                        "obsolete_route",
+                    ),
+                    required_change=_require_text(
+                        event.payload.get("required_change"),
+                        "required_change",
+                    ),
+                    current_owner_ref=_require_text(
+                        event.payload.get("current_owner_ref"),
+                        "current_owner_ref",
+                    ),
+                    provenance_refs=_require_texts(
+                        event.payload.get("provenance_refs", ()),
+                        "provenance_refs",
+                    ),
+                    event_digest=event.event_digest,
+                )
+                if not correction.provenance_refs:
+                    raise TaskExecutionError(
+                        "persisted correction lacks provenance refs"
+                    )
+                if correction_id in {
+                    item.correction_id for item in corrections
+                }:
+                    raise TaskExecutionError(
+                        "duplicate correction identity in task history"
+                    )
+                corrections.append(correction)
+                unresolved_corrections.add(correction_id)
+            elif event.event_type == "TASK_CHECKPOINT":
+                addressed = set(
+                    _require_texts(
+                        event.payload.get(
+                            "correction_ids_addressed",
+                            (),
+                        ),
+                        "correction_ids_addressed",
+                    )
+                )
+                if addressed - unresolved_corrections:
+                    raise TaskExecutionError(
+                        "checkpoint addresses non-unresolved correction"
+                    )
+                if unresolved_corrections and addressed != unresolved_corrections:
+                    raise TaskExecutionError(
+                        "checkpoint failed correction recurrence gate"
+                    )
+                if addressed:
+                    response = (
+                        event.payload.get("method_change"),
+                        event.payload.get("regression_guard"),
+                        event.payload.get("blocker_classification"),
+                    )
+                    if not any(
+                        isinstance(value, str) and value.strip()
+                        for value in response
+                    ):
+                        raise TaskExecutionError(
+                            "checkpoint correction response is missing changed method, regression guard, or blocker classification"
+                        )
+                    unresolved_corrections.difference_update(addressed)
                 latest_checkpoint = dict(event.payload)
             elif event.event_type == "TASK_CLOSED":
                 surfaces = self._validate_surfaces(
@@ -674,6 +761,10 @@ class TaskExecutionLedger:
             packet=packet,
             opened_lifecycle_evidence_digest=opened_lifecycle,
             latest_checkpoint=latest_checkpoint,
+            corrections=tuple(corrections),
+            unresolved_correction_ids=tuple(
+                sorted(unresolved_corrections)
+            ),
             closeout=closeout,
             journal_head_digest=self.verify_chain(),
         )
@@ -776,6 +867,16 @@ class TaskExecutionLedger:
             "task_count": len(states),
             "open_task_ids": [
                 state.task_id for state in states if not state.closed
+            ],
+            "tasks_with_unresolved_corrections": [
+                {
+                    "task_id": state.task_id,
+                    "correction_ids": list(
+                        state.unresolved_correction_ids
+                    ),
+                }
+                for state in states
+                if state.unresolved_correction_ids
             ],
             "closed_task_ids": [
                 state.task_id for state in states if state.closed
