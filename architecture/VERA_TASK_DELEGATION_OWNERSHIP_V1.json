@@ -80,5 +80,17 @@
     "task_ledger_is_local_evidence_not_remote_worker_liveness": true,
     "assignee_identity_is_an_exact_reference_not_proof_of_active_process": true,
     "source_presence_is_not_runtime_activation": true
+  },
+  "mutation_guard": {
+    "ledger_method": "TaskExecutionLedger.assert_subject_mutation_allowed",
+    "qualified_method": "QualifiedVeraRuntime.assert_task_subject_mutation_allowed",
+    "behavior": {
+      "no_active_delegation": "ALLOW_DELEGATION_GUARD_ONLY",
+      "active_delegation_without_owner_ref": "DENY",
+      "wrong_actor": "DENY",
+      "stale_owner_ref": "DENY",
+      "exact_current_owner_ref": "ALLOW_DELEGATION_GUARD_ONLY"
+    },
+    "note": "Passing the delegation guard does not grant repository/provider authority; downstream mutation adapters must still enforce their own authority."
   }
 }
