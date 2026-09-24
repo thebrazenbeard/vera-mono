@@ -27,6 +27,7 @@ from .outbound_authority import (
     provider_authority_subject,
     validate_pc_authorization_binding,
 )
+from .outbound_audit import OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 
 
@@ -66,6 +67,12 @@ def _digest(value: Any) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class VerifiedAuthorityEvidence:
+    evidence_digest: str
+    details: Mapping[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
 class OutboundEffectResult:
     effect_id: str
     effect_kind: str
@@ -89,6 +96,7 @@ class LifecycleEffectGateway:
             str, ProviderAuthorityVerifier
         ] | None = None,
         outbound_trust_registry: OutboundTrustRegistry | None = None,
+        audit: OutboundExecutionAudit | None = None,
         clock: Callable[[], datetime] | None = None,
     ):
         self.lifecycle = lifecycle
@@ -102,6 +110,9 @@ class LifecycleEffectGateway:
             )
         self._pc_authority_verifier = pc_authority_verifier
         self._outbound_trust_registry = outbound_trust_registry
+        if audit is not None and type(audit) is not OutboundExecutionAudit:
+            raise TypeError("audit must be exact OutboundExecutionAudit")
+        self.audit = audit
         registry = dict(provider_authority_verifiers or {})
         for provider_id, verifier in registry.items():
             if type(provider_id) is not str or not provider_id:
@@ -126,7 +137,7 @@ class LifecycleEffectGateway:
         effect_id: str,
         effect_kind: str,
         request_payload: Any,
-        verify_authority: Callable[[], str],
+        verify_authority: Callable[[], VerifiedAuthorityEvidence],
         execute: Callable[[], T],
     ) -> OutboundEffectResult:
         if type(effect_id) is not str or not effect_id:
@@ -159,29 +170,87 @@ class LifecycleEffectGateway:
             with trust_guard:
                 self.fence.assert_clear()
                 self.lifecycle.validate_action_permit(permit)
-                authority_evidence_digest = verify_authority()
-                self._require_sha256(
-                    authority_evidence_digest,
+                authority_evidence = verify_authority()
+                if type(authority_evidence) is not VerifiedAuthorityEvidence:
+                    raise OutboundActionError(
+                        "authority verifier must return VerifiedAuthorityEvidence"
+                    )
+                authority_evidence_digest = self._require_sha256(
+                    authority_evidence.evidence_digest,
                     "authority_evidence_digest",
                 )
-                self.fence.reserve(
+                if self.audit is not None:
+                    self.audit.append(
+                        effect_id=effect_id,
+                        effect_kind=effect_kind,
+                        event_type="AUTHORITY_VERIFIED",
+                        payload={
+                            "request_digest": request_digest,
+                            "mechanical_permit_digest": mechanical_permit_digest,
+                            "lifecycle_permit": {
+                                **permit.canonical_body(),
+                                "permit_digest": permit.permit_digest,
+                            },
+                            "authority_evidence_digest": authority_evidence_digest,
+                            "authority_details": _normalize(
+                                authority_evidence.details
+                            ),
+                        },
+                    )
+                reserved = self.fence.reserve(
                     effect_id=effect_id,
                     request_digest=request_digest,
                     mechanical_permit_digest=mechanical_permit_digest,
                     authority_evidence_digest=authority_evidence_digest,
                     currentness_evidence_digest=permit.permit_digest,
                 )
+                if self.audit is not None:
+                    self.audit.append(
+                        effect_id=effect_id,
+                        effect_kind=effect_kind,
+                        event_type="RESERVED",
+                        payload={
+                            "request_digest": reserved.request_digest,
+                            "mechanical_permit_digest": (
+                                reserved.mechanical_permit_digest
+                            ),
+                            "authority_evidence_digest": (
+                                reserved.authority_evidence_digest
+                            ),
+                            "currentness_evidence_digest": (
+                                reserved.currentness_evidence_digest
+                            ),
+                        },
+                    )
                 # Re-check after durable reservation and before the single-use
                 # dispatch claim. The shared lifecycle lock prevents a canonical
                 # lifecycle transition from interleaving with execution.
                 self.lifecycle.validate_action_permit(permit)
-                self.fence.claim_dispatch(
+                executing = self.fence.claim_dispatch(
                     effect_id=effect_id,
                     request_digest=request_digest,
                     mechanical_permit_digest=mechanical_permit_digest,
                     authority_evidence_digest=authority_evidence_digest,
                     currentness_evidence_digest=permit.permit_digest,
                 )
+                if self.audit is not None:
+                    self.audit.append(
+                        effect_id=effect_id,
+                        effect_kind=effect_kind,
+                        event_type="EXECUTING",
+                        payload={
+                            "request_digest": executing.request_digest,
+                            "mechanical_permit_digest": (
+                                executing.mechanical_permit_digest
+                            ),
+                            "authority_evidence_digest": (
+                                executing.authority_evidence_digest
+                            ),
+                            "currentness_evidence_digest": (
+                                executing.currentness_evidence_digest
+                            ),
+                        },
+                    )
                 try:
                     value = execute()
                     result_digest = _digest(
@@ -193,11 +262,26 @@ class LifecycleEffectGateway:
                         }
                     )
                 except BaseException:
-                    self.fence.settle(
+                    unknown = self.fence.settle(
                         effect_id,
                         result_digest=None,
                         completion_known=False,
                     )
+                    if self.audit is not None:
+                        self.audit.append(
+                            effect_id=effect_id,
+                            effect_kind=effect_kind,
+                            event_type="ATTEMPTED_UNKNOWN",
+                            payload={
+                                "request_digest": unknown.request_digest,
+                                "authority_evidence_digest": (
+                                    unknown.authority_evidence_digest
+                                ),
+                                "currentness_evidence_digest": (
+                                    unknown.currentness_evidence_digest
+                                ),
+                            },
+                        )
                     raise
 
                 committed = self.fence.settle(
@@ -205,6 +289,22 @@ class LifecycleEffectGateway:
                     result_digest=result_digest,
                     completion_known=True,
                 )
+                if self.audit is not None:
+                    self.audit.append(
+                        effect_id=effect_id,
+                        effect_kind=effect_kind,
+                        event_type="COMMITTED",
+                        payload={
+                            "request_digest": committed.request_digest,
+                            "result_digest": committed.result_digest,
+                            "authority_evidence_digest": (
+                                committed.authority_evidence_digest
+                            ),
+                            "currentness_evidence_digest": (
+                                committed.currentness_evidence_digest
+                            ),
+                        },
+                    )
                 return OutboundEffectResult(
                     effect_id=effect_id,
                     effect_kind=effect_kind,
@@ -242,7 +342,7 @@ class LifecycleEffectGateway:
                 "PC job project does not match accepted lifecycle project"
             )
 
-        def verify_authority() -> str:
+        def verify_authority() -> VerifiedAuthorityEvidence:
             validate_pc_authorization_binding(job, authorization)
             trust = self._outbound_trust_registry
             if trust is None:
@@ -306,7 +406,7 @@ class LifecycleEffectGateway:
                 raise OutboundAuthorityError(
                     "PC authority proof verification failed for exact job, authorization, and lifecycle permit"
                 )
-            return _digest(
+            evidence_digest = _digest(
                 {
                     "schema": "VERA_MONO_PC_VERIFIED_AUTHORITY_EVIDENCE_V1",
                     "job_digest": job.digest(),
@@ -315,6 +415,20 @@ class LifecycleEffectGateway:
                     "authority_currentness": trust_receipt,
                     "lifecycle_permit_digest": permit.permit_digest,
                 }
+            )
+            return VerifiedAuthorityEvidence(
+                evidence_digest=evidence_digest,
+                details={
+                    "kind": "PC",
+                    "authority_id": authority_verifier.authority_id,
+                    "key_id": authority_verifier.key_id,
+                    "key_digest": authority_verifier.key_digest,
+                    "proof_issuer_id": authority_proof.issuer_id,
+                    "authority_subject": authority_proof.subject,
+                    "job_digest": job.digest(),
+                    "authorization_digest": authorization.digest(),
+                    "authority_currentness": trust_receipt,
+                },
             )
 
         return self._dispatch_verified(
@@ -386,7 +500,7 @@ class LifecycleEffectGateway:
             request_payload=request_payload,
         )
 
-        def verify_authority() -> str:
+        def verify_authority() -> VerifiedAuthorityEvidence:
             trust = self._outbound_trust_registry
             if trust is None:
                 raise OutboundAuthorityError(
@@ -422,7 +536,7 @@ class LifecycleEffectGateway:
                 raise OutboundAuthorityError(
                     "provider authority verification failed for exact request and lifecycle permit"
                 )
-            return _digest(
+            evidence_digest = _digest(
                 {
                     "schema": "VERA_MONO_PROVIDER_VERIFIED_AUTHORITY_EVIDENCE_V1",
                     "provider_request_digest": provider_request_digest,
@@ -430,6 +544,21 @@ class LifecycleEffectGateway:
                     "authority_currentness": trust_receipt,
                     "lifecycle_permit_digest": permit.permit_digest,
                 }
+            )
+            return VerifiedAuthorityEvidence(
+                evidence_digest=evidence_digest,
+                details={
+                    "kind": "PROVIDER",
+                    "provider_id": provider_id,
+                    "operation": operation,
+                    "authority_id": authority_verifier.authority_id,
+                    "key_id": authority_verifier.key_id,
+                    "key_digest": authority_verifier.key_digest,
+                    "authority_issuer_id": authority.issuer_id,
+                    "authority_subject": authority.subject,
+                    "provider_request_digest": provider_request_digest,
+                    "authority_currentness": trust_receipt,
+                },
             )
 
         return self._dispatch_verified(
@@ -488,12 +617,14 @@ class LifecycleBoundCoordinationBus:
         lifecycle: NativeVeraLifecycle,
         bus: Any,
         fence: EffectFence,
+        audit: OutboundExecutionAudit | None = None,
     ):
         self.lifecycle = lifecycle
         self.bus = bus
         self.effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
+            audit=audit,
         )
 
     def invoke(
@@ -547,6 +678,13 @@ class LifecycleBoundCoordinationBus:
                 "args": args,
                 "kwargs": call_kwargs,
             },
-            verify_authority=lambda: authority_binding_digest,
+            verify_authority=lambda: VerifiedAuthorityEvidence(
+                evidence_digest=authority_binding_digest,
+                details={
+                    "kind": "COORDINATION",
+                    "command": command,
+                    "actor": actor_binding,
+                },
+            ),
             execute=lambda: method(actor, *args, **call_kwargs),
         )
