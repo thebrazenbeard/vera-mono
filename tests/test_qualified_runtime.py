@@ -3,7 +3,13 @@ import sqlite3
 
 import pytest
 
-from coordination_bus import CoordinationBus, InMemoryCoordinationRepository
+from coordination_bus import (
+    ALL_PERMISSIONS,
+    ActorContext,
+    CoordinationBus,
+    CoordinationEventDraft,
+    InMemoryCoordinationRepository,
+)
 from pc_connection.contracts import AuthorizationEnvelope, JobEnvelope
 from vera_core import (
     HmacEffectReconciliationAuthority,
@@ -1088,3 +1094,42 @@ def test_provider_recovery_assessment_marks_stale_prepared_binding_non_dispatcha
         ]
         is False
     )
+
+
+def test_native_coordination_write_survives_runtime_restart(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    actor = ActorContext("workstream/memory", ALL_PERMISSIONS)
+    target = ActorContext("workstream/time", ALL_PERMISSIONS)
+    draft = CoordinationEventDraft(
+        thread_key="native-runtime-coordination",
+        source_branch="workstream/memory",
+        target_branch="workstream/time",
+        event_type="STATUS",
+        status="IN_PROGRESS",
+        objective="Persist native runtime coordination",
+        summary="Coordination must survive process reconstruction.",
+    )
+    permit = runtime.accepted_permit()
+
+    written = runtime.coordination.invoke(
+        "coordination_post",
+        permit=permit,
+        actor=actor,
+        command_id="native-coordination-command-1",
+        args=(draft,),
+    )
+    event = written.value.events[0]
+    assert written.fence_receipt.state is EffectState.COMMITTED
+    assert state.coordination_repository().get(event.event_id) == event
+
+    restarted = QualifiedVeraRuntime.from_state_directory(state)
+    read = restarted.coordination.invoke(
+        "coordination_read_inbox",
+        permit=restarted.accepted_permit(),
+        actor=target,
+    )
+    assert [item.event_id for item in read.events] == [event.event_id]
+    context = restarted.resume_context()
+    assert context["coordination"]["persistent_native"] is True
+    assert state.resume_context()["coordination"]["event_sequence"] == 1
