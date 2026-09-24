@@ -303,5 +303,18 @@
       "prepare_provider_effect",
       "dispatch_provider_effect"
     ]
+  },
+  "qualified_pc_execution": {
+    "schema": "VERA_MONO_QUALIFIED_PC_EXECUTION_V1",
+    "contract": "architecture/VERA_QUALIFIED_PC_EXECUTION_V1.json",
+    "adapter": "vera_core.QualifiedPCExecutionAdapter",
+    "binding_store": "vera_core.PCExecutionBindingStore",
+    "binding_state_path": "pc/execution-bindings.sqlite",
+    "host_journal": "pc_connection.JobJournal",
+    "conversational_prepared_state_required_for_restart": false,
+    "pre_dispatch_reserved_effect": "CANCEL_AND_ABANDON_NO_EFFECT_ID_REUSE",
+    "ambiguous_or_known_dispatched_missing_result": "RECOVERY_REQUIRED_NO_REPLAY",
+    "local_result_is_server_terminal": false,
+    "production_pc_effect": false
   }
 }
