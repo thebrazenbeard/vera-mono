@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, is_dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Mapping, TypeVar
@@ -8,6 +9,7 @@ from typing import Any, Callable, Mapping, TypeVar
 from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
 from vera_assurance import EffectFence, EffectReceipt
 from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
+from pc_connection.validation import utc_microseconds
 
 from .lifecycle import (
     AcceptedLifecyclePermit,
@@ -84,6 +86,7 @@ class LifecycleEffectGateway:
         provider_authority_verifiers: Mapping[
             str, ProviderAuthorityVerifier
         ] | None = None,
+        clock: Callable[[], datetime] | None = None,
     ):
         self.lifecycle = lifecycle
         self.fence = fence
@@ -106,6 +109,7 @@ class LifecycleEffectGateway:
                     f"provider verifier for {provider_id!r} does not satisfy protocol"
                 )
         self._provider_authority_verifiers = registry
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     def _dispatch_verified(
         self,
@@ -225,6 +229,34 @@ class LifecycleEffectGateway:
 
         def verify_authority() -> str:
             validate_pc_authorization_binding(job, authorization)
+            now = self._clock()
+            if (
+                not isinstance(now, datetime)
+                or now.tzinfo is None
+                or now.utcoffset() is None
+            ):
+                raise OutboundAuthorityError(
+                    "PC authority clock must return timezone-aware datetime"
+                )
+            now = now.astimezone(timezone.utc)
+            job_not_before = utc_microseconds(job.not_before, "job.not_before")
+            job_expires = utc_microseconds(job.expires_at, "job.expires_at")
+            auth_not_before = utc_microseconds(
+                authorization.not_before,
+                "authorization.not_before",
+            )
+            auth_expires = utc_microseconds(
+                authorization.expires_at,
+                "authorization.expires_at",
+            )
+            if not job_not_before <= now < job_expires:
+                raise OutboundAuthorityError(
+                    "PC job is outside its execution window"
+                )
+            if not auth_not_before <= now < auth_expires:
+                raise OutboundAuthorityError(
+                    "PC authorization is outside its authority window"
+                )
             subject = pc_authority_subject(
                 job_digest=job.digest(),
                 authorization_digest=authorization.digest(),
