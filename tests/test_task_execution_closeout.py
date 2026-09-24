@@ -11,6 +11,7 @@ from coordination_bus import (
     CoordinationEventDraft,
 )
 from vera_core import (
+    OutboundActionError,
     TaskExecutionError,
     TaskExecutionLedger,
     TaskPacket,
@@ -870,7 +871,7 @@ def test_task_scoped_coordination_auto_cancels_dependency_on_preparation_failure
     runtime = QualifiedVeraRuntime.from_state_directory(state)
     runtime.start_task("task-auto-cancel", packet())
 
-    with pytest.raises(Exception):
+    with pytest.raises(OutboundActionError):
         runtime.invoke_task_coordination(
             "task-auto-cancel",
             "dep-invalid-command",
