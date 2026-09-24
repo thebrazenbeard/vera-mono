@@ -299,7 +299,10 @@ def test_qualified_runtime_pc_adapter_owns_lifecycle_wiring(tmp_path):
 def test_qualified_runtime_does_not_invent_unconfigured_authority(tmp_path):
     state = accepted_state(tmp_path)
     runtime = QualifiedVeraRuntime.from_state_directory(state)
-    assert runtime.coordination is None
+    assert runtime.coordination is not None
+    assert type(runtime.coordination.bus.repository).__name__ == (
+        "SQLiteCoordinationRepository"
+    )
     assert runtime.recovery is None
     assert runtime.outbound_trust.generation == 0
 
