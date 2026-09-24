@@ -179,9 +179,24 @@ def test_qualified_runtime_composes_state_bus_effects_and_recovery(tmp_path):
         execute=lambda: {"ok": True},
     )
     assert result.value == {"ok": True}
+    audit_events = runtime.audit.events(
+        "provider:example-provider:qualified-effect"
+    )
+    assert [event.event_type for event in audit_events] == [
+        "AUTHORITY_VERIFIED",
+        "RESERVED",
+        "EXECUTING",
+        "COMMITTED",
+    ]
+    authority_details = audit_events[0].payload["authority_details"]
+    assert authority_details["kind"] == "PROVIDER"
+    assert authority_details["authority_id"] == provider.authority_id
+    assert "verification_token" not in str(authority_details)
     resume = runtime.resume_context()
     assert resume["effect_recovery_required"] is False
     assert resume["outbound_trust"]["registry_generation"] == 2
+    assert resume["outbound_audit"]["effect_count"] == 1
+    assert resume["outbound_audit"]["sequence"] == 4
     assert {
         scope["role"] for scope in resume["outbound_trust"]["scopes"]
     } == {"PROVIDER", "RECONCILIATION"}
@@ -231,6 +246,16 @@ def test_qualified_runtime_pc_adapter_owns_lifecycle_wiring(tmp_path):
         execute=lambda: {"pong": True},
     )
     assert result.value == {"pong": True}
+    pc_audit = runtime.audit.events(
+        f"pc:{prepared.job.envelope_id}"
+    )
+    assert [event.event_type for event in pc_audit] == [
+        "AUTHORITY_VERIFIED",
+        "RESERVED",
+        "EXECUTING",
+        "COMMITTED",
+    ]
+    assert pc_audit[0].payload["authority_details"]["kind"] == "PC"
 
 
 def test_qualified_runtime_does_not_invent_unconfigured_authority(tmp_path):
