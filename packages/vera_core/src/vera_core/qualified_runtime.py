@@ -255,4 +255,6 @@ class QualifiedVeraRuntime:
         )
 
     def resume_context(self) -> dict[str, Any]:
-        return self.lifecycle.reconstruct().as_resume_context()
+        context = self.lifecycle.reconstruct().as_resume_context()
+        context["outbound_trust"] = self.outbound_trust.context()
+        return context
