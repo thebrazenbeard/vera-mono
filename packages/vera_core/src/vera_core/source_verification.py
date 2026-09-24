@@ -151,6 +151,9 @@ class SourceVerificationTransport(Protocol):
     repository: str
     ref: str
 
+    def observe_ref_head(self) -> str:
+        ...
+
     def verify(
         self,
         commit_sha: str,
