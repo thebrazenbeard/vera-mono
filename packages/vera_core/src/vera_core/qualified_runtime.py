@@ -54,6 +54,17 @@ from .provider_execution_binding import (
     ProviderExecutionBindingStore,
     ProviderExecutionRecoveryAssessment,
 )
+from .route_verification import (
+    RouteVerificationError,
+    RouteVerificationReceipt,
+    RouteVerificationStore,
+    RouteVerificationTransport,
+    route_verification_requirements,
+)
+from .route_verification_adapter import (
+    QualifiedRouteVerificationAdapter,
+    RouteVerificationAssessment,
+)
 from .state import VeraStateDirectory
 from .source_mutation import (
     QualifiedSourceMutationAdapter,
@@ -121,6 +132,8 @@ class QualifiedVeraRuntime:
     installation_verification_transports: Mapping[
         tuple[str, str], InstallationVerificationTransport
     ]
+    route_verifications: RouteVerificationStore
+    route_verification_transports: Mapping[str, RouteVerificationTransport]
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
 
@@ -146,6 +159,9 @@ class QualifiedVeraRuntime:
         ] | None = None,
         installation_verification_transports: Mapping[
             tuple[str, str], InstallationVerificationTransport
+        ] | None = None,
+        route_verification_transports: Mapping[
+            str, RouteVerificationTransport
         ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
@@ -176,6 +192,8 @@ class QualifiedVeraRuntime:
             state.installation_verification_store()
         )
         installation_verifications.verify_chain()
+        route_verifications = state.route_verification_store()
+        route_verifications.verify_chain()
         coordination_commands = state.coordination_command_journal()
         tasks = state.task_execution_ledger()
 
@@ -326,6 +344,23 @@ class QualifiedVeraRuntime:
                     f"for {scope!r}"
                 )
 
+        route_transports = dict(route_verification_transports or {})
+        for route_id, transport in route_transports.items():
+            if type(route_id) is not str or not route_id:
+                raise TypeError(
+                    "route verification transport keys must be non-empty strings"
+                )
+            if not isinstance(transport, RouteVerificationTransport):
+                raise TypeError(
+                    f"route verification transport for {route_id!r} "
+                    "does not satisfy RouteVerificationTransport"
+                )
+            if transport.route_id != route_id:
+                raise ValueError(
+                    "route verification transport identity mismatch for "
+                    f"{route_id!r}"
+                )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -376,6 +411,8 @@ class QualifiedVeraRuntime:
             source_verification_transports=verification_transports,
             installation_verifications=installation_verifications,
             installation_verification_transports=installation_transports,
+            route_verifications=route_verifications,
+            route_verification_transports=route_transports,
             coordination_commands=coordination_commands,
             tasks=tasks,
         )
@@ -409,6 +446,9 @@ class QualifiedVeraRuntime:
         installation_verification_head = (
             self.installation_verifications.verify_chain()
         )
+        route_verification_head = (
+            self.route_verifications.verify_chain()
+        )
         body = {
             "schema": "VERA_MONO_TASK_RUNTIME_EVIDENCE_V1",
             "project_id": self.lifecycle.project_id,
@@ -426,6 +466,7 @@ class QualifiedVeraRuntime:
             "installation_verification_head_digest": (
                 installation_verification_head
             ),
+            "route_verification_head_digest": route_verification_head,
         }
         return sha256_hex(canonical_json_bytes(body))
 
@@ -1000,6 +1041,39 @@ class QualifiedVeraRuntime:
         self,
     ) -> tuple[InstallationVerificationAssessment, ...]:
         return self.installation_verification_adapter().recover()
+
+    def route_verification_adapter(
+        self,
+    ) -> QualifiedRouteVerificationAdapter:
+        return QualifiedRouteVerificationAdapter(
+            runtime=self,
+            transports=self.route_verification_transports,
+        )
+
+    def assess_route_verification(
+        self,
+        task_id: str,
+        route_id: str,
+    ) -> RouteVerificationAssessment:
+        return self.route_verification_adapter().assess(
+            task_id,
+            route_id,
+        )
+
+    def verify_task_route(
+        self,
+        task_id: str,
+        route_id: str,
+    ) -> RouteVerificationReceipt:
+        return self.route_verification_adapter().verify(
+            task_id,
+            route_id,
+        )
+
+    def recover_route_verifications(
+        self,
+    ) -> tuple[RouteVerificationAssessment, ...]:
+        return self.route_verification_adapter().recover()
 
     def assess_task_dependencies(
         self,
@@ -2165,6 +2239,24 @@ class QualifiedVeraRuntime:
         context["installation_verifications"] = (
             self.installation_verifications.context()
         )
+        context["route_verifications"] = self.route_verifications.context()
+        context["route_verification_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "route_id": assessment.route_id,
+                "expected_target": assessment.expected_target,
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": assessment.latest_receipt_digest,
+                "latest_route_digest": assessment.latest_route_digest,
+                "transport_available": assessment.transport_available,
+                "current_selected_target": assessment.current_selected_target,
+                "current_route_digest": assessment.current_route_digest,
+                "current_matches_receipt": assessment.current_matches_receipt,
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_route_verifications()
+        ]
         context["installation_verification_recovery"] = [
             {
                 "task_id": assessment.task_id,
