@@ -1917,6 +1917,59 @@ class QualifiedVeraRuntime:
                         )
                     )
 
+        behavior_effect_requirements_for_task = (
+            behavior_effect_requirements(
+                state.packet.evidence_requirements
+            )
+        )
+        behavior_effect_assessments: tuple[
+            BehaviorEffectAssessment, ...
+        ] = ()
+        if behavior_effect_requirements_for_task:
+            if "behavior/effect" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "BEHAVIOR_EFFECT_VERIFY evidence requires the "
+                    "behavior/effect closeout surface"
+                )
+            elif surfaces.get("behavior/effect") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required behavior/effect evidence cannot close a "
+                    "behavior/effect surface that is not verified-current "
+                    "or changed-and-verified"
+                )
+            try:
+                behavior_effect_assessments = (
+                    self.behavior_effect_verification_adapter().assess_task(
+                        task_id
+                    )
+                )
+            except BehaviorEffectVerificationError as exc:
+                reasons.append(
+                    "behavior/effect verification contract is invalid: "
+                    + str(exc)
+                )
+            else:
+                not_current_behavior = tuple(
+                    assessment
+                    for assessment in behavior_effect_assessments
+                    if not assessment.passed
+                )
+                if not_current_behavior:
+                    reasons.append(
+                        "required behavior/effect probes are not "
+                        "verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.consumer_id}/{item.probe_id}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current_behavior
+                        )
+                    )
+
         active_delegation_ids = tuple(
             delegation.delegation_id
             for delegation in state.active_delegations
@@ -2040,6 +2093,21 @@ class QualifiedVeraRuntime:
                     "verified runtime consumption lacks durable evidence digest: "
                     + ", ".join(missing_runtime_consumption_evidence)
                 )
+            behavior_effect_assessments = (
+                self.behavior_effect_verification_adapter().assess_task(
+                    task_id
+                )
+            )
+            missing_behavior_effect_evidence = tuple(
+                f"{item.consumer_id}/{item.probe_id}"
+                for item in behavior_effect_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_behavior_effect_evidence:
+                raise TaskExecutionError(
+                    "verified behavior/effect lacks durable evidence digest: "
+                    + ", ".join(missing_behavior_effect_evidence)
+                )
             binding_digests = {
                 dependency.dependency_id: dependency.event_digest
                 for dependency in state.dependencies
@@ -2104,6 +2172,17 @@ class QualifiedVeraRuntime:
                 if item.passed
                 and item.latest_receipt_digest is not None
             )
+            behavior_effect_evidence_refs = tuple(
+                (
+                    "task-behavior-effect:"
+                    f"{item.consumer_id}:"
+                    f"{item.probe_id}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in behavior_effect_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
             merged_evidence = tuple(
                 dict.fromkeys(
                     (
@@ -2114,6 +2193,7 @@ class QualifiedVeraRuntime:
                         *installation_evidence_refs,
                         *route_evidence_refs,
                         *runtime_consumption_evidence_refs,
+                        *behavior_effect_evidence_refs,
                     )
                 )
             )
