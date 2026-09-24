@@ -50,6 +50,15 @@ from .source_mutation import (
 )
 from .source_mutation_binding import SourceMutationBindingStore
 from .source_mutation_outcome import SourceMutationOutcomeStore
+from .source_verification import (
+    SourceVerificationReceipt,
+    SourceVerificationStore,
+    SourceVerificationTransport,
+)
+from .source_verification_adapter import (
+    QualifiedSourceVerificationAdapter,
+    SourceVerificationAssessment,
+)
 from .task_execution import (
     TaskCloseoutAssessment,
     TaskDependencyAssessment,
@@ -93,6 +102,10 @@ class QualifiedVeraRuntime:
     provider_execution_bindings: ProviderExecutionBindingStore
     source_mutation_bindings: SourceMutationBindingStore
     source_mutation_outcomes: SourceMutationOutcomeStore
+    source_verifications: SourceVerificationStore
+    source_verification_transports: Mapping[
+        tuple[str, str], SourceVerificationTransport
+    ]
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
 
@@ -112,6 +125,9 @@ class QualifiedVeraRuntime:
         ] | None = None,
         source_mutation_transports: Mapping[
             tuple[str, str], SourceMutationTransport
+        ] | None = None,
+        source_verification_transports: Mapping[
+            tuple[str, str], SourceVerificationTransport
         ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
@@ -136,6 +152,8 @@ class QualifiedVeraRuntime:
         source_mutation_outcomes = (
             state.source_mutation_outcome_store()
         )
+        source_verifications = state.source_verification_store()
+        source_verifications.verify_chain()
         coordination_commands = state.coordination_command_journal()
         tasks = state.task_execution_ledger()
 
@@ -232,6 +250,30 @@ class QualifiedVeraRuntime:
                     "provider execution transports"
                 )
 
+        verification_transports = dict(
+            source_verification_transports or {}
+        )
+        for scope, transport in verification_transports.items():
+            if (
+                not isinstance(scope, tuple)
+                or len(scope) != 2
+                or not all(type(item) is str and item for item in scope)
+            ):
+                raise TypeError(
+                    "source verification transport keys must be "
+                    "(repository, ref)"
+                )
+            if not isinstance(transport, SourceVerificationTransport):
+                raise TypeError(
+                    f"source verification transport for {scope!r} "
+                    "does not satisfy SourceVerificationTransport"
+                )
+            if (transport.repository, transport.ref) != scope:
+                raise ValueError(
+                    "source verification transport identity mismatch for "
+                    f"{scope!r}"
+                )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -278,6 +320,8 @@ class QualifiedVeraRuntime:
             provider_execution_bindings=provider_execution_bindings,
             source_mutation_bindings=source_mutation_bindings,
             source_mutation_outcomes=source_mutation_outcomes,
+            source_verifications=source_verifications,
+            source_verification_transports=verification_transports,
             coordination_commands=coordination_commands,
             tasks=tasks,
         )
@@ -827,6 +871,33 @@ class QualifiedVeraRuntime:
                 blocker_classification=blocker_classification,
             )
 
+    def source_verification_adapter(
+        self,
+    ) -> QualifiedSourceVerificationAdapter:
+        return QualifiedSourceVerificationAdapter(
+            runtime=self,
+            transports=self.source_verification_transports,
+        )
+
+    def assess_source_verification(
+        self,
+        mutation_id: str,
+    ) -> SourceVerificationAssessment:
+        return self.source_verification_adapter().assess(mutation_id)
+
+    def verify_source_mutation(
+        self,
+        mutation_id: str,
+    ) -> SourceVerificationReceipt:
+        return self.source_verification_adapter().verify_mutation(
+            mutation_id
+        )
+
+    def recover_source_verifications(
+        self,
+    ) -> tuple[SourceVerificationAssessment, ...]:
+        return self.source_verification_adapter().recover()
+
     def assess_task_dependencies(
         self,
         task_id: str,
@@ -1162,14 +1233,80 @@ class QualifiedVeraRuntime:
                                     "source/provider execution evidence"
                                 )
                             else:
-                                status = "SATISFIED"
-                                evidence_digest = (
-                                    source_outcome.outcome_digest
+                                verification = (
+                                    self.assess_source_verification(
+                                        dependency.target_id
+                                    )
                                 )
-                                reason = (
-                                    "source provider effect and exact durable "
-                                    "source outcome both reached success"
-                                )
+                                if not verification.verification_required:
+                                    status = "SATISFIED"
+                                    evidence_digest = (
+                                        source_outcome.outcome_digest
+                                    )
+                                    reason = (
+                                        "source provider effect and exact "
+                                        "durable source outcome both reached "
+                                        "success; task packet requires no "
+                                        "additional exact-commit verification"
+                                    )
+                                elif verification.passed:
+                                    if (
+                                        verification.latest_receipt_digest
+                                        is None
+                                    ):
+                                        raise TaskExecutionError(
+                                            "passed source verification lacks "
+                                            "durable receipt digest"
+                                        )
+                                    status = "SATISFIED"
+                                    evidence_digest = sha256_hex(
+                                        canonical_json_bytes(
+                                            {
+                                                "schema": (
+                                                    "VERA_MONO_SOURCE_"
+                                                    "DEPENDENCY_EVIDENCE_V1"
+                                                ),
+                                                "mutation_id": (
+                                                    dependency.target_id
+                                                ),
+                                                "source_outcome_digest": (
+                                                    source_outcome.outcome_digest
+                                                ),
+                                                "source_verification_"
+                                                "receipt_digest": (
+                                                    verification.
+                                                    latest_receipt_digest
+                                                ),
+                                                "commit_sha": (
+                                                    verification.commit_sha
+                                                ),
+                                            }
+                                        )
+                                    )
+                                    reason = (
+                                        "source provider effect, exact durable "
+                                        "source outcome, and required exact-"
+                                        "commit verification all passed"
+                                    )
+                                elif (
+                                    verification.latest_status
+                                    == "STALE_HEAD"
+                                ):
+                                    status = "PROVENANCE_MISMATCH"
+                                    evidence_digest = (
+                                        verification.latest_receipt_digest
+                                    )
+                                    reason = (
+                                        "required source verification observed "
+                                        "a different ref head than the exact "
+                                        "committed mutation outcome"
+                                    )
+                                else:
+                                    status = "PENDING"
+                                    evidence_digest = (
+                                        verification.latest_receipt_digest
+                                    )
+                                    reason = verification.reason
                     else:
                         status = "SATISFIED"
                         reason = (
@@ -1814,6 +1951,25 @@ class QualifiedVeraRuntime:
         context["source_mutation_outcomes"] = (
             self.source_mutation_outcomes.context()
         )
+        context["source_verifications"] = self.source_verifications.context()
+        context["source_verification_recovery"] = [
+            {
+                "mutation_id": assessment.mutation_id,
+                "repository": assessment.repository,
+                "ref": assessment.ref,
+                "commit_sha": assessment.commit_sha,
+                "required_checks": list(assessment.required_checks),
+                "verification_required": assessment.verification_required,
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": (
+                    assessment.latest_receipt_digest
+                ),
+                "transport_available": assessment.transport_available,
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_source_verifications()
+        ]
         context["coordination"] = {
             "schema": "VERA_MONO_COORDINATION_RUNTIME_CONTEXT_V1",
             "repository_type": type(self.coordination.bus.repository).__name__,
