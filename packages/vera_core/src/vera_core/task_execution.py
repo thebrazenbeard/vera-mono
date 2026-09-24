@@ -239,6 +239,28 @@ class TaskDelegation:
 
 
 @dataclass(frozen=True, slots=True)
+class TaskDelegationRef:
+    task_id: str
+    delegation_id: str
+    repository: str
+    ref: str
+    subject: str
+    assignee_ref: str
+    binding_event_digest: str
+
+    def canonical_body(self) -> dict[str, str]:
+        return {
+            "task_id": self.task_id,
+            "delegation_id": self.delegation_id,
+            "repository": self.repository,
+            "ref": self.ref,
+            "subject": self.subject,
+            "assignee_ref": self.assignee_ref,
+            "binding_event_digest": self.binding_event_digest,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class TaskCorrection:
     correction_id: str
     summary: str
@@ -328,6 +350,20 @@ class TaskState:
         if delegation is None:
             raise KeyError(delegation_id)
         return delegation
+
+    def delegation_ref(self, delegation_id: str) -> TaskDelegationRef:
+        delegation = self.delegation(delegation_id)
+        if not delegation.active:
+            raise KeyError(delegation_id)
+        return TaskDelegationRef(
+            task_id=self.task_id,
+            delegation_id=delegation.delegation_id,
+            repository=delegation.repository,
+            ref=delegation.ref,
+            subject=delegation.subject,
+            assignee_ref=delegation.assignee_ref,
+            binding_event_digest=delegation.event_digest,
+        )
 
     def dependency_ref(self, dependency_id: str) -> TaskDependencyRef:
         dependency = next(
@@ -888,6 +924,51 @@ class TaskExecutionLedger:
             },
         )
         return self.read(task_id)
+
+    def validate_delegation_ref(
+        self,
+        ref: TaskDelegationRef,
+        *,
+        actor_ref: str | None = None,
+    ) -> TaskDelegationRef:
+        if type(ref) is not TaskDelegationRef:
+            raise TaskExecutionError(
+                "delegation ownership requires exact TaskDelegationRef"
+            )
+        if actor_ref is not None:
+            actor_ref = _require_text(actor_ref, "actor_ref")
+        state = self.read(ref.task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "delegation reference belongs to closed task"
+            )
+        try:
+            active = state.delegation(ref.delegation_id)
+        except KeyError as exc:
+            raise TaskExecutionError(
+                "delegation reference is not known to task"
+            ) from exc
+        if not active.active:
+            raise TaskExecutionError(
+                "delegation reference is no longer active"
+            )
+        expected = {
+            "repository": active.repository,
+            "ref": active.ref,
+            "subject": active.subject,
+            "assignee_ref": active.assignee_ref,
+            "binding_event_digest": active.event_digest,
+        }
+        for key, value in expected.items():
+            if getattr(ref, key) != value:
+                raise TaskExecutionError(
+                    f"delegation reference is stale at field: {key}"
+                )
+        if actor_ref is not None and actor_ref != active.assignee_ref:
+            raise TaskExecutionError(
+                "actor does not own the active delegated subject"
+            )
+        return ref
 
     def record_correction(
         self,
