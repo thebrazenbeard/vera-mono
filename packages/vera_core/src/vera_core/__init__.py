@@ -46,6 +46,13 @@ from .outbound_trust import (
     OutboundTrustError,
     OutboundTrustRegistry,
 )
+from .qualified_pc import (
+    PCExecutionLease,
+    PCExecutionRecoveryAssessment,
+    PCJournalEventEvidence,
+    QualifiedPCExecutionAdapter,
+    QualifiedPCExecutionResult,
+)
 from .qualified_runtime import (
     PreparedPCDispatch,
     PreparedProviderDispatch,
@@ -86,6 +93,11 @@ __all__ = [
     "PCJobAuthorityVerifier",
     "ProviderAuthorityEnvelope",
     "ProviderAuthorityVerifier",
+    "PCExecutionLease",
+    "PCExecutionRecoveryAssessment",
+    "PCJournalEventEvidence",
+    "QualifiedPCExecutionAdapter",
+    "QualifiedPCExecutionResult",
     "PreparedPCDispatch",
     "PreparedProviderDispatch",
     "QualifiedVeraRuntime",
