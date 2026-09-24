@@ -418,3 +418,81 @@ def test_pc_revocation_epoch_survives_reactivation_and_rejects_old_authorization
             execute=lambda: calls.append("escaped"),
         )
     assert calls == []
+
+
+def test_qualified_runtime_audits_ambiguous_effect_reconciliation(tmp_path):
+    state = accepted_state(tmp_path)
+    provider = HmacProviderAuthority(
+        "provider-authority",
+        PROVIDER,
+        b"p" * 32,
+    )
+    recovery_authority = HmacEffectReconciliationAuthority(
+        "recovery-authority",
+        b"r" * 32,
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=provider.authority_id,
+        role="PROVIDER",
+        provider_id=PROVIDER,
+        key_id=provider.key_id,
+        key_digest=provider.key_digest,
+        expected_registry_generation=0,
+    )
+    trust.register(
+        authority_id=recovery_authority.authority_id,
+        role="RECONCILIATION",
+        key_id=recovery_authority.key_id,
+        key_digest=recovery_authority.key_digest,
+        expected_registry_generation=1,
+    )
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        provider_authority_verifiers={PROVIDER: provider},
+        reconciliation_verifier=recovery_authority,
+    )
+    prepared = runtime.prepare_provider_effect(
+        effect_id="ambiguous-audit",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload={"value": "unknown"},
+    )
+    authority = provider.issue(
+        effect_id=prepared.effect_id,
+        operation=prepared.operation,
+        request_digest=prepared.request_digest,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+    with pytest.raises(RuntimeError):
+        runtime.dispatch_provider_effect(
+            prepared,
+            authority=authority,
+            execute=lambda: (_ for _ in ()).throw(
+                RuntimeError("remote outcome unknown")
+            ),
+        )
+
+    effect_id = "provider:example-provider:ambiguous-audit"
+    assert [event.event_type for event in runtime.audit.events(effect_id)] == [
+        "AUTHORITY_VERIFIED",
+        "RESERVED",
+        "EXECUTING",
+        "ATTEMPTED_UNKNOWN",
+    ]
+    receipt = runtime.fence.read(effect_id)
+    proof = recovery_authority.issue(
+        receipt,
+        effect_occurred=False,
+        result_digest=None,
+    )
+    assert runtime.recovery is not None
+    reconciled = runtime.recovery.reconcile(
+        effect_id,
+        proof=proof,
+        effect_occurred=False,
+        result_digest=None,
+    )
+    assert reconciled.state.value == "RECONCILED_NO_EFFECT"
+    assert runtime.audit.latest(effect_id).event_type == "RECONCILED_NO_EFFECT"
+    assert runtime.audit.verify_chain() == runtime.audit.head
