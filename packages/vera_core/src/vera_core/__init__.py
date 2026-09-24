@@ -46,7 +46,11 @@ from .outbound_trust import (
     OutboundTrustError,
     OutboundTrustRegistry,
 )
-from .qualified_runtime import QualifiedVeraRuntime
+from .qualified_runtime import (
+    PreparedPCDispatch,
+    PreparedProviderDispatch,
+    QualifiedVeraRuntime,
+)
 from .reasoning_cascade import (
     CascadeEngine,
     CascadeOutcome,
@@ -82,6 +86,8 @@ __all__ = [
     "PCJobAuthorityVerifier",
     "ProviderAuthorityEnvelope",
     "ProviderAuthorityVerifier",
+    "PreparedPCDispatch",
+    "PreparedProviderDispatch",
     "QualifiedVeraRuntime",
     "pc_authority_subject",
     "provider_authority_subject",
