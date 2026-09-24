@@ -276,6 +276,93 @@ class QualifiedVeraRuntime:
             target_id=target_id,
         )
 
+    def invoke_task_coordination(
+        self,
+        task_id: str,
+        dependency_id: str,
+        command: str,
+        *,
+        actor: Any,
+        command_id: str,
+        args: tuple[Any, ...] = (),
+        kwargs: Mapping[str, Any] | None = None,
+    ) -> Any:
+        if self.coordination is None:
+            raise TaskExecutionError(
+                "qualified coordination runtime is unavailable"
+            )
+        state = self.tasks.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot execute coordination dependency"
+            )
+        self.bind_task_dependency(
+            task_id,
+            dependency_id,
+            kind="COORDINATION_COMMAND",
+            target_id=command_id,
+        )
+        return self.coordination.invoke(
+            command,
+            permit=self.accepted_permit(),
+            actor=actor,
+            command_id=command_id,
+            args=args,
+            kwargs=kwargs,
+        )
+
+    def prepare_task_provider_effect(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        effect_id: str,
+        provider_id: str,
+        operation: str,
+        request_payload: Any,
+    ) -> PreparedProviderDispatch:
+        state = self.tasks.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot prepare provider dependency"
+            )
+        self.bind_task_dependency(
+            task_id,
+            dependency_id,
+            kind="PROVIDER_EFFECT",
+            target_id=effect_id,
+        )
+        return self.prepare_provider_effect(
+            effect_id=effect_id,
+            provider_id=provider_id,
+            operation=operation,
+            request_payload=request_payload,
+        )
+
+    def prepare_task_pc_job(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        job: JobEnvelope,
+        authorization: AuthorizationEnvelope,
+    ) -> PreparedPCDispatch:
+        state = self.tasks.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot prepare PC dependency"
+            )
+        self.bind_task_dependency(
+            task_id,
+            dependency_id,
+            kind="EFFECT",
+            target_id=f"pc:{job.envelope_id}",
+        )
+        return self.prepare_pc_job(
+            job=job,
+            authorization=authorization,
+        )
+
     def record_task_correction(
         self,
         task_id: str,
