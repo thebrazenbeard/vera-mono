@@ -1,0 +1,40 @@
+{
+  "schema": "VERA_MONO_EFFECT_RECOVERY_BARRIER_V1",
+  "purpose": "Prevent ambiguous external side effects from being hidden by later Vera lifecycle generations or unrelated outbound actions.",
+  "owner": "vera_assurance.EffectFence",
+  "unresolved_states": [
+    "RESERVED",
+    "EXECUTING",
+    "ATTEMPTED_UNKNOWN"
+  ],
+  "blocking_scope": {
+    "accepted_lifecycle_permit_minting": true,
+    "new_lifecycle_checkpoint_currentness_transition": true,
+    "new_pc_effect": true,
+    "new_provider_effect": true,
+    "new_coordination_write": true
+  },
+  "non_ambiguous_terminal_states": [
+    "COMMITTED",
+    "CANCELLED_PRE_DISPATCH",
+    "RECONCILED_COMMITTED",
+    "RECONCILED_NO_EFFECT"
+  ],
+  "reconciliation": {
+    "api": "EffectFence.reconcile_unknown",
+    "allowed_from": [
+      "EXECUTING",
+      "ATTEMPTED_UNKNOWN"
+    ],
+    "requires": "external reconciliation evidence SHA-256 digest",
+    "effect_occurred_true_requires_result_digest": true,
+    "effect_occurred_false_forbids_result_digest": true,
+    "operator_reset_to_retry": false
+  },
+  "invariant": "An effect with unknown external outcome freezes outbound mutation and lifecycle advancement until separately evidenced reconciliation resolves the ambiguity.",
+  "boundaries": {
+    "reconciliation_evidence_is_not_minted_by_effect_fence": true,
+    "lifecycle_permit_is_not_reconciliation_evidence": true,
+    "effect_fence_is_not_protected_effect_authority": true
+  }
+}
