@@ -32,7 +32,10 @@
     "writable_scope_source_grammar": "SOURCE|<repository>|<ref>|<path-or-prefix/**>",
     "untyped_writable_scope_grants_qualified_source_write": false,
     "evidence_requirement_source_verification_grammar": "SOURCE_VERIFY|<repository>|<ref>|<check-name>",
-    "evidence_requirement_installation_verification_grammar": "INSTALL_VERIFY|<target-id>|<distribution>|<version>"
+    "evidence_requirement_installation_verification_grammar": "INSTALL_VERIFY|<target-id>|<distribution>|<version>",
+    "evidence_requirement_route_verification_grammar": "ROUTE_VERIFY|<route-id>|<expected-target>",
+    "evidence_requirement_runtime_consumption_grammar": "RUNTIME_CONSUME_VERIFY|<consumer-id>|<route-id>|<expected-target>",
+    "evidence_requirement_behavior_effect_verification_grammar": "BEHAVIOR_EFFECT_VERIFY|<consumer-id>|<probe-id>|<BEHAVIOR-or-EFFECT>|<stimulus-sha256>|<outcome-sha256>"
   },
   "checkpoint": {
     "method": "QualifiedVeraRuntime.checkpoint_task",
@@ -86,12 +89,16 @@
       "outbound audit head",
       "outbound trust head",
       "coordination repository head when available",
-      "coordination command projection digest"
+      "coordination command projection digest",
+      "runtime-consumption verification head",
+      "behavior/effect verification head"
     ],
     "bound_task_dependency_not_satisfied_forbids_close": true,
     "active_delegation_forbids_close": true,
     "required_source_verification_forbids_close": "matching SOURCE_VERIFY requirements remain non-PASS",
-    "required_installation_verification_forbids_close": "matching INSTALL_VERIFY requirements must be live-current PASS"
+    "required_installation_verification_forbids_close": "matching INSTALL_VERIFY requirements must be live-current PASS",
+    "required_runtime_consumption_verification_forbids_close": "matching RUNTIME_CONSUME_VERIFY requirements must be live-current PASS",
+    "required_behavior_effect_verification_forbids_close": "matching BEHAVIOR_EFFECT_VERIFY requirements must be live-current PASS and remain bound to the same live consumed process/state plus exact refreshed host/external evidence"
   },
   "integrity": {
     "journal": "append-only digest-chained SQLite event ledger",
@@ -287,6 +294,27 @@
       "install PASS is not route PASS",
       "install PASS is not runtime-consumption PASS",
       "install PASS is not behavior/effect PASS"
+    ]
+  },
+  "behavior_effect_verification": {
+    "contract": "architecture/VERA_BEHAVIOR_EFFECT_VERIFICATION_V1.json",
+    "store": "vera_core.BehaviorEffectVerificationStore",
+    "adapter": "vera_core.QualifiedBehaviorEffectVerificationAdapter",
+    "state_path": "behavior/verification.sqlite",
+    "required_surface": "behavior/effect",
+    "matching_runtime_consumption_same_consumer_required": true,
+    "runtime_consumption_pass_is_behavior_effect_pass": false,
+    "accepted_surface_states": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "out_of_scope_or_not_applicable_with_requirement": "DENY",
+    "stored_PASS_without_live_refresh": "DENY",
+    "closeout_evidence_ref": "task-behavior-effect:<consumer-id>:<probe-id>:<receipt-digest>",
+    "boundaries": [
+      "runtime consumption PASS is only a prerequisite, not behavioral qualification",
+      "behavior/effect PASS is not provider activation or protected-effect authority",
+      "host/external evidence is required independently of runtime consumption"
     ]
   }
 }
