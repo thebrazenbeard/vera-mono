@@ -47,6 +47,7 @@ from .task_execution import (
     TaskCloseoutAssessment,
     TaskDependencyAssessment,
     TaskDelegation,
+    TaskDelegationRef,
     TaskDependencyRef,
     TaskExecutionError,
     TaskExecutionLedger,
@@ -669,6 +670,17 @@ class QualifiedVeraRuntime:
                 reason=reason,
                 evidence_refs=evidence_refs,
             )
+
+    def validate_task_delegation(
+        self,
+        ref: TaskDelegationRef,
+        *,
+        actor_ref: str | None = None,
+    ) -> TaskDelegationRef:
+        return self.tasks.validate_delegation_ref(
+            ref,
+            actor_ref=actor_ref,
+        )
 
     def record_task_correction(
         self,
