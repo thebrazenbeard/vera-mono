@@ -1130,6 +1130,26 @@ class QualifiedVeraRuntime:
         }
         context["coordination_commands"] = self.coordination_commands.context()
         context["tasks"] = self.tasks.context()
+        context["task_dependency_recovery"] = [
+            {
+                "task_id": task.task_id,
+                "dependencies": [
+                    {
+                        "dependency_id": assessment.dependency_id,
+                        "kind": assessment.kind,
+                        "target_id": assessment.target_id,
+                        "status": assessment.status,
+                        "evidence_digest": assessment.evidence_digest,
+                        "reason": assessment.reason,
+                    }
+                    for assessment in self.assess_task_dependencies(
+                        task.task_id
+                    )
+                ],
+            }
+            for task in self.tasks.tasks()
+            if not task.closed and task.dependencies
+        ]
         context["coordination_command_recovery"] = [
             {
                 "command_id": assessment.command_id,
