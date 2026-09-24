@@ -213,6 +213,12 @@
       "pass_is_not_install": true,
       "pass_is_not_runtime_consumption": true,
       "pass_is_not_independent_review": true
+    },
+    "live_currentness": {
+      "stored_PASS_requires_live_ref_refresh": true,
+      "moved_ref_after_PASS": "PROVENANCE_MISMATCH",
+      "missing_verification_transport_after_PASS": "PENDING_NOT_CURRENT",
+      "github_head_read_after_check_collection": true
     }
   }
 }
