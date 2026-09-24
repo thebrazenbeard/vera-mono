@@ -9,6 +9,7 @@ from vera_assurance import AtomicCurrentnessStore, EffectFence
 from vera_memory import MemoryLedger
 from vera_recovery import NativeRecoveryCheckpointStore
 
+from .coordination_command_journal import CoordinationCommandJournal
 from .lifecycle import LifecycleReconstruction, NativeVeraLifecycle
 from .lifecycle_journal import LifecycleJournal
 from .outbound_audit import OutboundExecutionAudit
@@ -30,6 +31,7 @@ class VeraStatePaths:
     pc_execution_bindings: Path
     provider_execution_bindings: Path
     coordination: Path
+    coordination_commands: Path
     trust: Path
 
 
@@ -74,6 +76,9 @@ class VeraStateDirectory:
                 candidate / "provider" / "execution-bindings.sqlite"
             ),
             coordination=candidate / "coordination" / "events.sqlite",
+            coordination_commands=(
+                candidate / "coordination" / "commands.sqlite"
+            ),
             trust=candidate / "recovery" / "trust",
         )
         self.project_id = project_id
@@ -134,6 +139,9 @@ class VeraStateDirectory:
     def coordination_repository(self) -> SQLiteCoordinationRepository:
         return SQLiteCoordinationRepository(self.paths.coordination)
 
+    def coordination_command_journal(self) -> CoordinationCommandJournal:
+        return CoordinationCommandJournal(self.paths.coordination_commands)
+
     def reconstruct(self) -> LifecycleReconstruction:
         return self.open().reconstruct()
 
@@ -163,4 +171,7 @@ class VeraStateDirectory:
             self.provider_execution_binding_store().context()
         )
         context["coordination"] = self.coordination_repository().context()
+        context["coordination_commands"] = (
+            self.coordination_command_journal().context()
+        )
         return context
