@@ -180,6 +180,10 @@ class TaskDependencyAssessment:
     def satisfied(self) -> bool:
         return self.status == "SATISFIED"
 
+    @property
+    def cancellation_allowed(self) -> bool:
+        return self.status == "MISSING"
+
 
 @dataclass(frozen=True, slots=True)
 class TaskCorrection:
