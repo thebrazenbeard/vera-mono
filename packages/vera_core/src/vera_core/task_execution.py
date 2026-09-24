@@ -454,6 +454,15 @@ class TaskExecutionLedger:
             raise TaskExecutionError(
                 "task dependency target is already bound"
             )
+        for other in self.tasks():
+            if other.task_id == task_id:
+                continue
+            for dependency in other.dependencies:
+                if dependency.kind == kind and dependency.target_id == target_id:
+                    raise TaskExecutionError(
+                        "task dependency target is already owned by "
+                        f"{other.task_id}:{dependency.dependency_id}"
+                    )
         self.append(
             event_id=f"{task_id}:DEPENDENCY:{dependency_id}",
             task_id=task_id,
@@ -1037,6 +1046,17 @@ class TaskExecutionLedger:
                 }
                 for state in states
                 if state.dependencies
+            ],
+            "dependency_owners": [
+                {
+                    "task_id": state.task_id,
+                    "dependency_id": dependency.dependency_id,
+                    "kind": dependency.kind,
+                    "target_id": dependency.target_id,
+                    "event_digest": dependency.event_digest,
+                }
+                for state in states
+                for dependency in state.dependencies
             ],
             "closed_task_ids": [
                 state.task_id for state in states if state.closed
