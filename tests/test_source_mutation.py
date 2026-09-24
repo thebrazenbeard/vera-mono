@@ -363,3 +363,25 @@ def test_source_provider_cannot_escape_through_generic_provider_transport_path(t
             prepared.provider_dispatch,
             authority=authority_for(verifier, prepared),
         )
+
+
+def test_source_provider_cannot_escape_through_generic_callback_dispatch(tmp_path):
+    _, runtime, verifier, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-1",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    prepared = runtime.source_mutation_adapter().prepare(
+        "task-1",
+        "dep-source-1",
+        write_request(),
+    )
+    with pytest.raises(ValueError, match="qualified source mutation adapter"):
+        runtime.dispatch_provider_effect(
+            prepared.provider_dispatch,
+            authority=authority_for(verifier, prepared),
+            execute=lambda: transport.mutate(
+                prepared.request.request_payload()
+            ),
+        )
+    assert transport.calls == []
