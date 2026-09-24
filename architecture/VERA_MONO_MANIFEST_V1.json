@@ -226,5 +226,24 @@
       "CONTROL_SOURCE_DRIFT"
     ],
     "integrity_fail_closed": true
+  },
+  "outbound_action_boundary": {
+    "schema": "VERA_MONO_OUTBOUND_ACTION_GATE_V1",
+    "contract": "architecture/VERA_OUTBOUND_ACTION_GATE_V1.json",
+    "accepted_lifecycle_permit": "vera_core.AcceptedLifecyclePermit",
+    "coordination_gateway": "vera_core.LifecycleBoundCoordinationBus",
+    "effect_gateway": "vera_core.LifecycleEffectGateway",
+    "effect_fence": "vera_assurance.EffectFence",
+    "action_lock_shared_with_lifecycle_transitions": true,
+    "raw_coordination_bus_runtime_qualified": false,
+    "raw_pc_provider_dispatch_runtime_qualified": false,
+    "blocked_lifecycle_states": [
+      "EMPTY",
+      "MEMORY_AHEAD_OF_CURRENTNESS",
+      "INTERRUPTED_CANDIDATE",
+      "BLOCKED_CANDIDATE",
+      "CONTROL_SOURCE_DRIFT"
+    ],
+    "protected_effect_authority_minted_by_lifecycle": false
   }
 }
