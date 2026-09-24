@@ -6,6 +6,7 @@ import json
 import sqlite3
 from typing import Any, Mapping, Sequence
 
+from r8a0.portable_lock import PortableFileLock
 from portfolio_runtime.lantern.canonical import (
     canonical_json,
     canonical_json_bytes,
@@ -283,6 +284,14 @@ class TaskExecutionLedger:
         db = sqlite3.connect(self.path)
         db.row_factory = sqlite3.Row
         return db
+
+    def action_lock(self) -> PortableFileLock:
+        """Serialize qualified task mutation with task-scoped outbound work."""
+        return PortableFileLock(
+            self.path.with_suffix(
+                self.path.suffix + ".action-lock.sqlite3"
+            )
+        )
 
     @staticmethod
     def _meta(db: sqlite3.Connection) -> tuple[int, str]:
