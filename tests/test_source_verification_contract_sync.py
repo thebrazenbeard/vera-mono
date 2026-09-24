@@ -101,3 +101,20 @@ def test_github_source_verification_contract_requires_exact_commit_and_paginatio
         "StatusContext",
     }
     assert github["missing_required_context"] == "UNAVAILABLE"
+
+
+def test_source_verification_contract_requires_live_ref_currentness_after_pass():
+    contract = load_json(
+        "architecture/VERA_SOURCE_VERIFICATION_V1.json"
+    )
+    currentness = contract["currentness"]
+    assert currentness[
+        "stored_PASS_is_sufficient_without_live_ref_refresh"
+    ] is False
+    assert currentness[
+        "live_ref_must_still_equal_exact_verified_commit"
+    ] is True
+    assert currentness["later_ref_movement"] == "PROVENANCE_MISMATCH"
+    assert currentness["missing_transport_after_stored_PASS"] == (
+        "PENDING_NOT_CURRENT"
+    )
