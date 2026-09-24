@@ -1,0 +1,85 @@
+{
+  "schema": "VERA_MONO_QUALIFIED_PC_EXECUTION_V1",
+  "purpose": "Join exact accepted Vera lifecycle/currentness, persistent outbound authority currentness, the durable effect fence, and PCCC local attempt evidence without allowing crash/restart replay to manufacture machine execution.",
+  "composition": {
+    "runtime": "vera_core.QualifiedVeraRuntime",
+    "adapter": "vera_core.QualifiedPCExecutionAdapter",
+    "binding_store": "vera_core.PCExecutionBindingStore",
+    "host_journal": "pc_connection.JobJournal",
+    "effect_fence": "vera_assurance.EffectFence"
+  },
+  "durable_binding": {
+    "state_path": "<vera-state-root>/pc/execution-bindings.sqlite",
+    "schema": "VERA_MONO_PC_EXECUTION_BINDING_V1",
+    "binds": [
+      "exact JobEnvelope",
+      "exact AuthorizationEnvelope",
+      "exact AcceptedLifecyclePermit",
+      "job digest",
+      "authorization digest",
+      "authority subject",
+      "effect id",
+      "job/attempt/lease tuple"
+    ],
+    "append_only_per_job_attempt": true,
+    "authority_proof_or_secret_persisted": false,
+    "pccc_timestamp_text_preserved_exactly": true
+  },
+  "phase_one": {
+    "operation_source": "pc_connection.PHASE_ONE_OPERATIONS",
+    "side_effect_class": "NONE",
+    "local_journal_sequence": [
+      "CLAIMED",
+      "PREPARING",
+      "RESULT_OBSERVED"
+    ],
+    "effect_started_journal_state_reachable": false,
+    "local_result_is_server_terminal": false,
+    "terminal_confirmation_requires": [
+      "explicit completion submission",
+      "exact server terminal readback"
+    ]
+  },
+  "crash_restart_rules": {
+    "bound_without_journal_attempt": "recover binding; no machine execution implied",
+    "claimed_or_preparing_without_effect_record": "safe to attempt only through the same qualified gate and exact stored binding",
+    "reserved_effect": "mechanically proven pre-dispatch; cancel reservation and abandon attempt; do not reuse effect identity",
+    "executing_or_attempted_unknown": "recovery required; no replay",
+    "committed_effect_missing_local_result": "recovery required; no replay because result payload may be unavailable even though dispatch completion is known",
+    "result_observed_plus_committed_effect": "no replay; completion/readback may continue",
+    "terminal_confirmed": "terminal local evidence; no replay"
+  },
+  "restart_api": {
+    "adapter_method": "QualifiedPCExecutionAdapter.recover_bound_attempts",
+    "reconstructed_from": [
+      "PCExecutionBindingStore",
+      "JobJournal",
+      "EffectFence"
+    ],
+    "conversational_prepared_object_required": false
+  },
+  "pre_dispatch_cancellation": {
+    "runtime_method": "QualifiedVeraRuntime.cancel_reserved_effect",
+    "pc_method": "QualifiedPCExecutionAdapter.cancel_reserved_attempt",
+    "allowed_only_from_effect_state": "RESERVED",
+    "final_effect_state": "CANCELLED_PRE_DISPATCH",
+    "final_pc_journal_state": "ABANDONED",
+    "same_effect_id_retry": false
+  },
+  "serialization_and_authority": {
+    "lifecycle_permit_validation": true,
+    "outbound_trust_currentness_validation": true,
+    "trust_mutation_serialized_against_effect_execution": true,
+    "effect_id_single_use": true,
+    "host_attempt_identity_conflict_fails_closed": true
+  },
+  "boundaries": {
+    "job_journal_authorizes_work": false,
+    "local_completion_is_server_outcome": false,
+    "execution_binding_is_machine_execution_evidence": false,
+    "source_presence_is_deployment": false,
+    "adapter_requires_a_verified_local_JobJournal_surface": true,
+    "windows_host_owns_actual_local_file_and_process_access": true,
+    "no_production_provider_or_pc_mutation_implied": true
+  }
+}
