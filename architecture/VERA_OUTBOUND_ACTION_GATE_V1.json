@@ -30,7 +30,10 @@
     "lock": "PortableFileLock over the lifecycle journal action-lock SQLite database",
     "lifecycle_transitions_share_lock": true,
     "qualified_outbound_actions_share_lock": true,
-    "purpose": "Prevent a canonical lifecycle transition from interleaving between permit validation and outbound execution."
+    "purpose": "Prevent a canonical lifecycle transition from interleaving between permit validation and outbound execution.",
+    "trust_lock": "PortableFileLock over outbound trust registry lock SQLite",
+    "external_effects_hold_trust_lock": true,
+    "trust_rotation_cannot_interleave_with_external_execution": true
   },
   "coordination": {
     "canonical_gateway": "vera_core.LifecycleBoundCoordinationBus",
@@ -87,6 +90,20 @@
           "exact request digest",
           "accepted lifecycle permit digest"
         ]
+      },
+      "persistent_trust_currentness": {
+        "registry": "vera_core.OutboundTrustRegistry",
+        "contract": "architecture/VERA_OUTBOUND_TRUST_LIFECYCLE_V1.json",
+        "currentness_receipt": "VERA_MONO_AUTHORITY_CURRENTNESS_RECEIPT_V1",
+        "verifier_identity_fields": [
+          "authority_id",
+          "key_id",
+          "key_digest"
+        ],
+        "chain_verified_before_receipt": true,
+        "PC_issuer_revocation_epoch_must_match_live_registry": true,
+        "rotation_or_revocation_invalidates_stale_verifier": true,
+        "verifier_secrets_persisted": false
       }
     },
     "unresolved_effect_barrier": {
@@ -107,6 +124,18 @@
       "trusted_reconciliation_verifier_required": true,
       "caller_minted_reconciliation_verifier_accepted": false,
       "restart_context_surfaces_unresolved_effects": true
+    },
+    "qualified_adapters": {
+      "runtime": "vera_core.QualifiedVeraRuntime",
+      "provider": [
+        "prepare_provider_effect",
+        "dispatch_provider_effect"
+      ],
+      "pc": [
+        "prepare_pc_job",
+        "dispatch_pc_job"
+      ],
+      "caller_supplies_lifecycle_permit": false
     }
   },
   "fail_closed_states": [
