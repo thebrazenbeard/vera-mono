@@ -439,7 +439,7 @@ class QualifiedSourceMutationAdapter:
                         ),
                     )
                 raise
-            return PreparedSourceMutation(
+            prepared = PreparedSourceMutation(
                 task_id=task_id,
                 dependency_id=dependency_id,
                 packet_digest=packet_digest,
@@ -448,6 +448,14 @@ class QualifiedSourceMutationAdapter:
                 delegation_ref=active_ref,
                 provider_dispatch=provider_dispatch,
             )
+            provider_binding = self.runtime.provider_execution_bindings.read(
+                request.mutation_id
+            )
+            self.runtime.source_mutation_bindings.bind(
+                prepared,
+                provider_binding,
+            )
+            return prepared
 
     def execute(
         self,
@@ -461,6 +469,13 @@ class QualifiedSourceMutationAdapter:
             )
         request = prepared.request
         with self.runtime.tasks.action_lock():
+            provider_binding = self.runtime.provider_execution_bindings.read(
+                request.mutation_id
+            )
+            self.runtime.source_mutation_bindings.bind(
+                prepared,
+                provider_binding,
+            )
             packet_digest, matched, active_ref = self._validate_task_scope(
                 task_id=prepared.task_id,
                 request=request,
