@@ -1,0 +1,89 @@
+{
+  "schema": "VERA_MONO_INSTALLATION_VERIFICATION_V1",
+  "purpose": "Verify an explicitly declared installation target as a live current state instead of inferring installation from source, package, CI, or a past observation.",
+  "requirement_grammar": {
+    "syntax": "INSTALL_VERIFY|<target-id>|<distribution>|<version>",
+    "owner": "TaskPacket.evidence_requirements",
+    "requirement_requires_surface": "install/registration",
+    "conflicting_versions_for_same_target_distribution": "DENY"
+  },
+  "composition": {
+    "store": "vera_core.InstallationVerificationStore",
+    "adapter": "vera_core.QualifiedInstallationVerificationAdapter",
+    "transport_protocol": "vera_core.InstallationVerificationTransport",
+    "concrete_python_transport": "vera_core.PythonDistributionInstallationTransport",
+    "state_path": "<vera-state-root>/install/verification.sqlite"
+  },
+  "observation": {
+    "receipt_schema": "VERA_MONO_INSTALLATION_VERIFICATION_V1",
+    "append_only_digest_chain": true,
+    "statuses": [
+      "PASS",
+      "FAIL",
+      "UNAVAILABLE"
+    ],
+    "binds": [
+      "task id",
+      "task packet digest",
+      "target id",
+      "distribution name",
+      "expected version",
+      "observed version",
+      "location reference",
+      "installed content digest",
+      "file count",
+      "import roots"
+    ],
+    "pass_requires": [
+      "target is available",
+      "observed version exactly equals expected version",
+      "installation location is present",
+      "installed content digest is present",
+      "at least one installed file is observed"
+    ]
+  },
+  "live_currentness": {
+    "stored_PASS_is_sufficient_without_refresh": false,
+    "current_observation_must_match_stored_PASS_digest": true,
+    "current_observed_version_must_match_expected_version": true,
+    "missing_transport_after_stored_PASS": "PENDING_NOT_CURRENT",
+    "installation_digest_change_after_PASS": "PENDING_NOT_CURRENT",
+    "package_metadata_or_files_missing": "FAIL_OR_UNAVAILABLE"
+  },
+  "python_distribution_transport": {
+    "mechanism": "importlib.metadata.distribution",
+    "mutation": false,
+    "installed_file_digest": "SHA-256 over sorted installed distribution file path+file SHA-256 observations",
+    "import_roots": "observed top-level package directories with __init__.py",
+    "PackageNotFoundError": "UNAVAILABLE",
+    "credentials_required": false
+  },
+  "task_closeout": {
+    "any_matching_INSTALL_VERIFY_requirement_requires_all_current_PASS": true,
+    "install_registration_surface_must_be": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "out_of_scope_or_not_applicable_with_requirement": "DENY",
+    "evidence_ref": "task-installation:<target-id>:<distribution>:<receipt-digest>",
+    "task_runtime_evidence_cut_includes_installation_verification_head": true,
+    "closed_task_new_observation": "DENY"
+  },
+  "restart": {
+    "conversation_state_required": false,
+    "state_store_reopened_from_VeraStateDirectory": true,
+    "runtime_context": "installation_verification_recovery",
+    "live_transport_missing": "stored PASS is historical evidence only, not current verification"
+  },
+  "boundaries": {
+    "source_pass_is_not_install_pass": true,
+    "package_pass_is_not_install_pass": true,
+    "isolated_CI_install_is_not_target_installation_by_itself": true,
+    "installation_pass_is_not_current_route": true,
+    "installation_pass_is_not_runtime_consumption": true,
+    "installation_pass_is_not_behavioral_qualification": true,
+    "installation_pass_is_not_provider_activation": true,
+    "installation_verification_is_read_only": true,
+    "installation_verification_grants_no_install_or_mutation_authority": true
+  }
+}
