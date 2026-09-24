@@ -21,6 +21,17 @@ from .execution_adapters import (
     ProviderExecutionTransport,
     SourceMutationTransport,
 )
+from .installation_verification import (
+    InstallationVerificationError,
+    InstallationVerificationReceipt,
+    InstallationVerificationStore,
+    InstallationVerificationTransport,
+    installation_verification_requirements,
+)
+from .installation_verification_adapter import (
+    InstallationVerificationAssessment,
+    QualifiedInstallationVerificationAdapter,
+)
 from .lifecycle import (
     AcceptedLifecyclePermit,
     LifecycleActionDenied,
@@ -106,6 +117,10 @@ class QualifiedVeraRuntime:
     source_verification_transports: Mapping[
         tuple[str, str], SourceVerificationTransport
     ]
+    installation_verifications: InstallationVerificationStore
+    installation_verification_transports: Mapping[
+        tuple[str, str], InstallationVerificationTransport
+    ]
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
 
@@ -128,6 +143,9 @@ class QualifiedVeraRuntime:
         ] | None = None,
         source_verification_transports: Mapping[
             tuple[str, str], SourceVerificationTransport
+        ] | None = None,
+        installation_verification_transports: Mapping[
+            tuple[str, str], InstallationVerificationTransport
         ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
@@ -154,6 +172,10 @@ class QualifiedVeraRuntime:
         )
         source_verifications = state.source_verification_store()
         source_verifications.verify_chain()
+        installation_verifications = (
+            state.installation_verification_store()
+        )
+        installation_verifications.verify_chain()
         coordination_commands = state.coordination_command_journal()
         tasks = state.task_execution_ledger()
 
@@ -274,6 +296,36 @@ class QualifiedVeraRuntime:
                     f"{scope!r}"
                 )
 
+        installation_transports = dict(
+            installation_verification_transports or {}
+        )
+        for scope, transport in installation_transports.items():
+            if (
+                not isinstance(scope, tuple)
+                or len(scope) != 2
+                or not all(type(item) is str and item for item in scope)
+            ):
+                raise TypeError(
+                    "installation verification transport keys must be "
+                    "(target_id, distribution_name)"
+                )
+            if not isinstance(
+                transport,
+                InstallationVerificationTransport,
+            ):
+                raise TypeError(
+                    f"installation verification transport for {scope!r} "
+                    "does not satisfy InstallationVerificationTransport"
+                )
+            if (
+                transport.target_id,
+                transport.distribution_name,
+            ) != scope:
+                raise ValueError(
+                    "installation verification transport identity mismatch "
+                    f"for {scope!r}"
+                )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -322,6 +374,8 @@ class QualifiedVeraRuntime:
             source_mutation_outcomes=source_mutation_outcomes,
             source_verifications=source_verifications,
             source_verification_transports=verification_transports,
+            installation_verifications=installation_verifications,
+            installation_verification_transports=installation_transports,
             coordination_commands=coordination_commands,
             tasks=tasks,
         )
@@ -349,6 +403,12 @@ class QualifiedVeraRuntime:
         coordination_projection = (
             self.coordination_commands.verify_integrity()
         )
+        source_verification_head = (
+            self.source_verifications.verify_chain()
+        )
+        installation_verification_head = (
+            self.installation_verifications.verify_chain()
+        )
         body = {
             "schema": "VERA_MONO_TASK_RUNTIME_EVIDENCE_V1",
             "project_id": self.lifecycle.project_id,
@@ -359,6 +419,12 @@ class QualifiedVeraRuntime:
             "coordination_head_digest": coordination_head,
             "coordination_command_projection_digest": (
                 coordination_projection
+            ),
+            "source_verification_head_digest": (
+                source_verification_head
+            ),
+            "installation_verification_head_digest": (
+                installation_verification_head
             ),
         }
         return sha256_hex(canonical_json_bytes(body))
@@ -898,6 +964,43 @@ class QualifiedVeraRuntime:
     ) -> tuple[SourceVerificationAssessment, ...]:
         return self.source_verification_adapter().recover()
 
+    def installation_verification_adapter(
+        self,
+    ) -> QualifiedInstallationVerificationAdapter:
+        return QualifiedInstallationVerificationAdapter(
+            runtime=self,
+            transports=self.installation_verification_transports,
+        )
+
+    def assess_installation_verification(
+        self,
+        task_id: str,
+        target_id: str,
+        distribution_name: str,
+    ) -> InstallationVerificationAssessment:
+        return self.installation_verification_adapter().assess(
+            task_id,
+            target_id,
+            distribution_name,
+        )
+
+    def verify_task_installation(
+        self,
+        task_id: str,
+        target_id: str,
+        distribution_name: str,
+    ) -> InstallationVerificationReceipt:
+        return self.installation_verification_adapter().verify(
+            task_id,
+            target_id,
+            distribution_name,
+        )
+
+    def recover_installation_verifications(
+        self,
+    ) -> tuple[InstallationVerificationAssessment, ...]:
+        return self.installation_verification_adapter().recover()
+
     def assess_task_dependencies(
         self,
         task_id: str,
@@ -1413,6 +1516,59 @@ class QualifiedVeraRuntime:
                 )
             )
 
+        installation_requirements = (
+            installation_verification_requirements(
+                state.packet.evidence_requirements
+            )
+        )
+        installation_assessments: tuple[
+            InstallationVerificationAssessment, ...
+        ] = ()
+        if installation_requirements:
+            if "install/registration" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "INSTALL_VERIFY evidence requires the "
+                    "install/registration closeout surface"
+                )
+            elif surfaces.get("install/registration") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required installation evidence cannot close an "
+                    "install/registration surface that is not verified-current "
+                    "or changed-and-verified"
+                )
+            try:
+                installation_assessments = (
+                    self.installation_verification_adapter().assess_task(
+                        task_id
+                    )
+                )
+            except InstallationVerificationError as exc:
+                reasons.append(
+                    "installation verification contract is invalid: "
+                    + str(exc)
+                )
+            else:
+                not_current = tuple(
+                    assessment
+                    for assessment in installation_assessments
+                    if not assessment.passed
+                )
+                if not_current:
+                    reasons.append(
+                        "required installations are not verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.target_id}/"
+                                f"{item.distribution_name}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current
+                        )
+                    )
+
         active_delegation_ids = tuple(
             delegation.delegation_id
             for delegation in state.active_delegations
@@ -1488,6 +1644,28 @@ class QualifiedVeraRuntime:
                     + ", ".join(missing_dependency_evidence)
                 )
             state = self.tasks.read(task_id)
+            installation_assessments = (
+                self.installation_verification_adapter().assess_task(
+                    task_id
+                )
+            )
+            missing_installation_evidence = tuple(
+                (
+                    item.target_id,
+                    item.distribution_name,
+                )
+                for item in installation_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_installation_evidence:
+                raise TaskExecutionError(
+                    "verified installation lacks durable evidence digest: "
+                    + ", ".join(
+                        f"{target}/{distribution}"
+                        for target, distribution
+                        in missing_installation_evidence
+                    )
+                )
             binding_digests = {
                 dependency.dependency_id: dependency.event_digest
                 for dependency in state.dependencies
@@ -1521,6 +1699,17 @@ class QualifiedVeraRuntime:
                 for item in state.delegations
                 if not item.active
             )
+            installation_evidence_refs = tuple(
+                (
+                    "task-installation:"
+                    f"{item.target_id}:"
+                    f"{item.distribution_name}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in installation_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
             merged_evidence = tuple(
                 dict.fromkeys(
                     (
@@ -1528,6 +1717,7 @@ class QualifiedVeraRuntime:
                         *dependency_evidence_refs,
                         *cancellation_evidence_refs,
                         *delegation_evidence_refs,
+                        *installation_evidence_refs,
                     )
                 )
             )
