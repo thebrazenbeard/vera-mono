@@ -12,6 +12,7 @@ from vera_recovery import NativeRecoveryCheckpointStore
 from .coordination_command_journal import CoordinationCommandJournal
 from .lifecycle import LifecycleReconstruction, NativeVeraLifecycle
 from .lifecycle_journal import LifecycleJournal
+from .installation_verification import InstallationVerificationStore
 from .outbound_audit import OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 from .pc_execution_binding import PCExecutionBindingStore
@@ -37,6 +38,7 @@ class VeraStatePaths:
     source_mutation_bindings: Path
     source_mutation_outcomes: Path
     source_verifications: Path
+    installation_verifications: Path
     coordination: Path
     coordination_commands: Path
     tasks: Path
@@ -91,6 +93,9 @@ class VeraStateDirectory:
             ),
             source_verifications=(
                 candidate / "source" / "verification.sqlite"
+            ),
+            installation_verifications=(
+                candidate / "install" / "verification.sqlite"
             ),
             coordination=candidate / "coordination" / "events.sqlite",
             coordination_commands=(
@@ -175,6 +180,13 @@ class VeraStateDirectory:
             self.paths.source_verifications
         )
 
+    def installation_verification_store(
+        self,
+    ) -> InstallationVerificationStore:
+        return InstallationVerificationStore(
+            self.paths.installation_verifications
+        )
+
     def coordination_repository(self) -> SQLiteCoordinationRepository:
         return SQLiteCoordinationRepository(self.paths.coordination)
 
@@ -220,6 +232,9 @@ class VeraStateDirectory:
         )
         context["source_verifications"] = (
             self.source_verification_store().context()
+        )
+        context["installation_verifications"] = (
+            self.installation_verification_store().context()
         )
         context["coordination"] = self.coordination_repository().context()
         context["coordination_commands"] = (
