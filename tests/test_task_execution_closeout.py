@@ -591,10 +591,18 @@ def test_task_dependency_blocks_closeout_until_coordination_command_succeeds(tmp
         next_frontier="NONE",
     )
     assert closed.closed is True
-    assert any(
-        ref.startswith("task-dependency:dep-coordination:")
+    dependency_refs = [
+        ref
         for ref in closed.closeout.evidence_refs
+        if ref.startswith("task-dependency:dep-coordination:")
+    ]
+    assert len(dependency_refs) == 1
+    _, dependency_id, binding_digest, result_digest = (
+        dependency_refs[0].split(":")
     )
+    assert dependency_id == "dep-coordination"
+    assert len(binding_digest) == 64
+    assert len(result_digest) == 64
 
 
 def test_task_effect_dependency_cancelled_pre_dispatch_is_terminal_unsatisfied(tmp_path):
