@@ -139,6 +139,22 @@ from .route_verification_adapter import (
     QualifiedRouteVerificationAdapter,
     RouteVerificationAssessment,
 )
+from .runtime_consumption import (
+    RUNTIME_CONSUME_VERIFY_PREFIX,
+    RUNTIME_CONSUMPTION_STATUSES,
+    JsonFileRuntimeConsumptionTransport,
+    RuntimeConsumptionObservation,
+    RuntimeConsumptionRequirement,
+    RuntimeConsumptionVerificationError,
+    RuntimeConsumptionVerificationReceipt,
+    RuntimeConsumptionVerificationStore,
+    RuntimeConsumptionVerificationTransport,
+    runtime_consumption_requirements,
+)
+from .runtime_consumption_adapter import (
+    QualifiedRuntimeConsumptionAdapter,
+    RuntimeConsumptionAssessment,
+)
 from .reasoning_cascade import (
     CascadeEngine,
     CascadeOutcome,
@@ -328,6 +344,18 @@ __all__ = [
     "ReasoningRequest",
     "ROUTE_VERIFICATION_STATUSES",
     "ROUTE_VERIFY_PREFIX",
+    "RUNTIME_CONSUME_VERIFY_PREFIX",
+    "RUNTIME_CONSUMPTION_STATUSES",
+    "JsonFileRuntimeConsumptionTransport",
+    "RuntimeConsumptionObservation",
+    "RuntimeConsumptionRequirement",
+    "RuntimeConsumptionVerificationError",
+    "RuntimeConsumptionVerificationReceipt",
+    "RuntimeConsumptionVerificationStore",
+    "RuntimeConsumptionVerificationTransport",
+    "runtime_consumption_requirements",
+    "QualifiedRuntimeConsumptionAdapter",
+    "RuntimeConsumptionAssessment",
     "JsonFileRouteVerificationTransport",
     "RouteObservation",
     "RouteVerificationError",
