@@ -144,6 +144,19 @@ class TaskCloseout:
 
 
 @dataclass(frozen=True, slots=True)
+class TaskCloseoutAssessment:
+    task_id: str
+    lifecycle_status: str
+    surfaces_ready: bool
+    unresolved_effect_ids: tuple[str, ...]
+    coordination_recovery_ids: tuple[str, ...]
+    provider_recovery_ids: tuple[str, ...]
+    supplied_blockers: tuple[str, ...]
+    ready: bool
+    reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class TaskState:
     task_id: str
     packet: TaskPacket
