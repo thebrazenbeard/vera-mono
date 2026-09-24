@@ -1,4 +1,5 @@
 from dataclasses import dataclass, replace
+import sqlite3
 
 import pytest
 
@@ -429,3 +430,79 @@ def test_source_scope_prefix_boundary_does_not_match_similar_sibling(tmp_path):
         )
     assert transport.calls == []
     assert runtime.tasks.read("task-prefix-boundary").dependencies == ()
+
+
+def test_source_prepare_persists_nonsecret_restart_binding(tmp_path):
+    state, runtime, _, _ = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-binding",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    prepared = runtime.source_mutation_adapter().prepare(
+        "task-binding",
+        "dep-binding",
+        write_request(
+            mutation_id="mutation-binding",
+            path="src/binding.py",
+        ),
+    )
+
+    binding = state.source_mutation_binding_store().read(
+        "mutation-binding"
+    )
+    assert binding.task_id == "task-binding"
+    assert binding.dependency_id == "dep-binding"
+    assert binding.packet_digest == prepared.packet_digest
+    assert binding.repository == REPOSITORY
+    assert binding.ref == REF
+    assert binding.path == "src/binding.py"
+    assert binding.content_digest == prepared.request.content_digest
+    assert (
+        binding.provider_request_digest
+        == prepared.provider_dispatch.request_digest
+    )
+    assert (
+        binding.lifecycle_permit_digest
+        == prepared.provider_dispatch.permit.permit_digest
+    )
+
+    with sqlite3.connect(state.paths.source_mutation_bindings) as db:
+        payload_json = db.execute(
+            """
+            SELECT payload_json
+            FROM source_mutation_bindings
+            WHERE mutation_id='mutation-binding'
+            """
+        ).fetchone()[0]
+    assert "print('qualified')" not in payload_json
+    assert '"content_persisted":false' in payload_json
+
+
+def test_source_binding_survives_restart_without_prepared_object(tmp_path):
+    state, runtime, _, _ = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-restart-binding",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    runtime.source_mutation_adapter().prepare(
+        "task-restart-binding",
+        "dep-restart-binding",
+        write_request(
+            mutation_id="mutation-restart-binding",
+            path="src/restart.py",
+        ),
+    )
+
+    reopened = VeraStateDirectory(
+        state.paths.root,
+        project_id=PROJECT,
+        identity_id=IDENTITY,
+    )
+    context = reopened.resume_context()
+    source = context["source_mutation_bindings"]
+    assert source["binding_count"] == 1
+    persisted = source["bindings"][0]
+    assert persisted["mutation_id"] == "mutation-restart-binding"
+    assert persisted["task_id"] == "task-restart-binding"
+    assert persisted["path"] == "src/restart.py"
+    assert persisted["content_persisted"] is False
