@@ -714,6 +714,7 @@ def test_ambiguous_external_effect_freezes_actions_and_lifecycle_until_reconcile
         fence=fence,
         verifier=recovery_authority,
         outbound_trust_registry=recovery_registry,
+        audit=state.outbound_execution_audit(),
     )
     proof = recovery_authority.issue(
         ambiguous,
@@ -781,6 +782,7 @@ def test_caller_minted_reconciliation_verifier_cannot_clear_ambiguous_effect(tmp
         fence=fence,
         verifier=trusted,
         outbound_trust_registry=recovery_registry,
+        audit=state.outbound_execution_audit(),
     )
     with pytest.raises(EffectRecoveryAuthorityError):
         recovery.reconcile(
