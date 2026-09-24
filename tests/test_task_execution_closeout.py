@@ -587,6 +587,10 @@ def test_task_dependency_blocks_closeout_until_coordination_command_succeeds(tmp
         next_frontier="NONE",
     )
     assert closed.closed is True
+    assert any(
+        ref.startswith("task-dependency:dep-coordination:")
+        for ref in closed.closeout.evidence_refs
+    )
 
 
 def test_task_effect_dependency_cancelled_pre_dispatch_is_terminal_unsatisfied(tmp_path):
