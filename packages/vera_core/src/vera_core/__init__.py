@@ -1,5 +1,22 @@
 """Vera monorepo composition root."""
 
+from .behavior_effect_verification import (
+    BEHAVIOR_EFFECT_KINDS,
+    BEHAVIOR_EFFECT_STATUSES,
+    BEHAVIOR_EFFECT_VERIFY_PREFIX,
+    BehaviorEffectObservation,
+    BehaviorEffectRequirement,
+    BehaviorEffectVerificationError,
+    BehaviorEffectVerificationReceipt,
+    BehaviorEffectVerificationStore,
+    BehaviorEffectVerificationTransport,
+    JsonFileBehaviorEffectVerificationTransport,
+    behavior_effect_requirements,
+)
+from .behavior_effect_verification_adapter import (
+    BehaviorEffectAssessment,
+    QualifiedBehaviorEffectVerificationAdapter,
+)
 from .action_gate import (
     LifecycleBoundCoordinationBus,
     LifecycleEffectGateway,
@@ -220,6 +237,19 @@ from .source_verification_adapter import (
 from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
+    "BEHAVIOR_EFFECT_KINDS",
+    "BEHAVIOR_EFFECT_STATUSES",
+    "BEHAVIOR_EFFECT_VERIFY_PREFIX",
+    "BehaviorEffectAssessment",
+    "BehaviorEffectObservation",
+    "BehaviorEffectRequirement",
+    "BehaviorEffectVerificationError",
+    "BehaviorEffectVerificationReceipt",
+    "BehaviorEffectVerificationStore",
+    "BehaviorEffectVerificationTransport",
+    "JsonFileBehaviorEffectVerificationTransport",
+    "QualifiedBehaviorEffectVerificationAdapter",
+    "behavior_effect_requirements",
     "AcceptedLifecyclePermit",
     "AuthorityCurrentnessReceipt",
     "AuthorityTrustState",
