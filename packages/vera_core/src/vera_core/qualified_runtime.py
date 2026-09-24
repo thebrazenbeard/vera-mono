@@ -2162,6 +2162,37 @@ class QualifiedVeraRuntime:
             }
             for assessment in self.recover_source_verifications()
         ]
+        context["installation_verifications"] = (
+            self.installation_verifications.context()
+        )
+        context["installation_verification_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "target_id": assessment.target_id,
+                "distribution_name": assessment.distribution_name,
+                "expected_version": assessment.expected_version,
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": (
+                    assessment.latest_receipt_digest
+                ),
+                "latest_installation_digest": (
+                    assessment.latest_installation_digest
+                ),
+                "transport_available": assessment.transport_available,
+                "current_observed_version": (
+                    assessment.current_observed_version
+                ),
+                "current_installation_digest": (
+                    assessment.current_installation_digest
+                ),
+                "current_matches_receipt": (
+                    assessment.current_matches_receipt
+                ),
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_installation_verifications()
+        ]
         context["coordination"] = {
             "schema": "VERA_MONO_COORDINATION_RUNTIME_CONTEXT_V1",
             "repository_type": type(self.coordination.bus.repository).__name__,
