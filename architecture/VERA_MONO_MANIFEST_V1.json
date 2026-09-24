@@ -326,7 +326,8 @@
       "task-bound live-current installation verification",
       "task-bound live-current route verification",
       "task-bound live runtime-consumption verification",
-      "task-bound live behavior/effect verification from exact host/external evidence"
+      "task-bound live behavior/effect verification from exact host/external evidence",
+      "task-bound declaration/provider-bound external behavior attestation"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -435,7 +436,8 @@
       "active_delegation": "DENY",
       "route_verification_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
       "runtime_consumption_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
-      "behavior_effect_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS"
+      "behavior_effect_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
+      "behavior_attestation_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS"
     },
     "claim_ceiling_required": true,
     "independent_surface_closeout": true,
@@ -662,5 +664,25 @@
     "effect_kind_requires_external_effect_receipt": true,
     "behavior_effect_pass_is_protected_effect_authority": false,
     "behavior_effect_pass_is_deployment": false
+  },
+  "behavior_attestation": {
+    "schema": "VERA_MONO_EXTERNAL_BEHAVIOR_ATTESTATION_V1",
+    "contract": "architecture/VERA_EXTERNAL_BEHAVIOR_ATTESTATION_V1.json",
+    "store": "vera_core.BehaviorAttestationStore",
+    "adapter": "vera_core.QualifiedBehaviorAttestationAdapter",
+    "transport_protocol": "vera_core.BehaviorAttestationTransport",
+    "concrete_json_transport": "vera_core.JsonFileBehaviorAttestationTransport",
+    "verifier_protocol": "vera_core.BehaviorEvidenceAttestationVerifier",
+    "concrete_hmac_verifier": "vera_core.HmacBehaviorEvidenceAttestationVerifier",
+    "state_path": "behavior/attestation.sqlite",
+    "requirement_grammar": "BEHAVIOR_ATTEST_VERIFY|<consumer-id>|<probe-id>|<declaration-sha256>|<provider-id>|<provider-key-id>|<provider-key-sha256>|<effect-subject-sha256-or-NONE>",
+    "canonical_declaration_digest_required": true,
+    "matching_behavior_effect_live_current_PASS_required": true,
+    "provider_identity_and_key_bound": true,
+    "nonce_replay_protection": true,
+    "effect_kind_cross_binds_external_effect_subject": true,
+    "local_effect_fence_is_external_effect_proof": false,
+    "attestation_pass_is_independent_review": false,
+    "attestation_pass_is_protected_effect_authority": false
   }
 }

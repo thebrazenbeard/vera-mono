@@ -35,7 +35,8 @@
     "evidence_requirement_installation_verification_grammar": "INSTALL_VERIFY|<target-id>|<distribution>|<version>",
     "evidence_requirement_route_verification_grammar": "ROUTE_VERIFY|<route-id>|<expected-target>",
     "evidence_requirement_runtime_consumption_grammar": "RUNTIME_CONSUME_VERIFY|<consumer-id>|<route-id>|<expected-target>",
-    "evidence_requirement_behavior_effect_verification_grammar": "BEHAVIOR_EFFECT_VERIFY|<consumer-id>|<probe-id>|<BEHAVIOR-or-EFFECT>|<stimulus-sha256>|<outcome-sha256>"
+    "evidence_requirement_behavior_effect_verification_grammar": "BEHAVIOR_EFFECT_VERIFY|<consumer-id>|<probe-id>|<BEHAVIOR-or-EFFECT>|<stimulus-sha256>|<outcome-sha256>",
+    "evidence_requirement_behavior_attestation_grammar": "BEHAVIOR_ATTEST_VERIFY|<consumer-id>|<probe-id>|<declaration-sha256>|<provider-id>|<provider-key-id>|<provider-key-sha256>|<effect-subject-sha256-or-NONE>"
   },
   "checkpoint": {
     "method": "QualifiedVeraRuntime.checkpoint_task",
@@ -91,14 +92,16 @@
       "coordination repository head when available",
       "coordination command projection digest",
       "runtime-consumption verification head",
-      "behavior/effect verification head"
+      "behavior/effect verification head",
+      "behavior attestation verification head"
     ],
     "bound_task_dependency_not_satisfied_forbids_close": true,
     "active_delegation_forbids_close": true,
     "required_source_verification_forbids_close": "matching SOURCE_VERIFY requirements remain non-PASS",
     "required_installation_verification_forbids_close": "matching INSTALL_VERIFY requirements must be live-current PASS",
     "required_runtime_consumption_verification_forbids_close": "matching RUNTIME_CONSUME_VERIFY requirements must be live-current PASS",
-    "required_behavior_effect_verification_forbids_close": "matching BEHAVIOR_EFFECT_VERIFY requirements must be live-current PASS and remain bound to the same live consumed process/state plus exact refreshed host/external evidence"
+    "required_behavior_effect_verification_forbids_close": "matching BEHAVIOR_EFFECT_VERIFY requirements must be live-current PASS and remain bound to the same live consumed process/state plus exact refreshed host/external evidence",
+    "required_behavior_attestation_forbids_close": "matching BEHAVIOR_ATTEST_VERIFY requirements must be live-current PASS above the exact current behavior/effect receipt"
   },
   "integrity": {
     "journal": "append-only digest-chained SQLite event ledger",
@@ -316,5 +319,21 @@
       "behavior/effect PASS is not provider activation or protected-effect authority",
       "host/external evidence is required independently of runtime consumption"
     ]
+  },
+  "behavior_attestation": {
+    "contract": "architecture/VERA_EXTERNAL_BEHAVIOR_ATTESTATION_V1.json",
+    "store": "vera_core.BehaviorAttestationStore",
+    "adapter": "vera_core.QualifiedBehaviorAttestationAdapter",
+    "state_path": "behavior/attestation.sqlite",
+    "required_surface": "behavior/effect",
+    "matching_behavior_effect_required": true,
+    "behavior_effect_pass_is_attestation_pass": false,
+    "accepted_surface_states": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "stored_PASS_without_live_refresh": "DENY",
+    "closeout_evidence_ref": "task-behavior-attestation:<consumer-id>:<probe-id>:<receipt-digest>",
+    "independent_review_implied": false
   }
 }
