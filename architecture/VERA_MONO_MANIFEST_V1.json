@@ -512,6 +512,24 @@
     "generic_provider_execute_for_source_namespace": false,
     "expected_ref_head_and_blob_CAS": true,
     "transport_result_mismatch": "ATTEMPTED_UNKNOWN",
-    "merge_deploy_install_authority": false
+    "merge_deploy_install_authority": false,
+    "concrete_github": {
+      "contract": "architecture/VERA_GITHUB_SOURCE_TRANSPORT_V1.json",
+      "transport": "vera_core.GitHubSourceMutationTransport",
+      "api_client": "vera_core.GitHubGitDataAPIClient",
+      "exact_ref_compare_and_swap": true,
+      "ref_CAS_primitive": "GraphQL updateRefs beforeOid/afterOid",
+      "force": false,
+      "REST_git_object_operations": true,
+      "installed_or_active_by_source_presence": false
+    },
+    "restart_binding": {
+      "store": "vera_core.SourceMutationBindingStore",
+      "state_path": "source/mutation-bindings.sqlite",
+      "source_content_persisted": false,
+      "request_content_digest_persisted": true,
+      "task_scope_and_delegation_evidence_persisted": true,
+      "provider_binding_evidence_persisted": true
+    }
   }
 }
