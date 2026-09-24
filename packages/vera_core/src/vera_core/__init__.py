@@ -48,6 +48,22 @@ from .github_source_verification import (
     GitHubSourceVerificationClient,
     GitHubSourceVerificationTransport,
 )
+from .installation_verification import (
+    INSTALLATION_VERIFICATION_STATUSES,
+    INSTALLATION_VERIFY_PREFIX,
+    InstallationObservation,
+    InstallationVerificationError,
+    InstallationVerificationReceipt,
+    InstallationVerificationRequirement,
+    InstallationVerificationStore,
+    InstallationVerificationTransport,
+    PythonDistributionInstallationTransport,
+    installation_verification_requirements,
+)
+from .installation_verification_adapter import (
+    InstallationVerificationAssessment,
+    QualifiedInstallationVerificationAdapter,
+)
 from .lifecycle import (
     AcceptedLifecyclePermit,
     LifecycleActionDenied,
@@ -193,6 +209,18 @@ __all__ = [
     "CoordinationCommandResult",
     "LayerResult",
     "LayerSpec",
+    "INSTALLATION_VERIFICATION_STATUSES",
+    "INSTALLATION_VERIFY_PREFIX",
+    "InstallationObservation",
+    "InstallationVerificationAssessment",
+    "InstallationVerificationError",
+    "InstallationVerificationReceipt",
+    "InstallationVerificationRequirement",
+    "InstallationVerificationStore",
+    "InstallationVerificationTransport",
+    "PythonDistributionInstallationTransport",
+    "QualifiedInstallationVerificationAdapter",
+    "installation_verification_requirements",
     "LifecycleActionDenied",
     "HmacPCJobAuthority",
     "HmacProviderAuthority",
