@@ -91,6 +91,7 @@
     "event_types": [
       "TASK_OPENED",
       "TASK_DEPENDENCY",
+      "TASK_DEPENDENCY_CANCELLED",
       "TASK_CORRECTION",
       "TASK_CHECKPOINT",
       "TASK_CLOSED"
@@ -169,6 +170,28 @@
     "terminal_no_effect_is_satisfied": false,
     "unresolved_or_unsatisfied_forbids_closeout": true,
     "restart_context_surfaces_assessment": true,
-    "closeout_auto_appends_dependency_evidence_digest": true
+    "closeout_auto_appends_dependency_evidence_digest": true,
+    "cancellation": {
+      "event": "TASK_DEPENDENCY_CANCELLED",
+      "qualified_method": "QualifiedVeraRuntime.cancel_task_dependency",
+      "allowed_only_when": "dependency assessment is MISSING and target has no durable preparation/execution evidence",
+      "post_start_cancellation": "DENY",
+      "cancelled_dependency_id_reuse": "DENY",
+      "automatic_preparation_failure_rollback": "qualified task-scoped wrappers cancel the dependency only when the target never acquired durable preparation/execution evidence",
+      "closeout_semantics": "cancelled dependencies are no longer required work, but their cancellation event digest is preserved in closeout evidence",
+      "restart_surface": "TaskDependencyAssessment.cancellation_allowed",
+      "automatic_restart_cancellation": false
+    },
+    "ownership": {
+      "one_durable_owner_per_kind_target": true,
+      "cross_task_evidence_reuse": "DENY",
+      "post_hoc_dependency_claim": "DENY",
+      "exact_binding_replay": "IDEMPOTENT"
+    },
+    "serialization": {
+      "task_action_lock": "PortableFileLock",
+      "closeout_serialized_against_task_scoped_mutation": true,
+      "task_scoped_outbound_preparation_holds_lock": true
+    }
   }
 }
