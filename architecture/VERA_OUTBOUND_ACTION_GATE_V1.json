@@ -1,0 +1,92 @@
+{
+  "schema": "VERA_MONO_OUTBOUND_ACTION_GATE_V1",
+  "purpose": "Bind every qualified coordination command and every PC/provider effect to one exact accepted lifecycle/currentness state before it can escape the monorepo.",
+  "accepted_state_credential": {
+    "type": "VERA_MONO_ACCEPTED_LIFECYCLE_PERMIT_V1",
+    "issuer": "vera_core.NativeVeraLifecycle.accepted_action_permit",
+    "fields": [
+      "project_id",
+      "identity_id",
+      "runtime_id",
+      "memory_head_digest",
+      "recovery_checkpoint_id",
+      "recovery_checkpoint_digest",
+      "recovery_checkpoint_generation",
+      "control_source_digest",
+      "currentness_subject_id",
+      "currentness_generation",
+      "currentness_snapshot_digest",
+      "currentness_payload_digest",
+      "lifecycle_journal_head",
+      "permit_digest"
+    ],
+    "mintable_only_when": [
+      "ACCEPTED_CURRENT",
+      "ACCEPTED_RECONCILED"
+    ],
+    "validation_requires": "ACCEPTED_CURRENT exact field equality at dispatch time"
+  },
+  "serialization_boundary": {
+    "lock": "PortableFileLock over the lifecycle journal action-lock SQLite database",
+    "lifecycle_transitions_share_lock": true,
+    "qualified_outbound_actions_share_lock": true,
+    "purpose": "Prevent a canonical lifecycle transition from interleaving between permit validation and outbound execution."
+  },
+  "coordination": {
+    "canonical_gateway": "vera_core.LifecycleBoundCoordinationBus",
+    "low_level_bus": "coordination_bus.CoordinationBus",
+    "low_level_bus_runtime_qualified_without_gateway": false,
+    "every_command_requires_permit": true,
+    "read_commands": [
+      "coordination_read_inbox",
+      "entry_checkpoint"
+    ],
+    "write_commands": [
+      "coordination_post",
+      "coordination_acknowledge",
+      "coordination_publish_status",
+      "coordination_request_review",
+      "coordination_resolve_thread",
+      "exit_checkpoint"
+    ],
+    "write_commands_effect_fenced": true,
+    "command_id_required_for_write": true,
+    "decision_authority_remains_separate": true
+  },
+  "effects": {
+    "canonical_gateway": "vera_core.LifecycleEffectGateway",
+    "fence": "vera_assurance.EffectFence",
+    "pc_dispatch": "LifecycleEffectGateway.dispatch_pc_job",
+    "provider_dispatch": "LifecycleEffectGateway.dispatch_provider_effect",
+    "currentness_evidence_digest": "accepted lifecycle permit digest",
+    "authority_evidence_digest": "independent caller/provider authority evidence; lifecycle permit never substitutes for it",
+    "retry_semantics": {
+      "same_effect_id_after_commit": "DENY",
+      "exception_or_uncertain_result": "ATTEMPTED_UNKNOWN",
+      "blind_retry_after_unknown": "DENY"
+    }
+  },
+  "fail_closed_states": [
+    "EMPTY",
+    "MEMORY_AHEAD_OF_CURRENTNESS",
+    "INTERRUPTED_CANDIDATE",
+    "BLOCKED_CANDIDATE",
+    "CONTROL_SOURCE_DRIFT"
+  ],
+  "stale_conditions": [
+    "accepted currentness generation advanced",
+    "currentness snapshot changed",
+    "recovery checkpoint changed",
+    "memory head moved ahead",
+    "control source digest changed",
+    "lifecycle journal head changed"
+  ],
+  "boundaries": {
+    "lifecycle_permit_is_protected_effect_authority": false,
+    "effect_fence_is_authority": false,
+    "coordination_actor_permissions_are_still_checked_by_bus": true,
+    "decision_authority_is_still_external_and_exact_subject_bound": true,
+    "pc_authorization_contracts_remain_required": true,
+    "raw_low_level_mechanisms_are_not_the_runtime_qualified_escape_path": true
+  }
+}
