@@ -1,0 +1,124 @@
+{
+  "schema": "VERA_MONO_QUALIFIED_SOURCE_MUTATION_V1",
+  "purpose": "Make repository/file mutation consume the owning task packet writable scope and delegated-subject ownership before any qualified source write can cross the external effect boundary.",
+  "composition": {
+    "runtime": "vera_core.QualifiedVeraRuntime",
+    "adapter": "vera_core.QualifiedSourceMutationAdapter",
+    "transport": "vera_core.SourceMutationTransport",
+    "provider_effect_gateway": "vera_core.LifecycleEffectGateway",
+    "task_ledger": "vera_core.TaskExecutionLedger",
+    "delegation_guard": "TaskExecutionLedger.assert_subject_mutation_allowed"
+  },
+  "writable_scope": {
+    "source": "TaskPacket.writable_scope",
+    "grammar": "SOURCE|<repository>|<ref>|<path-or-prefix/**>",
+    "examples": [
+      "SOURCE|thebrazenbeard/vera-mono|main|packages/vera_core/**",
+      "SOURCE|thebrazenbeard/vera-mono|main|README.md",
+      "SOURCE|thebrazenbeard/vera-mono|main|**"
+    ],
+    "untyped_or_nonmatching_entries": "DO_NOT_GRANT_SOURCE_WRITE",
+    "path_rules": [
+      "repository-relative POSIX path",
+      "no absolute path",
+      "no backslash separators",
+      "no empty, '.', or '..' segments"
+    ],
+    "MOVE_FILE": "both source and destination paths must independently match writable scope",
+    "relevant_surface_required": "source"
+  },
+  "operations": {
+    "WRITE_FILE": {
+      "content": "exact str or bytes",
+      "expected_ref_head": "REQUIRED",
+      "expected_blob_id": "REQUIRED; ABSENT may represent create"
+    },
+    "DELETE_FILE": {
+      "content": "FORBIDDEN",
+      "expected_ref_head": "REQUIRED",
+      "expected_blob_id": "REQUIRED_EXISTING"
+    },
+    "MOVE_FILE": {
+      "content": "FORBIDDEN",
+      "expected_ref_head": "REQUIRED",
+      "expected_blob_id": "REQUIRED_EXISTING",
+      "destination_path": "REQUIRED_AND_DIFFERENT",
+      "expected_destination_blob_id": "REQUIRED"
+    }
+  },
+  "delegation": {
+    "guard_checked_at_prepare": true,
+    "guard_rechecked_immediately_before_transport": true,
+    "active_delegation_requires_exact_current_TaskDelegationRef": true,
+    "actor_must_equal_current_assignee": true,
+    "stale_or_reassigned_ref": "DENY",
+    "delegation_effect_policy": {
+      "generic_allow": "SOURCE_MUTATION",
+      "operation_allow": [
+        "SOURCE_WRITE_FILE",
+        "SOURCE_DELETE_FILE",
+        "SOURCE_MOVE_FILE"
+      ],
+      "matching_prohibited_effect": "DENY",
+      "nonempty_allowed_effects_without_matching_source_effect": "DENY"
+    }
+  },
+  "execution": {
+    "source_provider_id": "source:<repository>",
+    "source_provider_namespace_reserved_from_generic_QualifiedVeraRuntime.dispatch_provider_effect": true,
+    "source_provider_namespace_reserved_from_generic_QualifiedVeraRuntime.execute_provider_effect": true,
+    "task_dependency_kind": "PROVIDER_EFFECT",
+    "dependency_target": "mutation_id",
+    "provider_operation": "SOURCE_<operation>",
+    "provider_authority_currentness_required": true,
+    "accepted_lifecycle_permit_required": true,
+    "task_action_lock_held_through_final_scope_ownership_check_and_effect_dispatch": true,
+    "outbound_audit_required": true,
+    "mechanical_effect_fence_required": true,
+    "transport_result_checked_inside_effect_callback": true,
+    "transport_result_mismatch": "ATTEMPTED_UNKNOWN",
+    "retry_after_ambiguous_result": "DENY_UNTIL_RECONCILED"
+  },
+  "transport_contract": {
+    "host_injected": true,
+    "identity_fields": [
+      "provider_id",
+      "repository",
+      "ref"
+    ],
+    "provider_id_must_equal": "source:<repository>",
+    "expected_ref_head_and_blob_CAS_enforcement": "TRANSPORT_RESPONSIBILITY_AND_REQUEST_CONTRACT",
+    "result_required_fields": [
+      "repository",
+      "ref",
+      "operation",
+      "path",
+      "destination_path",
+      "previous_ref_head",
+      "new_ref_head",
+      "result_id"
+    ],
+    "result_previous_ref_head_must_equal_request_expected_ref_head": true
+  },
+  "fail_closed_order": [
+    "task exists and is open",
+    "task declares source surface",
+    "every target path matches typed task writable scope",
+    "delegation ownership/current assignee/effect policy passes",
+    "exact task dependency is durably bound",
+    "accepted lifecycle and provider authority currentness pass",
+    "effect fence reserves and claims single-use dispatch",
+    "host source transport mutates using expected-head/blob CAS",
+    "transport result identity is checked before effect can be COMMITTED"
+  ],
+  "boundaries": {
+    "writable_scope_is_not_repository_authority": true,
+    "delegation_is_not_repository_authority": true,
+    "source_transport_is_not_task_scope_authority": true,
+    "provider_authority_is_not_task_writable_scope": true,
+    "passing_one_gate_never_substitutes_for_another": true,
+    "merge_deploy_install_or_publication_authority_not_created": true,
+    "source_presence_does_not_imply_runtime_activation": true,
+    "callback_level_effect_primitives_are_not_qualified_source_mutation_paths": true
+  }
+}
