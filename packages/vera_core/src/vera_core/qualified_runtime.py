@@ -158,7 +158,30 @@ class QualifiedVeraRuntime:
                 raise ValueError(
                     "only a mechanically RESERVED pre-dispatch effect may be cancelled"
                 )
-            return self.fence.cancel_before_dispatch(effect_id)
+            cancelled = self.fence.cancel_before_dispatch(effect_id)
+            previous = self.audit.latest(effect_id)
+            if previous is None:
+                raise ValueError(
+                    "qualified reserved effect is missing outbound audit evidence"
+                )
+            self.audit.append(
+                effect_id=effect_id,
+                effect_kind=previous.effect_kind,
+                event_type="CANCELLED_PRE_DISPATCH",
+                payload={
+                    "request_digest": cancelled.request_digest,
+                    "mechanical_permit_digest": (
+                        cancelled.mechanical_permit_digest
+                    ),
+                    "authority_evidence_digest": (
+                        cancelled.authority_evidence_digest
+                    ),
+                    "currentness_evidence_digest": (
+                        cancelled.currentness_evidence_digest
+                    ),
+                },
+            )
+            return cancelled
 
     def prepare_pc_job(
         self,
