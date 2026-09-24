@@ -66,8 +66,8 @@ def test_github_source_verification_aggregates_check_runs_and_status_contexts():
         ("lint", "PASS"),
     ]
     assert client.calls == [
-        ("head", REPOSITORY, REF),
         ("checks", REPOSITORY, "commit-a"),
+        ("head", REPOSITORY, REF),
     ]
 
 
