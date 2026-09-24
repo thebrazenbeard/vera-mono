@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import wraps
 from pathlib import Path
 import sqlite3
 from typing import Any
 
 from portfolio_runtime.lantern.canonical import canonical_json, canonical_json_bytes, sha256_hex
+from r8a0.portable_lock import PortableFileLock
 
 
 class OutboundTrustError(PermissionError):
@@ -40,6 +42,15 @@ class AuthorityCurrentnessReceipt:
     registry_generation: int
     registry_head_digest: str
     receipt_digest: str
+
+
+def _trust_mutation_locked(method):
+    @wraps(method)
+    def wrapped(self, *args, **kwargs):
+        with self.action_lock():
+            return method(self, *args, **kwargs)
+
+    return wrapped
 
 
 class OutboundTrustRegistry:
@@ -91,6 +102,11 @@ class OutboundTrustRegistry:
         db = sqlite3.connect(self.path)
         db.row_factory = sqlite3.Row
         return db
+
+    def action_lock(self) -> PortableFileLock:
+        return PortableFileLock(
+            self.path.with_suffix(self.path.suffix + ".trust-lock.sqlite3")
+        )
 
     @staticmethod
     def _require_text(value: str, label: str) -> str:
@@ -175,6 +191,7 @@ class OutboundTrustRegistry:
             return False
         return True
 
+    @_trust_mutation_locked
     def register(
         self,
         *,
@@ -242,6 +259,7 @@ class OutboundTrustRegistry:
             key_digest=key_digest,
         )
 
+    @_trust_mutation_locked
     def rotate(
         self,
         *,
@@ -317,6 +335,7 @@ class OutboundTrustRegistry:
             key_digest=key_digest,
         )
 
+    @_trust_mutation_locked
     def revoke(
         self,
         *,
@@ -372,6 +391,7 @@ class OutboundTrustRegistry:
             db.commit()
             return next_epoch
 
+    @_trust_mutation_locked
     def reactivate(
         self,
         *,
