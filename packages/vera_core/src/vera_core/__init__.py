@@ -1,6 +1,14 @@
 """Vera monorepo composition root."""
 
+from .action_gate import (
+    LifecycleBoundCoordinationBus,
+    LifecycleEffectGateway,
+    OutboundActionError,
+    OutboundEffectResult,
+)
 from .lifecycle import (
+    AcceptedLifecyclePermit,
+    LifecycleActionDenied,
     LifecycleAssuranceError,
     LifecycleReconstruction,
     LifecycleReconstructionError,
@@ -23,12 +31,16 @@ from .registry import CAPABILITIES, LocalCapability, capability, validate_regist
 from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
+    "AcceptedLifecyclePermit",
     "CAPABILITIES",
     "CascadeEngine",
     "CascadeOutcome",
     "LayerResult",
     "LayerSpec",
+    "LifecycleActionDenied",
     "LifecycleAssuranceError",
+    "LifecycleBoundCoordinationBus",
+    "LifecycleEffectGateway",
     "LifecycleEvent",
     "LifecycleJournal",
     "LifecycleJournalError",
@@ -36,6 +48,8 @@ __all__ = [
     "LifecycleReconstructionError",
     "LocalCapability",
     "NativeLifecycleReceipt",
+    "OutboundActionError",
+    "OutboundEffectResult",
     "NativeVeraLifecycle",
     "ReasoningRequest",
     "VeraStateDirectory",
