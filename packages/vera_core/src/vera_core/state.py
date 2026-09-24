@@ -16,6 +16,7 @@ from .outbound_audit import OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 from .pc_execution_binding import PCExecutionBindingStore
 from .provider_execution_binding import ProviderExecutionBindingStore
+from .task_execution import TaskExecutionLedger
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +33,7 @@ class VeraStatePaths:
     provider_execution_bindings: Path
     coordination: Path
     coordination_commands: Path
+    tasks: Path
     trust: Path
 
 
@@ -79,6 +81,7 @@ class VeraStateDirectory:
             coordination_commands=(
                 candidate / "coordination" / "commands.sqlite"
             ),
+            tasks=candidate / "tasks" / "tasks.sqlite",
             trust=candidate / "recovery" / "trust",
         )
         self.project_id = project_id
@@ -142,6 +145,9 @@ class VeraStateDirectory:
     def coordination_command_journal(self) -> CoordinationCommandJournal:
         return CoordinationCommandJournal(self.paths.coordination_commands)
 
+    def task_execution_ledger(self) -> TaskExecutionLedger:
+        return TaskExecutionLedger(self.paths.tasks)
+
     def reconstruct(self) -> LifecycleReconstruction:
         return self.open().reconstruct()
 
@@ -174,4 +180,5 @@ class VeraStateDirectory:
         context["coordination_commands"] = (
             self.coordination_command_journal().context()
         )
+        context["tasks"] = self.task_execution_ledger().context()
         return context
