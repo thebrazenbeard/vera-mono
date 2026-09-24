@@ -83,12 +83,14 @@
       "outbound trust head",
       "coordination repository head when available",
       "coordination command projection digest"
-    ]
+    ],
+    "bound_task_dependency_not_satisfied_forbids_close": true
   },
   "integrity": {
     "journal": "append-only digest-chained SQLite event ledger",
     "event_types": [
       "TASK_OPENED",
+      "TASK_DEPENDENCY",
       "TASK_CORRECTION",
       "TASK_CHECKPOINT",
       "TASK_CLOSED"
@@ -127,5 +129,46 @@
     ],
     "unresolved_correction_forbids_closeout": true,
     "obsolete_route_may_not_be_silently_reoffered": true
+  },
+  "dependencies": {
+    "event": "TASK_DEPENDENCY",
+    "ledger_method": "TaskExecutionLedger.bind_dependency",
+    "qualified_binding_method": "QualifiedVeraRuntime.bind_task_dependency",
+    "kinds": [
+      "EFFECT",
+      "COORDINATION_COMMAND",
+      "PROVIDER_EFFECT"
+    ],
+    "exact_subject_and_packet_bound": true,
+    "exact_replay_idempotent": true,
+    "duplicate_target_under_different_dependency_id": "DENY",
+    "qualified_scoped_paths": {
+      "coordination": "QualifiedVeraRuntime.invoke_task_coordination",
+      "provider": "QualifiedVeraRuntime.prepare_task_provider_effect",
+      "pc": "QualifiedVeraRuntime.prepare_task_pc_job using EFFECT target pc:<envelope_id>"
+    },
+    "assessment_method": "QualifiedVeraRuntime.assess_task_dependencies",
+    "statuses": [
+      "SATISFIED",
+      "MISSING",
+      "PENDING",
+      "RECOVERY_REQUIRED",
+      "TERMINAL_UNSATISFIED"
+    ],
+    "success_semantics": {
+      "effect": [
+        "COMMITTED",
+        "RECONCILED_COMMITTED"
+      ],
+      "coordination": "durable result journal + successful terminal effect + repository consistency",
+      "provider": [
+        "COMMITTED",
+        "RECONCILED_COMMITTED"
+      ]
+    },
+    "terminal_no_effect_is_satisfied": false,
+    "unresolved_or_unsatisfied_forbids_closeout": true,
+    "restart_context_surfaces_assessment": true,
+    "closeout_auto_appends_dependency_evidence_digest": true
   }
 }
