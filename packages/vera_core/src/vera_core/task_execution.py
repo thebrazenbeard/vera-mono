@@ -161,6 +161,13 @@ TASK_DEPENDENCY_STATUSES = frozenset(
 
 
 @dataclass(frozen=True, slots=True)
+class TaskDependencyCancellation:
+    dependency_id: str
+    reason: str
+    event_digest: str
+
+
+@dataclass(frozen=True, slots=True)
 class TaskDependencyAssessment:
     dependency_id: str
     kind: str
@@ -220,6 +227,7 @@ class TaskState:
     opened_lifecycle_evidence_digest: str
     latest_checkpoint: Mapping[str, Any] | None
     dependencies: tuple[TaskDependency, ...]
+    dependency_cancellations: tuple[TaskDependencyCancellation, ...]
     corrections: tuple[TaskCorrection, ...]
     unresolved_correction_ids: tuple[str, ...]
     closeout: TaskCloseout | None
@@ -228,6 +236,21 @@ class TaskState:
     @property
     def closed(self) -> bool:
         return self.closeout is not None
+
+    @property
+    def cancelled_dependency_ids(self) -> tuple[str, ...]:
+        return tuple(
+            item.dependency_id for item in self.dependency_cancellations
+        )
+
+    @property
+    def active_dependencies(self) -> tuple[TaskDependency, ...]:
+        cancelled = set(self.cancelled_dependency_ids)
+        return tuple(
+            item
+            for item in self.dependencies
+            if item.dependency_id not in cancelled
+        )
 
 
 class TaskExecutionLedger:
@@ -242,6 +265,7 @@ class TaskExecutionLedger:
         {
             "TASK_OPENED",
             "TASK_DEPENDENCY",
+            "TASK_DEPENDENCY_CANCELLED",
             "TASK_CORRECTION",
             "TASK_CHECKPOINT",
             "TASK_CLOSED",
@@ -483,6 +507,43 @@ class TaskExecutionLedger:
                 "packet_digest": state.packet.packet_digest,
                 "kind": kind,
                 "target_id": target_id,
+            },
+        )
+        return self.read(task_id)
+
+    def cancel_dependency(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        reason: str,
+    ) -> TaskState:
+        state = self.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot cancel dependency"
+            )
+        _require_text(dependency_id, "dependency_id")
+        _require_text(reason, "reason")
+        dependency = {
+            item.dependency_id: item for item in state.active_dependencies
+        }.get(dependency_id)
+        if dependency is None:
+            raise TaskExecutionError(
+                "task dependency is not active"
+            )
+        self.append(
+            event_id=f"{task_id}:DEPENDENCY_CANCELLED:{dependency_id}",
+            task_id=task_id,
+            event_type="TASK_DEPENDENCY_CANCELLED",
+            payload={
+                "schema": "VERA_MONO_TASK_DEPENDENCY_CANCELLATION_V1",
+                "dependency_id": dependency_id,
+                "subject": state.packet.subject,
+                "packet_digest": state.packet.packet_digest,
+                "kind": dependency.kind,
+                "target_id": dependency.target_id,
+                "reason": reason,
             },
         )
         return self.read(task_id)
@@ -754,6 +815,8 @@ class TaskExecutionLedger:
 
         latest_checkpoint: Mapping[str, Any] | None = None
         dependencies: list[TaskDependency] = []
+        dependency_cancellations: list[TaskDependencyCancellation] = []
+        cancelled_dependency_ids: set[str] = set()
         corrections: list[TaskCorrection] = []
         unresolved_corrections: set[str] = set()
         closeout: TaskCloseout | None = None
@@ -808,6 +871,52 @@ class TaskExecutionLedger:
                         event_digest=event.event_digest,
                     )
                 )
+            elif event.event_type == "TASK_DEPENDENCY_CANCELLED":
+                dependency_id = _require_text(
+                    event.payload.get("dependency_id"),
+                    "dependency_id",
+                )
+                if event.payload.get("subject") != packet.subject:
+                    raise TaskExecutionError(
+                        "dependency cancellation subject diverges from task packet"
+                    )
+                if event.payload.get("packet_digest") != packet.packet_digest:
+                    raise TaskExecutionError(
+                        "dependency cancellation packet digest mismatch"
+                    )
+                dependency = next(
+                    (
+                        item
+                        for item in dependencies
+                        if item.dependency_id == dependency_id
+                    ),
+                    None,
+                )
+                if dependency is None:
+                    raise TaskExecutionError(
+                        "dependency cancellation appears before binding"
+                    )
+                if dependency_id in cancelled_dependency_ids:
+                    raise TaskExecutionError(
+                        "duplicate dependency cancellation in task history"
+                    )
+                if (
+                    event.payload.get("kind") != dependency.kind
+                    or event.payload.get("target_id") != dependency.target_id
+                ):
+                    raise TaskExecutionError(
+                        "dependency cancellation target binding mismatch"
+                    )
+                cancellation = TaskDependencyCancellation(
+                    dependency_id=dependency_id,
+                    reason=_require_text(
+                        event.payload.get("reason"),
+                        "dependency cancellation reason",
+                    ),
+                    event_digest=event.event_digest,
+                )
+                dependency_cancellations.append(cancellation)
+                cancelled_dependency_ids.add(dependency_id)
             elif event.event_type == "TASK_CORRECTION":
                 correction_id = _require_text(
                     event.payload.get("correction_id"),
@@ -923,6 +1032,7 @@ class TaskExecutionLedger:
             opened_lifecycle_evidence_digest=opened_lifecycle,
             latest_checkpoint=latest_checkpoint,
             dependencies=tuple(dependencies),
+            dependency_cancellations=tuple(dependency_cancellations),
             corrections=tuple(corrections),
             unresolved_correction_ids=tuple(
                 sorted(unresolved_corrections)
@@ -1055,6 +1165,16 @@ class TaskExecutionLedger:
                 }
                 for state in states
                 if state.dependencies
+            ],
+            "cancelled_dependencies": [
+                {
+                    "task_id": state.task_id,
+                    "dependency_id": cancellation.dependency_id,
+                    "reason": cancellation.reason,
+                    "event_digest": cancellation.event_digest,
+                }
+                for state in states
+                for cancellation in state.dependency_cancellations
             ],
             "dependency_owners": [
                 {
