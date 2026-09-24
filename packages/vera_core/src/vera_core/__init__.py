@@ -150,6 +150,20 @@ from .source_mutation_binding import (
     SourceMutationBindingError,
     SourceMutationBindingStore,
 )
+from .source_verification import (
+    SourceCheckObservation,
+    SourceVerificationError,
+    SourceVerificationReceipt,
+    SourceVerificationRequirement,
+    SourceVerificationStore,
+    SourceVerificationTransport,
+    SourceVerificationTransportResult,
+    source_verification_requirements,
+)
+from .source_verification_adapter import (
+    QualifiedSourceVerificationAdapter,
+    SourceVerificationAssessment,
+)
 from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
@@ -211,6 +225,16 @@ __all__ = [
     "SourceMutationBinding",
     "SourceMutationBindingError",
     "SourceMutationBindingStore",
+    "SourceCheckObservation",
+    "SourceVerificationAssessment",
+    "SourceVerificationError",
+    "SourceVerificationReceipt",
+    "SourceVerificationRequirement",
+    "SourceVerificationStore",
+    "SourceVerificationTransport",
+    "SourceVerificationTransportResult",
+    "QualifiedSourceVerificationAdapter",
+    "source_verification_requirements",
     "SourceWritableScope",
     "normalize_source_path",
     "source_provider_id",
