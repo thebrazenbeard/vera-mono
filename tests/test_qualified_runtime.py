@@ -21,6 +21,30 @@ IDENTITY = "vera"
 PROVIDER = "example-provider"
 
 
+class StubPCTransport:
+    def __init__(self, host_id):
+        self.host_id = host_id
+        self.calls = []
+
+    def execute(self, job, authorization):
+        self.calls.append((job.envelope_id, authorization.envelope_id))
+        return {"transport": "pc", "operation": job.operation_id}
+
+
+class StubProviderTransport:
+    def __init__(self, provider_id):
+        self.provider_id = provider_id
+        self.calls = []
+
+    def execute(self, operation, request_payload):
+        self.calls.append((operation, request_payload))
+        return {
+            "transport": "provider",
+            "operation": operation,
+            "payload": request_payload,
+        }
+
+
 def accepted_state(tmp_path):
     state = VeraStateDirectory(
         tmp_path / "state",
@@ -496,3 +520,148 @@ def test_qualified_runtime_audits_ambiguous_effect_reconciliation(tmp_path):
     assert reconciled.state.value == "RECONCILED_NO_EFFECT"
     assert runtime.audit.latest(effect_id).event_type == "RECONCILED_NO_EFFECT"
     assert runtime.audit.verify_chain() == runtime.audit.head
+
+
+def test_qualified_provider_execution_uses_host_injected_transport(tmp_path):
+    state = accepted_state(tmp_path)
+    verifier = HmacProviderAuthority(
+        "provider-authority",
+        PROVIDER,
+        b"p" * 32,
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=verifier.authority_id,
+        role="PROVIDER",
+        provider_id=PROVIDER,
+        key_id=verifier.key_id,
+        key_digest=verifier.key_digest,
+        expected_registry_generation=0,
+    )
+    transport = StubProviderTransport(PROVIDER)
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        provider_authority_verifiers={PROVIDER: verifier},
+        provider_execution_transports={PROVIDER: transport},
+    )
+    prepared = runtime.prepare_provider_effect(
+        effect_id="transport-bound-provider",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload={"value": 7},
+    )
+    authority = verifier.issue(
+        effect_id=prepared.effect_id,
+        operation=prepared.operation,
+        request_digest=prepared.request_digest,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+
+    result = runtime.execute_provider_effect(
+        prepared,
+        authority=authority,
+    )
+
+    assert transport.calls == [("WRITE", {"value": 7})]
+    assert result.value["transport"] == "provider"
+    assert runtime.audit.latest(
+        "provider:example-provider:transport-bound-provider"
+    ).event_type == "COMMITTED"
+
+
+def test_qualified_pc_execution_uses_host_injected_transport(tmp_path):
+    state = accepted_state(tmp_path)
+    bound_job = pc_job()
+    bound_authorization = pc_authorization(bound_job)
+    verifier = HmacPCJobAuthority(
+        bound_authorization.issuer_id,
+        b"c" * 32,
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=verifier.authority_id,
+        role="PC",
+        key_id=verifier.key_id,
+        key_digest=verifier.key_digest,
+        expected_registry_generation=0,
+    )
+    transport = StubPCTransport(bound_job.host_id)
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        pc_authority_verifier=verifier,
+        pc_execution_transport=transport,
+        clock=lambda: datetime(
+            2026,
+            8,
+            1,
+            20,
+            5,
+            tzinfo=timezone.utc,
+        ),
+    )
+    prepared = runtime.prepare_pc_job(
+        job=bound_job,
+        authorization=bound_authorization,
+    )
+    proof = verifier.issue(
+        job=bound_job,
+        authorization=bound_authorization,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+
+    result = runtime.execute_pc_job(
+        prepared,
+        authority_proof=proof,
+    )
+
+    assert transport.calls == [
+        (bound_job.envelope_id, bound_authorization.envelope_id)
+    ]
+    assert result.value == {"transport": "pc", "operation": "PING"}
+
+
+def test_execution_transport_requires_matching_trusted_authority(tmp_path):
+    state = accepted_state(tmp_path)
+
+    with pytest.raises(ValueError, match="trusted PC authority verifier"):
+        QualifiedVeraRuntime.from_state_directory(
+            state,
+            pc_execution_transport=StubPCTransport(
+                "00000000-0000-7000-8000-000000000003"
+            ),
+        )
+
+    with pytest.raises(ValueError, match="trusted provider authority verifier"):
+        QualifiedVeraRuntime.from_state_directory(
+            state,
+            provider_execution_transports={
+                PROVIDER: StubProviderTransport(PROVIDER)
+            },
+        )
+
+
+def test_provider_execution_transport_identity_mismatch_fails_at_composition(tmp_path):
+    state = accepted_state(tmp_path)
+    verifier = HmacProviderAuthority(
+        "provider-authority",
+        PROVIDER,
+        b"p" * 32,
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=verifier.authority_id,
+        role="PROVIDER",
+        provider_id=PROVIDER,
+        key_id=verifier.key_id,
+        key_digest=verifier.key_digest,
+        expected_registry_generation=0,
+    )
+
+    with pytest.raises(ValueError, match="identity mismatch"):
+        QualifiedVeraRuntime.from_state_directory(
+            state,
+            provider_authority_verifiers={PROVIDER: verifier},
+            provider_execution_transports={
+                PROVIDER: StubProviderTransport("wrong-provider")
+            },
+        )
