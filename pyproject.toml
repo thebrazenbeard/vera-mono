@@ -9,6 +9,47 @@ requires-python = ">=3.12"
 description = "Self-contained Vera monorepo"
 dependencies = ["jsonschema>=4.0"]
 
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = [
+  "packages/vera_core/src",
+  "packages/rezon/src",
+  "packages/portfolio_runtime/src",
+  "packages/vera_runtime/src",
+  "packages/vera_identity/src",
+  "packages/vera_coordination/src",
+  "packages/vera_memory/src",
+  "packages/vera_assurance/src",
+  "packages/vera_pc_connection/src",
+  "packages/vera_control/src",
+  "packages/vera_recovery/src",
+]
+include = [
+  "vera_core*",
+  "rezon*",
+  "portfolio_runtime*",
+  "protocol*",
+  "runtime_cohesion*",
+  "tul_fixture*",
+  "vera_identity*",
+  "coordination_bus*",
+  "vera_memory*",
+  "vera_assurance*",
+  "pc_connection*",
+  "vera_control*",
+  "r8a0*",
+  "vera_recovery*",
+]
+
+[tool.setuptools.package-data]
+"*" = [
+  "resources/**/*",
+  "resources/**/**/*",
+  "resources/**/**/**/*",
+]
+
 [tool.pytest.ini_options]
 pythonpath = [
   "packages/vera_core/src",
