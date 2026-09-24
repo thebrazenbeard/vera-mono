@@ -80,7 +80,11 @@ class QualifiedPCExecutionAdapter:
         self.journal = journal
         if bindings is not None and type(bindings) is not PCExecutionBindingStore:
             raise TypeError("bindings must be exact PCExecutionBindingStore")
-        self.bindings = bindings
+        self.bindings = (
+            runtime.pc_execution_bindings
+            if bindings is None
+            else bindings
+        )
 
     @staticmethod
     def _event(
