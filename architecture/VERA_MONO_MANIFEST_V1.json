@@ -244,6 +244,19 @@
       "BLOCKED_CANDIDATE",
       "CONTROL_SOURCE_DRIFT"
     ],
-    "protected_effect_authority_minted_by_lifecycle": false
+    "protected_effect_authority_minted_by_lifecycle": false,
+    "authority": {
+      "pc_verifier": "gateway-injected PCJobAuthorityVerifier",
+      "provider_verifiers": "gateway-injected provider-id registry",
+      "caller_minted_verifier_accepted": false,
+      "pc_authorization_freshness_checked": true,
+      "provider_authority_binds_effect_id": true
+    },
+    "unresolved_effect_barrier": {
+      "contract": "architecture/VERA_EFFECT_RECOVERY_BARRIER_V1.json",
+      "blocks_lifecycle_advance": true,
+      "blocks_new_outbound_mutation": true,
+      "explicit_reconciliation_required": true
+    }
   }
 }
