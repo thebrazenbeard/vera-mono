@@ -214,6 +214,7 @@ class TaskCloseoutAssessment:
     provider_recovery_ids: tuple[str, ...]
     dependency_assessments: tuple[TaskDependencyAssessment, ...]
     unsatisfied_dependency_ids: tuple[str, ...]
+    cancelled_dependency_ids: tuple[str, ...]
     unresolved_correction_ids: tuple[str, ...]
     supplied_blockers: tuple[str, ...]
     ready: bool
