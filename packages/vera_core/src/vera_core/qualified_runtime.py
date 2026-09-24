@@ -29,21 +29,14 @@ from .outbound_authority import (
 from .outbound_audit import OutboundAuditConsistency, OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 from .pc_execution_binding import PCExecutionBindingStore, PreparedPCDispatch
+from .provider_execution_binding import (
+    PreparedProviderDispatch,
+    ProviderExecutionBindingStore,
+)
 from .state import VeraStateDirectory
 
 
 T = TypeVar("T")
-
-
-@dataclass(frozen=True, slots=True)
-class PreparedProviderDispatch:
-    permit: AcceptedLifecyclePermit
-    effect_id: str
-    provider_id: str
-    operation: str
-    request_payload: Any
-    request_digest: str
-    authority_subject: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +60,7 @@ class QualifiedVeraRuntime:
     pc_execution_transport: PCExecutionTransport | None
     provider_execution_transports: Mapping[str, ProviderExecutionTransport]
     pc_execution_bindings: PCExecutionBindingStore
+    provider_execution_bindings: ProviderExecutionBindingStore
 
     @classmethod
     def from_state_directory(
@@ -96,6 +90,9 @@ class QualifiedVeraRuntime:
         with lifecycle.action_lock():
             audit.repair_from_fence(fence)
         pc_execution_bindings = state.pc_execution_binding_store()
+        provider_execution_bindings = (
+            state.provider_execution_binding_store()
+        )
 
         if pc_authority_verifier is not None:
             outbound_trust.assert_current(
@@ -194,6 +191,7 @@ class QualifiedVeraRuntime:
             pc_execution_transport=pc_execution_transport,
             provider_execution_transports=provider_transports,
             pc_execution_bindings=pc_execution_bindings,
+            provider_execution_bindings=provider_execution_bindings,
         )
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
@@ -316,7 +314,7 @@ class QualifiedVeraRuntime:
             operation=operation,
             request_payload=request_payload,
         )
-        return PreparedProviderDispatch(
+        prepared = PreparedProviderDispatch(
             permit=permit,
             effect_id=effect_id,
             provider_id=provider_id,
@@ -331,6 +329,36 @@ class QualifiedVeraRuntime:
                 lifecycle_permit_digest=permit.permit_digest,
             ),
         )
+        self.provider_execution_bindings.bind(prepared)
+        return prepared
+
+    def rehydrate_provider_effect(
+        self,
+        effect_id: str,
+        *,
+        request_payload: Any,
+    ) -> PreparedProviderDispatch:
+        binding = self.provider_execution_bindings.read(effect_id)
+        observed_digest = self.effects.provider_request_digest(
+            provider_id=binding.provider_id,
+            operation=binding.operation,
+            request_payload=request_payload,
+        )
+        if observed_digest != binding.request_digest:
+            raise ValueError(
+                "rehydrated provider request payload does not match durable binding"
+            )
+        prepared = PreparedProviderDispatch(
+            permit=binding.permit,
+            effect_id=binding.effect_id,
+            provider_id=binding.provider_id,
+            operation=binding.operation,
+            request_payload=request_payload,
+            request_digest=binding.request_digest,
+            authority_subject=binding.authority_subject,
+        )
+        self.provider_execution_bindings.bind(prepared)
+        return prepared
 
     def dispatch_provider_effect(
         self,
@@ -402,5 +430,8 @@ class QualifiedVeraRuntime:
         }
         context["pc_execution_bindings"] = (
             self.pc_execution_bindings.context()
+        )
+        context["provider_execution_bindings"] = (
+            self.provider_execution_bindings.context()
         )
         return context
