@@ -57,6 +57,9 @@ class FakeSourceVerificationTransport:
     def __post_init__(self):
         self.calls = []
 
+    def observe_ref_head(self):
+        return self.observed_ref_head
+
     def verify(self, commit_sha, required_checks):
         self.calls.append((commit_sha, required_checks))
         return SourceVerificationTransportResult(
@@ -266,6 +269,39 @@ def test_failed_check_remains_pending_and_can_be_reverified(tmp_path):
     assert runtime.assess_task_dependencies(
         "task-verify"
     )[0].status == "SATISFIED"
+
+
+def test_live_ref_movement_after_pass_invalidates_stored_source_currentness(tmp_path):
+    verification_transport = FakeSourceVerificationTransport()
+    _, runtime, verifier, _ = build_runtime(
+        tmp_path,
+        verification_transport,
+    )
+    execute_mutation(runtime, verifier)
+    receipt = runtime.verify_source_mutation("mutation-verify-1")
+    assert receipt.status == "PASS"
+    assert runtime.assess_task_dependencies(
+        "task-verify"
+    )[0].status == "SATISFIED"
+
+    verification_transport.observed_ref_head = "later-head"
+    verification = runtime.assess_source_verification(
+        "mutation-verify-1"
+    )
+    assert verification.latest_status == "PASS"
+    assert verification.passed is False
+    assert verification.current_ref_head == "later-head"
+    assert verification.current_ref_matches_commit is False
+
+    dependency = runtime.assess_task_dependencies(
+        "task-verify"
+    )[0]
+    assert dependency.status == "PROVENANCE_MISMATCH"
+    closeout = runtime.assess_task_closeout(
+        "task-verify",
+        surfaces={"source": "changed-and-verified"},
+    )
+    assert closeout.ready is False
 
 
 def test_stale_ref_head_is_provenance_mismatch_not_source_success(tmp_path):
