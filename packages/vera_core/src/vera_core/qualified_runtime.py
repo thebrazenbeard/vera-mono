@@ -1643,6 +1643,53 @@ class QualifiedVeraRuntime:
                         )
                     )
 
+        route_requirements = route_verification_requirements(
+            state.packet.evidence_requirements
+        )
+        route_assessments: tuple[
+            RouteVerificationAssessment, ...
+        ] = ()
+        if route_requirements:
+            if "current route" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "ROUTE_VERIFY evidence requires the current route "
+                    "closeout surface"
+                )
+            elif surfaces.get("current route") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required route evidence cannot close a current route "
+                    "surface that is not verified-current or "
+                    "changed-and-verified"
+                )
+            try:
+                route_assessments = (
+                    self.route_verification_adapter().assess_task(task_id)
+                )
+            except RouteVerificationError as exc:
+                reasons.append(
+                    "route verification contract is invalid: " + str(exc)
+                )
+            else:
+                not_current_routes = tuple(
+                    assessment
+                    for assessment in route_assessments
+                    if not assessment.passed
+                )
+                if not_current_routes:
+                    reasons.append(
+                        "required routes are not verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.route_id}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current_routes
+                        )
+                    )
+
         active_delegation_ids = tuple(
             delegation.delegation_id
             for delegation in state.active_delegations
@@ -1740,6 +1787,19 @@ class QualifiedVeraRuntime:
                         in missing_installation_evidence
                     )
                 )
+            route_assessments = (
+                self.route_verification_adapter().assess_task(task_id)
+            )
+            missing_route_evidence = tuple(
+                item.route_id
+                for item in route_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_route_evidence:
+                raise TaskExecutionError(
+                    "verified route lacks durable evidence digest: "
+                    + ", ".join(missing_route_evidence)
+                )
             binding_digests = {
                 dependency.dependency_id: dependency.event_digest
                 for dependency in state.dependencies
@@ -1784,6 +1844,16 @@ class QualifiedVeraRuntime:
                 if item.passed
                 and item.latest_receipt_digest is not None
             )
+            route_evidence_refs = tuple(
+                (
+                    "task-route:"
+                    f"{item.route_id}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in route_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
             merged_evidence = tuple(
                 dict.fromkeys(
                     (
@@ -1792,6 +1862,7 @@ class QualifiedVeraRuntime:
                         *cancellation_evidence_refs,
                         *delegation_evidence_refs,
                         *installation_evidence_refs,
+                        *route_evidence_refs,
                     )
                 )
             )
