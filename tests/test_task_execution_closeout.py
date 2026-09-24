@@ -696,3 +696,42 @@ def test_task_scoped_coordination_path_binds_and_satisfies_dependency(tmp_path):
             args=(draft(),),
         )
     assert len(runtime.tasks.read("task-auto-coordination").dependencies) == 1
+
+
+def test_task_dependency_target_has_one_durable_task_owner(tmp_path):
+    ledger = TaskExecutionLedger(tmp_path / "tasks.sqlite")
+    ledger.open_task(
+        "task-owner-a",
+        packet(),
+        lifecycle_evidence_digest="a" * 64,
+    )
+    ledger.open_task(
+        "task-owner-b",
+        packet(),
+        lifecycle_evidence_digest="b" * 64,
+    )
+    ledger.bind_dependency(
+        "task-owner-a",
+        "dep-owned",
+        kind="EFFECT",
+        target_id="effect:single-owner",
+    )
+
+    with pytest.raises(TaskExecutionError):
+        ledger.bind_dependency(
+            "task-owner-b",
+            "dep-laundered",
+            kind="EFFECT",
+            target_id="effect:single-owner",
+        )
+
+    context = ledger.context()
+    owners = [
+        item
+        for item in context["dependency_owners"]
+        if item["kind"] == "EFFECT"
+        and item["target_id"] == "effect:single-owner"
+    ]
+    assert len(owners) == 1
+    assert owners[0]["task_id"] == "task-owner-a"
+    assert owners[0]["dependency_id"] == "dep-owned"
