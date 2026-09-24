@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import asdict, dataclass, is_dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -150,63 +151,69 @@ class LifecycleEffectGateway:
         )
 
         with self.lifecycle.action_lock():
-            self.fence.assert_clear()
-            self.lifecycle.validate_action_permit(permit)
-            authority_evidence_digest = verify_authority()
-            self._require_sha256(
-                authority_evidence_digest,
-                "authority_evidence_digest",
+            trust_guard = (
+                nullcontext()
+                if self._outbound_trust_registry is None
+                else self._outbound_trust_registry.action_lock()
             )
-            self.fence.reserve(
-                effect_id=effect_id,
-                request_digest=request_digest,
-                mechanical_permit_digest=mechanical_permit_digest,
-                authority_evidence_digest=authority_evidence_digest,
-                currentness_evidence_digest=permit.permit_digest,
-            )
-            # Re-check after durable reservation and before the single-use
-            # dispatch claim. The shared lifecycle lock prevents a canonical
-            # lifecycle transition from interleaving with execution.
-            self.lifecycle.validate_action_permit(permit)
-            self.fence.claim_dispatch(
-                effect_id=effect_id,
-                request_digest=request_digest,
-                mechanical_permit_digest=mechanical_permit_digest,
-                authority_evidence_digest=authority_evidence_digest,
-                currentness_evidence_digest=permit.permit_digest,
-            )
-            try:
-                value = execute()
-                result_digest = _digest(
-                    {
-                        "schema": "VERA_MONO_EFFECT_RESULT_V1",
-                        "effect_id": effect_id,
-                        "effect_kind": effect_kind,
-                        "value": _normalize(value),
-                    }
+            with trust_guard:
+                self.fence.assert_clear()
+                self.lifecycle.validate_action_permit(permit)
+                authority_evidence_digest = verify_authority()
+                self._require_sha256(
+                    authority_evidence_digest,
+                    "authority_evidence_digest",
                 )
-            except BaseException:
-                self.fence.settle(
-                    effect_id,
-                    result_digest=None,
-                    completion_known=False,
+                self.fence.reserve(
+                    effect_id=effect_id,
+                    request_digest=request_digest,
+                    mechanical_permit_digest=mechanical_permit_digest,
+                    authority_evidence_digest=authority_evidence_digest,
+                    currentness_evidence_digest=permit.permit_digest,
                 )
-                raise
+                # Re-check after durable reservation and before the single-use
+                # dispatch claim. The shared lifecycle lock prevents a canonical
+                # lifecycle transition from interleaving with execution.
+                self.lifecycle.validate_action_permit(permit)
+                self.fence.claim_dispatch(
+                    effect_id=effect_id,
+                    request_digest=request_digest,
+                    mechanical_permit_digest=mechanical_permit_digest,
+                    authority_evidence_digest=authority_evidence_digest,
+                    currentness_evidence_digest=permit.permit_digest,
+                )
+                try:
+                    value = execute()
+                    result_digest = _digest(
+                        {
+                            "schema": "VERA_MONO_EFFECT_RESULT_V1",
+                            "effect_id": effect_id,
+                            "effect_kind": effect_kind,
+                            "value": _normalize(value),
+                        }
+                    )
+                except BaseException:
+                    self.fence.settle(
+                        effect_id,
+                        result_digest=None,
+                        completion_known=False,
+                    )
+                    raise
 
-            committed = self.fence.settle(
-                effect_id,
-                result_digest=result_digest,
-                completion_known=True,
-            )
-            return OutboundEffectResult(
-                effect_id=effect_id,
-                effect_kind=effect_kind,
-                request_digest=request_digest,
-                lifecycle_permit_digest=permit.permit_digest,
-                result_digest=result_digest,
-                fence_receipt=committed,
-                value=value,
-            )
+                committed = self.fence.settle(
+                    effect_id,
+                    result_digest=result_digest,
+                    completion_known=True,
+                )
+                return OutboundEffectResult(
+                    effect_id=effect_id,
+                    effect_kind=effect_kind,
+                    request_digest=request_digest,
+                    lifecycle_permit_digest=permit.permit_digest,
+                    result_digest=result_digest,
+                    fence_receipt=committed,
+                    value=value,
+                )
 
     def dispatch_pc_job(
         self,
