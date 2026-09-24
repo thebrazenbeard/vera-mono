@@ -10,6 +10,7 @@ from vera_recovery import NativeRecoveryCheckpointStore
 
 from .lifecycle import LifecycleReconstruction, NativeVeraLifecycle
 from .lifecycle_journal import LifecycleJournal
+from .outbound_audit import OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 from .pc_execution_binding import PCExecutionBindingStore
 
@@ -22,6 +23,7 @@ class VeraStatePaths:
     currentness: Path
     lifecycle_journal: Path
     effects: Path
+    outbound_audit: Path
     outbound_trust: Path
     pc_execution_bindings: Path
     trust: Path
@@ -59,6 +61,7 @@ class VeraStateDirectory:
             currentness=candidate / "control" / "currentness.sqlite",
             lifecycle_journal=candidate / "lifecycle" / "journal.sqlite",
             effects=candidate / "effects" / "effects.sqlite",
+            outbound_audit=candidate / "effects" / "audit.sqlite",
             outbound_trust=candidate / "trust" / "outbound.sqlite",
             pc_execution_bindings=(
                 candidate / "pc" / "execution-bindings.sqlite"
@@ -99,6 +102,9 @@ class VeraStateDirectory:
     def effect_fence(self) -> EffectFence:
         return EffectFence(self.paths.effects)
 
+    def outbound_execution_audit(self) -> OutboundExecutionAudit:
+        return OutboundExecutionAudit(self.paths.outbound_audit)
+
     def outbound_trust_registry(self) -> OutboundTrustRegistry:
         return OutboundTrustRegistry(self.paths.outbound_trust)
 
@@ -111,4 +117,5 @@ class VeraStateDirectory:
     def resume_context(self) -> dict:
         context = self.reconstruct().as_resume_context()
         context["outbound_trust"] = self.outbound_trust_registry().context()
+        context["outbound_audit"] = self.outbound_execution_audit().context()
         return context
