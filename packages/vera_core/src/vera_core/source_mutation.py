@@ -11,6 +11,7 @@ from .execution_adapters import (
 )
 from .outbound_authority import ProviderAuthorityEnvelope
 from .provider_execution_binding import PreparedProviderDispatch
+from .source_mutation_binding import SourceMutationBinding
 from .task_execution import (
     TaskDelegationRef,
     TaskExecutionError,
@@ -242,6 +243,31 @@ class PreparedSourceMutation:
 class SourceMutationResult:
     transport_result: SourceMutationTransportResult
     outbound_result: Any
+
+
+@dataclass(frozen=True, slots=True)
+class SourceMutationRecoveryAssessment:
+    mutation_id: str
+    task_id: str
+    dependency_id: str
+    repository: str
+    ref: str
+    operation: str
+    path: str
+    destination_path: str | None
+    provider_fence_state: str | None
+    lifecycle_permit_current: bool
+    task_open: bool
+    packet_current: bool
+    writable_scope_current: bool
+    delegation_current: bool
+    provider_binding_current: bool
+    transport_available: bool
+    content_rehydration_required: bool
+    dispatch_candidate_allowed: bool
+    recovery_required: bool
+    terminal: bool
+    reason: str
 
 
 class QualifiedSourceMutationAdapter:
@@ -555,3 +581,200 @@ class QualifiedSourceMutationAdapter:
                 transport_result=outbound.value,
                 outbound_result=outbound,
             )
+
+    @staticmethod
+    def _binding_delegation_ref(
+        binding: SourceMutationBinding,
+    ) -> TaskDelegationRef | None:
+        raw = binding.delegation_ref
+        if raw is None:
+            return None
+        return TaskDelegationRef(
+            task_id=str(raw["task_id"]),
+            delegation_id=str(raw["delegation_id"]),
+            repository=str(raw["repository"]),
+            ref=str(raw["ref"]),
+            subject=str(raw["subject"]),
+            assignee_ref=str(raw["assignee_ref"]),
+            binding_event_digest=str(raw["binding_event_digest"]),
+        )
+
+    def assess_binding(
+        self,
+        binding: SourceMutationBinding,
+    ) -> SourceMutationRecoveryAssessment:
+        if type(binding) is not SourceMutationBinding:
+            raise TypeError(
+                "binding must be exact SourceMutationBinding"
+            )
+        reasons: list[str] = []
+
+        try:
+            task = self.runtime.tasks.read(binding.task_id)
+            task_open = not task.closed
+            packet_current = (
+                task.packet.packet_digest == binding.packet_digest
+            )
+            parsed: list[tuple[str, SourceWritableScope]] = []
+            for raw in task.packet.writable_scope:
+                try:
+                    parsed.append(
+                        (raw, SourceWritableScope.parse(raw))
+                    )
+                except SourceMutationError:
+                    continue
+            targets = [binding.path]
+            if binding.destination_path is not None:
+                targets.append(binding.destination_path)
+            matched: list[str] = []
+            writable_scope_current = True
+            for target in targets:
+                options = [
+                    raw
+                    for raw, scope in parsed
+                    if scope.matches(
+                        repository=binding.repository,
+                        ref=binding.ref,
+                        path=target,
+                    )
+                ]
+                if not options:
+                    writable_scope_current = False
+                    break
+                matched.extend(options)
+            if writable_scope_current:
+                writable_scope_current = (
+                    tuple(dict.fromkeys(matched))
+                    == binding.writable_scope_entries
+                )
+        except (KeyError, TaskExecutionError):
+            task_open = False
+            packet_current = False
+            writable_scope_current = False
+
+        expected_delegation = self._binding_delegation_ref(binding)
+        try:
+            observed_delegation = (
+                self.runtime.assert_task_subject_mutation_allowed(
+                    repository=binding.repository,
+                    ref=binding.ref,
+                    subject=binding.subject,
+                    actor_ref=binding.actor_ref,
+                    delegation_ref=expected_delegation,
+                )
+            )
+            delegation_current = (
+                observed_delegation == expected_delegation
+            )
+        except TaskExecutionError:
+            delegation_current = False
+
+        provider_binding_current = False
+        provider = None
+        try:
+            provider_binding = (
+                self.runtime.provider_execution_bindings.read(
+                    binding.provider_effect_id
+                )
+            )
+            provider_binding_current = (
+                provider_binding.binding_digest
+                == binding.provider_binding_digest
+                and provider_binding.request_digest
+                == binding.provider_request_digest
+                and provider_binding.permit.permit_digest
+                == binding.lifecycle_permit_digest
+            )
+            provider = self.runtime.assess_provider_effect(
+                binding.provider_effect_id
+            )
+        except (KeyError, ValueError):
+            provider_binding_current = False
+            provider = None
+
+        transport = self.transports.get(
+            (binding.repository, binding.ref)
+        )
+        transport_available = (
+            transport is not None
+            and transport.provider_id == binding.provider_id
+        )
+
+        if not task_open:
+            reasons.append("owning task is missing or closed")
+        if not packet_current:
+            reasons.append("task packet digest changed")
+        if not writable_scope_current:
+            reasons.append("task writable scope no longer matches binding")
+        if not delegation_current:
+            reasons.append("delegation ownership is no longer current")
+        if not provider_binding_current:
+            reasons.append("provider execution binding is missing or changed")
+        if not transport_available:
+            reasons.append("source mutation transport is unavailable")
+
+        lifecycle_current = (
+            False
+            if provider is None
+            else provider.lifecycle_permit_current
+        )
+        if provider is not None and not lifecycle_current:
+            reasons.append("bound lifecycle permit is stale")
+
+        recovery_required = (
+            not provider_binding_current
+            or (provider is not None and provider.recovery_required)
+        )
+        terminal = False if provider is None else provider.terminal
+        dispatch_candidate_allowed = bool(
+            provider is not None
+            and provider.dispatch_candidate_allowed
+            and task_open
+            and packet_current
+            and writable_scope_current
+            and delegation_current
+            and provider_binding_current
+            and transport_available
+        )
+        if dispatch_candidate_allowed:
+            reasons.append(
+                "all durable source/task/provider gates remain current"
+            )
+        elif provider is not None:
+            reasons.append(provider.reason)
+
+        return SourceMutationRecoveryAssessment(
+            mutation_id=binding.mutation_id,
+            task_id=binding.task_id,
+            dependency_id=binding.dependency_id,
+            repository=binding.repository,
+            ref=binding.ref,
+            operation=binding.operation,
+            path=binding.path,
+            destination_path=binding.destination_path,
+            provider_fence_state=(
+                None if provider is None else provider.fence_state
+            ),
+            lifecycle_permit_current=lifecycle_current,
+            task_open=task_open,
+            packet_current=packet_current,
+            writable_scope_current=writable_scope_current,
+            delegation_current=delegation_current,
+            provider_binding_current=provider_binding_current,
+            transport_available=transport_available,
+            content_rehydration_required=(
+                binding.operation == "WRITE_FILE"
+            ),
+            dispatch_candidate_allowed=dispatch_candidate_allowed,
+            recovery_required=recovery_required,
+            terminal=terminal,
+            reason="; ".join(reasons),
+        )
+
+    def recover_mutations(
+        self,
+    ) -> tuple[SourceMutationRecoveryAssessment, ...]:
+        return tuple(
+            self.assess_binding(binding)
+            for binding in self.runtime.source_mutation_bindings.all()
+        )
