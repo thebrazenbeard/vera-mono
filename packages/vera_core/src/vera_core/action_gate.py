@@ -798,6 +798,7 @@ class LifecycleBoundCoordinationBus:
             raise ValueError(
                 "coordination recovery requires a CoordinationCommandJournal"
             )
+        self.command_journal.verify_integrity()
         binding = self.command_journal.read_binding(command_id)
         result = self.command_journal.read_result(command_id)
         if self.effects.audit is not None:
