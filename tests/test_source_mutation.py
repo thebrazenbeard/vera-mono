@@ -1105,3 +1105,133 @@ def test_source_cancellation_refuses_ambiguous_dispatched_effect(tmp_path):
     assert runtime.fence.read(
         f"provider:{PROVIDER_ID}:mutation-cancel-ambiguous"
     ).state is EffectState.ATTEMPTED_UNKNOWN
+
+
+
+def test_committed_source_mutation_persists_exact_outcome_for_task_evidence(tmp_path):
+    state, runtime, verifier, _ = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-source-outcome",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    adapter = runtime.source_mutation_adapter()
+    prepared = adapter.prepare(
+        "task-source-outcome",
+        "dep-source-outcome",
+        write_request(
+            mutation_id="mutation-source-outcome",
+            path="src/outcome.py",
+        ),
+    )
+    result = adapter.execute(
+        prepared,
+        authority=authority_for(verifier, prepared),
+    )
+
+    outcome = state.source_mutation_outcome_store().read(
+        "mutation-source-outcome"
+    )
+    binding = state.source_mutation_binding_store().read(
+        "mutation-source-outcome"
+    )
+    assert outcome.source_binding_digest == binding.binding_digest
+    assert outcome.new_ref_head == result.transport_result.new_ref_head
+    assert outcome.previous_ref_head == "head-before"
+    assert outcome.effect_result_digest == result.outbound_result.result_digest
+
+    recovery = runtime.recover_source_mutations()[0]
+    assert recovery.outcome_current is True
+    assert recovery.new_ref_head == "head-after"
+    assert recovery.terminal is True
+    assert recovery.recovery_required is False
+    assert recovery.dispatch_candidate_allowed is False
+
+    dependency = runtime.assess_task_dependencies(
+        "task-source-outcome"
+    )[0]
+    assert dependency.status == "SATISFIED"
+    assert dependency.evidence_digest == outcome.outcome_digest
+
+
+def test_committed_source_effect_missing_outcome_is_recovery_required_not_success(tmp_path):
+    state, runtime, verifier, _ = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-missing-outcome",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    adapter = runtime.source_mutation_adapter()
+    prepared = adapter.prepare(
+        "task-missing-outcome",
+        "dep-missing-outcome",
+        write_request(
+            mutation_id="mutation-missing-outcome",
+            path="src/missing-outcome.py",
+        ),
+    )
+    adapter.execute(
+        prepared,
+        authority=authority_for(verifier, prepared),
+    )
+
+    # Equivalent to a crash/local persistence loss after the external source
+    # effect reached COMMITTED but before exact result identity was durable.
+    with sqlite3.connect(state.paths.source_mutation_outcomes) as db:
+        db.execute(
+            """
+            DELETE FROM source_mutation_outcomes
+            WHERE mutation_id='mutation-missing-outcome'
+            """
+        )
+
+    recovery = runtime.recover_source_mutations()[0]
+    assert recovery.provider_fence_state == "COMMITTED"
+    assert recovery.outcome_current is False
+    assert recovery.terminal is False
+    assert recovery.recovery_required is True
+    assert "exact source outcome" in recovery.reason
+
+    dependency = runtime.assess_task_dependencies(
+        "task-missing-outcome"
+    )[0]
+    assert dependency.status == "RECOVERY_REQUIRED"
+    assert "exact source mutation outcome" in dependency.reason
+
+
+def test_source_outcome_tamper_blocks_recovery_and_dependency_success(tmp_path):
+    state, runtime, verifier, _ = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-outcome-tamper",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    adapter = runtime.source_mutation_adapter()
+    prepared = adapter.prepare(
+        "task-outcome-tamper",
+        "dep-outcome-tamper",
+        write_request(
+            mutation_id="mutation-outcome-tamper",
+            path="src/outcome-tamper.py",
+        ),
+    )
+    adapter.execute(
+        prepared,
+        authority=authority_for(verifier, prepared),
+    )
+
+    with sqlite3.connect(state.paths.source_mutation_outcomes) as db:
+        db.execute(
+            """
+            UPDATE source_mutation_outcomes
+            SET payload_json='{}'
+            WHERE mutation_id='mutation-outcome-tamper'
+            """
+        )
+
+    recovery = runtime.recover_source_mutations()[0]
+    assert recovery.outcome_current is False
+    assert recovery.recovery_required is True
+    assert recovery.terminal is False
+
+    dependency = runtime.assess_task_dependencies(
+        "task-outcome-tamper"
+    )[0]
+    assert dependency.status == "RECOVERY_REQUIRED"
