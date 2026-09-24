@@ -8,6 +8,8 @@ from zipfile import ZipFile
 
 REQUIRED_FILES = {
     "vera_core/__init__.py",
+    "vera_core/__main__.py",
+    "vera_core/cli.py",
     "rezon/__init__.py",
     "portfolio_runtime/__init__.py",
     "protocol/__init__.py",
@@ -88,6 +90,21 @@ def main(argv: list[str]) -> int:
             fail("wheel METADATA does not identify vera-mono")
         if "\nVersion: 0.1.0\n" not in "\n" + metadata:
             fail("wheel METADATA carries unexpected version")
+
+        entry_point_names = sorted(
+            name
+            for name in names
+            if name.endswith(".dist-info/entry_points.txt")
+        )
+        if len(entry_point_names) != 1:
+            fail(
+                "wheel must contain exactly one distribution entry_points.txt"
+            )
+        entry_points = archive.read(entry_point_names[0]).decode("utf-8")
+        if "[console_scripts]" not in entry_points:
+            fail("wheel console script group is missing")
+        if "vera-mono = vera_core.cli:main" not in entry_points:
+            fail("wheel vera-mono console entrypoint is missing")
 
     print(
         "VERA_MONO_WHEEL_PASS "
