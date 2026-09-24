@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, TYPE_CHECKING
 
 from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
+from vera_assurance import EffectReceipt, EffectState
 
 from .execution_adapters import (
     SourceMutationTransport,
@@ -15,6 +16,7 @@ from .source_mutation_binding import SourceMutationBinding
 from .task_execution import (
     TaskDelegationRef,
     TaskExecutionError,
+    TaskState,
 )
 
 if TYPE_CHECKING:
@@ -243,6 +245,14 @@ class PreparedSourceMutation:
 class SourceMutationResult:
     transport_result: SourceMutationTransportResult
     outbound_result: Any
+
+
+@dataclass(frozen=True, slots=True)
+class SourceMutationCancellation:
+    mutation_id: str
+    mechanical_effect_id: str
+    effect_receipt: EffectReceipt
+    task_state: TaskState
 
 
 @dataclass(frozen=True, slots=True)
@@ -783,6 +793,144 @@ class QualifiedSourceMutationAdapter:
             terminal=terminal,
             reason="; ".join(reasons),
         )
+
+    def cancel_reserved_mutation(
+        self,
+        mutation_id: str,
+        *,
+        actor_ref: str,
+        delegation_ref: TaskDelegationRef | None = None,
+        reason: str,
+    ) -> SourceMutationCancellation:
+        _require_text(actor_ref, "cancellation actor_ref")
+        reason = _require_text(reason, "cancellation reason")
+        binding = self.runtime.source_mutation_bindings.read(mutation_id)
+
+        with self.runtime.tasks.action_lock():
+            task = self.runtime.tasks.read(binding.task_id)
+            if task.closed:
+                raise SourceMutationError(
+                    "closed task cannot cancel a prepared source mutation"
+                )
+            if task.packet.packet_digest != binding.packet_digest:
+                raise SourceMutationError(
+                    "task packet changed after source mutation preparation"
+                )
+            if "source" not in task.packet.relevant_surfaces:
+                raise SourceMutationError(
+                    "task no longer declares source as a relevant surface"
+                )
+
+            parsed: list[tuple[str, SourceWritableScope]] = []
+            for raw in task.packet.writable_scope:
+                try:
+                    parsed.append(
+                        (raw, SourceWritableScope.parse(raw))
+                    )
+                except SourceMutationError:
+                    continue
+            targets = [binding.path]
+            if binding.destination_path is not None:
+                targets.append(binding.destination_path)
+            matched: list[str] = []
+            for target in targets:
+                options = [
+                    raw
+                    for raw, scope in parsed
+                    if scope.matches(
+                        repository=binding.repository,
+                        ref=binding.ref,
+                        path=target,
+                    )
+                ]
+                if not options:
+                    raise SourceMutationError(
+                        "source cancellation target is outside current task writable scope"
+                    )
+                matched.extend(options)
+            if tuple(dict.fromkeys(matched)) != binding.writable_scope_entries:
+                raise SourceMutationError(
+                    "task writable scope changed after source mutation preparation"
+                )
+
+            self.runtime.assert_task_subject_mutation_allowed(
+                repository=binding.repository,
+                ref=binding.ref,
+                subject=binding.subject,
+                actor_ref=actor_ref,
+                delegation_ref=delegation_ref,
+            )
+
+            active_dependency = next(
+                (
+                    item
+                    for item in task.active_dependencies
+                    if item.dependency_id == binding.dependency_id
+                ),
+                None,
+            )
+            if (
+                active_dependency is None
+                or active_dependency.kind != "PROVIDER_EFFECT"
+                or active_dependency.target_id != binding.mutation_id
+            ):
+                raise SourceMutationError(
+                    "source mutation no longer owns its active task dependency"
+                )
+
+            provider_binding = self.runtime.provider_execution_bindings.read(
+                binding.provider_effect_id
+            )
+            if (
+                provider_binding.binding_digest
+                != binding.provider_binding_digest
+                or provider_binding.task_dependency is None
+                or provider_binding.task_dependency.task_id
+                != binding.task_id
+                or provider_binding.task_dependency.dependency_id
+                != binding.dependency_id
+            ):
+                raise SourceMutationError(
+                    "source/provider binding provenance diverged before cancellation"
+                )
+
+            mechanical_effect_id = (
+                f"provider:{binding.provider_id}:{binding.provider_effect_id}"
+            )
+            try:
+                receipt = self.runtime.fence.read(mechanical_effect_id)
+            except KeyError as exc:
+                raise SourceMutationError(
+                    "source mutation has no reserved mechanical effect to cancel"
+                ) from exc
+            if receipt.state is not EffectState.RESERVED:
+                raise SourceMutationError(
+                    "only a RESERVED pre-dispatch source effect may be cancelled"
+                )
+
+            cancelled = self.runtime.cancel_reserved_effect(
+                mechanical_effect_id
+            )
+            if cancelled.state is not EffectState.CANCELLED_PRE_DISPATCH:
+                raise SourceMutationError(
+                    "source effect cancellation did not reach pre-dispatch terminal state"
+                )
+            updated = self.runtime.tasks.cancel_dependency(
+                binding.task_id,
+                binding.dependency_id,
+                reason=(
+                    "SOURCE_MUTATION_CANCELLED_PRE_DISPATCH: "
+                    + reason
+                    + "; effect="
+                    + mechanical_effect_id
+                ),
+            )
+            return SourceMutationCancellation(
+                mutation_id=binding.mutation_id,
+                mechanical_effect_id=mechanical_effect_id,
+                effect_receipt=cancelled,
+                task_state=updated,
+            )
 
     def rehydrate_mutation(
         self,
