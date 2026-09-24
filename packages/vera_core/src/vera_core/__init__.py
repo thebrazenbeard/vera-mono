@@ -6,6 +6,14 @@ from .action_gate import (
     OutboundActionError,
     OutboundEffectResult,
 )
+from .effect_recovery import (
+    EffectRecoveryAuthorityError,
+    EffectReconciliationProof,
+    EffectReconciliationVerifier,
+    HmacEffectReconciliationAuthority,
+    LifecycleEffectRecovery,
+    reconciliation_subject,
+)
 from .lifecycle import (
     AcceptedLifecyclePermit,
     LifecycleActionDenied,
@@ -44,6 +52,12 @@ from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
     "AcceptedLifecyclePermit",
+    "EffectRecoveryAuthorityError",
+    "EffectReconciliationProof",
+    "EffectReconciliationVerifier",
+    "HmacEffectReconciliationAuthority",
+    "LifecycleEffectRecovery",
+    "reconciliation_subject",
     "CAPABILITIES",
     "CascadeEngine",
     "CascadeOutcome",
