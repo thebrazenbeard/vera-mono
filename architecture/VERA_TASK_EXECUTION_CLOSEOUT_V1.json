@@ -254,5 +254,17 @@
     "generic_provider_source_escape": "DENY",
     "source_verification_contract": "architecture/VERA_SOURCE_VERIFICATION_V1.json",
     "source_verification_runtime": "vera_core.QualifiedSourceVerificationAdapter"
+  },
+  "build_package": {
+    "package_contract": "architecture/VERA_MONOREPO_PACKAGE_V1.json",
+    "source_success_does_not_close_build_package": true,
+    "accepted_repository_build_evidence": [
+      "root vera-mono wheel builds from exact repository revision",
+      "wheel archive contains all required local package roots and representative runtime resources",
+      "isolated target installation imports all expected runtime packages",
+      "representative runtime resources are readable from installed artifact"
+    ],
+    "ci_workflow": ".github/workflows/tests.yml",
+    "boundary": "CI wheel installation is test evidence only; it is not install/registration or runtime-consumption evidence"
   }
 }
