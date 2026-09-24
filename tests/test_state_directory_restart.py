@@ -52,6 +52,9 @@ def test_state_directory_reopens_complete_lifecycle_without_conversation(tmp_pat
     assert context["accepted_runtime_id"] == "runtime-1"
     assert context["commitments"] == ["keep durable continuity"]
     assert context["unfinished_work"] == ["continue after restart"]
+    assert context["outbound_trust"]["registry_generation"] == 0
+    assert context["outbound_trust"]["scopes"] == []
+    assert state.paths.outbound_trust.is_file()
 
 
 def test_state_directory_does_not_provision_trust_or_authority(tmp_path):
