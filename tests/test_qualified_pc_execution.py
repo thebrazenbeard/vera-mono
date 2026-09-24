@@ -155,6 +155,16 @@ class Events:
         )
 
 
+class StubPCTransport:
+    def __init__(self, host_id):
+        self.host_id = host_id
+        self.calls = []
+
+    def execute(self, job, authorization):
+        self.calls.append((job.envelope_id, authorization.envelope_id))
+        return {"transport": "pc", "operation": job.operation_id}
+
+
 def runtime_and_adapter(tmp_path):
     state = accepted_state(tmp_path)
     bound_job = job()
@@ -617,3 +627,68 @@ def test_reserved_pre_dispatch_effect_can_only_cancel_and_abandon(tmp_path):
     assert abandoned.local_state is JournalState.ABANDONED
     assert runtime.fence.read(effect_id).state is EffectState.CANCELLED_PRE_DISPATCH
     assert runtime.audit.latest(effect_id).event_type == "CANCELLED_PRE_DISPATCH"
+
+
+def test_qualified_pc_journal_path_uses_runtime_injected_transport(tmp_path):
+    state = accepted_state(tmp_path)
+    bound_job = job()
+    bound_authorization = authorization(bound_job)
+    verifier = HmacPCJobAuthority(
+        bound_authorization.issuer_id,
+        b"c" * 32,
+        key_id="pc-key-v1",
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=verifier.authority_id,
+        role="PC",
+        key_id=verifier.key_id,
+        key_digest=verifier.key_digest,
+        expected_registry_generation=0,
+    )
+    transport = StubPCTransport(bound_job.host_id)
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        pc_authority_verifier=verifier,
+        pc_execution_transport=transport,
+        clock=lambda: datetime(
+            2026,
+            8,
+            1,
+            20,
+            5,
+            tzinfo=timezone.utc,
+        ),
+    )
+    prepared = runtime.prepare_pc_job(
+        job=bound_job,
+        authorization=bound_authorization,
+    )
+    proof = verifier.issue(
+        job=bound_job,
+        authorization=bound_authorization,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+    adapter = QualifiedPCExecutionAdapter(
+        runtime=runtime,
+        journal=JobJournal(
+            VerifiedJournalPath.for_test(tmp_path / "pc-transport-local")
+        ),
+        bindings=state.pc_execution_binding_store(),
+    )
+
+    result = adapter.execute_via_runtime_transport(
+        prepared,
+        authority_proof=proof,
+        lease=lease(),
+        event_source=Events(),
+    )
+
+    assert transport.calls == [
+        (bound_job.envelope_id, bound_authorization.envelope_id)
+    ]
+    assert result.projection.local_state is JournalState.RESULT_OBSERVED
+    assert result.outbound.value == {
+        "transport": "pc",
+        "operation": "PING",
+    }
