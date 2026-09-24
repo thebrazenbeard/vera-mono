@@ -817,3 +817,52 @@ def test_source_recovery_detects_tampered_provider_binding_cross_store(tmp_path)
     assert assessment.dispatch_candidate_allowed is False
     assert assessment.recovery_required is True
     assert transport.calls == []
+
+
+
+def test_source_restart_candidate_dies_when_provider_verifier_rotates(tmp_path):
+    state, runtime, verifier, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-provider-rotation",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    runtime.source_mutation_adapter().prepare(
+        "task-provider-rotation",
+        "dep-provider-rotation",
+        write_request(
+            mutation_id="mutation-provider-rotation",
+            path="src/provider-rotation.py",
+        ),
+    )
+
+    rotated = HmacProviderAuthority(
+        verifier.authority_id,
+        PROVIDER_ID,
+        b"r" * 32,
+        key_id="source-key-v2",
+    )
+    trust = state.outbound_trust_registry()
+    trust.rotate(
+        authority_id=rotated.authority_id,
+        role="PROVIDER",
+        provider_id=PROVIDER_ID,
+        key_id=rotated.key_id,
+        key_digest=rotated.key_digest,
+        expected_registry_generation=1,
+        expected_authority_generation=1,
+    )
+
+    assessment = runtime.recover_source_mutations()[0]
+    assert assessment.provider_authority_current is False
+    assert assessment.dispatch_candidate_allowed is False
+    assert "provider authority currentness" in assessment.reason
+
+    with pytest.raises(
+        SourceMutationError,
+        match="not a current dispatch candidate",
+    ):
+        runtime.source_mutation_adapter().rehydrate_mutation(
+            "mutation-provider-rotation",
+            content="print('qualified')\n",
+        )
+    assert transport.calls == []
