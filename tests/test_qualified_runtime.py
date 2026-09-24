@@ -179,7 +179,12 @@ def test_qualified_runtime_composes_state_bus_effects_and_recovery(tmp_path):
         execute=lambda: {"ok": True},
     )
     assert result.value == {"ok": True}
-    assert runtime.resume_context()["effect_recovery_required"] is False
+    resume = runtime.resume_context()
+    assert resume["effect_recovery_required"] is False
+    assert resume["outbound_trust"]["registry_generation"] == 2
+    assert {
+        scope["role"] for scope in resume["outbound_trust"]["scopes"]
+    } == {"PROVIDER", "RECONCILIATION"}
 
 
 def test_qualified_runtime_pc_adapter_owns_lifecycle_wiring(tmp_path):
