@@ -47,6 +47,7 @@ class PCExecutionRecoveryAssessment:
     effect_state: str | None
     replay_allowed: bool
     recovery_required: bool
+    pre_dispatch_cancel_allowed: bool
     reason: str
 
 
@@ -162,6 +163,7 @@ class QualifiedPCExecutionAdapter:
                 effect_state=effect_state,
                 replay_allowed=False,
                 recovery_required=False,
+                pre_dispatch_cancel_allowed=False,
                 reason="local journal attempt is terminal",
             )
 
@@ -172,6 +174,7 @@ class QualifiedPCExecutionAdapter:
                 effect_state=None,
                 replay_allowed=True,
                 recovery_required=False,
+                pre_dispatch_cancel_allowed=False,
                 reason="claim exists but preparation/external dispatch has not begun",
             )
 
@@ -182,6 +185,7 @@ class QualifiedPCExecutionAdapter:
                 effect_state=None,
                 replay_allowed=True,
                 recovery_required=False,
+                pre_dispatch_cancel_allowed=False,
                 reason="preparation is durable and no external effect record exists",
             )
 
@@ -199,7 +203,22 @@ class QualifiedPCExecutionAdapter:
                 effect_state=effect_state,
                 replay_allowed=False,
                 recovery_required=False,
+                pre_dispatch_cancel_allowed=False,
                 reason="local result and committed external effect evidence agree",
+            )
+
+        if effect is not None and effect.state is EffectState.RESERVED:
+            return PCExecutionRecoveryAssessment(
+                projection=projection,
+                effect_id=effect_id,
+                effect_state=effect_state,
+                replay_allowed=False,
+                recovery_required=False,
+                pre_dispatch_cancel_allowed=True,
+                reason=(
+                    "effect is durably RESERVED and has not crossed the "
+                    "single-use dispatch claim"
+                ),
             )
 
         return PCExecutionRecoveryAssessment(
@@ -208,6 +227,7 @@ class QualifiedPCExecutionAdapter:
             effect_state=effect_state,
             replay_allowed=False,
             recovery_required=True,
+            pre_dispatch_cancel_allowed=False,
             reason=(
                 "journal/effect evidence indicates dispatch may have occurred; "
                 "exact reconciliation is required before replay"
@@ -248,6 +268,11 @@ class QualifiedPCExecutionAdapter:
             )
         else:
             projection = assessment.projection
+            if assessment.pre_dispatch_cancel_allowed:
+                raise EffectFenceError(
+                    "PC attempt has a pre-dispatch reservation; cancel and abandon "
+                    "that attempt before creating a new effect identity"
+                )
             if assessment.recovery_required:
                 if projection.local_state is not JournalState.RECOVERY_REQUIRED:
                     projection = self.journal.require_recovery(
@@ -384,6 +409,53 @@ class QualifiedPCExecutionAdapter:
                     "result_digest": current.result_digest,
                     "receipt_digest": receipt_digest,
                     "server_request_id": server_request_id,
+                },
+            ),
+        )
+
+    def cancel_reserved_attempt(
+        self,
+        prepared: PreparedPCDispatch,
+        *,
+        lease: PCExecutionLease,
+        event_source: Callable[[str], PCJournalEventEvidence],
+    ) -> AttemptProjection:
+        identity = self.identity(prepared, lease)
+        assessment = self.assess(prepared, lease)
+        if (
+            assessment is None
+            or not assessment.pre_dispatch_cancel_allowed
+            or assessment.effect_state != EffectState.RESERVED.value
+        ):
+            raise EffectFenceError(
+                "PC attempt has no proven pre-dispatch reservation to cancel"
+            )
+        cancelled = self.runtime.cancel_reserved_effect(
+            assessment.effect_id
+        )
+        if cancelled.state is not EffectState.CANCELLED_PRE_DISPATCH:
+            raise EffectFenceError(
+                "pre-dispatch effect cancellation did not reach terminal state"
+            )
+        current = self.journal.get(identity.job_id, identity.attempt_id)
+        if current is None:
+            raise EffectFenceError(
+                "PC journal attempt disappeared during pre-dispatch cancellation"
+            )
+        return self.journal.abandon(
+            identity,
+            **self._event(
+                event_source,
+                "ATTEMPT_ABANDONED",
+                {
+                    "schema": "VERA_MONO_PC_EXECUTION_EVENT_V1",
+                    "stage": "ATTEMPT_ABANDONED",
+                    "reason": "CANCELLED_PRE_DISPATCH",
+                    "effect_id": assessment.effect_id,
+                    "effect_request_digest": cancelled.request_digest,
+                    "lifecycle_permit_digest": (
+                        prepared.permit.permit_digest
+                    ),
                 },
             ),
         )
