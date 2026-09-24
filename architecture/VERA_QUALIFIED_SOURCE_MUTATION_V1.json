@@ -120,7 +120,9 @@
     "accepted lifecycle and provider authority currentness pass",
     "effect fence reserves and claims single-use dispatch",
     "host source transport mutates using expected-head/blob CAS",
-    "transport result identity is checked before effect can be COMMITTED"
+    "transport result identity is checked before effect can be COMMITTED",
+    "restart dispatch candidate also requires live provider authority currentness",
+    "pre-dispatch cancellation requires current task/delegation ownership and exact RESERVED evidence"
   ],
   "boundaries": {
     "writable_scope_is_not_repository_authority": true,
@@ -142,6 +144,31 @@
     "delegation_ref_persisted_when_present": true,
     "provider_binding_digest_persisted": true,
     "provider_request_digest_persisted": true,
-    "lifecycle_permit_digest_persisted": true
+    "lifecycle_permit_digest_persisted": true,
+    "recovery_assessment": "vera_core.SourceMutationRecoveryAssessment",
+    "exact_rehydration": "QualifiedSourceMutationAdapter.rehydrate_mutation",
+    "rehydration_requires": [
+      "live accepted lifecycle permit still matches durable provider binding",
+      "owning task remains open",
+      "task packet digest remains current",
+      "every bound path remains in the same typed writable scope",
+      "delegation ownership remains current",
+      "provider execution binding still matches",
+      "provider authority verifier is still live-current in OutboundTrustRegistry",
+      "source transport is still registered for exact repository/ref",
+      "WRITE_FILE caller-resupplied content digest matches durable content digest"
+    ],
+    "stale_or_tampered_gate": "DENY_BEFORE_SOURCE_TRANSPORT"
+  },
+  "pre_dispatch_cancellation": {
+    "api": "QualifiedSourceMutationAdapter.cancel_reserved_mutation",
+    "allowed_effect_state": "RESERVED",
+    "current_task_scope_required": true,
+    "current_delegation_owner_required_when_delegated": true,
+    "effect_transition": "RESERVED -> CANCELLED_PRE_DISPATCH",
+    "task_dependency_transition": "active -> cancelled",
+    "same_mutation_id_reuse": false,
+    "replacement_requires_new_mutation_id_and_dependency_id": true,
+    "executing_or_attempted_unknown": "DENY_CANCELLATION_REQUIRE_RECOVERY"
   }
 }
