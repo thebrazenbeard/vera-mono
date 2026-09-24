@@ -392,6 +392,41 @@ class TaskExecutionLedger:
         )
         return self.read(task_id)
 
+    def record_dependency(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        kind: str,
+        target_id: str,
+    ) -> TaskState:
+        state = self.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot accept dependency binding"
+            )
+        dependency_id = _require_text(dependency_id, "dependency_id")
+        kind = _require_text(kind, "dependency kind")
+        target_id = _require_text(target_id, "dependency target_id")
+        if kind not in TASK_DEPENDENCY_KINDS:
+            raise TaskExecutionError(
+                f"unsupported task dependency kind: {kind}"
+            )
+        self.append(
+            event_id=f"{task_id}:DEPENDENCY:{dependency_id}",
+            task_id=task_id,
+            event_type="TASK_DEPENDENCY",
+            payload={
+                "schema": "VERA_MONO_TASK_DEPENDENCY_V1",
+                "dependency_id": dependency_id,
+                "subject": state.packet.subject,
+                "packet_digest": state.packet.packet_digest,
+                "kind": kind,
+                "target_id": target_id,
+            },
+        )
+        return self.read(task_id)
+
     def record_correction(
         self,
         task_id: str,
@@ -658,6 +693,7 @@ class TaskExecutionLedger:
         )
 
         latest_checkpoint: Mapping[str, Any] | None = None
+        dependencies: list[TaskDependency] = []
         corrections: list[TaskCorrection] = []
         unresolved_corrections: set[str] = set()
         closeout: TaskCloseout | None = None
@@ -666,7 +702,46 @@ class TaskExecutionLedger:
                 raise TaskExecutionError(
                     "task history continues after TASK_CLOSED"
                 )
-            if event.event_type == "TASK_CORRECTION":
+            if event.event_type == "TASK_DEPENDENCY":
+                dependency_id = _require_text(
+                    event.payload.get("dependency_id"),
+                    "dependency_id",
+                )
+                if event.payload.get("subject") != packet.subject:
+                    raise TaskExecutionError(
+                        "dependency subject diverges from task packet"
+                    )
+                if event.payload.get("packet_digest") != packet.packet_digest:
+                    raise TaskExecutionError(
+                        "dependency packet digest mismatch"
+                    )
+                kind = _require_text(
+                    event.payload.get("kind"),
+                    "dependency kind",
+                )
+                if kind not in TASK_DEPENDENCY_KINDS:
+                    raise TaskExecutionError(
+                        f"persisted unsupported task dependency kind: {kind}"
+                    )
+                target_id = _require_text(
+                    event.payload.get("target_id"),
+                    "dependency target_id",
+                )
+                if dependency_id in {
+                    item.dependency_id for item in dependencies
+                }:
+                    raise TaskExecutionError(
+                        "duplicate dependency identity in task history"
+                    )
+                dependencies.append(
+                    TaskDependency(
+                        dependency_id=dependency_id,
+                        kind=kind,
+                        target_id=target_id,
+                        event_digest=event.event_digest,
+                    )
+                )
+            elif event.event_type == "TASK_CORRECTION":
                 correction_id = _require_text(
                     event.payload.get("correction_id"),
                     "correction_id",
@@ -780,6 +855,7 @@ class TaskExecutionLedger:
             packet=packet,
             opened_lifecycle_evidence_digest=opened_lifecycle,
             latest_checkpoint=latest_checkpoint,
+            dependencies=tuple(dependencies),
             corrections=tuple(corrections),
             unresolved_correction_ids=tuple(
                 sorted(unresolved_corrections)
@@ -886,6 +962,22 @@ class TaskExecutionLedger:
             "task_count": len(states),
             "open_task_ids": [
                 state.task_id for state in states if not state.closed
+            ],
+            "tasks_with_dependencies": [
+                {
+                    "task_id": state.task_id,
+                    "dependencies": [
+                        {
+                            "dependency_id": dependency.dependency_id,
+                            "kind": dependency.kind,
+                            "target_id": dependency.target_id,
+                            "event_digest": dependency.event_digest,
+                        }
+                        for dependency in state.dependencies
+                    ],
+                }
+                for state in states
+                if state.dependencies
             ],
             "tasks_with_unresolved_corrections": [
                 {
