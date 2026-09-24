@@ -419,6 +419,13 @@
     "claim_ceiling_required": true,
     "independent_surface_closeout": true,
     "protected_effect_authority": false,
-    "install_or_deploy_implied": false
+    "install_or_deploy_implied": false,
+    "correction_recurrence": {
+      "durable_lineage": true,
+      "provenance_required": true,
+      "subject_and_packet_bound": true,
+      "next_checkpoint_requires_changed_method_guard_or_blocker": true,
+      "unresolved_correction_blocks_closeout": true
+    }
   }
 }
