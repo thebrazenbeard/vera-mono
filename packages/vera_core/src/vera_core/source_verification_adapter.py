@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, TYPE_CHECKING
 
+from vera_assurance import EffectState
+
 from .source_verification import (
     SourceVerificationError,
     SourceVerificationReceipt,
@@ -62,6 +64,60 @@ class QualifiedSourceVerificationAdapter:
                 )
         self.transports = registry
 
+    def _validated_outcome(self, mutation_id: str):
+        binding = self.runtime.source_mutation_bindings.read(
+            mutation_id
+        )
+        outcome = self.runtime.source_mutation_outcomes.read(
+            mutation_id
+        )
+        provider_binding = self.runtime.provider_execution_bindings.read(
+            mutation_id
+        )
+        if outcome.source_binding_digest != binding.binding_digest:
+            raise SourceVerificationError(
+                "source verification outcome does not bind exact source mutation"
+            )
+        if outcome.provider_binding_digest != provider_binding.binding_digest:
+            raise SourceVerificationError(
+                "source verification outcome does not bind exact provider execution"
+            )
+        expected_effect_id = (
+            f"provider:{binding.provider_id}:{binding.provider_effect_id}"
+        )
+        if outcome.mechanical_effect_id != expected_effect_id:
+            raise SourceVerificationError(
+                "source verification outcome mechanical effect identity mismatch"
+            )
+        if (
+            outcome.repository != binding.repository
+            or outcome.ref != binding.ref
+            or outcome.operation != binding.operation
+            or outcome.path != binding.path
+            or outcome.destination_path != binding.destination_path
+            or outcome.previous_ref_head != binding.expected_ref_head
+        ):
+            raise SourceVerificationError(
+                "source verification outcome diverges from durable mutation binding"
+            )
+        receipt = self.runtime.fence.read(expected_effect_id)
+        if receipt.state not in {
+            EffectState.COMMITTED,
+            EffectState.RECONCILED_COMMITTED,
+        }:
+            raise SourceVerificationError(
+                "source verification requires successful terminal source effect"
+            )
+        if receipt.request_digest != outcome.effect_request_digest:
+            raise SourceVerificationError(
+                "source verification outcome request digest mismatch"
+            )
+        if receipt.result_digest != outcome.effect_result_digest:
+            raise SourceVerificationError(
+                "source verification outcome result digest mismatch"
+            )
+        return binding, outcome
+
     def _requirements(
         self,
         mutation_id: str,
@@ -91,9 +147,7 @@ class QualifiedSourceVerificationAdapter:
         )
         requirements = self._requirements(mutation_id)
         try:
-            outcome = self.runtime.source_mutation_outcomes.read(
-                mutation_id
-            )
+            _, outcome = self._validated_outcome(mutation_id)
         except KeyError:
             return SourceVerificationAssessment(
                 mutation_id=mutation_id,
@@ -200,12 +254,14 @@ class QualifiedSourceVerificationAdapter:
         self,
         mutation_id: str,
     ) -> SourceVerificationReceipt:
-        binding = self.runtime.source_mutation_bindings.read(
+        binding, outcome = self._validated_outcome(
             mutation_id
         )
-        outcome = self.runtime.source_mutation_outcomes.read(
-            mutation_id
-        )
+        task = self.runtime.tasks.read(binding.task_id)
+        if task.closed:
+            raise SourceVerificationError(
+                "closed task cannot append new source verification evidence"
+            )
         requirements = self._requirements(mutation_id)
         if not requirements:
             raise SourceVerificationError(
