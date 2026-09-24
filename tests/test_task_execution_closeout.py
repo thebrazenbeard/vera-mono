@@ -532,3 +532,109 @@ def test_task_dependency_subject_tamper_fails_closed(tmp_path):
 
     with pytest.raises(TaskExecutionError):
         TaskExecutionLedger(path).read("task-dependency-tamper")
+
+
+def test_task_dependency_blocks_closeout_until_coordination_command_succeeds(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-coordination-dependency", packet())
+    runtime.bind_task_dependency(
+        "task-coordination-dependency",
+        "dep-coordination",
+        kind="COORDINATION_COMMAND",
+        target_id="task-coordination-command",
+    )
+
+    before = runtime.assess_task_closeout(
+        "task-coordination-dependency",
+        surfaces=surfaces(),
+    )
+    assert before.ready is False
+    assert before.unsatisfied_dependency_ids == ("dep-coordination",)
+    assert before.dependency_assessments[0].status == "MISSING"
+
+    runtime.coordination.invoke(
+        "coordination_post",
+        permit=runtime.accepted_permit(),
+        actor=actor(),
+        command_id="task-coordination-command",
+        args=(draft(),),
+    )
+
+    after = runtime.assess_task_closeout(
+        "task-coordination-dependency",
+        surfaces=surfaces(),
+    )
+    assert after.ready is True
+    assert after.unsatisfied_dependency_ids == ()
+    assert after.dependency_assessments[0].status == "SATISFIED"
+    assert after.dependency_assessments[0].evidence_digest is not None
+
+    closed = runtime.close_task(
+        "task-coordination-dependency",
+        "close-dependency",
+        surfaces=surfaces(),
+        evidence_refs=("coordination dependency committed",),
+        claim_ceiling="SOURCE_AND_LOCAL_EFFECT_EVIDENCE_ONLY",
+        next_frontier="NONE",
+    )
+    assert closed.closed is True
+
+
+def test_task_effect_dependency_cancelled_pre_dispatch_is_terminal_unsatisfied(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-effect-dependency", packet())
+    effect_id = "task:required-effect"
+    runtime.bind_task_dependency(
+        "task-effect-dependency",
+        "dep-effect",
+        kind="EFFECT",
+        target_id=effect_id,
+    )
+
+    permit = runtime.accepted_permit()
+    runtime.audit.append(
+        effect_id=effect_id,
+        effect_kind="TEST/REQUIRED",
+        event_type="AUTHORITY_VERIFIED",
+        payload={
+            "request_digest": "1" * 64,
+            "mechanical_permit_digest": "2" * 64,
+            "lifecycle_permit": {
+                **permit.canonical_body(),
+                "permit_digest": permit.permit_digest,
+            },
+            "authority_evidence_digest": "3" * 64,
+            "authority_details": {"kind": "TEST"},
+        },
+    )
+    reserved = runtime.fence.reserve(
+        effect_id=effect_id,
+        request_digest="1" * 64,
+        mechanical_permit_digest="2" * 64,
+        authority_evidence_digest="3" * 64,
+        currentness_evidence_digest=permit.permit_digest,
+    )
+    runtime.audit.append(
+        effect_id=effect_id,
+        effect_kind="TEST/REQUIRED",
+        event_type="RESERVED",
+        payload={
+            "request_digest": reserved.request_digest,
+            "mechanical_permit_digest": reserved.mechanical_permit_digest,
+            "authority_evidence_digest": reserved.authority_evidence_digest,
+            "currentness_evidence_digest": reserved.currentness_evidence_digest,
+        },
+    )
+    runtime.cancel_reserved_effect(effect_id)
+
+    assessment = runtime.assess_task_closeout(
+        "task-effect-dependency",
+        surfaces=surfaces(),
+    )
+    assert assessment.ready is False
+    assert assessment.unsatisfied_dependency_ids == ("dep-effect",)
+    dependency = assessment.dependency_assessments[0]
+    assert dependency.status == "TERMINAL_UNSATISFIED"
+    assert dependency.evidence_digest is not None
