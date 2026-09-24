@@ -1291,16 +1291,14 @@ class QualifiedVeraRuntime:
                                 elif (
                                     verification.latest_status
                                     == "STALE_HEAD"
+                                    or verification.
+                                    current_ref_matches_commit is False
                                 ):
                                     status = "PROVENANCE_MISMATCH"
                                     evidence_digest = (
                                         verification.latest_receipt_digest
                                     )
-                                    reason = (
-                                        "required source verification observed "
-                                        "a different ref head than the exact "
-                                        "committed mutation outcome"
-                                    )
+                                    reason = verification.reason
                                 else:
                                     status = "PENDING"
                                     evidence_digest = (
@@ -1966,6 +1964,10 @@ class QualifiedVeraRuntime:
                 ),
                 "transport_available": assessment.transport_available,
                 "passed": assessment.passed,
+                "current_ref_head": assessment.current_ref_head,
+                "current_ref_matches_commit": (
+                    assessment.current_ref_matches_commit
+                ),
                 "reason": assessment.reason,
             }
             for assessment in self.recover_source_verifications()
