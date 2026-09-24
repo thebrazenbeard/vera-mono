@@ -255,11 +255,12 @@ class QualifiedVeraRuntime:
         task_id: str,
         packet: TaskPacket,
     ) -> TaskState:
-        return self.tasks.open_task(
-            task_id,
-            packet,
-            lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
-        )
+        with self.tasks.action_lock():
+            return self.tasks.open_task(
+                task_id,
+                packet,
+                lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+            )
 
     def bind_task_dependency(
         self,
@@ -269,12 +270,13 @@ class QualifiedVeraRuntime:
         kind: str,
         target_id: str,
     ) -> TaskState:
-        return self.tasks.bind_dependency(
-            task_id,
-            dependency_id,
-            kind=kind,
-            target_id=target_id,
-        )
+        with self.tasks.action_lock():
+            return self.tasks.bind_dependency(
+                task_id,
+                dependency_id,
+                kind=kind,
+                target_id=target_id,
+            )
 
     def invoke_task_coordination(
         self,
@@ -291,25 +293,26 @@ class QualifiedVeraRuntime:
             raise TaskExecutionError(
                 "qualified coordination runtime is unavailable"
             )
-        state = self.tasks.read(task_id)
-        if state.closed:
-            raise TaskExecutionError(
-                "closed task cannot execute coordination dependency"
+        with self.tasks.action_lock():
+            state = self.tasks.read(task_id)
+            if state.closed:
+                raise TaskExecutionError(
+                    "closed task cannot execute coordination dependency"
+                )
+            self.tasks.bind_dependency(
+                task_id,
+                dependency_id,
+                kind="COORDINATION_COMMAND",
+                target_id=command_id,
             )
-        self.bind_task_dependency(
-            task_id,
-            dependency_id,
-            kind="COORDINATION_COMMAND",
-            target_id=command_id,
-        )
-        return self.coordination.invoke(
-            command,
-            permit=self.accepted_permit(),
-            actor=actor,
-            command_id=command_id,
-            args=args,
-            kwargs=kwargs,
-        )
+            return self.coordination.invoke(
+                command,
+                permit=self.accepted_permit(),
+                actor=actor,
+                command_id=command_id,
+                args=args,
+                kwargs=kwargs,
+            )
 
     def prepare_task_provider_effect(
         self,
@@ -321,23 +324,24 @@ class QualifiedVeraRuntime:
         operation: str,
         request_payload: Any,
     ) -> PreparedProviderDispatch:
-        state = self.tasks.read(task_id)
-        if state.closed:
-            raise TaskExecutionError(
-                "closed task cannot prepare provider dependency"
+        with self.tasks.action_lock():
+            state = self.tasks.read(task_id)
+            if state.closed:
+                raise TaskExecutionError(
+                    "closed task cannot prepare provider dependency"
+                )
+            self.tasks.bind_dependency(
+                task_id,
+                dependency_id,
+                kind="PROVIDER_EFFECT",
+                target_id=effect_id,
             )
-        self.bind_task_dependency(
-            task_id,
-            dependency_id,
-            kind="PROVIDER_EFFECT",
-            target_id=effect_id,
-        )
-        return self.prepare_provider_effect(
-            effect_id=effect_id,
-            provider_id=provider_id,
-            operation=operation,
-            request_payload=request_payload,
-        )
+            return self.prepare_provider_effect(
+                effect_id=effect_id,
+                provider_id=provider_id,
+                operation=operation,
+                request_payload=request_payload,
+            )
 
     def prepare_task_pc_job(
         self,
@@ -347,21 +351,22 @@ class QualifiedVeraRuntime:
         job: JobEnvelope,
         authorization: AuthorizationEnvelope,
     ) -> PreparedPCDispatch:
-        state = self.tasks.read(task_id)
-        if state.closed:
-            raise TaskExecutionError(
-                "closed task cannot prepare PC dependency"
+        with self.tasks.action_lock():
+            state = self.tasks.read(task_id)
+            if state.closed:
+                raise TaskExecutionError(
+                    "closed task cannot prepare PC dependency"
+                )
+            self.tasks.bind_dependency(
+                task_id,
+                dependency_id,
+                kind="EFFECT",
+                target_id=f"pc:{job.envelope_id}",
             )
-        self.bind_task_dependency(
-            task_id,
-            dependency_id,
-            kind="EFFECT",
-            target_id=f"pc:{job.envelope_id}",
-        )
-        return self.prepare_pc_job(
-            job=job,
-            authorization=authorization,
-        )
+            return self.prepare_pc_job(
+                job=job,
+                authorization=authorization,
+            )
 
     def record_task_correction(
         self,
@@ -374,15 +379,16 @@ class QualifiedVeraRuntime:
         current_owner_ref: str,
         provenance_refs: tuple[str, ...],
     ) -> TaskState:
-        return self.tasks.record_correction(
-            task_id,
-            correction_id,
-            summary=summary,
-            obsolete_route=obsolete_route,
-            required_change=required_change,
-            current_owner_ref=current_owner_ref,
-            provenance_refs=provenance_refs,
-        )
+        with self.tasks.action_lock():
+            return self.tasks.record_correction(
+                task_id,
+                correction_id,
+                summary=summary,
+                obsolete_route=obsolete_route,
+                required_change=required_change,
+                current_owner_ref=current_owner_ref,
+                provenance_refs=provenance_refs,
+            )
 
     def checkpoint_task(
         self,
@@ -398,28 +404,29 @@ class QualifiedVeraRuntime:
         regression_guard: str | None = None,
         blocker_classification: str | None = None,
     ) -> TaskState:
-        unresolved = tuple(
-            f"{receipt.effect_id}:{receipt.state.value}"
-            for receipt in self.fence.unresolved()
-        )
-        protected = tuple(
-            dict.fromkeys(
-                (*protected_effects_still_gated, *unresolved)
+        with self.tasks.action_lock():
+            unresolved = tuple(
+                f"{receipt.effect_id}:{receipt.state.value}"
+                for receipt in self.fence.unresolved()
             )
-        )
-        return self.tasks.checkpoint(
-            task_id,
-            checkpoint_id,
-            completed_evidence=completed_evidence,
-            blockers=blockers,
-            protected_effects_still_gated=protected,
-            next_frontier=next_frontier,
-            lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
-            correction_ids_addressed=correction_ids_addressed,
-            method_change=method_change,
-            regression_guard=regression_guard,
-            blocker_classification=blocker_classification,
-        )
+            protected = tuple(
+                dict.fromkeys(
+                    (*protected_effects_still_gated, *unresolved)
+                )
+            )
+            return self.tasks.checkpoint(
+                task_id,
+                checkpoint_id,
+                completed_evidence=completed_evidence,
+                blockers=blockers,
+                protected_effects_still_gated=protected,
+                next_frontier=next_frontier,
+                lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+                correction_ids_addressed=correction_ids_addressed,
+                method_change=method_change,
+                regression_guard=regression_guard,
+                blocker_classification=blocker_classification,
+            )
 
     def assess_task_dependencies(
         self,
@@ -746,46 +753,47 @@ class QualifiedVeraRuntime:
         next_frontier: str,
         additional_blockers: tuple[str, ...] = (),
     ) -> TaskState:
-        assessment = self.assess_task_closeout(
-            task_id,
-            surfaces=surfaces,
-            additional_blockers=additional_blockers,
-        )
-        if not assessment.ready:
-            raise TaskExecutionError(
-                "task closeout blocked: " + "; ".join(assessment.reasons)
+        with self.tasks.action_lock():
+            assessment = self.assess_task_closeout(
+                task_id,
+                surfaces=surfaces,
+                additional_blockers=additional_blockers,
             )
-        missing_dependency_evidence = tuple(
-            item.dependency_id
-            for item in assessment.dependency_assessments
-            if item.satisfied and item.evidence_digest is None
-        )
-        if missing_dependency_evidence:
-            raise TaskExecutionError(
-                "satisfied task dependency lacks durable evidence digest: "
-                + ", ".join(missing_dependency_evidence)
+            if not assessment.ready:
+                raise TaskExecutionError(
+                    "task closeout blocked: " + "; ".join(assessment.reasons)
+                )
+            missing_dependency_evidence = tuple(
+                item.dependency_id
+                for item in assessment.dependency_assessments
+                if item.satisfied and item.evidence_digest is None
             )
-        dependency_evidence_refs = tuple(
-            (
-                "task-dependency:"
-                f"{item.dependency_id}:{item.evidence_digest}"
+            if missing_dependency_evidence:
+                raise TaskExecutionError(
+                    "satisfied task dependency lacks durable evidence digest: "
+                    + ", ".join(missing_dependency_evidence)
+                )
+            dependency_evidence_refs = tuple(
+                (
+                    "task-dependency:"
+                    f"{item.dependency_id}:{item.evidence_digest}"
+                )
+                for item in assessment.dependency_assessments
+                if item.evidence_digest is not None
             )
-            for item in assessment.dependency_assessments
-            if item.evidence_digest is not None
-        )
-        merged_evidence = tuple(
-            dict.fromkeys((*evidence_refs, *dependency_evidence_refs))
-        )
-        return self.tasks.close_task(
-            task_id,
-            closeout_id,
-            surfaces=surfaces,
-            evidence_refs=merged_evidence,
-            blockers=(),
-            claim_ceiling=claim_ceiling,
-            next_frontier=next_frontier,
-            lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
-        )
+            merged_evidence = tuple(
+                dict.fromkeys((*evidence_refs, *dependency_evidence_refs))
+            )
+            return self.tasks.close_task(
+                task_id,
+                closeout_id,
+                surfaces=surfaces,
+                evidence_refs=merged_evidence,
+                blockers=(),
+                claim_ceiling=claim_ceiling,
+                next_frontier=next_frontier,
+                lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+            )
 
     def cancel_reserved_effect(self, effect_id: str) -> EffectReceipt:
         """Cancel an effect proven not to have crossed the dispatch claim."""
