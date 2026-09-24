@@ -65,6 +65,17 @@ from .route_verification_adapter import (
     QualifiedRouteVerificationAdapter,
     RouteVerificationAssessment,
 )
+from .runtime_consumption import (
+    RuntimeConsumptionVerificationError,
+    RuntimeConsumptionVerificationReceipt,
+    RuntimeConsumptionVerificationStore,
+    RuntimeConsumptionVerificationTransport,
+    runtime_consumption_requirements,
+)
+from .runtime_consumption_adapter import (
+    QualifiedRuntimeConsumptionAdapter,
+    RuntimeConsumptionAssessment,
+)
 from .state import VeraStateDirectory
 from .source_mutation import (
     QualifiedSourceMutationAdapter,
@@ -134,6 +145,10 @@ class QualifiedVeraRuntime:
     ]
     route_verifications: RouteVerificationStore
     route_verification_transports: Mapping[str, RouteVerificationTransport]
+    runtime_consumption_verifications: RuntimeConsumptionVerificationStore
+    runtime_consumption_transports: Mapping[
+        str, RuntimeConsumptionVerificationTransport
+    ]
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
 
@@ -162,6 +177,9 @@ class QualifiedVeraRuntime:
         ] | None = None,
         route_verification_transports: Mapping[
             str, RouteVerificationTransport
+        ] | None = None,
+        runtime_consumption_transports: Mapping[
+            str, RuntimeConsumptionVerificationTransport
         ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
@@ -194,6 +212,10 @@ class QualifiedVeraRuntime:
         installation_verifications.verify_chain()
         route_verifications = state.route_verification_store()
         route_verifications.verify_chain()
+        runtime_consumption_verifications = (
+            state.runtime_consumption_verification_store()
+        )
+        runtime_consumption_verifications.verify_chain()
         coordination_commands = state.coordination_command_journal()
         tasks = state.task_execution_ledger()
 
@@ -361,6 +383,28 @@ class QualifiedVeraRuntime:
                     f"{route_id!r}"
                 )
 
+        consumption_transports = dict(
+            runtime_consumption_transports or {}
+        )
+        for consumer_id, transport in consumption_transports.items():
+            if type(consumer_id) is not str or not consumer_id:
+                raise TypeError(
+                    "runtime consumption transport keys must be non-empty strings"
+                )
+            if not isinstance(
+                transport,
+                RuntimeConsumptionVerificationTransport,
+            ):
+                raise TypeError(
+                    f"runtime consumption transport for {consumer_id!r} "
+                    "does not satisfy RuntimeConsumptionVerificationTransport"
+                )
+            if transport.consumer_id != consumer_id:
+                raise ValueError(
+                    "runtime consumption transport identity mismatch for "
+                    f"{consumer_id!r}"
+                )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -413,6 +457,8 @@ class QualifiedVeraRuntime:
             installation_verification_transports=installation_transports,
             route_verifications=route_verifications,
             route_verification_transports=route_transports,
+            runtime_consumption_verifications=runtime_consumption_verifications,
+            runtime_consumption_transports=consumption_transports,
             coordination_commands=coordination_commands,
             tasks=tasks,
         )
@@ -449,6 +495,9 @@ class QualifiedVeraRuntime:
         route_verification_head = (
             self.route_verifications.verify_chain()
         )
+        runtime_consumption_head = (
+            self.runtime_consumption_verifications.verify_chain()
+        )
         body = {
             "schema": "VERA_MONO_TASK_RUNTIME_EVIDENCE_V1",
             "project_id": self.lifecycle.project_id,
@@ -467,6 +516,9 @@ class QualifiedVeraRuntime:
                 installation_verification_head
             ),
             "route_verification_head_digest": route_verification_head,
+            "runtime_consumption_verification_head_digest": (
+                runtime_consumption_head
+            ),
         }
         return sha256_hex(canonical_json_bytes(body))
 
@@ -1074,6 +1126,39 @@ class QualifiedVeraRuntime:
         self,
     ) -> tuple[RouteVerificationAssessment, ...]:
         return self.route_verification_adapter().recover()
+
+    def runtime_consumption_adapter(
+        self,
+    ) -> QualifiedRuntimeConsumptionAdapter:
+        return QualifiedRuntimeConsumptionAdapter(
+            runtime=self,
+            transports=self.runtime_consumption_transports,
+        )
+
+    def assess_runtime_consumption(
+        self,
+        task_id: str,
+        consumer_id: str,
+    ) -> RuntimeConsumptionAssessment:
+        return self.runtime_consumption_adapter().assess(
+            task_id,
+            consumer_id,
+        )
+
+    def verify_task_runtime_consumption(
+        self,
+        task_id: str,
+        consumer_id: str,
+    ) -> RuntimeConsumptionVerificationReceipt:
+        return self.runtime_consumption_adapter().verify(
+            task_id,
+            consumer_id,
+        )
+
+    def recover_runtime_consumption_verifications(
+        self,
+    ) -> tuple[RuntimeConsumptionAssessment, ...]:
+        return self.runtime_consumption_adapter().recover()
 
     def assess_task_dependencies(
         self,
@@ -2355,6 +2440,41 @@ class QualifiedVeraRuntime:
                 "reason": assessment.reason,
             }
             for assessment in self.recover_installation_verifications()
+        ]
+        context["runtime_consumption_verifications"] = (
+            self.runtime_consumption_verifications.context()
+        )
+        context["runtime_consumption_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "consumer_id": assessment.consumer_id,
+                "expected_route_id": assessment.expected_route_id,
+                "expected_target": assessment.expected_target,
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": assessment.latest_receipt_digest,
+                "latest_route_digest": assessment.latest_route_digest,
+                "latest_process_instance_id": (
+                    assessment.latest_process_instance_id
+                ),
+                "latest_state_digest": assessment.latest_state_digest,
+                "transport_available": assessment.transport_available,
+                "current_consumed_target": (
+                    assessment.current_consumed_target
+                ),
+                "current_route_digest": assessment.current_route_digest,
+                "current_process_instance_id": (
+                    assessment.current_process_instance_id
+                ),
+                "current_state_digest": assessment.current_state_digest,
+                "current_matches_receipt": assessment.current_matches_receipt,
+                "route_verification_required": (
+                    assessment.route_verification_required
+                ),
+                "route_verified_current": assessment.route_verified_current,
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_runtime_consumption_verifications()
         ]
         context["coordination"] = {
             "schema": "VERA_MONO_COORDINATION_RUNTIME_CONTEXT_V1",
