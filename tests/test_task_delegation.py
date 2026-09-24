@@ -136,6 +136,11 @@ def test_return_releases_subject_and_closeout_carries_delegation_evidence(tmp_pa
         "d1",
         "return-1",
         summary="Worker returned the exact delegated subject.",
+        return_values={
+            "exact head": "abc123",
+            "changed files": "packages/vera_core/src/vera_core/delegated.py",
+            "test evidence": "CI:PASS",
+        },
         result_evidence_refs=("bus:return-1", "main@abc123"),
     )
     delegation = returned.delegation("d1")
@@ -299,6 +304,11 @@ def test_delegation_owner_reference_invalidates_on_reassignment_and_return(tmp_p
         "d1",
         "return-owner",
         summary="delegated scope returned",
+        return_values={
+            "exact head": "abc123",
+            "changed files": "packages/vera_core/src/vera_core/delegated.py",
+            "test evidence": "CI:PASS",
+        },
         result_evidence_refs=("bus:return-owner",),
     )
     with pytest.raises(TaskExecutionError):
@@ -322,3 +332,26 @@ def test_delegation_policy_rejects_conflicting_allowed_and_prohibited_effect(tmp
             return_shape=("evidence",),
             evidence_refs=("bus:delegation",),
         )
+
+
+def test_delegation_return_must_exactly_satisfy_declared_return_shape(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-a", packet("task-a"))
+    delegate(runtime, "task-a")
+
+    with pytest.raises(TaskExecutionError):
+        runtime.return_task_delegation(
+            "task-a",
+            "d1",
+            "return-bad",
+            summary="incomplete worker return",
+            return_values={
+                "exact head": "abc123",
+                "changed files": "delegated.py",
+            },
+            result_evidence_refs=("bus:return-bad",),
+        )
+
+    current = runtime.tasks.read("task-a").delegation("d1")
+    assert current.active is True
