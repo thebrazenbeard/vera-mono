@@ -13,6 +13,10 @@ from .execution_adapters import (
 from .outbound_authority import ProviderAuthorityEnvelope
 from .provider_execution_binding import PreparedProviderDispatch
 from .source_mutation_binding import SourceMutationBinding
+from .source_mutation_outcome import (
+    SourceMutationOutcome,
+    SourceMutationOutcomeError,
+)
 from .task_execution import (
     TaskDelegationRef,
     TaskExecutionError,
@@ -274,6 +278,8 @@ class SourceMutationRecoveryAssessment:
     provider_binding_current: bool
     provider_authority_current: bool
     transport_available: bool
+    outcome_current: bool
+    new_ref_head: str | None
     content_rehydration_required: bool
     dispatch_candidate_allowed: bool
     recovery_required: bool
@@ -588,6 +594,16 @@ class QualifiedSourceMutationAdapter:
                 execute=execute_transport,
                 task_dependency=dispatch.task_dependency,
             )
+            source_binding = self.runtime.source_mutation_bindings.read(
+                request.mutation_id
+            )
+            self.runtime.source_mutation_outcomes.record(
+                binding=source_binding,
+                transport_result=outbound.value,
+                mechanical_effect_id=outbound.effect_id,
+                effect_request_digest=outbound.request_digest,
+                effect_result_digest=outbound.result_digest,
+            )
             return SourceMutationResult(
                 transport_result=outbound.value,
                 outbound_result=outbound,
@@ -719,6 +735,48 @@ class QualifiedSourceMutationAdapter:
             and transport.provider_id == binding.provider_id
         )
 
+        outcome: SourceMutationOutcome | None = None
+        outcome_current = False
+        try:
+            outcome = self.runtime.source_mutation_outcomes.read(
+                binding.mutation_id
+            )
+            outcome_current = (
+                outcome.source_binding_digest == binding.binding_digest
+                and outcome.provider_binding_digest
+                == binding.provider_binding_digest
+                and outcome.repository == binding.repository
+                and outcome.ref == binding.ref
+                and outcome.operation == binding.operation
+                and outcome.path == binding.path
+                and outcome.destination_path == binding.destination_path
+                and outcome.previous_ref_head == binding.expected_ref_head
+            )
+            if provider is not None:
+                mechanical_effect_id = (
+                    f"provider:{binding.provider_id}:"
+                    f"{binding.provider_effect_id}"
+                )
+                try:
+                    receipt = self.runtime.fence.read(
+                        mechanical_effect_id
+                    )
+                except KeyError:
+                    outcome_current = False
+                else:
+                    outcome_current = (
+                        outcome_current
+                        and outcome.mechanical_effect_id
+                        == mechanical_effect_id
+                        and outcome.effect_request_digest
+                        == receipt.request_digest
+                        and outcome.effect_result_digest
+                        == receipt.result_digest
+                    )
+        except (KeyError, SourceMutationOutcomeError):
+            outcome = None
+            outcome_current = False
+
         if not task_open:
             reasons.append("owning task is missing or closed")
         if not packet_current:
@@ -742,14 +800,38 @@ class QualifiedSourceMutationAdapter:
         if provider is not None and not lifecycle_current:
             reasons.append("bound lifecycle permit is stale")
 
+        provider_success = bool(
+            provider is not None
+            and provider.terminal
+            and provider.fence_state in {
+                EffectState.COMMITTED.value,
+                EffectState.RECONCILED_COMMITTED.value,
+            }
+        )
+        if provider_success and not outcome_current:
+            reasons.append(
+                "source effect committed but exact source outcome is missing or stale"
+            )
+        if outcome is not None and not outcome_current:
+            reasons.append(
+                "source outcome evidence diverges from binding/effect evidence"
+            )
+
         recovery_required = (
             not provider_binding_current
             or (provider is not None and provider.recovery_required)
+            or (provider_success and not outcome_current)
+            or (outcome is not None and not outcome_current)
         )
-        terminal = False if provider is None else provider.terminal
+        terminal = bool(
+            provider is not None
+            and provider.terminal
+            and (not provider_success or outcome_current)
+        )
         dispatch_candidate_allowed = bool(
             provider is not None
             and provider.dispatch_candidate_allowed
+            and outcome is None
             and task_open
             and packet_current
             and writable_scope_current
@@ -785,6 +867,10 @@ class QualifiedSourceMutationAdapter:
             provider_binding_current=provider_binding_current,
             provider_authority_current=provider_authority_current,
             transport_available=transport_available,
+            outcome_current=outcome_current,
+            new_ref_head=(
+                None if outcome is None else outcome.new_ref_head
+            ),
             content_rehydration_required=(
                 binding.operation == "WRITE_FILE"
             ),
