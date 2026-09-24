@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Mapping, TypeVar
 
+from coordination_bus import CoordinationBus
 from vera_assurance import EffectFence, EffectReceipt, EffectState
 from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 
@@ -166,15 +167,16 @@ class QualifiedVeraRuntime:
             audit=audit,
             clock=clock,
         )
-        coordination = (
-            None
+        resolved_coordination_bus = (
+            CoordinationBus(state.coordination_repository())
             if coordination_bus is None
-            else LifecycleBoundCoordinationBus(
-                lifecycle=lifecycle,
-                bus=coordination_bus,
-                fence=fence,
-                audit=audit,
-            )
+            else coordination_bus
+        )
+        coordination = LifecycleBoundCoordinationBus(
+            lifecycle=lifecycle,
+            bus=resolved_coordination_bus,
+            fence=fence,
+            audit=audit,
         )
         recovery = (
             None
@@ -557,6 +559,14 @@ class QualifiedVeraRuntime:
         context["provider_execution_bindings"] = (
             self.provider_execution_bindings.context()
         )
+        context["coordination"] = {
+            "schema": "VERA_MONO_COORDINATION_RUNTIME_CONTEXT_V1",
+            "repository_type": type(self.coordination.bus.repository).__name__,
+            "persistent_native": hasattr(
+                self.coordination.bus.repository,
+                "verify_integrity",
+            ),
+        }
         context["provider_execution_recovery"] = [
             {
                 "effect_id": assessment.effect_id,
