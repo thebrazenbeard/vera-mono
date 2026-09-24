@@ -68,6 +68,7 @@ class CoordinationCommandJournal:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.path) as db:
+            db.row_factory = sqlite3.Row
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS command_bindings (
@@ -92,8 +93,29 @@ class CoordinationCommandJournal:
                         REFERENCES command_bindings(command_id)
                         ON DELETE RESTRICT
                 );
+                CREATE TABLE IF NOT EXISTS command_meta (
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                    binding_count INTEGER NOT NULL,
+                    result_count INTEGER NOT NULL,
+                    projection_digest TEXT NOT NULL
+                );
                 """
             )
+            meta = db.execute(
+                "SELECT 1 FROM command_meta WHERE singleton=1"
+            ).fetchone()
+            if meta is None:
+                binding_count, result_count, digest = (
+                    self._projection_state(db)
+                )
+                db.execute(
+                    """
+                    INSERT INTO command_meta(
+                        singleton,binding_count,result_count,projection_digest
+                    ) VALUES(1,?,?,?)
+                    """,
+                    (binding_count, result_count, digest),
+                )
 
     @staticmethod
     def _require_text(value: str, label: str) -> str:
@@ -116,6 +138,136 @@ class CoordinationCommandJournal:
                 f"{label} must be hexadecimal"
             ) from exc
         return value.lower()
+
+    @classmethod
+    def _projection_state(
+        cls,
+        db: sqlite3.Connection,
+    ) -> tuple[int, int, str]:
+        binding_rows = db.execute(
+            "SELECT * FROM command_bindings ORDER BY command_id"
+        ).fetchall()
+        result_rows = db.execute(
+            "SELECT * FROM command_results ORDER BY command_id"
+        ).fetchall()
+
+        bindings: dict[str, CoordinationCommandBinding] = {}
+        binding_material: list[dict[str, Any]] = []
+        for row in binding_rows:
+            binding = cls._binding_from_row(row)
+            expected = cls._binding_digest(
+                command_id=binding.command_id,
+                effect_id=binding.effect_id,
+                command=binding.command,
+                actor_workstream=binding.actor_workstream,
+                lifecycle_permit_digest=binding.lifecycle_permit_digest,
+                invocation_digest=binding.invocation_digest,
+                request_digest=binding.request_digest,
+            )
+            if expected != binding.binding_digest:
+                raise CoordinationCommandJournalError(
+                    "coordination command binding digest mismatch"
+                )
+            bindings[binding.command_id] = binding
+            binding_material.append(
+                {
+                    "command_id": binding.command_id,
+                    "effect_id": binding.effect_id,
+                    "command": binding.command,
+                    "actor_workstream": binding.actor_workstream,
+                    "lifecycle_permit_digest": (
+                        binding.lifecycle_permit_digest
+                    ),
+                    "invocation_digest": binding.invocation_digest,
+                    "request_digest": binding.request_digest,
+                    "binding_digest": binding.binding_digest,
+                }
+            )
+
+        result_material: list[dict[str, Any]] = []
+        for row in result_rows:
+            result = cls._result_from_row(row)
+            binding = bindings.get(result.command_id)
+            if binding is None:
+                raise CoordinationCommandJournalError(
+                    "coordination result has no command binding"
+                )
+            expected = cls._result_record_digest(
+                binding,
+                result_digest=result.result_digest,
+                result_class=result.result_class,
+                database_write_confirmed=result.database_write_confirmed,
+                event_id=result.event_id,
+                event_sequence=result.event_sequence,
+            )
+            if expected != result.result_record_digest:
+                raise CoordinationCommandJournalError(
+                    "coordination command result digest mismatch"
+                )
+            result_material.append(
+                {
+                    "command_id": result.command_id,
+                    "result_digest": result.result_digest,
+                    "result_class": result.result_class,
+                    "database_write_confirmed": (
+                        result.database_write_confirmed
+                    ),
+                    "event_id": result.event_id,
+                    "event_sequence": result.event_sequence,
+                    "result_record_digest": result.result_record_digest,
+                }
+            )
+
+        digest = sha256_hex(
+            canonical_json_bytes(
+                {
+                    "schema": "VERA_MONO_COORDINATION_COMMAND_PROJECTION_V1",
+                    "bindings": binding_material,
+                    "results": result_material,
+                }
+            )
+        )
+        return len(binding_rows), len(result_rows), digest
+
+    @classmethod
+    def _write_meta(cls, db: sqlite3.Connection) -> None:
+        binding_count, result_count, digest = cls._projection_state(db)
+        db.execute(
+            """
+            UPDATE command_meta
+            SET binding_count=?,result_count=?,projection_digest=?
+            WHERE singleton=1
+            """,
+            (binding_count, result_count, digest),
+        )
+
+    def verify_integrity(self) -> str:
+        with sqlite3.connect(self.path) as db:
+            db.row_factory = sqlite3.Row
+            observed = db.execute(
+                """
+                SELECT binding_count,result_count,projection_digest
+                FROM command_meta WHERE singleton=1
+                """
+            ).fetchone()
+            if observed is None:
+                raise CoordinationCommandJournalError(
+                    "coordination command integrity metadata is missing"
+                )
+            binding_count, result_count, digest = self._projection_state(db)
+        if int(observed["binding_count"]) != binding_count:
+            raise CoordinationCommandJournalError(
+                "coordination command binding count mismatch"
+            )
+        if int(observed["result_count"]) != result_count:
+            raise CoordinationCommandJournalError(
+                "coordination command result count mismatch"
+            )
+        if str(observed["projection_digest"]) != digest:
+            raise CoordinationCommandJournalError(
+                "coordination command projection digest mismatch"
+            )
+        return digest
 
     @classmethod
     def _binding_digest(
@@ -156,6 +308,7 @@ class CoordinationCommandJournal:
         invocation_digest: str,
         request_digest: str,
     ) -> CoordinationCommandBinding:
+        self.verify_integrity()
         command_id = self._require_text(command_id, "command_id")
         effect_id = self._require_text(effect_id, "effect_id")
         command = self._require_text(command, "command")
@@ -234,6 +387,7 @@ class CoordinationCommandJournal:
                 raise CoordinationCommandJournalError(
                     "coordination command binding uniqueness conflict"
                 ) from exc
+            self._write_meta(db)
             db.commit()
         return candidate
 
@@ -273,6 +427,7 @@ class CoordinationCommandJournal:
         event_id: str | None,
         event_sequence: int | None,
     ) -> CoordinationCommandResult:
+        self.verify_integrity()
         binding = self.read_binding(command_id)
         result_digest = self._require_digest(
             result_digest,
@@ -344,6 +499,7 @@ class CoordinationCommandJournal:
                     digest,
                 ),
             )
+            self._write_meta(db)
             db.commit()
         return candidate
 
@@ -411,6 +567,7 @@ class CoordinationCommandJournal:
         return tuple(self.read_binding(str(row[0])) for row in rows)
 
     def context(self) -> dict[str, Any]:
+        projection_digest = self.verify_integrity()
         bindings = self.bindings()
         results = {
             binding.command_id: self.read_result(binding.command_id)
@@ -418,6 +575,7 @@ class CoordinationCommandJournal:
         }
         return {
             "schema": "VERA_MONO_COORDINATION_COMMAND_JOURNAL_CONTEXT_V1",
+            "projection_digest": projection_digest,
             "binding_count": len(bindings),
             "result_count": sum(
                 result is not None for result in results.values()
