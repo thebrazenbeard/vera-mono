@@ -196,6 +196,7 @@ class HmacPCJobAuthority:
 
 def provider_authority_subject(
     *,
+    effect_id: str,
     provider_id: str,
     operation: str,
     request_digest: str,
@@ -204,6 +205,7 @@ def provider_authority_subject(
     return _subject(
         "vera-mono-provider-authority-v1",
         {
+            "effect_id": effect_id,
             "provider_id": provider_id,
             "operation": operation,
             "request_digest": request_digest,
@@ -253,11 +255,13 @@ class HmacProviderAuthority:
     def issue(
         self,
         *,
+        effect_id: str,
         operation: str,
         request_digest: str,
         lifecycle_permit_digest: str,
     ) -> ProviderAuthorityEnvelope:
         subject = provider_authority_subject(
+            effect_id=effect_id,
             provider_id=self.provider_id,
             operation=operation,
             request_digest=request_digest,
