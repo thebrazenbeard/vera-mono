@@ -29,6 +29,7 @@ from .lifecycle_journal import (
     LifecycleJournalError,
 )
 from .outbound_audit import (
+    OutboundAuditConsistency,
     OutboundAuditError,
     OutboundAuditEvent,
     OutboundExecutionAudit,
@@ -127,6 +128,7 @@ __all__ = [
     "LifecycleReconstructionError",
     "LocalCapability",
     "NativeLifecycleReceipt",
+    "OutboundAuditConsistency",
     "OutboundAuditError",
     "OutboundAuditEvent",
     "OutboundExecutionAudit",
