@@ -40,6 +40,7 @@ from .outbound_authority import (
     provider_authority_subject,
     validate_pc_authorization_binding,
 )
+from .qualified_runtime import QualifiedVeraRuntime
 from .reasoning_cascade import (
     CascadeEngine,
     CascadeOutcome,
@@ -71,6 +72,7 @@ __all__ = [
     "PCJobAuthorityVerifier",
     "ProviderAuthorityEnvelope",
     "ProviderAuthorityVerifier",
+    "QualifiedVeraRuntime",
     "pc_authority_subject",
     "provider_authority_subject",
     "validate_pc_authorization_binding",
