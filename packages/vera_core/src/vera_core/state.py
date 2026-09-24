@@ -18,6 +18,7 @@ from .outbound_trust import OutboundTrustRegistry
 from .pc_execution_binding import PCExecutionBindingStore
 from .provider_execution_binding import ProviderExecutionBindingStore
 from .route_verification import RouteVerificationStore
+from .runtime_consumption import RuntimeConsumptionVerificationStore
 from .source_mutation_binding import SourceMutationBindingStore
 from .source_mutation_outcome import SourceMutationOutcomeStore
 from .source_verification import SourceVerificationStore
@@ -41,6 +42,7 @@ class VeraStatePaths:
     source_verifications: Path
     installation_verifications: Path
     route_verifications: Path
+    runtime_consumption_verifications: Path
     coordination: Path
     coordination_commands: Path
     tasks: Path
@@ -101,6 +103,9 @@ class VeraStateDirectory:
             ),
             route_verifications=(
                 candidate / "route" / "verification.sqlite"
+            ),
+            runtime_consumption_verifications=(
+                candidate / "runtime" / "consumption-verification.sqlite"
             ),
             coordination=candidate / "coordination" / "events.sqlite",
             coordination_commands=(
@@ -197,6 +202,13 @@ class VeraStateDirectory:
     ) -> RouteVerificationStore:
         return RouteVerificationStore(self.paths.route_verifications)
 
+    def runtime_consumption_verification_store(
+        self,
+    ) -> RuntimeConsumptionVerificationStore:
+        return RuntimeConsumptionVerificationStore(
+            self.paths.runtime_consumption_verifications
+        )
+
     def coordination_repository(self) -> SQLiteCoordinationRepository:
         return SQLiteCoordinationRepository(self.paths.coordination)
 
@@ -248,6 +260,9 @@ class VeraStateDirectory:
         )
         context["route_verifications"] = (
             self.route_verification_store().context()
+        )
+        context["runtime_consumption_verifications"] = (
+            self.runtime_consumption_verification_store().context()
         )
         context["coordination"] = self.coordination_repository().context()
         context["coordination_commands"] = (
