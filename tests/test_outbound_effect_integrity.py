@@ -159,9 +159,8 @@ def test_audit_and_fence_evidence_mismatch_fails_closed(tmp_path):
     )
     reserve(fence)
 
-    audit.repair_from_fence(fence)
     with pytest.raises(OutboundAuditError, match="request_digest"):
-        audit.verify_fence_consistency(fence)
+        audit.repair_from_fence(fence)
 
 
 def test_repaired_audit_preserves_fence_terminal_state(tmp_path):
