@@ -27,6 +27,13 @@ from .execution_adapters import (
     SourceMutationTransport,
     SourceMutationTransportResult,
 )
+from .github_api_client import (
+    GitHubAPIError,
+    GitHubGitDataAPIClient,
+    GitHubHTTPResult,
+    GitHubJSONHTTPTransport,
+    UrllibGitHubJSONHTTPTransport,
+)
 from .github_source_transport import (
     GitHubCommitState,
     GitHubGitDataClient,
@@ -158,6 +165,11 @@ __all__ = [
     "LifecycleActionDenied",
     "HmacPCJobAuthority",
     "HmacProviderAuthority",
+    "GitHubAPIError",
+    "GitHubGitDataAPIClient",
+    "GitHubHTTPResult",
+    "GitHubJSONHTTPTransport",
+    "UrllibGitHubJSONHTTPTransport",
     "GitHubCommitState",
     "GitHubGitDataClient",
     "GitHubPathState",
