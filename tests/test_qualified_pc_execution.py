@@ -13,6 +13,7 @@ from vera_assurance import EffectFenceError, EffectState
 from vera_core import (
     HmacPCJobAuthority,
     OutboundTrustError,
+    PCExecutionBindingError,
     PCExecutionLease,
     PCJournalEventEvidence,
     QualifiedPCExecutionAdapter,
@@ -430,3 +431,108 @@ def test_trust_revocation_after_prepare_blocks_callback_before_effect(tmp_path):
     projection = adapter.journal.get(lease().job_id, lease().attempt_id)
     assert projection is not None
     assert projection.local_state is JournalState.PREPARING
+
+
+def test_restart_recovers_bound_pc_attempt_without_conversation_prepared_object(tmp_path):
+    state, _, adapter, prepared, proof, verifier = runtime_and_adapter(tmp_path)
+    bindings = state.pc_execution_binding_store()
+    journal_path = adapter.journal.verified_path
+    bound_adapter = QualifiedPCExecutionAdapter(
+        runtime=adapter.runtime,
+        journal=adapter.journal,
+        bindings=bindings,
+    )
+    bound_adapter.execute(
+        prepared,
+        authority_proof=proof,
+        lease=lease(),
+        event_source=Events(),
+        execute=lambda: {"pong": True},
+    )
+    del prepared
+    del proof
+    del bound_adapter
+
+    restarted_runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        pc_authority_verifier=verifier,
+        clock=lambda: datetime(
+            2026,
+            8,
+            1,
+            20,
+            5,
+            tzinfo=timezone.utc,
+        ),
+    )
+    restarted = QualifiedPCExecutionAdapter(
+        runtime=restarted_runtime,
+        journal=JobJournal(journal_path),
+        bindings=state.pc_execution_binding_store(),
+    )
+    recovered = restarted.recover_bound_attempts()
+    assert len(recovered) == 1
+    binding, assessment = recovered[0]
+    assert binding.lease == lease()
+    assert binding.effect_id == f"pc:{binding.prepared.job.envelope_id}"
+    assert assessment is not None
+    assert assessment.recovery_required is False
+    assert assessment.replay_allowed is False
+    assert assessment.effect_state == "COMMITTED"
+
+
+def test_restart_recovers_ambiguous_bound_attempt_as_recovery_required(tmp_path):
+    state, _, adapter, prepared, proof, verifier = runtime_and_adapter(tmp_path)
+    bound_adapter = QualifiedPCExecutionAdapter(
+        runtime=adapter.runtime,
+        journal=adapter.journal,
+        bindings=state.pc_execution_binding_store(),
+    )
+    with pytest.raises(RuntimeError):
+        bound_adapter.execute(
+            prepared,
+            authority_proof=proof,
+            lease=lease(),
+            event_source=Events(),
+            execute=lambda: (_ for _ in ()).throw(
+                RuntimeError("unknown remote outcome")
+            ),
+        )
+
+    restarted_runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        pc_authority_verifier=verifier,
+        clock=lambda: datetime(
+            2026,
+            8,
+            1,
+            20,
+            5,
+            tzinfo=timezone.utc,
+        ),
+    )
+    restarted = QualifiedPCExecutionAdapter(
+        runtime=restarted_runtime,
+        journal=JobJournal(adapter.journal.verified_path),
+        bindings=state.pc_execution_binding_store(),
+    )
+    binding, assessment = restarted.recover_bound_attempts()[0]
+    assert binding.binding_digest
+    assert assessment is not None
+    assert assessment.recovery_required is True
+    assert assessment.replay_allowed is False
+    assert assessment.effect_state == "ATTEMPTED_UNKNOWN"
+    assert assessment.projection.local_state is JournalState.RECOVERY_REQUIRED
+
+
+def test_pc_binding_attempt_identity_is_append_only(tmp_path):
+    state, _, adapter, prepared, _, _ = runtime_and_adapter(tmp_path)
+    bindings = state.pc_execution_binding_store()
+    first = bindings.bind(prepared, lease())
+    assert bindings.bind(prepared, lease()) == first
+
+    with pytest.raises(PCExecutionBindingError):
+        bindings.bind(
+            prepared,
+            lease(lease_fence=2),
+        )
