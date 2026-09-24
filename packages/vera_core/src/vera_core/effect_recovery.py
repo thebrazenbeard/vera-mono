@@ -125,16 +125,6 @@ class HmacEffectReconciliationAuthority:
             effect_occurred=effect_occurred,
             result_digest=result_digest,
         )
-        if proof.issuer_id != self._verifier.authority_id:
-            raise EffectRecoveryAuthorityError(
-                "reconciliation proof issuer does not match trusted verifier"
-            )
-        trust_receipt = self._outbound_trust_registry.assert_current(
-            authority_id=self._verifier.authority_id,
-            role="RECONCILIATION",
-            key_id=self._verifier.key_id,
-            key_digest=self._verifier.key_digest,
-        )
         unsigned = EffectReconciliationProof(
             schema=RECONCILIATION_PROOF_SCHEMA,
             issuer_id=self.issuer_id,
@@ -226,6 +216,16 @@ class LifecycleEffectRecovery:
             receipt,
             effect_occurred=effect_occurred,
             result_digest=result_digest,
+        )
+        if proof.issuer_id != self._verifier.authority_id:
+            raise EffectRecoveryAuthorityError(
+                "reconciliation proof issuer does not match trusted verifier"
+            )
+        trust_receipt = self._outbound_trust_registry.assert_current(
+            authority_id=self._verifier.authority_id,
+            role="RECONCILIATION",
+            key_id=self._verifier.key_id,
+            key_digest=self._verifier.key_digest,
         )
         if not self._verifier.verify(
             proof,
