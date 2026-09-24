@@ -377,6 +377,34 @@ class QualifiedPCExecutionAdapter:
             outbound=outbound,
         )
 
+    def execute_via_runtime_transport(
+        self,
+        prepared: PreparedPCDispatch,
+        *,
+        authority_proof: Any,
+        lease: PCExecutionLease,
+        event_source: Callable[[str], PCJournalEventEvidence],
+    ) -> QualifiedPCExecutionResult:
+        transport = self.runtime.pc_execution_transport
+        if transport is None:
+            raise ValueError(
+                "qualified PC execution requires a host-injected PC execution transport"
+            )
+        if transport.host_id != prepared.job.host_id:
+            raise ValueError(
+                "PC execution transport host identity does not match job host"
+            )
+        return self.execute(
+            prepared,
+            authority_proof=authority_proof,
+            lease=lease,
+            event_source=event_source,
+            execute=lambda: transport.execute(
+                prepared.job,
+                prepared.authorization,
+            ),
+        )
+
     def submit_completion(
         self,
         prepared: PreparedPCDispatch,
