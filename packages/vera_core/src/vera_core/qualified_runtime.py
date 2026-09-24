@@ -397,4 +397,9 @@ class QualifiedVeraRuntime:
             ),
             "repaired_effect_ids": list(integrity.repaired_effect_ids),
         }
+        context["pc_execution_bindings"] = {
+            "schema": "VERA_MONO_PC_EXECUTION_BINDING_CONTEXT_V1",
+            "binding_count": 0,
+            "bindings": [],
+        }
         return context
