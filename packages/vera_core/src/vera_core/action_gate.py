@@ -790,6 +790,26 @@ class LifecycleBoundCoordinationBus:
             )
         return result
 
+    def _coordination_result_repository_consistent(
+        self,
+        *,
+        result: Any,
+    ) -> bool:
+        if result.database_write_confirmed:
+            if result.event_id is None or result.event_sequence is None:
+                return False
+            repository = getattr(self.bus, "repository", None)
+            get_event = getattr(repository, "get", None)
+            if get_event is None or not callable(get_event):
+                return False
+            event = get_event(result.event_id)
+            return (
+                event is not None
+                and event.event_id == result.event_id
+                and event.event_sequence == result.event_sequence
+            )
+        return result.event_id is None and result.event_sequence is None
+
     def assess_command(
         self,
         command_id: str,
@@ -826,6 +846,9 @@ class LifecycleBoundCoordinationBus:
                     EffectState.RECONCILED_COMMITTED,
                 }
                 and fence.result_digest == result.result_digest
+                and self._coordination_result_repository_consistent(
+                    result=result
+                )
             ):
                 return CoordinationCommandRecoveryAssessment(
                     command_id=binding.command_id,
