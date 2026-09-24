@@ -275,8 +275,16 @@ class QualifiedVeraRuntime:
             try:
                 self.fence.read(target_id)
             except KeyError:
-                return False
-            return True
+                pass
+            else:
+                return True
+            if target_id.startswith("pc:"):
+                return bool(
+                    self.pc_execution_bindings.bindings_for_effect(
+                        target_id
+                    )
+                )
+            return False
         if kind == "COORDINATION_COMMAND":
             try:
                 self.coordination_commands.read_binding(target_id)
@@ -385,6 +393,27 @@ class QualifiedVeraRuntime:
                 "task dependency provenance does not match durable task binding"
             )
         return ref
+
+    def _audit_task_dependency_matches(
+        self,
+        effect_id: str,
+        ref: TaskDependencyRef,
+    ) -> bool | None:
+        authority_events = tuple(
+            event
+            for event in self.audit.events(effect_id)
+            if event.event_type == "AUTHORITY_VERIFIED"
+        )
+        if not authority_events:
+            return None
+        if len(authority_events) != 1:
+            raise TaskExecutionError(
+                "outbound audit contains multiple authority events for effect"
+            )
+        details = authority_events[0].payload.get("authority_details")
+        if not isinstance(details, Mapping):
+            return False
+        return details.get("task_dependency") == ref.canonical_body()
 
     def cancel_task_dependency(
         self,
@@ -634,33 +663,88 @@ class QualifiedVeraRuntime:
         }
 
         for dependency in state.active_dependencies:
+            ref = state.dependency_ref(dependency.dependency_id)
             if dependency.kind == "EFFECT":
                 try:
                     receipt = self.fence.read(dependency.target_id)
                 except KeyError:
-                    assessments.append(
-                        TaskDependencyAssessment(
-                            dependency_id=dependency.dependency_id,
-                            kind=dependency.kind,
-                            target_id=dependency.target_id,
-                            status="MISSING",
-                            evidence_digest=None,
-                            reason=(
-                                "bound effect dependency has no mechanical "
-                                "effect record"
-                            ),
-                        )
+                    receipt = None
+
+                pc_bindings = (
+                    self.pc_execution_bindings.bindings_for_effect(
+                        dependency.target_id
                     )
+                    if dependency.target_id.startswith("pc:")
+                    else ()
+                )
+                if receipt is None:
+                    if pc_bindings:
+                        if any(
+                            binding.prepared.task_dependency != ref
+                            for binding in pc_bindings
+                        ):
+                            assessments.append(
+                                TaskDependencyAssessment(
+                                    dependency_id=dependency.dependency_id,
+                                    kind=dependency.kind,
+                                    target_id=dependency.target_id,
+                                    status="PROVENANCE_MISMATCH",
+                                    evidence_digest=pc_bindings[-1].binding_digest,
+                                    reason=(
+                                        "PC execution binding does not carry "
+                                        "the exact owning task dependency"
+                                    ),
+                                )
+                            )
+                        else:
+                            assessments.append(
+                                TaskDependencyAssessment(
+                                    dependency_id=dependency.dependency_id,
+                                    kind=dependency.kind,
+                                    target_id=dependency.target_id,
+                                    status="PENDING",
+                                    evidence_digest=pc_bindings[-1].binding_digest,
+                                    reason=(
+                                        "PC attempt preparation is durable but "
+                                        "no mechanical effect has started"
+                                    ),
+                                )
+                            )
+                    else:
+                        assessments.append(
+                            TaskDependencyAssessment(
+                                dependency_id=dependency.dependency_id,
+                                kind=dependency.kind,
+                                target_id=dependency.target_id,
+                                status="MISSING",
+                                evidence_digest=None,
+                                reason=(
+                                    "bound effect dependency has no mechanical "
+                                    "or PC preparation evidence"
+                                ),
+                            )
+                        )
                     continue
 
                 latest = self.audit.latest(dependency.target_id)
                 evidence_digest = (
                     None if latest is None else latest.event_digest
                 )
-                if receipt.state.value in success_states:
+                provenance_matches = self._audit_task_dependency_matches(
+                    dependency.target_id,
+                    ref,
+                )
+                if provenance_matches is not True:
+                    status = "PROVENANCE_MISMATCH"
+                    reason = (
+                        "mechanical effect does not carry the exact owning "
+                        "task dependency in qualified authority evidence"
+                    )
+                elif receipt.state.value in success_states:
                     status = "SATISFIED"
                     reason = (
-                        "qualified effect reached a successful terminal state"
+                        "qualified task-bound effect reached a successful "
+                        "terminal state"
                     )
                 elif receipt.state in {
                     EffectState.EXECUTING,
@@ -668,8 +752,8 @@ class QualifiedVeraRuntime:
                 }:
                     status = "RECOVERY_REQUIRED"
                     reason = (
-                        "effect may have crossed dispatch and requires "
-                        "reconciliation"
+                        "task-bound effect may have crossed dispatch and "
+                        "requires reconciliation"
                     )
                 elif receipt.state in {
                     EffectState.CANCELLED_PRE_DISPATCH,
@@ -677,11 +761,14 @@ class QualifiedVeraRuntime:
                 }:
                     status = "TERMINAL_UNSATISFIED"
                     reason = (
-                        "effect terminated without the required external effect"
+                        "task-bound effect terminated without the required "
+                        "external effect"
                     )
                 else:
                     status = "PENDING"
-                    reason = "effect dependency has not reached terminal success"
+                    reason = (
+                        "task-bound effect has not reached terminal success"
+                    )
                 assessments.append(
                     TaskDependencyAssessment(
                         dependency_id=dependency.dependency_id,
@@ -730,16 +817,56 @@ class QualifiedVeraRuntime:
                 result = self.coordination_commands.read_result(
                     dependency.target_id
                 )
+                provenance_matches = self._audit_task_dependency_matches(
+                    command.effect_id,
+                    ref,
+                )
+                if provenance_matches is False:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="PROVENANCE_MISMATCH",
+                            evidence_digest=(
+                                None
+                                if self.audit.latest(command.effect_id) is None
+                                else self.audit.latest(
+                                    command.effect_id
+                                ).event_digest
+                            ),
+                            reason=(
+                                "coordination effect authority evidence does "
+                                "not carry the exact owning task dependency"
+                            ),
+                        )
+                    )
+                    continue
                 if (
                     command.terminal
                     and command.result_recorded
                     and command.fence_state in success_states
                     and result is not None
+                    and provenance_matches is True
                 ):
                     status = "SATISFIED"
                     evidence_digest = result.result_record_digest
                     reason = (
                         "coordination command result and terminal effect agree"
+                    )
+                elif (
+                    command.result_recorded
+                    and provenance_matches is not True
+                ):
+                    status = "PROVENANCE_MISMATCH"
+                    evidence_digest = (
+                        None
+                        if self.audit.latest(command.effect_id) is None
+                        else self.audit.latest(command.effect_id).event_digest
+                    )
+                    reason = (
+                        "coordination result exists without exact task-bound "
+                        "authority provenance"
                     )
                 elif command.recovery_required:
                     status = "RECOVERY_REQUIRED"
@@ -767,6 +894,9 @@ class QualifiedVeraRuntime:
 
             if dependency.kind == "PROVIDER_EFFECT":
                 try:
+                    provider_binding = self.provider_execution_bindings.read(
+                        dependency.target_id
+                    )
                     provider = self.assess_provider_effect(
                         dependency.target_id
                     )
@@ -786,11 +916,40 @@ class QualifiedVeraRuntime:
                     )
                     continue
 
+                if provider_binding.task_dependency != ref:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="PROVENANCE_MISMATCH",
+                            evidence_digest=provider_binding.binding_digest,
+                            reason=(
+                                "provider execution binding does not carry "
+                                "the exact owning task dependency"
+                            ),
+                        )
+                    )
+                    continue
+
                 latest = self.audit.latest(provider.mechanical_effect_id)
                 evidence_digest = (
                     None if latest is None else latest.event_digest
                 )
+                provenance_matches = self._audit_task_dependency_matches(
+                    provider.mechanical_effect_id,
+                    ref,
+                )
                 if (
+                    provider.fence_state is not None
+                    and provenance_matches is not True
+                ):
+                    status = "PROVENANCE_MISMATCH"
+                    reason = (
+                        "provider mechanical effect does not carry the exact "
+                        "owning task dependency in qualified authority evidence"
+                    )
+                elif (
                     provider.terminal
                     and provider.fence_state in success_states
                 ):
