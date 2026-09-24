@@ -131,6 +131,7 @@ from .task_execution import (
 from .source_mutation import (
     PreparedSourceMutation,
     QualifiedSourceMutationAdapter,
+    SourceMutationCancellation,
     SourceMutationError,
     SourceMutationRequest,
     SourceMutationRecoveryAssessment,
@@ -194,6 +195,7 @@ __all__ = [
     "SourceMutationTransportResult",
     "PreparedSourceMutation",
     "QualifiedSourceMutationAdapter",
+    "SourceMutationCancellation",
     "SourceMutationError",
     "SourceMutationRequest",
     "SourceMutationRecoveryAssessment",
