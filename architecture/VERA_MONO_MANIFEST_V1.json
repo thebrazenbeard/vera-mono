@@ -317,7 +317,9 @@
       "persistent coordination repository",
       "coordination command/result recovery journal",
       "durable task packets and resumable checkpoints",
-      "multi-surface evidence-bounded task closeout"
+      "multi-surface evidence-bounded task closeout",
+      "task-scoped coordination/provider/PC dependency binding",
+      "dependency-aware task restart and closeout gating"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -390,6 +392,8 @@
     "state_path": "tasks/tasks.sqlite",
     "event_types": [
       "TASK_OPENED",
+      "TASK_DEPENDENCY",
+      "TASK_CORRECTION",
       "TASK_CHECKPOINT",
       "TASK_CLOSED"
     ],
@@ -414,7 +418,8 @@
       "coordination_recovery_gap": "DENY",
       "provider_recovery_gap": "DENY",
       "supplied_blocker": "DENY",
-      "lifecycle_not_accepted": "DENY"
+      "lifecycle_not_accepted": "DENY",
+      "bound_dependency_not_satisfied": "DENY"
     },
     "claim_ceiling_required": true,
     "independent_surface_closeout": true,
@@ -426,6 +431,23 @@
       "subject_and_packet_bound": true,
       "next_checkpoint_requires_changed_method_guard_or_blocker": true,
       "unresolved_correction_blocks_closeout": true
+    },
+    "dependencies": {
+      "kinds": [
+        "EFFECT",
+        "COORDINATION_COMMAND",
+        "PROVIDER_EFFECT"
+      ],
+      "task_scoped_binding": true,
+      "restart_assessment": true,
+      "unsatisfied_blocks_closeout": true,
+      "terminal_no_effect_is_success": false,
+      "dependency_evidence_auto_carried_into_closeout": true,
+      "qualified_paths": [
+        "invoke_task_coordination",
+        "prepare_task_provider_effect",
+        "prepare_task_pc_job"
+      ]
     }
   }
 }
