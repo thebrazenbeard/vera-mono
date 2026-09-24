@@ -6,6 +6,13 @@ from .action_gate import (
     OutboundActionError,
     OutboundEffectResult,
 )
+from .coordination_command_journal import (
+    CoordinationCommandBinding,
+    CoordinationCommandJournal,
+    CoordinationCommandJournalError,
+    CoordinationCommandRecoveryAssessment,
+    CoordinationCommandResult,
+)
 from .effect_recovery import (
     EffectRecoveryAuthorityError,
     EffectReconciliationProof,
@@ -102,6 +109,11 @@ __all__ = [
     "CAPABILITIES",
     "CascadeEngine",
     "CascadeOutcome",
+    "CoordinationCommandBinding",
+    "CoordinationCommandJournal",
+    "CoordinationCommandJournalError",
+    "CoordinationCommandRecoveryAssessment",
+    "CoordinationCommandResult",
     "LayerResult",
     "LayerSpec",
     "LifecycleActionDenied",
