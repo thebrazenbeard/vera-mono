@@ -1123,19 +1123,27 @@ class QualifiedVeraRuntime:
                     "satisfied task dependency lacks durable evidence digest: "
                     + ", ".join(missing_dependency_evidence)
                 )
+            state = self.tasks.read(task_id)
+            binding_digests = {
+                dependency.dependency_id: dependency.event_digest
+                for dependency in state.dependencies
+            }
             dependency_evidence_refs = tuple(
                 (
                     "task-dependency:"
-                    f"{item.dependency_id}:{item.evidence_digest}"
+                    f"{item.dependency_id}:"
+                    f"{binding_digests[item.dependency_id]}:"
+                    f"{item.evidence_digest}"
                 )
                 for item in assessment.dependency_assessments
                 if item.evidence_digest is not None
             )
-            state = self.tasks.read(task_id)
             cancellation_evidence_refs = tuple(
                 (
                     "task-dependency-cancelled:"
-                    f"{item.dependency_id}:{item.event_digest}"
+                    f"{item.dependency_id}:"
+                    f"{binding_digests[item.dependency_id]}:"
+                    f"{item.event_digest}"
                 )
                 for item in state.dependency_cancellations
             )
