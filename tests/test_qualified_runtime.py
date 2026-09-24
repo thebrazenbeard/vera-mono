@@ -57,6 +57,22 @@ def test_qualified_runtime_composes_state_bus_effects_and_recovery(tmp_path):
         "recovery-authority",
         b"r" * 32,
     )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=provider.authority_id,
+        role="PROVIDER",
+        provider_id=PROVIDER,
+        key_id=provider.key_id,
+        key_digest=provider.key_digest,
+        expected_registry_generation=trust.generation,
+    )
+    trust.register(
+        authority_id=recovery.authority_id,
+        role="RECONCILIATION",
+        key_id=recovery.key_id,
+        key_digest=recovery.key_digest,
+        expected_registry_generation=trust.generation,
+    )
     runtime = QualifiedVeraRuntime.from_state_directory(
         state,
         provider_authority_verifiers={PROVIDER: provider},
