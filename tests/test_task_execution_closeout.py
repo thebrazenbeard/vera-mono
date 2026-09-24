@@ -909,3 +909,35 @@ def test_task_dependency_cannot_cancel_after_target_started(tmp_path):
     assert runtime.tasks.read(
         "task-no-post-start-cancel"
     ).cancelled_dependency_ids == ()
+
+
+def test_restart_marks_only_missing_dependency_as_safe_to_cancel(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-cancel-restart", packet())
+    runtime.bind_task_dependency(
+        "task-cancel-restart",
+        "dep-missing",
+        kind="EFFECT",
+        target_id="effect:not-started-on-restart",
+    )
+    runtime.prepare_task_provider_effect(
+        "task-cancel-restart",
+        "dep-pending-provider",
+        effect_id="provider-pending-restart",
+        provider_id="unconfigured-provider",
+        operation="WRITE",
+        request_payload={"value": 1},
+    )
+
+    restarted = QualifiedVeraRuntime.from_state_directory(state)
+    recovered = {
+        item["dependency_id"]: item
+        for group in restarted.resume_context()["task_dependency_recovery"]
+        if group["task_id"] == "task-cancel-restart"
+        for item in group["dependencies"]
+    }
+    assert recovered["dep-missing"]["status"] == "MISSING"
+    assert recovered["dep-missing"]["cancellation_allowed"] is True
+    assert recovered["dep-pending-provider"]["status"] == "PENDING"
+    assert recovered["dep-pending-provider"]["cancellation_allowed"] is False
