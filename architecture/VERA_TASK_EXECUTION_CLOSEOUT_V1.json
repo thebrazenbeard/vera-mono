@@ -31,7 +31,8 @@
     "deterministic_packet_digest": true,
     "writable_scope_source_grammar": "SOURCE|<repository>|<ref>|<path-or-prefix/**>",
     "untyped_writable_scope_grants_qualified_source_write": false,
-    "evidence_requirement_source_verification_grammar": "SOURCE_VERIFY|<repository>|<ref>|<check-name>"
+    "evidence_requirement_source_verification_grammar": "SOURCE_VERIFY|<repository>|<ref>|<check-name>",
+    "evidence_requirement_installation_verification_grammar": "INSTALL_VERIFY|<target-id>|<distribution>|<version>"
   },
   "checkpoint": {
     "method": "QualifiedVeraRuntime.checkpoint_task",
@@ -89,7 +90,8 @@
     ],
     "bound_task_dependency_not_satisfied_forbids_close": true,
     "active_delegation_forbids_close": true,
-    "required_source_verification_forbids_close": "matching SOURCE_VERIFY requirements remain non-PASS"
+    "required_source_verification_forbids_close": "matching SOURCE_VERIFY requirements remain non-PASS",
+    "required_installation_verification_forbids_close": "matching INSTALL_VERIFY requirements must be live-current PASS"
   },
   "integrity": {
     "journal": "append-only digest-chained SQLite event ledger",
@@ -266,5 +268,25 @@
     ],
     "ci_workflow": ".github/workflows/tests.yml",
     "boundary": "CI wheel installation is test evidence only; it is not install/registration or runtime-consumption evidence"
+  },
+  "installation_verification": {
+    "contract": "architecture/VERA_INSTALLATION_VERIFICATION_V1.json",
+    "store": "vera_core.InstallationVerificationStore",
+    "adapter": "vera_core.QualifiedInstallationVerificationAdapter",
+    "state_path": "install/verification.sqlite",
+    "required_surface": "install/registration",
+    "accepted_surface_states": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "out_of_scope_or_not_applicable_with_requirement": "DENY",
+    "stored_PASS_without_live_refresh": "DENY",
+    "closeout_evidence_ref": "task-installation:<target-id>:<distribution>:<receipt-digest>",
+    "boundaries": [
+      "package/build PASS is not install PASS",
+      "install PASS is not route PASS",
+      "install PASS is not runtime-consumption PASS",
+      "install PASS is not behavior/effect PASS"
+    ]
   }
 }
