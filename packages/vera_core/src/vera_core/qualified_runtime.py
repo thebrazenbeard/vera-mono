@@ -11,6 +11,17 @@ from vera_assurance import EffectFence, EffectReceipt, EffectState
 from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 
 from .action_gate import LifecycleBoundCoordinationBus, LifecycleEffectGateway
+from .behavior_effect_verification import (
+    BehaviorEffectVerificationError,
+    BehaviorEffectVerificationReceipt,
+    BehaviorEffectVerificationStore,
+    BehaviorEffectVerificationTransport,
+    behavior_effect_requirements,
+)
+from .behavior_effect_verification_adapter import (
+    BehaviorEffectAssessment,
+    QualifiedBehaviorEffectVerificationAdapter,
+)
 from .coordination_command_journal import CoordinationCommandJournal
 from .effect_recovery import (
     EffectReconciliationVerifier,
@@ -149,6 +160,10 @@ class QualifiedVeraRuntime:
     runtime_consumption_transports: Mapping[
         str, RuntimeConsumptionVerificationTransport
     ]
+    behavior_effect_verifications: BehaviorEffectVerificationStore
+    behavior_effect_transports: Mapping[
+        str, BehaviorEffectVerificationTransport
+    ]
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
 
@@ -180,6 +195,9 @@ class QualifiedVeraRuntime:
         ] | None = None,
         runtime_consumption_transports: Mapping[
             str, RuntimeConsumptionVerificationTransport
+        ] | None = None,
+        behavior_effect_transports: Mapping[
+            str, BehaviorEffectVerificationTransport
         ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
@@ -216,6 +234,10 @@ class QualifiedVeraRuntime:
             state.runtime_consumption_verification_store()
         )
         runtime_consumption_verifications.verify_chain()
+        behavior_effect_verifications = (
+            state.behavior_effect_verification_store()
+        )
+        behavior_effect_verifications.verify_chain()
         coordination_commands = state.coordination_command_journal()
         tasks = state.task_execution_ledger()
 
@@ -405,6 +427,31 @@ class QualifiedVeraRuntime:
                     f"{consumer_id!r}"
                 )
 
+        behavior_transports = dict(behavior_effect_transports or {})
+        for consumer_id, transport in behavior_transports.items():
+            if type(consumer_id) is not str or not consumer_id:
+                raise TypeError(
+                    "behavior/effect transport keys must be non-empty strings"
+                )
+            if not isinstance(
+                transport,
+                BehaviorEffectVerificationTransport,
+            ):
+                raise TypeError(
+                    f"behavior/effect transport for {consumer_id!r} "
+                    "does not satisfy BehaviorEffectVerificationTransport"
+                )
+            if transport.consumer_id != consumer_id:
+                raise ValueError(
+                    "behavior/effect transport identity mismatch for "
+                    f"{consumer_id!r}"
+                )
+            if consumer_id not in consumption_transports:
+                raise ValueError(
+                    "behavior/effect transport requires a matching live "
+                    "runtime-consumption transport for the same consumer"
+                )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -459,6 +506,8 @@ class QualifiedVeraRuntime:
             route_verification_transports=route_transports,
             runtime_consumption_verifications=runtime_consumption_verifications,
             runtime_consumption_transports=consumption_transports,
+            behavior_effect_verifications=behavior_effect_verifications,
+            behavior_effect_transports=behavior_transports,
             coordination_commands=coordination_commands,
             tasks=tasks,
         )
@@ -498,6 +547,9 @@ class QualifiedVeraRuntime:
         runtime_consumption_head = (
             self.runtime_consumption_verifications.verify_chain()
         )
+        behavior_effect_head = (
+            self.behavior_effect_verifications.verify_chain()
+        )
         body = {
             "schema": "VERA_MONO_TASK_RUNTIME_EVIDENCE_V1",
             "project_id": self.lifecycle.project_id,
@@ -518,6 +570,9 @@ class QualifiedVeraRuntime:
             "route_verification_head_digest": route_verification_head,
             "runtime_consumption_verification_head_digest": (
                 runtime_consumption_head
+            ),
+            "behavior_effect_verification_head_digest": (
+                behavior_effect_head
             ),
         }
         return sha256_hex(canonical_json_bytes(body))
@@ -1159,6 +1214,43 @@ class QualifiedVeraRuntime:
         self,
     ) -> tuple[RuntimeConsumptionAssessment, ...]:
         return self.runtime_consumption_adapter().recover()
+
+    def behavior_effect_verification_adapter(
+        self,
+    ) -> QualifiedBehaviorEffectVerificationAdapter:
+        return QualifiedBehaviorEffectVerificationAdapter(
+            runtime=self,
+            transports=self.behavior_effect_transports,
+        )
+
+    def assess_behavior_effect(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+    ) -> BehaviorEffectAssessment:
+        return self.behavior_effect_verification_adapter().assess(
+            task_id,
+            consumer_id,
+            probe_id,
+        )
+
+    def verify_task_behavior_effect(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+    ) -> BehaviorEffectVerificationReceipt:
+        return self.behavior_effect_verification_adapter().verify(
+            task_id,
+            consumer_id,
+            probe_id,
+        )
+
+    def recover_behavior_effect_verifications(
+        self,
+    ) -> tuple[BehaviorEffectAssessment, ...]:
+        return self.behavior_effect_verification_adapter().recover()
 
     def assess_task_dependencies(
         self,
@@ -2549,6 +2641,74 @@ class QualifiedVeraRuntime:
                 "reason": assessment.reason,
             }
             for assessment in self.recover_runtime_consumption_verifications()
+        ]
+        context["behavior_effect_verifications"] = (
+            self.behavior_effect_verifications.context()
+        )
+        context["behavior_effect_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "consumer_id": assessment.consumer_id,
+                "probe_id": assessment.probe_id,
+                "evidence_kind": assessment.evidence_kind,
+                "expected_stimulus_digest": (
+                    assessment.expected_stimulus_digest
+                ),
+                "expected_outcome_digest": (
+                    assessment.expected_outcome_digest
+                ),
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": assessment.latest_receipt_digest,
+                "latest_runtime_consumption_receipt_digest": (
+                    assessment.latest_runtime_consumption_receipt_digest
+                ),
+                "latest_process_instance_id": (
+                    assessment.latest_process_instance_id
+                ),
+                "latest_runtime_state_digest": (
+                    assessment.latest_runtime_state_digest
+                ),
+                "latest_external_effect_id": (
+                    assessment.latest_external_effect_id
+                ),
+                "latest_external_effect_receipt_digest": (
+                    assessment.latest_external_effect_receipt_digest
+                ),
+                "latest_external_evidence_digest": (
+                    assessment.latest_external_evidence_digest
+                ),
+                "transport_available": assessment.transport_available,
+                "runtime_consumption_current": (
+                    assessment.runtime_consumption_current
+                ),
+                "current_runtime_consumption_receipt_digest": (
+                    assessment.current_runtime_consumption_receipt_digest
+                ),
+                "current_process_instance_id": (
+                    assessment.current_process_instance_id
+                ),
+                "current_runtime_state_digest": (
+                    assessment.current_runtime_state_digest
+                ),
+                "current_observed_outcome_digest": (
+                    assessment.current_observed_outcome_digest
+                ),
+                "current_external_effect_id": (
+                    assessment.current_external_effect_id
+                ),
+                "current_external_effect_receipt_digest": (
+                    assessment.current_external_effect_receipt_digest
+                ),
+                "current_external_evidence_digest": (
+                    assessment.current_external_evidence_digest
+                ),
+                "current_matches_receipt": (
+                    assessment.current_matches_receipt
+                ),
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_behavior_effect_verifications()
         ]
         context["coordination"] = {
             "schema": "VERA_MONO_COORDINATION_RUNTIME_CONTEXT_V1",
