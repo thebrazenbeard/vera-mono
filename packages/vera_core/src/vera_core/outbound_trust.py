@@ -16,6 +16,18 @@ TRUST_ROLES = frozenset({"PC", "PROVIDER", "RECONCILIATION"})
 
 
 @dataclass(frozen=True, slots=True)
+class AuthorityTrustState:
+    authority_id: str
+    role: str
+    provider_id: str | None
+    authority_generation: int
+    revocation_epoch: int
+    key_id: str
+    key_digest: str
+    enabled: bool
+
+
+@dataclass(frozen=True, slots=True)
 class AuthorityCurrentnessReceipt:
     schema: str
     authority_id: str
@@ -125,6 +137,43 @@ class OutboundTrustRegistry:
     def head(self) -> str:
         with self._connect() as db:
             return self._meta(db)[1]
+
+    def read_scope(
+        self,
+        *,
+        role: str,
+        provider_id: str | None = None,
+    ) -> AuthorityTrustState:
+        scope_key = self._scope_key(role, provider_id)
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT * FROM authorities WHERE scope_key=?",
+                (scope_key,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(scope_key)
+        return AuthorityTrustState(
+            authority_id=str(row["authority_id"]),
+            role=str(row["role"]),
+            provider_id=row["provider_id"],
+            authority_generation=int(row["authority_generation"]),
+            revocation_epoch=int(row["revocation_epoch"]),
+            key_id=str(row["key_id"]),
+            key_digest=str(row["key_digest"]),
+            enabled=bool(row["enabled"]),
+        )
+
+    def has_scope(
+        self,
+        *,
+        role: str,
+        provider_id: str | None = None,
+    ) -> bool:
+        try:
+            self.read_scope(role=role, provider_id=provider_id)
+        except KeyError:
+            return False
+        return True
 
     def register(
         self,
@@ -323,6 +372,83 @@ class OutboundTrustRegistry:
             db.commit()
             return next_epoch
 
+    def reactivate(
+        self,
+        *,
+        authority_id: str,
+        role: str,
+        key_id: str,
+        key_digest: str,
+        provider_id: str | None = None,
+        expected_registry_generation: int,
+        expected_authority_generation: int,
+        expected_revocation_epoch: int,
+    ) -> AuthorityCurrentnessReceipt:
+        scope_key = self._scope_key(role, provider_id)
+        authority_id = self._require_text(authority_id, "authority_id")
+        key_id = self._require_text(key_id, "key_id")
+        key_digest = self._require_digest(key_digest, "key_digest")
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            registry_generation, head = self._meta(db)
+            if registry_generation != expected_registry_generation:
+                raise OutboundTrustError("stale outbound trust registry generation")
+            row = db.execute(
+                "SELECT * FROM authorities WHERE scope_key=?",
+                (scope_key,),
+            ).fetchone()
+            if row is None:
+                raise OutboundTrustError("outbound trust scope is not registered")
+            if int(row["enabled"]) != 0:
+                raise OutboundTrustError("only revoked authority may be reactivated")
+            if int(row["authority_generation"]) != expected_authority_generation:
+                raise OutboundTrustError("stale authority generation")
+            if int(row["revocation_epoch"]) != expected_revocation_epoch:
+                raise OutboundTrustError("stale revocation epoch")
+            next_authority_generation = expected_authority_generation + 1
+            db.execute(
+                """
+                UPDATE authorities
+                SET authority_id=?, authority_generation=?, key_id=?, key_digest=?,
+                    enabled=1
+                WHERE scope_key=?
+                """,
+                (
+                    authority_id,
+                    next_authority_generation,
+                    key_id,
+                    key_digest,
+                    scope_key,
+                ),
+            )
+            next_registry_generation = registry_generation + 1
+            event_head = self._append_event_locked(
+                db,
+                registry_generation=next_registry_generation,
+                scope_key=scope_key,
+                event_type="REACTIVATE",
+                predecessor=head,
+                payload={
+                    "authority_id": authority_id,
+                    "role": role,
+                    "provider_id": provider_id,
+                    "authority_generation": next_authority_generation,
+                    "revocation_epoch": expected_revocation_epoch,
+                    "key_id": key_id,
+                    "key_digest": key_digest,
+                    "enabled": True,
+                },
+            )
+            self._advance_meta(db, next_registry_generation, event_head)
+            db.commit()
+        return self.assert_current(
+            authority_id=authority_id,
+            role=role,
+            provider_id=provider_id,
+            key_id=key_id,
+            key_digest=key_digest,
+        )
+
     def assert_current(
         self,
         *,
@@ -332,6 +458,7 @@ class OutboundTrustRegistry:
         key_digest: str,
         provider_id: str | None = None,
     ) -> AuthorityCurrentnessReceipt:
+        self.verify_chain()
         scope_key = self._scope_key(role, provider_id)
         authority_id = self._require_text(authority_id, "authority_id")
         key_id = self._require_text(key_id, "key_id")
