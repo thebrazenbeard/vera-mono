@@ -23,20 +23,11 @@ from .outbound_authority import (
     validate_pc_authorization_binding,
 )
 from .outbound_trust import OutboundTrustRegistry
+from .pc_execution_binding import PreparedPCDispatch
 from .state import VeraStateDirectory
 
 
 T = TypeVar("T")
-
-
-@dataclass(frozen=True, slots=True)
-class PreparedPCDispatch:
-    permit: AcceptedLifecyclePermit
-    job: JobEnvelope
-    authorization: AuthorizationEnvelope
-    job_digest: str
-    authorization_digest: str
-    authority_subject: str
 
 
 @dataclass(frozen=True, slots=True)
