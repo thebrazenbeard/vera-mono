@@ -13,6 +13,7 @@ from .lifecycle_journal import LifecycleJournal
 from .outbound_audit import OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 from .pc_execution_binding import PCExecutionBindingStore
+from .provider_execution_binding import ProviderExecutionBindingStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,7 @@ class VeraStatePaths:
     outbound_audit: Path
     outbound_trust: Path
     pc_execution_bindings: Path
+    provider_execution_bindings: Path
     trust: Path
 
 
@@ -65,6 +67,9 @@ class VeraStateDirectory:
             outbound_trust=candidate / "trust" / "outbound.sqlite",
             pc_execution_bindings=(
                 candidate / "pc" / "execution-bindings.sqlite"
+            ),
+            provider_execution_bindings=(
+                candidate / "provider" / "execution-bindings.sqlite"
             ),
             trust=candidate / "recovery" / "trust",
         )
@@ -116,6 +121,13 @@ class VeraStateDirectory:
     def pc_execution_binding_store(self) -> PCExecutionBindingStore:
         return PCExecutionBindingStore(self.paths.pc_execution_bindings)
 
+    def provider_execution_binding_store(
+        self,
+    ) -> ProviderExecutionBindingStore:
+        return ProviderExecutionBindingStore(
+            self.paths.provider_execution_bindings
+        )
+
     def reconstruct(self) -> LifecycleReconstruction:
         return self.open().reconstruct()
 
@@ -140,5 +152,8 @@ class VeraStateDirectory:
         }
         context["pc_execution_bindings"] = (
             self.pc_execution_binding_store().context()
+        )
+        context["provider_execution_bindings"] = (
+            self.provider_execution_binding_store().context()
         )
         return context
