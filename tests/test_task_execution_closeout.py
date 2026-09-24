@@ -472,6 +472,13 @@ def test_task_dependency_binding_survives_restart_and_is_exact(tmp_path):
 
     reopened = TaskExecutionLedger(path).read("task-dependency")
     assert reopened.dependencies == bound.dependencies
+    replayed = ledger.bind_dependency(
+        "task-dependency",
+        "dep-effect-1",
+        kind="EFFECT",
+        target_id="provider:example:effect-1",
+    )
+    assert replayed.dependencies == bound.dependencies
 
     with pytest.raises(TaskExecutionError):
         ledger.bind_dependency(
@@ -638,3 +645,44 @@ def test_task_effect_dependency_cancelled_pre_dispatch_is_terminal_unsatisfied(t
     dependency = assessment.dependency_assessments[0]
     assert dependency.status == "TERMINAL_UNSATISFIED"
     assert dependency.evidence_digest is not None
+
+
+def test_task_scoped_coordination_path_binds_and_satisfies_dependency(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-auto-coordination", packet())
+
+    result = runtime.invoke_task_coordination(
+        "task-auto-coordination",
+        "dep-auto-coordination",
+        "coordination_post",
+        actor=actor(),
+        command_id="task-auto-command",
+        args=(draft(),),
+    )
+    assert result.fence_receipt.state.value == "COMMITTED"
+
+    task = runtime.tasks.read("task-auto-coordination")
+    assert len(task.dependencies) == 1
+    assert task.dependencies[0].kind == "COORDINATION_COMMAND"
+    assert task.dependencies[0].target_id == "task-auto-command"
+
+    assessment = runtime.assess_task_closeout(
+        "task-auto-coordination",
+        surfaces=surfaces(),
+    )
+    assert assessment.ready is True
+    assert assessment.dependency_assessments[0].status == "SATISFIED"
+
+    # Exact wrapper replay reaches the underlying command fence rather than
+    # failing because the task dependency record itself was duplicated.
+    with pytest.raises(Exception):
+        runtime.invoke_task_coordination(
+            "task-auto-coordination",
+            "dep-auto-coordination",
+            "coordination_post",
+            actor=actor(),
+            command_id="task-auto-command",
+            args=(draft(),),
+        )
+    assert len(runtime.tasks.read("task-auto-coordination").dependencies) == 1
