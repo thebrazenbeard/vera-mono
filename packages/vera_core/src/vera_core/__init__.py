@@ -123,6 +123,22 @@ from .provider_execution_binding import (
     ProviderExecutionRecoveryAssessment,
 )
 from .qualified_runtime import QualifiedVeraRuntime
+from .route_verification import (
+    ROUTE_VERIFICATION_STATUSES,
+    ROUTE_VERIFY_PREFIX,
+    JsonFileRouteVerificationTransport,
+    RouteObservation,
+    RouteVerificationError,
+    RouteVerificationReceipt,
+    RouteVerificationRequirement,
+    RouteVerificationStore,
+    RouteVerificationTransport,
+    route_verification_requirements,
+)
+from .route_verification_adapter import (
+    QualifiedRouteVerificationAdapter,
+    RouteVerificationAssessment,
+)
 from .reasoning_cascade import (
     CascadeEngine,
     CascadeOutcome,
@@ -310,6 +326,18 @@ __all__ = [
     "OutboundEffectResult",
     "NativeVeraLifecycle",
     "ReasoningRequest",
+    "ROUTE_VERIFICATION_STATUSES",
+    "ROUTE_VERIFY_PREFIX",
+    "JsonFileRouteVerificationTransport",
+    "RouteObservation",
+    "RouteVerificationError",
+    "RouteVerificationReceipt",
+    "RouteVerificationRequirement",
+    "RouteVerificationStore",
+    "RouteVerificationTransport",
+    "route_verification_requirements",
+    "QualifiedRouteVerificationAdapter",
+    "RouteVerificationAssessment",
     "CLOSEOUT_STATES",
     "CLOSEOUT_SURFACES",
     "TaskCloseout",
