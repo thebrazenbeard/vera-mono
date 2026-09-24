@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 
 from coordination_bus import (
@@ -185,11 +187,13 @@ def pc_authority(permit, job, authorization, *, secret=b"c" * 32):
     return verifier, proof
 
 
-def pc_gateway(state, lifecycle, verifier):
+def pc_gateway(state, lifecycle, verifier, *, now=None):
     return LifecycleEffectGateway(
         lifecycle=lifecycle,
         fence=state.effect_fence(),
         pc_authority_verifier=verifier,
+        clock=lambda: now
+        or datetime(2026, 8, 1, 20, 5, tzinfo=timezone.utc),
     )
 
 
@@ -573,3 +577,26 @@ def test_pc_without_injected_verifier_has_no_escape_path(tmp_path):
             authority_proof=proof,
             execute=lambda: {"escaped": True},
         )
+
+
+def test_pc_dispatch_rejects_expired_authorization_even_with_valid_proof(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    job = pc_job()
+    authorization = pc_authorization(job)
+    verifier, proof = pc_authority(permit, job, authorization)
+    gateway = pc_gateway(
+        state,
+        lifecycle,
+        verifier,
+        now=datetime(2026, 8, 1, 20, 16, tzinfo=timezone.utc),
+    )
+    calls = []
+    with pytest.raises(OutboundAuthorityError):
+        gateway.dispatch_pc_job(
+            permit=permit,
+            job=job,
+            authorization=authorization,
+            authority_proof=proof,
+            execute=lambda: calls.append("escaped"),
+        )
+    assert calls == []
