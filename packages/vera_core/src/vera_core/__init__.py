@@ -138,6 +138,11 @@ from .source_mutation import (
     normalize_source_path,
     source_provider_id,
 )
+from .source_mutation_binding import (
+    SourceMutationBinding,
+    SourceMutationBindingError,
+    SourceMutationBindingStore,
+)
 from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
@@ -191,6 +196,9 @@ __all__ = [
     "SourceMutationError",
     "SourceMutationRequest",
     "SourceMutationResult",
+    "SourceMutationBinding",
+    "SourceMutationBindingError",
+    "SourceMutationBindingStore",
     "SourceWritableScope",
     "normalize_source_path",
     "source_provider_id",
