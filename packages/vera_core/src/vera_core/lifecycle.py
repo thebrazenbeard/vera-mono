@@ -7,6 +7,7 @@ from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
 from vera_assurance import (
     AtomicCurrentnessStore,
     DriftPolicy,
+    EffectFence,
     DriftReport,
     Snapshot,
     compare_snapshots,
@@ -164,6 +165,7 @@ class NativeVeraLifecycle:
         identity_id: str,
         currentness_subject_id: str = "vera-runtime",
         journal: LifecycleJournal | None = None,
+        effect_fence: EffectFence | None = None,
     ):
         if memory.project_id != project_id or checkpoints.project_id != project_id:
             raise ValueError("lifecycle project_id does not match component stores")
@@ -179,6 +181,7 @@ class NativeVeraLifecycle:
         self.project_id = project_id
         self.identity_id = identity_id
         self.currentness_subject_id = currentness_subject_id
+        self.effect_fence = effect_fence
         self.journal = journal or LifecycleJournal(
             checkpoints.path.with_name("lifecycle-journal.sqlite")
         )
@@ -193,6 +196,8 @@ class NativeVeraLifecycle:
     def accepted_action_permit(self) -> AcceptedLifecyclePermit:
         """Mint a permit only from the exact currently accepted lifecycle state."""
         with self.action_lock():
+            if self.effect_fence is not None:
+                self.effect_fence.assert_clear()
             state = self.reconstruct()
             if state.status not in {"ACCEPTED_CURRENT", "ACCEPTED_RECONCILED"}:
                 raise LifecycleActionDenied(
@@ -352,6 +357,8 @@ class NativeVeraLifecycle:
         assurance_policy: DriftPolicy | None = None,
         created_at: str | None = None,
     ) -> NativeLifecycleReceipt:
+        if self.effect_fence is not None:
+            self.effect_fence.assert_clear()
         self.journal.verify_chain()
         observed_memory_head = self.memory.current_head
         if observed_memory_head != expected_memory_head:
