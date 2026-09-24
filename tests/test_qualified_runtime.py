@@ -11,6 +11,7 @@ from coordination_bus import (
     InMemoryCoordinationRepository,
 )
 from pc_connection.contracts import AuthorizationEnvelope, JobEnvelope
+from vera_assurance import EffectState
 from vera_core import (
     HmacEffectReconciliationAuthority,
     HmacPCJobAuthority,
