@@ -755,11 +755,32 @@ class QualifiedVeraRuntime:
             raise TaskExecutionError(
                 "task closeout blocked: " + "; ".join(assessment.reasons)
             )
+        missing_dependency_evidence = tuple(
+            item.dependency_id
+            for item in assessment.dependency_assessments
+            if item.satisfied and item.evidence_digest is None
+        )
+        if missing_dependency_evidence:
+            raise TaskExecutionError(
+                "satisfied task dependency lacks durable evidence digest: "
+                + ", ".join(missing_dependency_evidence)
+            )
+        dependency_evidence_refs = tuple(
+            (
+                "task-dependency:"
+                f"{item.dependency_id}:{item.evidence_digest}"
+            )
+            for item in assessment.dependency_assessments
+            if item.evidence_digest is not None
+        )
+        merged_evidence = tuple(
+            dict.fromkeys((*evidence_refs, *dependency_evidence_refs))
+        )
         return self.tasks.close_task(
             task_id,
             closeout_id,
             surfaces=surfaces,
-            evidence_refs=evidence_refs,
+            evidence_refs=merged_evidence,
             blockers=(),
             claim_ceiling=claim_ceiling,
             next_frontier=next_frontier,
