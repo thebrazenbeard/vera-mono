@@ -44,7 +44,6 @@ from .provider_execution_binding import (
 )
 from .state import VeraStateDirectory
 from .task_execution import (
-    CLOSEOUT_STATES,
     TaskCloseoutAssessment,
     TaskExecutionError,
     TaskExecutionLedger,
