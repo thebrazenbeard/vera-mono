@@ -262,6 +262,73 @@ class QualifiedVeraRuntime:
                 lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
             )
 
+    def _task_dependency_target_started(
+        self,
+        *,
+        kind: str,
+        target_id: str,
+    ) -> bool:
+        if kind == "EFFECT":
+            if self.audit.latest(target_id) is not None:
+                return True
+            try:
+                self.fence.read(target_id)
+            except KeyError:
+                return False
+            return True
+        if kind == "COORDINATION_COMMAND":
+            try:
+                self.coordination_commands.read_binding(target_id)
+            except KeyError:
+                return False
+            return True
+        if kind == "PROVIDER_EFFECT":
+            try:
+                self.provider_execution_bindings.read(target_id)
+            except KeyError:
+                return False
+            return True
+        raise TaskExecutionError(
+            f"unsupported task dependency kind: {kind!r}"
+        )
+
+    def _bind_task_dependency_unlocked(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        kind: str,
+        target_id: str,
+    ) -> TaskState:
+        state = self.tasks.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot accept dependency"
+            )
+        existing = {
+            item.dependency_id: item for item in state.dependencies
+        }.get(dependency_id)
+        if existing is not None:
+            if existing.kind != kind or existing.target_id != target_id:
+                raise TaskExecutionError(
+                    "task dependency identity is already bound differently"
+                )
+            return state
+        if self._task_dependency_target_started(
+            kind=kind,
+            target_id=target_id,
+        ):
+            raise TaskExecutionError(
+                "task dependency cannot be bound after target execution "
+                "or preparation has started"
+            )
+        return self.tasks.bind_dependency(
+            task_id,
+            dependency_id,
+            kind=kind,
+            target_id=target_id,
+        )
+
     def bind_task_dependency(
         self,
         task_id: str,
@@ -271,7 +338,7 @@ class QualifiedVeraRuntime:
         target_id: str,
     ) -> TaskState:
         with self.tasks.action_lock():
-            return self.tasks.bind_dependency(
+            return self._bind_task_dependency_unlocked(
                 task_id,
                 dependency_id,
                 kind=kind,
@@ -299,7 +366,7 @@ class QualifiedVeraRuntime:
                 raise TaskExecutionError(
                     "closed task cannot execute coordination dependency"
                 )
-            self.tasks.bind_dependency(
+            self._bind_task_dependency_unlocked(
                 task_id,
                 dependency_id,
                 kind="COORDINATION_COMMAND",
@@ -330,7 +397,7 @@ class QualifiedVeraRuntime:
                 raise TaskExecutionError(
                     "closed task cannot prepare provider dependency"
                 )
-            self.tasks.bind_dependency(
+            self._bind_task_dependency_unlocked(
                 task_id,
                 dependency_id,
                 kind="PROVIDER_EFFECT",
@@ -357,7 +424,7 @@ class QualifiedVeraRuntime:
                 raise TaskExecutionError(
                     "closed task cannot prepare PC dependency"
                 )
-            self.tasks.bind_dependency(
+            self._bind_task_dependency_unlocked(
                 task_id,
                 dependency_id,
                 kind="EFFECT",
