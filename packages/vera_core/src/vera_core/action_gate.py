@@ -33,7 +33,10 @@ from .outbound_authority import (
     validate_pc_authorization_binding,
 )
 from .outbound_audit import OutboundExecutionAudit
-from .outbound_trust import OutboundTrustRegistry
+from .outbound_trust import (
+    AuthorityCurrentnessReceipt,
+    OutboundTrustRegistry,
+)
 from .task_execution import TaskDependencyRef
 
 
@@ -143,6 +146,32 @@ class LifecycleEffectGateway:
                 )
         self._provider_authority_verifiers = registry
         self._clock = clock or (lambda: datetime.now(timezone.utc))
+
+    def provider_authority_currentness(
+        self,
+        provider_id: str,
+    ) -> AuthorityCurrentnessReceipt:
+        if type(provider_id) is not str or not provider_id:
+            raise OutboundAuthorityError(
+                "provider_id must be a non-empty exact string"
+            )
+        verifier = self._provider_authority_verifiers.get(provider_id)
+        if verifier is None:
+            raise OutboundAuthorityError(
+                f"no trusted authority verifier registered for provider {provider_id!r}"
+            )
+        trust = self._outbound_trust_registry
+        if trust is None:
+            raise OutboundAuthorityError(
+                "provider authority currentness requires persistent outbound trust"
+            )
+        return trust.assert_current(
+            authority_id=verifier.authority_id,
+            role="PROVIDER",
+            provider_id=provider_id,
+            key_id=verifier.key_id,
+            key_digest=verifier.key_digest,
+        )
 
     @staticmethod
     def effect_request_digest(
