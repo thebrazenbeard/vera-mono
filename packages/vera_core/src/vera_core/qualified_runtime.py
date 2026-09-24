@@ -19,6 +19,7 @@ from .effect_recovery import (
 from .execution_adapters import (
     PCExecutionTransport,
     ProviderExecutionTransport,
+    SourceMutationTransport,
 )
 from .lifecycle import (
     AcceptedLifecyclePermit,
@@ -43,6 +44,7 @@ from .provider_execution_binding import (
     ProviderExecutionRecoveryAssessment,
 )
 from .state import VeraStateDirectory
+from .source_mutation import QualifiedSourceMutationAdapter
 from .task_execution import (
     TaskCloseoutAssessment,
     TaskDependencyAssessment,
@@ -79,6 +81,9 @@ class QualifiedVeraRuntime:
     audit: OutboundExecutionAudit
     pc_execution_transport: PCExecutionTransport | None
     provider_execution_transports: Mapping[str, ProviderExecutionTransport]
+    source_mutation_transports: Mapping[
+        tuple[str, str], SourceMutationTransport
+    ]
     pc_execution_bindings: PCExecutionBindingStore
     provider_execution_bindings: ProviderExecutionBindingStore
     coordination_commands: CoordinationCommandJournal
@@ -97,6 +102,9 @@ class QualifiedVeraRuntime:
         pc_execution_transport: PCExecutionTransport | None = None,
         provider_execution_transports: Mapping[
             str, ProviderExecutionTransport
+        ] | None = None,
+        source_mutation_transports: Mapping[
+            tuple[str, str], SourceMutationTransport
         ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
@@ -175,6 +183,42 @@ class QualifiedVeraRuntime:
                     "a trusted provider authority verifier"
                 )
 
+        source_transports = dict(source_mutation_transports or {})
+        for scope, transport in source_transports.items():
+            if (
+                not isinstance(scope, tuple)
+                or len(scope) != 2
+                or not all(type(item) is str and item for item in scope)
+            ):
+                raise TypeError(
+                    "source mutation transport keys must be (repository, ref)"
+                )
+            if not isinstance(transport, SourceMutationTransport):
+                raise TypeError(
+                    f"source mutation transport for {scope!r} "
+                    "does not satisfy SourceMutationTransport"
+                )
+            if (transport.repository, transport.ref) != scope:
+                raise ValueError(
+                    f"source mutation transport identity mismatch for {scope!r}"
+                )
+            expected_provider_id = f"source:{scope[0]}"
+            if transport.provider_id != expected_provider_id:
+                raise ValueError(
+                    "source mutation transport provider identity must be "
+                    f"{expected_provider_id!r}"
+                )
+            if transport.provider_id not in provider_verifiers:
+                raise ValueError(
+                    f"source mutation transport {scope!r} requires a trusted "
+                    "provider authority verifier"
+                )
+            if transport.provider_id in provider_transports:
+                raise ValueError(
+                    "source mutation provider id is reserved from generic "
+                    "provider execution transports"
+                )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -216,6 +260,7 @@ class QualifiedVeraRuntime:
             audit=audit,
             pc_execution_transport=pc_execution_transport,
             provider_execution_transports=provider_transports,
+            source_mutation_transports=source_transports,
             pc_execution_bindings=pc_execution_bindings,
             provider_execution_bindings=provider_execution_bindings,
             coordination_commands=coordination_commands,
@@ -224,6 +269,12 @@ class QualifiedVeraRuntime:
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
         return self.lifecycle.accepted_action_permit()
+
+    def source_mutation_adapter(self) -> QualifiedSourceMutationAdapter:
+        return QualifiedSourceMutationAdapter(
+            runtime=self,
+            transports=self.source_mutation_transports,
+        )
 
     def _task_runtime_evidence_digest(self) -> str:
         lifecycle_context = self.lifecycle.reconstruct().as_resume_context()
@@ -1529,6 +1580,11 @@ class QualifiedVeraRuntime:
         *,
         authority: ProviderAuthorityEnvelope,
     ) -> Any:
+        if prepared.provider_id.startswith("source:"):
+            raise ValueError(
+                "source mutation providers must execute through the "
+                "qualified source mutation adapter"
+            )
         transport = self.provider_execution_transports.get(
             prepared.provider_id
         )
