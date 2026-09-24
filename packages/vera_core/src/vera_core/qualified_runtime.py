@@ -1550,6 +1550,11 @@ class QualifiedVeraRuntime:
     ) -> Any:
         if type(prepared) is not PreparedProviderDispatch:
             raise TypeError("prepared must be exact PreparedProviderDispatch")
+        if prepared.provider_id.startswith("source:"):
+            raise ValueError(
+                "source mutation providers must dispatch through the "
+                "qualified source mutation adapter"
+            )
         observed_digest = self.effects.provider_request_digest(
             provider_id=prepared.provider_id,
             operation=prepared.operation,
