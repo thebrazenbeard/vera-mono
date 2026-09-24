@@ -140,7 +140,14 @@ def pc_authorization(job, **changes):
     return AuthorizationEnvelope.from_mapping(value)
 
 
-def provider_authority(permit, request_payload, *, operation="WRITE", secret=b"p" * 32):
+def provider_authority(
+    permit,
+    request_payload,
+    *,
+    effect_id,
+    operation="WRITE",
+    secret=b"p" * 32,
+):
     verifier = HmacProviderAuthority(
         "provider-authority",
         PROVIDER_ID,
@@ -152,6 +159,7 @@ def provider_authority(permit, request_payload, *, operation="WRITE", secret=b"p
         request_payload=request_payload,
     )
     envelope = verifier.issue(
+        effect_id=effect_id,
         operation=operation,
         request_digest=request_digest,
         lifecycle_permit_digest=permit.permit_digest,
@@ -276,7 +284,7 @@ def test_interrupted_candidate_blocks_verified_provider_authority(tmp_path):
         unfinished_work=("interrupted candidate",),
     )
     payload = {"value": 1}
-    verifier, authority = provider_authority(permit, payload)
+    verifier, authority = provider_authority(permit, payload, effect_id="e1")
     gateway = provider_gateway(state, lifecycle, verifier)
     calls = []
     with pytest.raises(LifecycleActionDenied):
@@ -314,7 +322,7 @@ def test_blocked_candidate_blocks_verified_provider_authority(tmp_path):
         )
 
     payload = {"value": 2}
-    verifier, authority = provider_authority(permit, payload)
+    verifier, authority = provider_authority(permit, payload, effect_id="e2")
     gateway = provider_gateway(state, lifecycle, verifier)
     calls = []
     with pytest.raises(LifecycleActionDenied):
@@ -333,7 +341,7 @@ def test_blocked_candidate_blocks_verified_provider_authority(tmp_path):
 def test_provider_effect_requires_exact_verified_authority_and_effect_fence(tmp_path):
     state, lifecycle, permit = build_accepted(tmp_path)
     payload = {"value": 7}
-    verifier, authority = provider_authority(permit, payload)
+    verifier, authority = provider_authority(permit, payload, effect_id="provider-write-1")
     gateway = provider_gateway(state, lifecycle, verifier)
     calls = []
     result = gateway.dispatch_provider_effect(
@@ -351,7 +359,7 @@ def test_provider_effect_requires_exact_verified_authority_and_effect_fence(tmp_
 
     # A fresh externally issued authority proof still cannot bypass the durable
     # effect fence for an already-used effect id.
-    verifier2, authority2 = provider_authority(permit, payload)
+    verifier2, authority2 = provider_authority(permit, payload, effect_id="provider-write-1")
     gateway2 = provider_gateway(state, lifecycle, verifier2)
     with pytest.raises(EffectFenceError):
         gateway2.dispatch_provider_effect(
@@ -369,7 +377,7 @@ def test_provider_effect_requires_exact_verified_authority_and_effect_fence(tmp_
 def test_provider_authority_cannot_be_replayed_for_changed_request(tmp_path):
     state, lifecycle, permit = build_accepted(tmp_path)
     original = {"value": 1}
-    verifier, authority = provider_authority(permit, original)
+    verifier, authority = provider_authority(permit, original, effect_id="changed-request")
     gateway = provider_gateway(state, lifecycle, verifier)
     calls = []
     with pytest.raises(OutboundAuthorityError):
@@ -388,8 +396,8 @@ def test_provider_authority_cannot_be_replayed_for_changed_request(tmp_path):
 def test_caller_minted_provider_verifier_cannot_replace_trusted_registry(tmp_path):
     state, lifecycle, permit = build_accepted(tmp_path)
     payload = {"value": 3}
-    trusted, _ = provider_authority(permit, payload, secret=b"t" * 32)
-    attacker, forged = provider_authority(permit, payload, secret=b"x" * 32)
+    trusted, _ = provider_authority(permit, payload, effect_id="forged-provider-authority", secret=b"t" * 32)
+    attacker, forged = provider_authority(permit, payload, effect_id="forged-provider-authority", secret=b"x" * 32)
     gateway = provider_gateway(state, lifecycle, trusted)
     calls = []
     with pytest.raises(OutboundAuthorityError):
@@ -512,7 +520,7 @@ def test_old_permit_is_rejected_after_new_generation_is_accepted(tmp_path):
     assert new_permit.permit_digest != old_permit.permit_digest
 
     payload = {"value": 9}
-    verifier, authority = provider_authority(old_permit, payload)
+    verifier, authority = provider_authority(old_permit, payload, effect_id="stale-generation")
     gateway = provider_gateway(state, lifecycle, verifier)
     calls = []
     with pytest.raises(LifecycleActionDenied):
@@ -531,7 +539,7 @@ def test_old_permit_is_rejected_after_new_generation_is_accepted(tmp_path):
 def test_unregistered_provider_has_no_escape_path(tmp_path):
     state, lifecycle, permit = build_accepted(tmp_path)
     payload = {"value": 10}
-    _, authority = provider_authority(permit, payload)
+    _, authority = provider_authority(permit, payload, effect_id="unregistered-provider")
     gateway = LifecycleEffectGateway(
         lifecycle=lifecycle,
         fence=state.effect_fence(),
