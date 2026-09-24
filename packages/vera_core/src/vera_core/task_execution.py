@@ -174,6 +174,7 @@ TASK_DEPENDENCY_STATUSES = frozenset(
         "PENDING",
         "RECOVERY_REQUIRED",
         "TERMINAL_UNSATISFIED",
+        "PROVENANCE_MISMATCH",
     }
 )
 
