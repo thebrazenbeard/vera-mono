@@ -1057,3 +1057,51 @@ def test_reserved_source_cancellation_follows_current_delegation_owner(tmp_path)
         is EffectState.CANCELLED_PRE_DISPATCH
     )
     assert transport.calls == []
+
+
+
+def test_source_cancellation_refuses_ambiguous_dispatched_effect(tmp_path):
+    _, runtime, verifier, transport = runtime_with_source(
+        tmp_path,
+        bad_result=True,
+    )
+    runtime.start_task(
+        "task-cancel-ambiguous",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    adapter = runtime.source_mutation_adapter()
+    prepared = adapter.prepare(
+        "task-cancel-ambiguous",
+        "dep-cancel-ambiguous",
+        write_request(
+            mutation_id="mutation-cancel-ambiguous",
+            path="src/cancel-ambiguous.py",
+        ),
+    )
+    with pytest.raises(SourceMutationError):
+        adapter.execute(
+            prepared,
+            authority=authority_for(verifier, prepared),
+        )
+    assert len(transport.calls) == 1
+
+    with pytest.raises(
+        SourceMutationError,
+        match="only a RESERVED pre-dispatch",
+    ):
+        adapter.cancel_reserved_mutation(
+            "mutation-cancel-ambiguous",
+            actor_ref="vera",
+            reason="must not erase ambiguous dispatch",
+        )
+
+    dependency_ids = {
+        item.dependency_id
+        for item in runtime.tasks.read(
+            "task-cancel-ambiguous"
+        ).active_dependencies
+    }
+    assert "dep-cancel-ambiguous" in dependency_ids
+    assert runtime.fence.read(
+        f"provider:{PROVIDER_ID}:mutation-cancel-ambiguous"
+    ).state is EffectState.ATTEMPTED_UNKNOWN
