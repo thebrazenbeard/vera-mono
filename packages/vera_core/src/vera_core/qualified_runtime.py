@@ -642,6 +642,7 @@ class QualifiedVeraRuntime:
         return_id: str,
         *,
         summary: str,
+        return_values: Mapping[str, str],
         result_evidence_refs: tuple[str, ...],
     ) -> TaskState:
         with self.tasks.action_lock():
@@ -650,6 +651,7 @@ class QualifiedVeraRuntime:
                 delegation_id,
                 return_id,
                 summary=summary,
+                return_values=return_values,
                 result_evidence_refs=result_evidence_refs,
             )
 
