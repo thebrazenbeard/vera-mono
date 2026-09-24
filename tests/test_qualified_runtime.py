@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import sqlite3
 
 import pytest
 
@@ -8,8 +9,10 @@ from vera_core import (
     HmacEffectReconciliationAuthority,
     HmacPCJobAuthority,
     HmacProviderAuthority,
+    LifecycleActionDenied,
     OutboundAuthorityError,
     OutboundTrustError,
+    ProviderExecutionBindingError,
     QualifiedVeraRuntime,
     VeraStateDirectory,
 )
@@ -665,3 +668,226 @@ def test_provider_execution_transport_identity_mismatch_fails_at_composition(tmp
                 PROVIDER: StubProviderTransport("wrong-provider")
             },
         )
+
+
+def provider_runtime(state, *, secret=b"p" * 32):
+    verifier = HmacProviderAuthority(
+        "provider-authority",
+        PROVIDER,
+        secret,
+    )
+    trust = state.outbound_trust_registry()
+    if not trust.has_scope(role="PROVIDER", provider_id=PROVIDER):
+        trust.register(
+            authority_id=verifier.authority_id,
+            role="PROVIDER",
+            provider_id=PROVIDER,
+            key_id=verifier.key_id,
+            key_digest=verifier.key_digest,
+            expected_registry_generation=trust.generation,
+        )
+    transport = StubProviderTransport(PROVIDER)
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        provider_authority_verifiers={PROVIDER: verifier},
+        provider_execution_transports={PROVIDER: transport},
+    )
+    return runtime, verifier, transport
+
+
+def test_provider_prepare_persists_metadata_without_request_payload(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime, _, _ = provider_runtime(state)
+    secret_payload = {
+        "operation": "rotate",
+        "api_key": "DO-NOT-PERSIST-THIS-SECRET",
+    }
+
+    prepared = runtime.prepare_provider_effect(
+        effect_id="payload-safe-provider",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload=secret_payload,
+    )
+
+    binding = runtime.provider_execution_bindings.read(
+        prepared.effect_id
+    )
+    assert binding.request_digest == prepared.request_digest
+    assert binding.authority_subject == prepared.authority_subject
+    assert binding.permit.permit_digest == prepared.permit.permit_digest
+
+    with sqlite3.connect(runtime.provider_execution_bindings.path) as db:
+        payload_json = db.execute(
+            "SELECT payload_json FROM provider_execution_bindings "
+            "WHERE effect_id=?",
+            (prepared.effect_id,),
+        ).fetchone()[0]
+    assert "DO-NOT-PERSIST-THIS-SECRET" not in payload_json
+    assert '"request_payload_persisted":false' in payload_json
+
+
+def test_provider_effect_rehydrates_after_restart_from_matching_payload(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime, verifier, _ = provider_runtime(state)
+    payload = {"value": 41, "mode": "safe"}
+    prepared = runtime.prepare_provider_effect(
+        effect_id="provider-restart",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload=payload,
+    )
+    original_permit = prepared.permit.permit_digest
+    original_subject = prepared.authority_subject
+
+    restarted = QualifiedVeraRuntime.from_state_directory(
+        state,
+        provider_authority_verifiers={PROVIDER: verifier},
+        provider_execution_transports={
+            PROVIDER: StubProviderTransport(PROVIDER)
+        },
+    )
+    rehydrated = restarted.rehydrate_provider_effect(
+        "provider-restart",
+        request_payload=payload,
+    )
+
+    assert rehydrated.request_digest == prepared.request_digest
+    assert rehydrated.permit.permit_digest == original_permit
+    assert rehydrated.authority_subject == original_subject
+    authority = verifier.issue(
+        effect_id=rehydrated.effect_id,
+        operation=rehydrated.operation,
+        request_digest=rehydrated.request_digest,
+        lifecycle_permit_digest=rehydrated.permit.permit_digest,
+    )
+    result = restarted.execute_provider_effect(
+        rehydrated,
+        authority=authority,
+    )
+    assert result.value["payload"] == payload
+
+
+def test_provider_rehydrate_rejects_changed_payload(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime, verifier, _ = provider_runtime(state)
+    runtime.prepare_provider_effect(
+        effect_id="provider-rehydrate-mismatch",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload={"value": 1},
+    )
+    restarted = QualifiedVeraRuntime.from_state_directory(
+        state,
+        provider_authority_verifiers={PROVIDER: verifier},
+    )
+
+    with pytest.raises(ValueError, match="does not match durable binding"):
+        restarted.rehydrate_provider_effect(
+            "provider-rehydrate-mismatch",
+            request_payload={"value": 2},
+        )
+
+
+def test_provider_effect_identity_cannot_rebind_different_request(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime, _, _ = provider_runtime(state)
+    runtime.prepare_provider_effect(
+        effect_id="provider-single-binding",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload={"value": 1},
+    )
+
+    with pytest.raises(
+        ProviderExecutionBindingError,
+        match="already binds different request metadata",
+    ):
+        runtime.prepare_provider_effect(
+            effect_id="provider-single-binding",
+            provider_id=PROVIDER,
+            operation="WRITE",
+            request_payload={"value": 2},
+        )
+
+
+def test_provider_binding_restart_context_survives_without_payload(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime, _, _ = provider_runtime(state)
+    prepared = runtime.prepare_provider_effect(
+        effect_id="provider-context",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload={"secret": "ephemeral-only"},
+    )
+
+    context = VeraStateDirectory(
+        state.paths.root,
+        project_id=PROJECT,
+        identity_id=IDENTITY,
+    ).resume_context()
+    provider_context = context["provider_execution_bindings"]
+    assert provider_context["binding_count"] == 1
+    record = provider_context["bindings"][0]
+    assert record["effect_id"] == prepared.effect_id
+    assert record["request_digest"] == prepared.request_digest
+    assert record["request_payload_persisted"] is False
+    assert "ephemeral-only" not in str(provider_context)
+
+
+def test_rehydrated_provider_binding_does_not_refresh_stale_lifecycle_permit(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime, verifier, _ = provider_runtime(state)
+    prepared = runtime.prepare_provider_effect(
+        effect_id="provider-stale-permit",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload={"value": "old-cut"},
+    )
+
+    lifecycle = state.open()
+    admitted = lifecycle.memory.admit(
+        AdmissionRequest(
+            record_id="m2",
+            text="advance lifecycle after provider binding",
+            memory_class=MemoryClass.WORKING_PROJECT,
+            source_actor="test",
+            authority_ref="authority:test",
+            privacy_ref="privacy:test",
+            provenance_refs=("source:test",),
+            operation_id="op2",
+            project_id=PROJECT,
+            governed_identity_id=IDENTITY,
+        ),
+        expected_head=lifecycle.memory.current_head,
+    )
+    lifecycle.checkpoint(
+        checkpoint_id="cp2",
+        runtime_id="runtime-2",
+        expected_memory_head=admitted["store_head"],
+        expected_checkpoint_head=lifecycle.checkpoints.current_head,
+        expected_currentness_generation=0,
+    )
+
+    restarted = QualifiedVeraRuntime.from_state_directory(
+        state,
+        provider_authority_verifiers={PROVIDER: verifier},
+    )
+    rehydrated = restarted.rehydrate_provider_effect(
+        prepared.effect_id,
+        request_payload={"value": "old-cut"},
+    )
+    authority = verifier.issue(
+        effect_id=rehydrated.effect_id,
+        operation=rehydrated.operation,
+        request_digest=rehydrated.request_digest,
+        lifecycle_permit_digest=rehydrated.permit.permit_digest,
+    )
+    calls = []
+    with pytest.raises(LifecycleActionDenied):
+        restarted.dispatch_provider_effect(
+            rehydrated,
+            authority=authority,
+            execute=lambda: calls.append("escaped"),
+        )
+    assert calls == []
