@@ -549,5 +549,37 @@
       "same_mutation_id_retry": false,
       "ambiguous_dispatch_cancel_allowed": false
     }
+  },
+  "source_verification": {
+    "schema": "VERA_MONO_SOURCE_VERIFICATION_V1",
+    "contract": "architecture/VERA_SOURCE_VERIFICATION_V1.json",
+    "store": "vera_core.SourceVerificationStore",
+    "adapter": "vera_core.QualifiedSourceVerificationAdapter",
+    "state_path": "source/verification.sqlite",
+    "requirement_grammar": "SOURCE_VERIFY|<repository>|<ref>|<check-name>",
+    "runtime_methods": [
+      "QualifiedVeraRuntime.assess_source_verification",
+      "QualifiedVeraRuntime.verify_source_mutation",
+      "QualifiedVeraRuntime.recover_source_verifications"
+    ],
+    "task_dependency_gate": true,
+    "exact_commit_bound": true,
+    "branch_head_observed_separately": true,
+    "statuses": [
+      "PASS",
+      "FAIL",
+      "PENDING",
+      "UNAVAILABLE",
+      "STALE_HEAD"
+    ],
+    "concrete_github_transport": {
+      "transport": "vera_core.GitHubSourceVerificationTransport",
+      "api_client": "vera_core.GitHubGitDataAPIClient",
+      "GraphQL_statusCheckRollup": true,
+      "exhaustive_pagination": true,
+      "exact_commit_oid_readback": true
+    },
+    "independent_review": false,
+    "deploy_install_runtime_effect_authority": false
   }
 }
