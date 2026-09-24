@@ -319,7 +319,9 @@
       "durable task packets and resumable checkpoints",
       "multi-surface evidence-bounded task closeout",
       "task-scoped coordination/provider/PC dependency binding",
-      "dependency-aware task restart and closeout gating"
+      "dependency-aware task restart and closeout gating",
+      "durable delegated-subject ownership",
+      "delegation reassignment return and cancellation closeout gating"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -395,6 +397,10 @@
       "TASK_DEPENDENCY",
       "TASK_DEPENDENCY_CANCELLED",
       "TASK_CORRECTION",
+      "TASK_DELEGATED",
+      "TASK_DELEGATION_REASSIGNED",
+      "TASK_DELEGATION_RETURNED",
+      "TASK_DELEGATION_CANCELLED",
       "TASK_CHECKPOINT",
       "TASK_CLOSED"
     ],
@@ -420,7 +426,8 @@
       "provider_recovery_gap": "DENY",
       "supplied_blocker": "DENY",
       "lifecycle_not_accepted": "DENY",
-      "bound_dependency_not_satisfied": "DENY"
+      "bound_dependency_not_satisfied": "DENY",
+      "active_delegation": "DENY"
     },
     "claim_ceiling_required": true,
     "independent_surface_closeout": true,
@@ -460,6 +467,19 @@
       "cancellation_evidence_auto_carried_into_closeout": true,
       "task_action_lock": "PORTABLE_FILE_LOCK",
       "closeout_serialized_against_task_scoped_work": true
+    },
+    "delegation": {
+      "contract": "architecture/VERA_TASK_DELEGATION_OWNERSHIP_V1.json",
+      "one_active_owner_per_repository_ref_subject": true,
+      "explicit_assignee": true,
+      "allowed_and_prohibited_effect_policy": true,
+      "return_shape_required": true,
+      "binding_evidence_required": true,
+      "reassignment_preserves_subject_ownership": true,
+      "returned_or_cancelled_releases_subject": true,
+      "active_delegation_blocks_closeout": true,
+      "terminal_event_digest_auto_carried_into_closeout": true,
+      "restart_context_exposes_active_owners": true
     }
   }
 }
