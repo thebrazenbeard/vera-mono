@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Mapping, TypeVar
@@ -16,7 +17,11 @@ from .execution_adapters import (
     PCExecutionTransport,
     ProviderExecutionTransport,
 )
-from .lifecycle import AcceptedLifecyclePermit, NativeVeraLifecycle
+from .lifecycle import (
+    AcceptedLifecyclePermit,
+    LifecycleActionDenied,
+    NativeVeraLifecycle,
+)
 from .outbound_authority import (
     PCJobAuthorityProof,
     PCJobAuthorityVerifier,
@@ -32,6 +37,7 @@ from .pc_execution_binding import PCExecutionBindingStore, PreparedPCDispatch
 from .provider_execution_binding import (
     PreparedProviderDispatch,
     ProviderExecutionBindingStore,
+    ProviderExecutionRecoveryAssessment,
 )
 from .state import VeraStateDirectory
 
@@ -404,13 +410,130 @@ class QualifiedVeraRuntime:
             raise ValueError(
                 "provider execution transport identity changed after construction"
             )
+        execution_payload = deepcopy(prepared.request_payload)
+        observed_digest = self.effects.provider_request_digest(
+            provider_id=prepared.provider_id,
+            operation=prepared.operation,
+            request_payload=execution_payload,
+        )
+        if observed_digest != prepared.request_digest:
+            raise ValueError(
+                "provider request changed while creating execution snapshot"
+            )
+        snapshotted = PreparedProviderDispatch(
+            permit=prepared.permit,
+            effect_id=prepared.effect_id,
+            provider_id=prepared.provider_id,
+            operation=prepared.operation,
+            request_payload=execution_payload,
+            request_digest=prepared.request_digest,
+            authority_subject=prepared.authority_subject,
+        )
         return self.dispatch_provider_effect(
-            prepared,
+            snapshotted,
             authority=authority,
             execute=lambda: transport.execute(
-                prepared.operation,
-                prepared.request_payload,
+                snapshotted.operation,
+                snapshotted.request_payload,
             ),
+        )
+
+    def assess_provider_effect(
+        self,
+        effect_id: str,
+    ) -> ProviderExecutionRecoveryAssessment:
+        binding = self.provider_execution_bindings.read(effect_id)
+        mechanical_effect_id = (
+            f"provider:{binding.provider_id}:{binding.effect_id}"
+        )
+        self.audit.verify_fence_consistency(self.fence)
+        try:
+            receipt = self.fence.read(mechanical_effect_id)
+        except KeyError:
+            receipt = None
+
+        lifecycle_current = True
+        try:
+            self.lifecycle.validate_action_permit(binding.permit)
+        except LifecycleActionDenied:
+            lifecycle_current = False
+
+        if receipt is None:
+            return ProviderExecutionRecoveryAssessment(
+                effect_id=binding.effect_id,
+                mechanical_effect_id=mechanical_effect_id,
+                provider_id=binding.provider_id,
+                operation=binding.operation,
+                fence_state=None,
+                lifecycle_permit_current=lifecycle_current,
+                dispatch_candidate_allowed=lifecycle_current,
+                recovery_required=False,
+                terminal=False,
+                reason=(
+                    "provider request is prepared but has no mechanical "
+                    "effect record"
+                    if lifecycle_current
+                    else "provider request is prepared under a stale lifecycle permit"
+                ),
+            )
+
+        state = receipt.state
+        if state is EffectState.RESERVED:
+            return ProviderExecutionRecoveryAssessment(
+                effect_id=binding.effect_id,
+                mechanical_effect_id=mechanical_effect_id,
+                provider_id=binding.provider_id,
+                operation=binding.operation,
+                fence_state=state.value,
+                lifecycle_permit_current=lifecycle_current,
+                dispatch_candidate_allowed=False,
+                recovery_required=False,
+                terminal=False,
+                reason=(
+                    "provider effect is durably reserved pre-dispatch; "
+                    "cancel it rather than reusing the effect identity"
+                ),
+            )
+        if state in {
+            EffectState.EXECUTING,
+            EffectState.ATTEMPTED_UNKNOWN,
+        }:
+            return ProviderExecutionRecoveryAssessment(
+                effect_id=binding.effect_id,
+                mechanical_effect_id=mechanical_effect_id,
+                provider_id=binding.provider_id,
+                operation=binding.operation,
+                fence_state=state.value,
+                lifecycle_permit_current=lifecycle_current,
+                dispatch_candidate_allowed=False,
+                recovery_required=True,
+                terminal=False,
+                reason=(
+                    "provider effect may have crossed the dispatch boundary; "
+                    "reconciliation is required before any replacement action"
+                ),
+            )
+        return ProviderExecutionRecoveryAssessment(
+            effect_id=binding.effect_id,
+            mechanical_effect_id=mechanical_effect_id,
+            provider_id=binding.provider_id,
+            operation=binding.operation,
+            fence_state=state.value,
+            lifecycle_permit_current=lifecycle_current,
+            dispatch_candidate_allowed=False,
+            recovery_required=False,
+            terminal=True,
+            reason=(
+                "provider effect identity has reached a terminal mechanical state"
+            ),
+        )
+
+    def recover_provider_effects(
+        self,
+    ) -> tuple[ProviderExecutionRecoveryAssessment, ...]:
+        return tuple(
+            self.assess_provider_effect(binding.effect_id)
+            for binding in self.provider_execution_bindings.all()
         )
 
     def resume_context(self) -> dict[str, Any]:
@@ -434,4 +557,23 @@ class QualifiedVeraRuntime:
         context["provider_execution_bindings"] = (
             self.provider_execution_bindings.context()
         )
+        context["provider_execution_recovery"] = [
+            {
+                "effect_id": assessment.effect_id,
+                "mechanical_effect_id": assessment.mechanical_effect_id,
+                "provider_id": assessment.provider_id,
+                "operation": assessment.operation,
+                "fence_state": assessment.fence_state,
+                "lifecycle_permit_current": (
+                    assessment.lifecycle_permit_current
+                ),
+                "dispatch_candidate_allowed": (
+                    assessment.dispatch_candidate_allowed
+                ),
+                "recovery_required": assessment.recovery_required,
+                "terminal": assessment.terminal,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_provider_effects()
+        ]
         return context
