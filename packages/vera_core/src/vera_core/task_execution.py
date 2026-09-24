@@ -989,6 +989,74 @@ class TaskExecutionLedger:
             )
         return ref
 
+    def active_delegation_owner(
+        self,
+        *,
+        repository: str,
+        ref: str,
+        subject: str,
+    ) -> tuple[str, TaskDelegation] | None:
+        repository = _require_text(repository, "repository")
+        ref = _require_text(ref, "ref")
+        subject = _require_text(subject, "delegated subject")
+        scope = (repository, ref, subject)
+        owners = [
+            (state.task_id, delegation)
+            for state in self.tasks()
+            for delegation in state.active_delegations
+            if delegation.scope_key == scope
+        ]
+        if len(owners) > 1:
+            raise TaskExecutionError(
+                "delegated subject has multiple active owners"
+            )
+        return None if not owners else owners[0]
+
+    def assert_subject_mutation_allowed(
+        self,
+        *,
+        repository: str,
+        ref: str,
+        subject: str,
+        actor_ref: str,
+        delegation_ref: TaskDelegationRef | None = None,
+    ) -> TaskDelegationRef | None:
+        actor_ref = _require_text(actor_ref, "actor_ref")
+        owner = self.active_delegation_owner(
+            repository=repository,
+            ref=ref,
+            subject=subject,
+        )
+        if owner is None:
+            if delegation_ref is not None:
+                raise TaskExecutionError(
+                    "delegation reference supplied for subject with no active delegation"
+                )
+            return None
+        owner_task_id, active = owner
+        if delegation_ref is None:
+            raise TaskExecutionError(
+                "subject is actively delegated and requires exact owner reference"
+            )
+        if delegation_ref.task_id != owner_task_id:
+            raise TaskExecutionError(
+                "delegation reference belongs to different owning task"
+            )
+        self.validate_delegation_ref(
+            delegation_ref,
+            actor_ref=actor_ref,
+        )
+        if (
+            delegation_ref.repository != repository
+            or delegation_ref.ref != ref
+            or delegation_ref.subject != subject
+            or delegation_ref.assignee_ref != active.assignee_ref
+        ):
+            raise TaskExecutionError(
+                "delegation mutation claim does not match active subject scope"
+            )
+        return delegation_ref
+
     def record_correction(
         self,
         task_id: str,
