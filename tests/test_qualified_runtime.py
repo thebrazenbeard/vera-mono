@@ -48,6 +48,17 @@ class StubProviderTransport:
         }
 
 
+class MutatingProviderTransport:
+    def __init__(self, provider_id):
+        self.provider_id = provider_id
+        self.received = None
+
+    def execute(self, operation, request_payload):
+        self.received = request_payload
+        request_payload["transport_mutated"] = True
+        return {"operation": operation, "payload": request_payload}
+
+
 def accepted_state(tmp_path):
     state = VeraStateDirectory(
         tmp_path / "state",
@@ -891,3 +902,186 @@ def test_rehydrated_provider_binding_does_not_refresh_stale_lifecycle_permit(tmp
             execute=lambda: calls.append("escaped"),
         )
     assert calls == []
+
+
+def test_provider_execution_uses_detached_payload_snapshot(tmp_path):
+    state = accepted_state(tmp_path)
+    verifier = HmacProviderAuthority(
+        "provider-authority",
+        PROVIDER,
+        b"p" * 32,
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=verifier.authority_id,
+        role="PROVIDER",
+        provider_id=PROVIDER,
+        key_id=verifier.key_id,
+        key_digest=verifier.key_digest,
+        expected_registry_generation=0,
+    )
+    transport = MutatingProviderTransport(PROVIDER)
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        provider_authority_verifiers={PROVIDER: verifier},
+        provider_execution_transports={PROVIDER: transport},
+    )
+    caller_payload = {"value": {"nested": 9}}
+    prepared = runtime.prepare_provider_effect(
+        effect_id="provider-detached-payload",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload=caller_payload,
+    )
+    authority = verifier.issue(
+        effect_id=prepared.effect_id,
+        operation=prepared.operation,
+        request_digest=prepared.request_digest,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+
+    result = runtime.execute_provider_effect(
+        prepared,
+        authority=authority,
+    )
+
+    assert transport.received is not caller_payload
+    assert "transport_mutated" not in caller_payload
+    assert result.value["payload"]["transport_mutated"] is True
+
+
+def test_provider_recovery_assessment_distinguishes_prepared_ambiguous_and_terminal(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime, verifier, _ = provider_runtime(state)
+    prepared = runtime.prepare_provider_effect(
+        effect_id="provider-assessment",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload={"value": 11},
+    )
+
+    prepared_assessment = runtime.assess_provider_effect(
+        prepared.effect_id
+    )
+    assert prepared_assessment.fence_state is None
+    assert prepared_assessment.lifecycle_permit_current is True
+    assert prepared_assessment.dispatch_candidate_allowed is True
+    assert prepared_assessment.recovery_required is False
+    assert prepared_assessment.terminal is False
+
+    authority = verifier.issue(
+        effect_id=prepared.effect_id,
+        operation=prepared.operation,
+        request_digest=prepared.request_digest,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+    with pytest.raises(RuntimeError):
+        runtime.dispatch_provider_effect(
+            prepared,
+            authority=authority,
+            execute=lambda: (_ for _ in ()).throw(
+                RuntimeError("provider outcome unknown")
+            ),
+        )
+    ambiguous = runtime.assess_provider_effect(prepared.effect_id)
+    assert ambiguous.fence_state == "ATTEMPTED_UNKNOWN"
+    assert ambiguous.dispatch_candidate_allowed is False
+    assert ambiguous.recovery_required is True
+    assert ambiguous.terminal is False
+
+    recovery = HmacEffectReconciliationAuthority(
+        "recovery-provider-assessment",
+        b"r" * 32,
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=recovery.authority_id,
+        role="RECONCILIATION",
+        key_id=recovery.key_id,
+        key_digest=recovery.key_digest,
+        expected_registry_generation=trust.generation,
+    )
+    recovered_runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        provider_authority_verifiers={PROVIDER: verifier},
+        reconciliation_verifier=recovery,
+    )
+    receipt = recovered_runtime.fence.read(
+        "provider:example-provider:provider-assessment"
+    )
+    proof = recovery.issue(
+        receipt,
+        effect_occurred=False,
+        result_digest=None,
+    )
+    assert recovered_runtime.recovery is not None
+    recovered_runtime.recovery.reconcile(
+        receipt.effect_id,
+        proof=proof,
+        effect_occurred=False,
+        result_digest=None,
+    )
+    terminal = recovered_runtime.assess_provider_effect(
+        prepared.effect_id
+    )
+    assert terminal.fence_state == "RECONCILED_NO_EFFECT"
+    assert terminal.dispatch_candidate_allowed is False
+    assert terminal.recovery_required is False
+    assert terminal.terminal is True
+
+
+def test_provider_recovery_assessment_marks_stale_prepared_binding_non_dispatchable(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime, _, _ = provider_runtime(state)
+    prepared = runtime.prepare_provider_effect(
+        effect_id="provider-assessment-stale",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload={"value": "old"},
+    )
+
+    lifecycle = state.open()
+    admitted = lifecycle.memory.admit(
+        AdmissionRequest(
+            record_id="m3",
+            text="advance provider assessment lifecycle",
+            memory_class=MemoryClass.WORKING_PROJECT,
+            source_actor="test",
+            authority_ref="authority:test",
+            privacy_ref="privacy:test",
+            provenance_refs=("source:test",),
+            operation_id="op3",
+            project_id=PROJECT,
+            governed_identity_id=IDENTITY,
+        ),
+        expected_head=lifecycle.memory.current_head,
+    )
+    lifecycle.checkpoint(
+        checkpoint_id="cp3",
+        runtime_id="runtime-3",
+        expected_memory_head=admitted["store_head"],
+        expected_checkpoint_head=lifecycle.checkpoints.current_head,
+        expected_currentness_generation=0,
+    )
+
+    restarted, _, _ = provider_runtime(state)
+    assessment = restarted.assess_provider_effect(
+        prepared.effect_id
+    )
+    assert assessment.fence_state is None
+    assert assessment.lifecycle_permit_current is False
+    assert assessment.dispatch_candidate_allowed is False
+    assert assessment.recovery_required is False
+    assert assessment.terminal is False
+
+    context = restarted.resume_context()
+    provider_recovery = {
+        item["effect_id"]: item
+        for item in context["provider_execution_recovery"]
+    }
+    assert (
+        provider_recovery["provider-assessment-stale"][
+            "dispatch_candidate_allowed"
+        ]
+        is False
+    )
