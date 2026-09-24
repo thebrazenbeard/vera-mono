@@ -218,3 +218,110 @@ def test_repository_must_be_exact_owner_name():
     api = client(http)
     with pytest.raises(GitHubSourceTransportError):
         api.get_ref_head("not-an-owner-name", "main")
+
+
+def test_commit_check_contexts_are_exhaustively_paginated():
+    http = ScriptedHTTP(
+        [
+            GitHubHTTPResult(
+                200,
+                {
+                    "data": {
+                        "repository": {
+                            "object": {
+                                "oid": "commit-a",
+                                "statusCheckRollup": {
+                                    "contexts": {
+                                        "nodes": [
+                                            {
+                                                "__typename": "CheckRun",
+                                                "name": "ci",
+                                                "status": "COMPLETED",
+                                                "conclusion": "SUCCESS",
+                                                "databaseId": 11,
+                                                "detailsUrl": "https://example/check/11",
+                                            }
+                                        ],
+                                        "pageInfo": {
+                                            "hasNextPage": True,
+                                            "endCursor": "cursor-1",
+                                        },
+                                    }
+                                },
+                            }
+                        }
+                    }
+                },
+            ),
+            GitHubHTTPResult(
+                200,
+                {
+                    "data": {
+                        "repository": {
+                            "object": {
+                                "oid": "commit-a",
+                                "statusCheckRollup": {
+                                    "contexts": {
+                                        "nodes": [
+                                            {
+                                                "__typename": "StatusContext",
+                                                "context": "lint",
+                                                "state": "SUCCESS",
+                                                "targetUrl": "https://example/status/lint",
+                                            }
+                                        ],
+                                        "pageInfo": {
+                                            "hasNextPage": False,
+                                            "endCursor": None,
+                                        },
+                                    }
+                                },
+                            }
+                        }
+                    }
+                },
+            ),
+        ]
+    )
+    api = client(http)
+
+    contexts = api.get_commit_check_contexts(
+        REPOSITORY,
+        "commit-a",
+    )
+
+    assert [(item.kind, item.name, item.status) for item in contexts] == [
+        ("CHECK_RUN", "ci", "COMPLETED"),
+        ("STATUS_CONTEXT", "lint", "SUCCESS"),
+    ]
+    assert contexts[0].external_id == "check-run:11"
+    assert contexts[1].details_ref == "https://example/status/lint"
+    assert http.calls[0]["body"]["variables"]["after"] is None
+    assert http.calls[1]["body"]["variables"]["after"] == "cursor-1"
+
+
+def test_commit_check_contexts_fail_closed_on_commit_oid_mismatch():
+    http = ScriptedHTTP(
+        [
+            GitHubHTTPResult(
+                200,
+                {
+                    "data": {
+                        "repository": {
+                            "object": {
+                                "oid": "different-commit",
+                                "statusCheckRollup": None,
+                            }
+                        }
+                    }
+                },
+            )
+        ]
+    )
+    api = client(http)
+
+    with pytest.raises(GitHubAPIError, match="OID mismatch"):
+        api.get_commit_check_contexts(
+            REPOSITORY,
+            "commit-a",
+        )
