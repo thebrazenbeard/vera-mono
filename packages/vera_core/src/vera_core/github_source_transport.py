@@ -42,10 +42,10 @@ class GitHubTreeUpdate:
 class GitHubGitDataClient(Protocol):
     """Host-injected GitHub Git Data surface.
 
-    Implementations own credentials/network I/O. update_ref MUST use non-force
-    GitHub ref update semantics; the transport constructs the new commit with
-    expected_ref_head as its only parent so a concurrently moved branch makes
-    that update non-fast-forward and therefore fail closed.
+    Implementations own credentials/network I/O. compare_and_swap_ref MUST
+    perform an exact old-OID/new-OID ref update. For GitHub.com, the intended
+    primitive is GraphQL updateRefs with RefUpdate.beforeOid/afterOid and
+    force=false.
     """
 
     def get_ref_head(self, repository: str, ref: str) -> str:
@@ -92,13 +92,13 @@ class GitHubGitDataClient(Protocol):
     ) -> str:
         ...
 
-    def update_ref(
+    def compare_and_swap_ref(
         self,
         repository: str,
         ref: str,
         *,
+        expected_old_sha: str,
         new_sha: str,
-        force: bool,
     ) -> str:
         ...
 
@@ -425,11 +425,15 @@ class GitHubSourceMutationTransport:
                 "GitHub ref head changed while preparing source mutation"
             )
 
-        updated_head = self.client.update_ref(
+        # The exact race closure is provider-side compare-and-swap, not this
+        # advisory second read. A GitHub implementation should map this call to
+        # GraphQL updateRefs beforeOid=expected_head, afterOid=new_commit,
+        # force=false.
+        updated_head = self.client.compare_and_swap_ref(
             self.repository,
             self.ref,
+            expected_old_sha=expected_head,
             new_sha=new_commit,
-            force=False,
         )
         if updated_head != new_commit:
             raise GitHubSourceTransportError(
