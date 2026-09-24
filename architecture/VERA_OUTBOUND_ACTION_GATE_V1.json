@@ -145,7 +145,24 @@
       "provider_qualified_method": "QualifiedVeraRuntime.execute_provider_effect",
       "caller_supplied_callback_runtime_qualified": false,
       "trusted_transport_injected_by_host": true,
-      "verifier_and_transport_identity_are_independent_checks": true
+      "verifier_and_transport_identity_are_independent_checks": true,
+      "provider_payload_snapshot": {
+        "qualified_method": "QualifiedVeraRuntime.execute_provider_effect",
+        "deep_copy_before_transport": true,
+        "digest_reverified_after_snapshot": true,
+        "caller_owned_mutable_payload_passed_directly_to_transport": false
+      }
+    },
+    "provider_execution_binding": {
+      "contract": "architecture/VERA_PROVIDER_EXECUTION_BINDING_V1.json",
+      "store": "vera_core.ProviderExecutionBindingStore",
+      "state_path": "provider/execution-bindings.sqlite",
+      "request_payload_persisted": false,
+      "restart_rehydrate_method": "QualifiedVeraRuntime.rehydrate_provider_effect",
+      "original_lifecycle_permit_preserved": true,
+      "stale_permit_auto_refreshed": false,
+      "changed_payload_rejected": true,
+      "recovery_assessment": "QualifiedVeraRuntime.assess_provider_effect"
     }
   },
   "fail_closed_states": [
