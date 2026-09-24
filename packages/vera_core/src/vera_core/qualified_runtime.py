@@ -22,7 +22,7 @@ from .outbound_authority import (
     provider_authority_subject,
     validate_pc_authorization_binding,
 )
-from .outbound_audit import OutboundExecutionAudit
+from .outbound_audit import OutboundAuditConsistency, OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 from .pc_execution_binding import PreparedPCDispatch
 from .state import VeraStateDirectory
@@ -82,7 +82,8 @@ class QualifiedVeraRuntime:
         outbound_trust = state.outbound_trust_registry()
         outbound_trust.verify_chain()
         audit = state.outbound_execution_audit()
-        audit.verify_chain()
+        with lifecycle.action_lock():
+            audit.repair_from_fence(fence)
 
         if pc_authority_verifier is not None:
             outbound_trust.assert_current(
@@ -290,4 +291,15 @@ class QualifiedVeraRuntime:
         context = self.lifecycle.reconstruct().as_resume_context()
         context["outbound_trust"] = self.outbound_trust.context()
         context["outbound_audit"] = self.audit.context()
+        integrity = self.audit.verify_fence_consistency(self.fence)
+        context["outbound_effect_integrity"] = {
+            "schema": "VERA_MONO_OUTBOUND_EFFECT_INTEGRITY_V1",
+            "audit_head_digest": integrity.audit_head_digest,
+            "fence_effect_count": integrity.fence_effect_count,
+            "audited_effect_count": integrity.audited_effect_count,
+            "authority_only_effect_ids": list(
+                integrity.authority_only_effect_ids
+            ),
+            "repaired_effect_ids": list(integrity.repaired_effect_ids),
+        }
         return context
