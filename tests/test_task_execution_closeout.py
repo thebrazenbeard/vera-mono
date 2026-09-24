@@ -2,6 +2,7 @@ import sqlite3
 
 import pytest
 
+from vera_assurance import EffectFenceError
 from coordination_bus import (
     ALL_PERMISSIONS,
     ActorContext,
@@ -676,7 +677,7 @@ def test_task_scoped_coordination_path_binds_and_satisfies_dependency(tmp_path):
 
     # Exact wrapper replay reaches the underlying command fence rather than
     # failing because the task dependency record itself was duplicated.
-    with pytest.raises(Exception):
+    with pytest.raises(EffectFenceError):
         runtime.invoke_task_coordination(
             "task-auto-coordination",
             "dep-auto-coordination",
