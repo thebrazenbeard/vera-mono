@@ -181,6 +181,17 @@ class GitHubSourceVerificationTransport:
             details_ref=details[0] if len(set(details)) == 1 else None,
         )
 
+    def observe_ref_head(self) -> str:
+        observed = self.client.get_ref_head(
+            self.repository,
+            self.ref,
+        )
+        if type(observed) is not str or not observed:
+            raise SourceVerificationError(
+                "source verification client returned invalid ref head"
+            )
+        return observed
+
     def verify(
         self,
         commit_sha: str,
@@ -202,16 +213,14 @@ class GitHubSourceVerificationTransport:
                 "required_checks must be unique non-empty exact strings"
             )
 
-        # Read the branch head separately from exact-commit checks. The
-        # SourceVerificationStore will classify a moved ref as STALE_HEAD.
-        observed_ref_head = self.client.get_ref_head(
-            self.repository,
-            self.ref,
-        )
+        # Read exact-commit checks first, then read the mutable branch head.
+        # This catches head movement that occurs while the check pages are being
+        # collected instead of blessing the earlier head observation.
         contexts = self.client.get_commit_check_contexts(
             self.repository,
             commit_sha,
         )
+        observed_ref_head = self.observe_ref_head()
         for context in contexts:
             if type(context) is not GitHubCheckContextState:
                 raise SourceVerificationError(
