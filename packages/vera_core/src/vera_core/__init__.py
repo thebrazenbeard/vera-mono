@@ -46,15 +46,20 @@ from .outbound_trust import (
     OutboundTrustError,
     OutboundTrustRegistry,
 )
-from .qualified_pc import (
+from .pc_execution_binding import (
+    PCExecutionBinding,
+    PCExecutionBindingError,
+    PCExecutionBindingStore,
     PCExecutionLease,
+    PreparedPCDispatch,
+)
+from .qualified_pc import (
     PCExecutionRecoveryAssessment,
     PCJournalEventEvidence,
     QualifiedPCExecutionAdapter,
     QualifiedPCExecutionResult,
 )
 from .qualified_runtime import (
-    PreparedPCDispatch,
     PreparedProviderDispatch,
     QualifiedVeraRuntime,
 )
@@ -93,6 +98,9 @@ __all__ = [
     "PCJobAuthorityVerifier",
     "ProviderAuthorityEnvelope",
     "ProviderAuthorityVerifier",
+    "PCExecutionBinding",
+    "PCExecutionBindingError",
+    "PCExecutionBindingStore",
     "PCExecutionLease",
     "PCExecutionRecoveryAssessment",
     "PCJournalEventEvidence",
