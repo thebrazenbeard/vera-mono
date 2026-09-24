@@ -98,16 +98,14 @@ class FakeGitHubGitDataClient:
         )
         return commit_sha
 
-    def update_ref(
+    def compare_and_swap_ref(
         self,
         repository,
         ref,
         *,
+        expected_old_sha,
         new_sha,
-        force,
     ):
-        if force:
-            raise AssertionError("qualified GitHub source transport must not force")
         if self.race_on_update:
             self.refs[(repository, ref)] = "concurrent-head"
             self.commits["concurrent-head"] = GitHubCommitState(
@@ -115,12 +113,18 @@ class FakeGitHubGitDataClient:
                 tree_sha=TREE,
             )
         current = self.refs[(repository, ref)]
-        if self.parents[new_sha] != current:
+        if current != expected_old_sha:
             raise GitHubSourceCASMismatch(
-                "non-fast-forward ref update rejected"
+                "exact beforeOid ref compare-and-swap rejected"
+            )
+        if self.parents[new_sha] != expected_old_sha:
+            raise GitHubSourceCASMismatch(
+                "new commit is not parented by expected ref head"
             )
         self.refs[(repository, ref)] = new_sha
-        self.ref_updates.append((repository, ref, new_sha, force))
+        self.ref_updates.append(
+            (repository, ref, expected_old_sha, new_sha)
+        )
         return new_sha
 
 
@@ -162,7 +166,7 @@ def test_github_write_uses_parent_head_and_non_force_ref_update():
     assert result.new_ref_head == "commit-new-1"
     assert client.commit_calls[0][3] == HEAD
     assert client.ref_updates == [
-        (REPOSITORY, REF, "commit-new-1", False)
+        (REPOSITORY, REF, HEAD, "commit-new-1")
     ]
     written = client.get_path(
         REPOSITORY,
