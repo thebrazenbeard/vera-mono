@@ -25,6 +25,23 @@ class CoordinationCommandBinding:
 
 
 @dataclass(frozen=True, slots=True)
+class CoordinationCommandRecoveryAssessment:
+    command_id: str
+    effect_id: str
+    command: str
+    actor_workstream: str
+    request_digest: str
+    result_recorded: bool
+    fence_state: str | None
+    lifecycle_permit_current: bool | None
+    retry_candidate_allowed: bool
+    pre_dispatch_cancel_allowed: bool
+    recovery_required: bool
+    terminal: bool
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class CoordinationCommandResult:
     command_id: str
     result_digest: str
