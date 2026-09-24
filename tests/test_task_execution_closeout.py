@@ -674,6 +674,11 @@ def test_task_scoped_coordination_path_binds_and_satisfies_dependency(tmp_path):
     )
     assert assessment.ready is True
     assert assessment.dependency_assessments[0].status == "SATISFIED"
+    resume = runtime.resume_context()
+    recovered = resume["task_dependency_recovery"]
+    assert len(recovered) == 1
+    assert recovered[0]["task_id"] == "task-auto-coordination"
+    assert recovered[0]["dependencies"][0]["status"] == "SATISFIED"
 
     # Exact wrapper replay reaches the underlying command fence rather than
     # failing because the task dependency record itself was duplicated.
