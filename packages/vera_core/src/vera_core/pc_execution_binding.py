@@ -8,7 +8,6 @@ from typing import Any
 
 from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 from portfolio_runtime.lantern.canonical import (
-    canonical_json,
     canonical_json_bytes,
     sha256_hex,
 )
@@ -19,6 +18,17 @@ from .outbound_authority import pc_authority_subject
 
 class PCExecutionBindingError(ValueError):
     pass
+
+
+def _exact_json(value: Any) -> str:
+    """Stable JSON that preserves exact PCCC timestamp text."""
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,7 +137,7 @@ class PCExecutionBindingStore:
         lease: PCExecutionLease,
     ) -> PCExecutionBinding:
         payload = self._payload(prepared, lease)
-        payload_json = canonical_json(payload)
+        payload_json = _exact_json(payload)
         digest = sha256_hex(payload_json.encode("utf-8"))
         with sqlite3.connect(self.path) as db:
             db.row_factory = sqlite3.Row
@@ -285,7 +295,7 @@ class PCExecutionBindingStore:
             raise PCExecutionBindingError(
                 "stored PC effect identity mismatch"
             )
-        if canonical_json(cls._payload(prepared, lease)) != payload_json:
+        if _exact_json(cls._payload(prepared, lease)) != payload_json:
             raise PCExecutionBindingError(
                 "PC execution binding canonical readback mismatch"
             )
