@@ -26,6 +26,7 @@ from .outbound_authority import (
     provider_authority_subject,
     validate_pc_authorization_binding,
 )
+from .outbound_trust import OutboundTrustRegistry
 
 
 T = TypeVar("T")
@@ -86,6 +87,7 @@ class LifecycleEffectGateway:
         provider_authority_verifiers: Mapping[
             str, ProviderAuthorityVerifier
         ] | None = None,
+        outbound_trust_registry: OutboundTrustRegistry | None = None,
         clock: Callable[[], datetime] | None = None,
     ):
         self.lifecycle = lifecycle
@@ -98,6 +100,7 @@ class LifecycleEffectGateway:
                 "pc_authority_verifier must satisfy PCJobAuthorityVerifier"
             )
         self._pc_authority_verifier = pc_authority_verifier
+        self._outbound_trust_registry = outbound_trust_registry
         registry = dict(provider_authority_verifiers or {})
         for provider_id, verifier in registry.items():
             if type(provider_id) is not str or not provider_id:
@@ -107,6 +110,10 @@ class LifecycleEffectGateway:
             if not isinstance(verifier, ProviderAuthorityVerifier):
                 raise TypeError(
                     f"provider verifier for {provider_id!r} does not satisfy protocol"
+                )
+            if verifier.provider_id != provider_id:
+                raise TypeError(
+                    f"provider verifier identity mismatch for {provider_id!r}"
                 )
         self._provider_authority_verifiers = registry
         self._clock = clock or (lambda: datetime.now(timezone.utc))
@@ -230,6 +237,28 @@ class LifecycleEffectGateway:
 
         def verify_authority() -> str:
             validate_pc_authorization_binding(job, authorization)
+            trust = self._outbound_trust_registry
+            if trust is None:
+                raise OutboundAuthorityError(
+                    "PC effect requires persistent outbound trust currentness"
+                )
+            if (
+                authority_verifier.authority_id != authorization.issuer_id
+                or authority_proof.issuer_id != authorization.issuer_id
+            ):
+                raise OutboundAuthorityError(
+                    "PC verifier/proof issuer does not match authorization issuer"
+                )
+            trust_receipt = trust.assert_current(
+                authority_id=authorization.issuer_id,
+                role="PC",
+                key_id=authority_verifier.key_id,
+                key_digest=authority_verifier.key_digest,
+            )
+            if authorization.issuer_revocation_epoch != trust_receipt.revocation_epoch:
+                raise OutboundAuthorityError(
+                    "PC authorization issuer revocation epoch is stale"
+                )
             now = self._clock()
             if (
                 not isinstance(now, datetime)
@@ -276,6 +305,7 @@ class LifecycleEffectGateway:
                     "job_digest": job.digest(),
                     "authorization_digest": authorization.digest(),
                     "authority_proof": authority_proof,
+                    "authority_currentness": trust_receipt,
                     "lifecycle_permit_digest": permit.permit_digest,
                 }
             )
@@ -350,6 +380,25 @@ class LifecycleEffectGateway:
         )
 
         def verify_authority() -> str:
+            trust = self._outbound_trust_registry
+            if trust is None:
+                raise OutboundAuthorityError(
+                    "provider effect requires persistent outbound trust currentness"
+                )
+            if (
+                authority_verifier.authority_id != authority.issuer_id
+                or authority_verifier.provider_id != provider_id
+            ):
+                raise OutboundAuthorityError(
+                    "provider verifier identity does not match authority envelope"
+                )
+            trust_receipt = trust.assert_current(
+                authority_id=authority.issuer_id,
+                role="PROVIDER",
+                provider_id=provider_id,
+                key_id=authority_verifier.key_id,
+                key_digest=authority_verifier.key_digest,
+            )
             subject = provider_authority_subject(
                 effect_id=effect_id,
                 provider_id=provider_id,
@@ -371,6 +420,7 @@ class LifecycleEffectGateway:
                     "schema": "VERA_MONO_PROVIDER_VERIFIED_AUTHORITY_EVIDENCE_V1",
                     "provider_request_digest": provider_request_digest,
                     "authority": authority,
+                    "authority_currentness": trust_receipt,
                     "lifecycle_permit_digest": permit.permit_digest,
                 }
             )
