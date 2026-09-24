@@ -116,6 +116,32 @@ class GitHubSourceMutationTransport:
     ABSENT = "ABSENT"
     FILE_MODES = frozenset({"100644", "100755"})
 
+    @classmethod
+    def from_token(
+        cls,
+        *,
+        repository: str,
+        ref: str,
+        token: str,
+        http: Any | None = None,
+        api_base: str = "https://api.github.com",
+        graphql_url: str = "https://api.github.com/graphql",
+        api_version: str = "2026-03-10",
+    ) -> "GitHubSourceMutationTransport":
+        from .github_api_client import GitHubGitDataAPIClient
+
+        return cls(
+            repository=repository,
+            ref=ref,
+            client=GitHubGitDataAPIClient(
+                token=token,
+                http=http,
+                api_base=api_base,
+                graphql_url=graphql_url,
+                api_version=api_version,
+            ),
+        )
+
     def __init__(
         self,
         *,
