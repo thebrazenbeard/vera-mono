@@ -17,6 +17,8 @@ class EffectState(StrEnum):
     EXECUTING = "EXECUTING"
     COMMITTED = "COMMITTED"
     ATTEMPTED_UNKNOWN = "ATTEMPTED_UNKNOWN"
+    RECONCILED_COMMITTED = "RECONCILED_COMMITTED"
+    RECONCILED_NO_EFFECT = "RECONCILED_NO_EFFECT"
     CANCELLED_PRE_DISPATCH = "CANCELLED_PRE_DISPATCH"
 
 
@@ -29,6 +31,7 @@ class EffectReceipt:
     authority_evidence_digest: str
     currentness_evidence_digest: str
     result_digest: str | None = None
+    reconciliation_evidence_digest: str | None = None
 
 
 class EffectFence:
@@ -53,10 +56,19 @@ class EffectFence:
                     mechanical_permit_digest TEXT NOT NULL,
                     authority_evidence_digest TEXT NOT NULL,
                     currentness_evidence_digest TEXT NOT NULL,
-                    result_digest TEXT
+                    result_digest TEXT,
+                    reconciliation_evidence_digest TEXT
                 )
                 """
             )
+            columns = {
+                str(row[1])
+                for row in db.execute("PRAGMA table_info(effects)").fetchall()
+            }
+            if "reconciliation_evidence_digest" not in columns:
+                db.execute(
+                    "ALTER TABLE effects ADD COLUMN reconciliation_evidence_digest TEXT"
+                )
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path)
@@ -222,6 +234,106 @@ class EffectFence:
                 receipt.currentness_evidence_digest,
             )
 
+    def unresolved(self) -> tuple[EffectReceipt, ...]:
+        states = (
+            EffectState.RESERVED.value,
+            EffectState.EXECUTING.value,
+            EffectState.ATTEMPTED_UNKNOWN.value,
+        )
+        placeholders = ",".join("?" for _ in states)
+        with self._connect() as db:
+            rows = db.execute(
+                f"SELECT * FROM effects WHERE state IN ({placeholders}) ORDER BY effect_id",
+                states,
+            ).fetchall()
+        return tuple(self._row(row) for row in rows)
+
+    def assert_clear(self) -> None:
+        unresolved = self.unresolved()
+        if unresolved:
+            summary = ", ".join(
+                f"{receipt.effect_id}:{receipt.state.value}"
+                for receipt in unresolved
+            )
+            raise EffectFenceError(
+                "unresolved external effect barrier is active: " + summary
+            )
+
+    def reconcile_unknown(
+        self,
+        effect_id: str,
+        *,
+        effect_occurred: bool,
+        result_digest: str | None,
+        reconciliation_evidence_digest: str,
+    ) -> EffectReceipt:
+        self._require_id(effect_id, "effect_id")
+        evidence = self._require_digest(
+            reconciliation_evidence_digest,
+            "reconciliation_evidence_digest",
+        )
+        if effect_occurred:
+            if result_digest is None:
+                raise EffectFenceError(
+                    "known occurred effect requires result_digest"
+                )
+            result_digest = self._require_digest(
+                result_digest,
+                "result_digest",
+            )
+            target = EffectState.RECONCILED_COMMITTED
+        else:
+            if result_digest is not None:
+                raise EffectFenceError(
+                    "known no-effect reconciliation must not carry result_digest"
+                )
+            target = EffectState.RECONCILED_NO_EFFECT
+
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT * FROM effects WHERE effect_id=?",
+                (effect_id,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(effect_id)
+            receipt = self._row(row)
+            if receipt.state not in {
+                EffectState.EXECUTING,
+                EffectState.ATTEMPTED_UNKNOWN,
+            }:
+                raise EffectFenceError(
+                    "only ambiguous dispatched effects may be reconciled"
+                )
+            db.execute(
+                """
+                UPDATE effects
+                SET state=?, result_digest=?, reconciliation_evidence_digest=?
+                WHERE effect_id=? AND state IN (?,?)
+                """,
+                (
+                    target.value,
+                    result_digest,
+                    evidence,
+                    effect_id,
+                    EffectState.EXECUTING.value,
+                    EffectState.ATTEMPTED_UNKNOWN.value,
+                ),
+            )
+            if db.total_changes != 1:
+                raise EffectFenceError("effect reconciliation lost atomic race")
+            db.commit()
+            return EffectReceipt(
+                receipt.effect_id,
+                receipt.request_digest,
+                target,
+                receipt.mechanical_permit_digest,
+                receipt.authority_evidence_digest,
+                receipt.currentness_evidence_digest,
+                result_digest,
+                evidence,
+            )
+
     def read(self, effect_id: str) -> EffectReceipt:
         with self._connect() as db:
             row = db.execute("SELECT * FROM effects WHERE effect_id=?", (effect_id,)).fetchone()
@@ -239,6 +351,7 @@ class EffectFence:
             authority_evidence_digest=row["authority_evidence_digest"],
             currentness_evidence_digest=row["currentness_evidence_digest"],
             result_digest=row["result_digest"],
+            reconciliation_evidence_digest=row["reconciliation_evidence_digest"],
         )
 
 
