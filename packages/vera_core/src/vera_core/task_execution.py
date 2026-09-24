@@ -131,6 +131,23 @@ class TaskEvent:
     payload: Mapping[str, Any]
 
 
+TASK_DEPENDENCY_KINDS = frozenset(
+    {
+        "EFFECT",
+        "COORDINATION_COMMAND",
+        "PROVIDER_EFFECT",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class TaskDependency:
+    dependency_id: str
+    kind: str
+    target_id: str
+    event_digest: str
+
+
 @dataclass(frozen=True, slots=True)
 class TaskCorrection:
     correction_id: str
@@ -174,6 +191,7 @@ class TaskState:
     packet: TaskPacket
     opened_lifecycle_evidence_digest: str
     latest_checkpoint: Mapping[str, Any] | None
+    dependencies: tuple[TaskDependency, ...]
     corrections: tuple[TaskCorrection, ...]
     unresolved_correction_ids: tuple[str, ...]
     closeout: TaskCloseout | None
@@ -195,6 +213,7 @@ class TaskExecutionLedger:
     EVENT_TYPES = frozenset(
         {
             "TASK_OPENED",
+            "TASK_DEPENDENCY",
             "TASK_CORRECTION",
             "TASK_CHECKPOINT",
             "TASK_CLOSED",
