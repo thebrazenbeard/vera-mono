@@ -525,10 +525,16 @@ class QualifiedSourceMutationAdapter:
                 _require_text(result.result_id, "result_id")
                 return result
 
-            outbound = self.runtime.dispatch_provider_effect(
-                prepared.provider_dispatch,
+            dispatch = prepared.provider_dispatch
+            outbound = self.runtime.effects.dispatch_provider_effect(
+                permit=dispatch.permit,
+                effect_id=dispatch.effect_id,
+                provider_id=dispatch.provider_id,
+                operation=dispatch.operation,
+                request_payload=dispatch.request_payload,
                 authority=authority,
                 execute=execute_transport,
+                task_dependency=dispatch.task_dependency,
             )
             return SourceMutationResult(
                 transport_result=outbound.value,
