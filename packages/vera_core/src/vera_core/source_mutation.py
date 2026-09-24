@@ -771,6 +771,90 @@ class QualifiedSourceMutationAdapter:
             reason="; ".join(reasons),
         )
 
+    def rehydrate_mutation(
+        self,
+        mutation_id: str,
+        *,
+        content: str | bytes | None = None,
+    ) -> PreparedSourceMutation:
+        binding = self.runtime.source_mutation_bindings.read(mutation_id)
+        if binding.operation == "WRITE_FILE":
+            if not isinstance(content, (str, bytes)):
+                raise SourceMutationError(
+                    "WRITE_FILE restart requires caller-resupplied exact content"
+                )
+        elif content is not None:
+            raise SourceMutationError(
+                "DELETE_FILE/MOVE_FILE restart must not supply content"
+            )
+
+        request = SourceMutationRequest(
+            mutation_id=binding.mutation_id,
+            repository=binding.repository,
+            ref=binding.ref,
+            subject=binding.subject,
+            actor_ref=binding.actor_ref,
+            operation=binding.operation,
+            path=binding.path,
+            destination_path=binding.destination_path,
+            expected_ref_head=binding.expected_ref_head,
+            expected_blob_id=binding.expected_blob_id,
+            expected_destination_blob_id=(
+                binding.expected_destination_blob_id
+            ),
+            content=content,
+        )
+        request.validate()
+        if request.content_digest != binding.content_digest:
+            raise SourceMutationError(
+                "caller-resupplied source content does not match durable content digest"
+            )
+
+        assessment = self.assess_binding(binding)
+        if not assessment.dispatch_candidate_allowed:
+            raise SourceMutationError(
+                "persisted source mutation is not a current dispatch candidate: "
+                + assessment.reason
+            )
+
+        provider_binding = self.runtime.provider_execution_bindings.read(
+            binding.provider_effect_id
+        )
+        payload = request.request_payload()
+        request_digest = self.runtime.effects.provider_request_digest(
+            provider_id=provider_binding.provider_id,
+            operation=provider_binding.operation,
+            request_payload=payload,
+        )
+        if request_digest != binding.provider_request_digest:
+            raise SourceMutationError(
+                "rehydrated source request does not match durable provider request digest"
+            )
+        provider_dispatch = PreparedProviderDispatch(
+            permit=provider_binding.permit,
+            effect_id=provider_binding.effect_id,
+            provider_id=provider_binding.provider_id,
+            operation=provider_binding.operation,
+            request_payload=payload,
+            request_digest=provider_binding.request_digest,
+            authority_subject=provider_binding.authority_subject,
+            task_dependency=provider_binding.task_dependency,
+        )
+        prepared = PreparedSourceMutation(
+            task_id=binding.task_id,
+            dependency_id=binding.dependency_id,
+            packet_digest=binding.packet_digest,
+            request=request,
+            writable_scope_entries=binding.writable_scope_entries,
+            delegation_ref=self._binding_delegation_ref(binding),
+            provider_dispatch=provider_dispatch,
+        )
+        self.runtime.source_mutation_bindings.bind(
+            prepared,
+            provider_binding,
+        )
+        return prepared
+
     def recover_mutations(
         self,
     ) -> tuple[SourceMutationRecoveryAssessment, ...]:
