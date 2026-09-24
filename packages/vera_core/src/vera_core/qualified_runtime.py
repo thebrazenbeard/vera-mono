@@ -16,6 +16,7 @@ from .outbound_authority import (
     PCJobAuthorityVerifier,
     ProviderAuthorityVerifier,
 )
+from .outbound_trust import OutboundTrustRegistry
 from .state import VeraStateDirectory
 
 
@@ -35,6 +36,7 @@ class QualifiedVeraRuntime:
     effects: LifecycleEffectGateway
     coordination: LifecycleBoundCoordinationBus | None
     recovery: LifecycleEffectRecovery | None
+    outbound_trust: OutboundTrustRegistry
 
     @classmethod
     def from_state_directory(
@@ -54,11 +56,40 @@ class QualifiedVeraRuntime:
 
         lifecycle = state.open()
         fence = lifecycle.effect_fence or state.effect_fence()
+        outbound_trust = state.outbound_trust_registry()
+        outbound_trust.verify_chain()
+
+        if pc_authority_verifier is not None:
+            outbound_trust.assert_current(
+                authority_id=pc_authority_verifier.authority_id,
+                role="PC",
+                key_id=pc_authority_verifier.key_id,
+                key_digest=pc_authority_verifier.key_digest,
+            )
+        for provider_id, verifier in dict(
+            provider_authority_verifiers or {}
+        ).items():
+            outbound_trust.assert_current(
+                authority_id=verifier.authority_id,
+                role="PROVIDER",
+                provider_id=provider_id,
+                key_id=verifier.key_id,
+                key_digest=verifier.key_digest,
+            )
+        if reconciliation_verifier is not None:
+            outbound_trust.assert_current(
+                authority_id=reconciliation_verifier.authority_id,
+                role="RECONCILIATION",
+                key_id=reconciliation_verifier.key_id,
+                key_digest=reconciliation_verifier.key_digest,
+            )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
             pc_authority_verifier=pc_authority_verifier,
             provider_authority_verifiers=provider_authority_verifiers,
+            outbound_trust_registry=outbound_trust,
             clock=clock,
         )
         coordination = (
@@ -76,6 +107,7 @@ class QualifiedVeraRuntime:
             else LifecycleEffectRecovery(
                 fence=fence,
                 verifier=reconciliation_verifier,
+                outbound_trust_registry=outbound_trust,
             )
         )
         return cls(
@@ -84,6 +116,7 @@ class QualifiedVeraRuntime:
             effects=effects,
             coordination=coordination,
             recovery=recovery,
+            outbound_trust=outbound_trust,
         )
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
