@@ -211,58 +211,59 @@ class LifecycleEffectRecovery:
         effect_occurred: bool,
         result_digest: str | None,
     ) -> EffectReceipt:
-        receipt = self.fence.read(effect_id)
-        subject = reconciliation_subject(
-            receipt,
-            effect_occurred=effect_occurred,
-            result_digest=result_digest,
-        )
-        if proof.issuer_id != self._verifier.authority_id:
-            raise EffectRecoveryAuthorityError(
-                "reconciliation proof issuer does not match trusted verifier"
+        with self._outbound_trust_registry.action_lock():
+            receipt = self.fence.read(effect_id)
+            subject = reconciliation_subject(
+                receipt,
+                effect_occurred=effect_occurred,
+                result_digest=result_digest,
             )
-        trust_receipt = self._outbound_trust_registry.assert_current(
-            authority_id=self._verifier.authority_id,
-            role="RECONCILIATION",
-            key_id=self._verifier.key_id,
-            key_digest=self._verifier.key_digest,
-        )
-        if not self._verifier.verify(
-            proof,
-            expected_subject=subject,
-        ):
-            raise EffectRecoveryAuthorityError(
-                "effect reconciliation proof verification failed"
+            if proof.issuer_id != self._verifier.authority_id:
+                raise EffectRecoveryAuthorityError(
+                    "reconciliation proof issuer does not match trusted verifier"
+                )
+            trust_receipt = self._outbound_trust_registry.assert_current(
+                authority_id=self._verifier.authority_id,
+                role="RECONCILIATION",
+                key_id=self._verifier.key_id,
+                key_digest=self._verifier.key_digest,
             )
-        evidence_digest = sha256_hex(
-            canonical_json_bytes(
-                {
-                    "schema": "VERA_MONO_VERIFIED_RECONCILIATION_EVIDENCE_V1",
-                    "proof": {
-                        "schema": proof.schema,
-                        "issuer_id": proof.issuer_id,
-                        "subject": proof.subject,
-                        "verification_token": proof.verification_token,
-                    },
-                    "authority_currentness": {
-                        "schema": trust_receipt.schema,
-                        "authority_id": trust_receipt.authority_id,
-                        "role": trust_receipt.role,
-                        "provider_id": trust_receipt.provider_id,
-                        "authority_generation": trust_receipt.authority_generation,
-                        "revocation_epoch": trust_receipt.revocation_epoch,
-                        "key_id": trust_receipt.key_id,
-                        "key_digest": trust_receipt.key_digest,
-                        "registry_generation": trust_receipt.registry_generation,
-                        "registry_head_digest": trust_receipt.registry_head_digest,
-                        "receipt_digest": trust_receipt.receipt_digest,
-                    },
-                }
+            if not self._verifier.verify(
+                proof,
+                expected_subject=subject,
+            ):
+                raise EffectRecoveryAuthorityError(
+                    "effect reconciliation proof verification failed"
+                )
+            evidence_digest = sha256_hex(
+                canonical_json_bytes(
+                    {
+                        "schema": "VERA_MONO_VERIFIED_RECONCILIATION_EVIDENCE_V1",
+                        "proof": {
+                            "schema": proof.schema,
+                            "issuer_id": proof.issuer_id,
+                            "subject": proof.subject,
+                            "verification_token": proof.verification_token,
+                        },
+                        "authority_currentness": {
+                            "schema": trust_receipt.schema,
+                            "authority_id": trust_receipt.authority_id,
+                            "role": trust_receipt.role,
+                            "provider_id": trust_receipt.provider_id,
+                            "authority_generation": trust_receipt.authority_generation,
+                            "revocation_epoch": trust_receipt.revocation_epoch,
+                            "key_id": trust_receipt.key_id,
+                            "key_digest": trust_receipt.key_digest,
+                            "registry_generation": trust_receipt.registry_generation,
+                            "registry_head_digest": trust_receipt.registry_head_digest,
+                            "receipt_digest": trust_receipt.receipt_digest,
+                        },
+                    }
+                )
             )
-        )
-        return self.fence.reconcile_unknown(
-            effect_id,
-            effect_occurred=effect_occurred,
-            result_digest=result_digest,
-            reconciliation_evidence_digest=evidence_digest,
-        )
+            return self.fence.reconcile_unknown(
+                effect_id,
+                effect_occurred=effect_occurred,
+                result_digest=result_digest,
+                reconciliation_evidence_digest=evidence_digest,
+            )
