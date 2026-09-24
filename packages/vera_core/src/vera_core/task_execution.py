@@ -132,6 +132,17 @@ class TaskEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class TaskCorrection:
+    correction_id: str
+    summary: str
+    obsolete_route: str
+    required_change: str
+    current_owner_ref: str
+    provenance_refs: tuple[str, ...]
+    event_digest: str
+
+
+@dataclass(frozen=True, slots=True)
 class TaskCloseout:
     closeout_id: str
     surfaces: Mapping[str, str]
@@ -151,6 +162,7 @@ class TaskCloseoutAssessment:
     unresolved_effect_ids: tuple[str, ...]
     coordination_recovery_ids: tuple[str, ...]
     provider_recovery_ids: tuple[str, ...]
+    unresolved_correction_ids: tuple[str, ...]
     supplied_blockers: tuple[str, ...]
     ready: bool
     reasons: tuple[str, ...]
@@ -162,6 +174,8 @@ class TaskState:
     packet: TaskPacket
     opened_lifecycle_evidence_digest: str
     latest_checkpoint: Mapping[str, Any] | None
+    corrections: tuple[TaskCorrection, ...]
+    unresolved_correction_ids: tuple[str, ...]
     closeout: TaskCloseout | None
     journal_head_digest: str
 
@@ -181,6 +195,7 @@ class TaskExecutionLedger:
     EVENT_TYPES = frozenset(
         {
             "TASK_OPENED",
+            "TASK_CORRECTION",
             "TASK_CHECKPOINT",
             "TASK_CLOSED",
         }
