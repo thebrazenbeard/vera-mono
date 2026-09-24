@@ -9,6 +9,7 @@ from vera_assurance import AtomicCurrentnessStore, EffectFence
 from vera_memory import MemoryLedger
 from vera_recovery import NativeRecoveryCheckpointStore
 
+from .behavior_effect_verification import BehaviorEffectVerificationStore
 from .coordination_command_journal import CoordinationCommandJournal
 from .lifecycle import LifecycleReconstruction, NativeVeraLifecycle
 from .lifecycle_journal import LifecycleJournal
@@ -43,6 +44,7 @@ class VeraStatePaths:
     installation_verifications: Path
     route_verifications: Path
     runtime_consumption_verifications: Path
+    behavior_effect_verifications: Path
     coordination: Path
     coordination_commands: Path
     tasks: Path
@@ -106,6 +108,9 @@ class VeraStateDirectory:
             ),
             runtime_consumption_verifications=(
                 candidate / "runtime" / "consumption-verification.sqlite"
+            ),
+            behavior_effect_verifications=(
+                candidate / "behavior" / "verification.sqlite"
             ),
             coordination=candidate / "coordination" / "events.sqlite",
             coordination_commands=(
@@ -209,6 +214,13 @@ class VeraStateDirectory:
             self.paths.runtime_consumption_verifications
         )
 
+    def behavior_effect_verification_store(
+        self,
+    ) -> BehaviorEffectVerificationStore:
+        return BehaviorEffectVerificationStore(
+            self.paths.behavior_effect_verifications
+        )
+
     def coordination_repository(self) -> SQLiteCoordinationRepository:
         return SQLiteCoordinationRepository(self.paths.coordination)
 
@@ -263,6 +275,9 @@ class VeraStateDirectory:
         )
         context["runtime_consumption_verifications"] = (
             self.runtime_consumption_verification_store().context()
+        )
+        context["behavior_effect_verifications"] = (
+            self.behavior_effect_verification_store().context()
         )
         context["coordination"] = self.coordination_repository().context()
         context["coordination_commands"] = (
