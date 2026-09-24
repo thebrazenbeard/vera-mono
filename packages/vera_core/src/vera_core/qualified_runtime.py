@@ -313,6 +313,10 @@ class QualifiedVeraRuntime:
                 raise TaskExecutionError(
                     "task dependency identity is already bound differently"
                 )
+            if dependency_id in set(state.cancelled_dependency_ids):
+                raise TaskExecutionError(
+                    "cancelled task dependency identity cannot be reused"
+                )
             return state
         if self._task_dependency_target_started(
             kind=kind,
@@ -345,6 +349,37 @@ class QualifiedVeraRuntime:
                 target_id=target_id,
             )
 
+    def cancel_task_dependency(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        reason: str,
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            state = self.tasks.read(task_id)
+            active = {
+                item.dependency_id: item
+                for item in state.active_dependencies
+            }.get(dependency_id)
+            if active is None:
+                raise TaskExecutionError(
+                    "task dependency is not active"
+                )
+            if self._task_dependency_target_started(
+                kind=active.kind,
+                target_id=active.target_id,
+            ):
+                raise TaskExecutionError(
+                    "task dependency cannot be cancelled after target "
+                    "execution or preparation has started"
+                )
+            return self.tasks.cancel_dependency(
+                task_id,
+                dependency_id,
+                reason=reason,
+            )
+
     def invoke_task_coordination(
         self,
         task_id: str,
@@ -372,14 +407,29 @@ class QualifiedVeraRuntime:
                 kind="COORDINATION_COMMAND",
                 target_id=command_id,
             )
-            return self.coordination.invoke(
-                command,
-                permit=self.accepted_permit(),
-                actor=actor,
-                command_id=command_id,
-                args=args,
-                kwargs=kwargs,
-            )
+            try:
+                return self.coordination.invoke(
+                    command,
+                    permit=self.accepted_permit(),
+                    actor=actor,
+                    command_id=command_id,
+                    args=args,
+                    kwargs=kwargs,
+                )
+            except BaseException:
+                if not self._task_dependency_target_started(
+                    kind="COORDINATION_COMMAND",
+                    target_id=command_id,
+                ):
+                    self.tasks.cancel_dependency(
+                        task_id,
+                        dependency_id,
+                        reason=(
+                            "qualified coordination failed before durable "
+                            "command preparation"
+                        ),
+                    )
+                raise
 
     def prepare_task_provider_effect(
         self,
@@ -403,12 +453,27 @@ class QualifiedVeraRuntime:
                 kind="PROVIDER_EFFECT",
                 target_id=effect_id,
             )
-            return self.prepare_provider_effect(
-                effect_id=effect_id,
-                provider_id=provider_id,
-                operation=operation,
-                request_payload=request_payload,
-            )
+            try:
+                return self.prepare_provider_effect(
+                    effect_id=effect_id,
+                    provider_id=provider_id,
+                    operation=operation,
+                    request_payload=request_payload,
+                )
+            except BaseException:
+                if not self._task_dependency_target_started(
+                    kind="PROVIDER_EFFECT",
+                    target_id=effect_id,
+                ):
+                    self.tasks.cancel_dependency(
+                        task_id,
+                        dependency_id,
+                        reason=(
+                            "qualified provider preparation failed before "
+                            "durable provider binding"
+                        ),
+                    )
+                raise
 
     def prepare_task_pc_job(
         self,
@@ -430,10 +495,25 @@ class QualifiedVeraRuntime:
                 kind="EFFECT",
                 target_id=f"pc:{job.envelope_id}",
             )
-            return self.prepare_pc_job(
-                job=job,
-                authorization=authorization,
-            )
+            try:
+                return self.prepare_pc_job(
+                    job=job,
+                    authorization=authorization,
+                )
+            except BaseException:
+                if not self._task_dependency_target_started(
+                    kind="EFFECT",
+                    target_id=f"pc:{job.envelope_id}",
+                ):
+                    self.tasks.cancel_dependency(
+                        task_id,
+                        dependency_id,
+                        reason=(
+                            "qualified PC preparation failed before any "
+                            "mechanical effect evidence"
+                        ),
+                    )
+                raise
 
     def record_task_correction(
         self,
@@ -500,7 +580,7 @@ class QualifiedVeraRuntime:
         task_id: str,
     ) -> tuple[TaskDependencyAssessment, ...]:
         state = self.tasks.read(task_id)
-        if not state.dependencies:
+        if not state.active_dependencies:
             return ()
 
         self.audit.verify_fence_consistency(self.fence)
@@ -510,7 +590,7 @@ class QualifiedVeraRuntime:
             EffectState.RECONCILED_COMMITTED.value,
         }
 
-        for dependency in state.dependencies:
+        for dependency in state.active_dependencies:
             if dependency.kind == "EFFECT":
                 try:
                     receipt = self.fence.read(dependency.target_id)
@@ -803,6 +883,7 @@ class QualifiedVeraRuntime:
             provider_recovery_ids=provider_recovery_ids,
             dependency_assessments=dependency_assessments,
             unsatisfied_dependency_ids=unsatisfied_dependency_ids,
+            cancelled_dependency_ids=state.cancelled_dependency_ids,
             unresolved_correction_ids=unresolved_correction_ids,
             supplied_blockers=blockers,
             ready=not reasons,
@@ -848,8 +929,22 @@ class QualifiedVeraRuntime:
                 for item in assessment.dependency_assessments
                 if item.evidence_digest is not None
             )
+            state = self.tasks.read(task_id)
+            cancellation_evidence_refs = tuple(
+                (
+                    "task-dependency-cancelled:"
+                    f"{item.dependency_id}:{item.event_digest}"
+                )
+                for item in state.dependency_cancellations
+            )
             merged_evidence = tuple(
-                dict.fromkeys((*evidence_refs, *dependency_evidence_refs))
+                dict.fromkeys(
+                    (
+                        *evidence_refs,
+                        *dependency_evidence_refs,
+                        *cancellation_evidence_refs,
+                    )
+                )
             )
             return self.tasks.close_task(
                 task_id,
