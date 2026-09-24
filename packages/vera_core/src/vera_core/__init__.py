@@ -24,6 +24,8 @@ from .effect_recovery import (
 from .execution_adapters import (
     PCExecutionTransport,
     ProviderExecutionTransport,
+    SourceMutationTransport,
+    SourceMutationTransportResult,
 )
 from .lifecycle import (
     AcceptedLifecyclePermit,
@@ -110,6 +112,16 @@ from .task_execution import (
     TaskPacket,
     TaskState,
 )
+from .source_mutation import (
+    PreparedSourceMutation,
+    QualifiedSourceMutationAdapter,
+    SourceMutationError,
+    SourceMutationRequest,
+    SourceMutationResult,
+    SourceWritableScope,
+    normalize_source_path,
+    source_provider_id,
+)
 from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
@@ -144,6 +156,16 @@ __all__ = [
     "ProviderAuthorityVerifier",
     "PCExecutionTransport",
     "ProviderExecutionTransport",
+    "SourceMutationTransport",
+    "SourceMutationTransportResult",
+    "PreparedSourceMutation",
+    "QualifiedSourceMutationAdapter",
+    "SourceMutationError",
+    "SourceMutationRequest",
+    "SourceMutationResult",
+    "SourceWritableScope",
+    "normalize_source_path",
+    "source_provider_id",
     "PCExecutionBinding",
     "PCExecutionBindingError",
     "PCExecutionBindingStore",
