@@ -373,7 +373,11 @@ class PCExecutionBindingStore:
             raise PCExecutionBindingError(
                 "stored PC effect identity mismatch"
             )
-        if _exact_json(cls._payload(prepared, lease)) != payload_json:
+        expected_payload = cls._payload(prepared, lease)
+        expected_payload["schema"] = payload["schema"]
+        if payload["schema"] == cls.LEGACY_SCHEMA:
+            expected_payload["prepared"].pop("task_dependency", None)
+        if _exact_json(expected_payload) != payload_json:
             raise PCExecutionBindingError(
                 "PC execution binding canonical readback mismatch"
             )
