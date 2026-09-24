@@ -45,6 +45,7 @@ from .provider_execution_binding import (
 )
 from .state import VeraStateDirectory
 from .source_mutation import QualifiedSourceMutationAdapter
+from .source_mutation_binding import SourceMutationBindingStore
 from .task_execution import (
     TaskCloseoutAssessment,
     TaskDependencyAssessment,
@@ -86,6 +87,7 @@ class QualifiedVeraRuntime:
     ]
     pc_execution_bindings: PCExecutionBindingStore
     provider_execution_bindings: ProviderExecutionBindingStore
+    source_mutation_bindings: SourceMutationBindingStore
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
 
@@ -122,6 +124,9 @@ class QualifiedVeraRuntime:
         pc_execution_bindings = state.pc_execution_binding_store()
         provider_execution_bindings = (
             state.provider_execution_binding_store()
+        )
+        source_mutation_bindings = (
+            state.source_mutation_binding_store()
         )
         coordination_commands = state.coordination_command_journal()
         tasks = state.task_execution_ledger()
@@ -263,6 +268,7 @@ class QualifiedVeraRuntime:
             source_mutation_transports=source_transports,
             pc_execution_bindings=pc_execution_bindings,
             provider_execution_bindings=provider_execution_bindings,
+            source_mutation_bindings=source_mutation_bindings,
             coordination_commands=coordination_commands,
             tasks=tasks,
         )
@@ -1749,6 +1755,9 @@ class QualifiedVeraRuntime:
         )
         context["provider_execution_bindings"] = (
             self.provider_execution_bindings.context()
+        )
+        context["source_mutation_bindings"] = (
+            self.source_mutation_bindings.context()
         )
         context["coordination"] = {
             "schema": "VERA_MONO_COORDINATION_RUNTIME_CONTEXT_V1",
