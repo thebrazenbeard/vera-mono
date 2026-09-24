@@ -581,5 +581,20 @@
     },
     "independent_review": false,
     "deploy_install_runtime_effect_authority": false
+  },
+  "monorepo_package": {
+    "schema": "VERA_MONO_PACKAGE_V1",
+    "contract": "architecture/VERA_MONOREPO_PACKAGE_V1.json",
+    "root_distribution": "vera-mono",
+    "root_pyproject": "pyproject.toml",
+    "package_root_count": 14,
+    "self_contained_local_packages": true,
+    "runtime_resources_packaged": true,
+    "ci_build": true,
+    "wheel_archive_verification": "scripts/verify_monorepo_wheel.py",
+    "isolated_install_verification": "scripts/verify_installed_monorepo.py",
+    "source_pass_is_package_pass": false,
+    "package_pass_is_install_pass": false,
+    "package_pass_is_runtime_pass": false
   }
 }
