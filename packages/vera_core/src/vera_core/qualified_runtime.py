@@ -12,6 +12,10 @@ from .effect_recovery import (
     EffectReconciliationVerifier,
     LifecycleEffectRecovery,
 )
+from .execution_adapters import (
+    PCExecutionTransport,
+    ProviderExecutionTransport,
+)
 from .lifecycle import AcceptedLifecyclePermit, NativeVeraLifecycle
 from .outbound_authority import (
     PCJobAuthorityProof,
@@ -60,6 +64,8 @@ class QualifiedVeraRuntime:
     recovery: LifecycleEffectRecovery | None
     outbound_trust: OutboundTrustRegistry
     audit: OutboundExecutionAudit
+    pc_execution_transport: PCExecutionTransport | None
+    provider_execution_transports: Mapping[str, ProviderExecutionTransport]
 
     @classmethod
     def from_state_directory(
@@ -71,6 +77,10 @@ class QualifiedVeraRuntime:
             str, ProviderAuthorityVerifier
         ] | None = None,
         reconciliation_verifier: EffectReconciliationVerifier | None = None,
+        pc_execution_transport: PCExecutionTransport | None = None,
+        provider_execution_transports: Mapping[
+            str, ProviderExecutionTransport
+        ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> "QualifiedVeraRuntime":
@@ -110,6 +120,38 @@ class QualifiedVeraRuntime:
                 key_digest=reconciliation_verifier.key_digest,
             )
 
+        if pc_execution_transport is not None:
+            if not isinstance(pc_execution_transport, PCExecutionTransport):
+                raise TypeError(
+                    "pc_execution_transport must satisfy PCExecutionTransport"
+                )
+            if pc_authority_verifier is None:
+                raise ValueError(
+                    "PC execution transport requires a trusted PC authority verifier"
+                )
+        provider_transports = dict(provider_execution_transports or {})
+        provider_verifiers = dict(provider_authority_verifiers or {})
+        for provider_id, transport in provider_transports.items():
+            if type(provider_id) is not str or not provider_id:
+                raise ValueError(
+                    "provider execution transport keys must be non-empty strings"
+                )
+            if not isinstance(transport, ProviderExecutionTransport):
+                raise TypeError(
+                    f"provider execution transport for {provider_id!r} "
+                    "does not satisfy ProviderExecutionTransport"
+                )
+            if transport.provider_id != provider_id:
+                raise ValueError(
+                    f"provider execution transport identity mismatch for "
+                    f"{provider_id!r}"
+                )
+            if provider_id not in provider_verifiers:
+                raise ValueError(
+                    f"provider execution transport {provider_id!r} requires "
+                    "a trusted provider authority verifier"
+                )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -147,6 +189,8 @@ class QualifiedVeraRuntime:
             recovery=recovery,
             outbound_trust=outbound_trust,
             audit=audit,
+            pc_execution_transport=pc_execution_transport,
+            provider_execution_transports=provider_transports,
         )
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
@@ -231,6 +275,30 @@ class QualifiedVeraRuntime:
             execute=execute,
         )
 
+    def execute_pc_job(
+        self,
+        prepared: PreparedPCDispatch,
+        *,
+        authority_proof: PCJobAuthorityProof,
+    ) -> Any:
+        transport = self.pc_execution_transport
+        if transport is None:
+            raise ValueError(
+                "qualified PC execution requires a host-injected PC execution transport"
+            )
+        if transport.host_id != prepared.job.host_id:
+            raise ValueError(
+                "PC execution transport host identity does not match job host"
+            )
+        return self.dispatch_pc_job(
+            prepared,
+            authority_proof=authority_proof,
+            execute=lambda: transport.execute(
+                prepared.job,
+                prepared.authorization,
+            ),
+        )
+
     def prepare_provider_effect(
         self,
         *,
@@ -285,6 +353,33 @@ class QualifiedVeraRuntime:
             request_payload=prepared.request_payload,
             authority=authority,
             execute=execute,
+        )
+
+    def execute_provider_effect(
+        self,
+        prepared: PreparedProviderDispatch,
+        *,
+        authority: ProviderAuthorityEnvelope,
+    ) -> Any:
+        transport = self.provider_execution_transports.get(
+            prepared.provider_id
+        )
+        if transport is None:
+            raise ValueError(
+                "qualified provider execution requires a host-injected "
+                f"transport for {prepared.provider_id!r}"
+            )
+        if transport.provider_id != prepared.provider_id:
+            raise ValueError(
+                "provider execution transport identity changed after construction"
+            )
+        return self.dispatch_provider_effect(
+            prepared,
+            authority=authority,
+            execute=lambda: transport.execute(
+                prepared.operation,
+                prepared.request_payload,
+            ),
         )
 
     def resume_context(self) -> dict[str, Any]:
