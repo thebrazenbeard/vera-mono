@@ -1,4 +1,6 @@
 import sqlite3
+import threading
+
 
 import pytest
 
@@ -735,3 +737,41 @@ def test_task_dependency_target_has_one_durable_task_owner(tmp_path):
     assert len(owners) == 1
     assert owners[0]["task_id"] == "task-owner-a"
     assert owners[0]["dependency_id"] == "dep-owned"
+
+
+def test_task_closeout_serializes_against_task_scoped_mutation(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-lock", packet())
+    peer = QualifiedVeraRuntime.from_state_directory(state)
+
+    started = threading.Event()
+    finished = threading.Event()
+    outcomes = []
+
+    def close_from_peer():
+        started.set()
+        try:
+            outcomes.append(
+                peer.close_task(
+                    "task-lock",
+                    "close-lock",
+                    surfaces=surfaces(),
+                    evidence_refs=("serialized closeout",),
+                    claim_ceiling="SOURCE_ONLY",
+                    next_frontier="NONE",
+                )
+            )
+        finally:
+            finished.set()
+
+    with runtime.tasks.action_lock():
+        thread = threading.Thread(target=close_from_peer)
+        thread.start()
+        assert started.wait(timeout=1.0)
+        assert finished.wait(timeout=0.1) is False
+
+    assert finished.wait(timeout=2.0)
+    thread.join(timeout=1.0)
+    assert len(outcomes) == 1
+    assert outcomes[0].closed is True
