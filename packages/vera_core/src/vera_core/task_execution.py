@@ -149,6 +149,24 @@ class TaskDependency:
     event_digest: str
 
 
+@dataclass(frozen=True, slots=True)
+class TaskDependencyRef:
+    task_id: str
+    dependency_id: str
+    kind: str
+    target_id: str
+    binding_event_digest: str
+
+    def canonical_body(self) -> dict[str, str]:
+        return {
+            "task_id": self.task_id,
+            "dependency_id": self.dependency_id,
+            "kind": self.kind,
+            "target_id": self.target_id,
+            "binding_event_digest": self.binding_event_digest,
+        }
+
+
 TASK_DEPENDENCY_STATUSES = frozenset(
     {
         "SATISFIED",
@@ -255,6 +273,25 @@ class TaskState:
             item
             for item in self.dependencies
             if item.dependency_id not in cancelled
+        )
+
+    def dependency_ref(self, dependency_id: str) -> TaskDependencyRef:
+        dependency = next(
+            (
+                item
+                for item in self.active_dependencies
+                if item.dependency_id == dependency_id
+            ),
+            None,
+        )
+        if dependency is None:
+            raise KeyError(dependency_id)
+        return TaskDependencyRef(
+            task_id=self.task_id,
+            dependency_id=dependency.dependency_id,
+            kind=dependency.kind,
+            target_id=dependency.target_id,
+            binding_event_digest=dependency.event_digest,
         )
 
 
