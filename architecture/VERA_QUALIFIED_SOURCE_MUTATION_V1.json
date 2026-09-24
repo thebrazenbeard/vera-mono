@@ -98,7 +98,18 @@
       "new_ref_head",
       "result_id"
     ],
-    "result_previous_ref_head_must_equal_request_expected_ref_head": true
+    "result_previous_ref_head_must_equal_request_expected_ref_head": true,
+    "concrete_github_transport": {
+      "contract": "architecture/VERA_GITHUB_SOURCE_TRANSPORT_V1.json",
+      "transport": "vera_core.GitHubSourceMutationTransport",
+      "api_client": "vera_core.GitHubGitDataAPIClient",
+      "exact_ref_CAS": "GraphQL updateRefs beforeOid/afterOid force=false",
+      "git_object_IO": "GitHub REST Git blobs/trees/commits/refs",
+      "retry_inside_transport": false,
+      "recursive_tree_truncation": "FAIL_CLOSED",
+      "MOVE_FILE": "one tree + one commit + one exact ref CAS",
+      "source_presence_is_activation": false
+    }
   },
   "fail_closed_order": [
     "task exists and is open",
@@ -120,5 +131,17 @@
     "merge_deploy_install_or_publication_authority_not_created": true,
     "source_presence_does_not_imply_runtime_activation": true,
     "callback_level_effect_primitives_are_not_qualified_source_mutation_paths": true
+  },
+  "restart_evidence": {
+    "binding_store": "vera_core.SourceMutationBindingStore",
+    "state_path": "source/mutation-bindings.sqlite",
+    "content_bytes_persisted": false,
+    "content_digest_persisted": true,
+    "task_packet_digest_persisted": true,
+    "writable_scope_matches_persisted": true,
+    "delegation_ref_persisted_when_present": true,
+    "provider_binding_digest_persisted": true,
+    "provider_request_digest_persisted": true,
+    "lifecycle_permit_digest_persisted": true
   }
 }
