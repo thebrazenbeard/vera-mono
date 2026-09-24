@@ -530,6 +530,24 @@
       "request_content_digest_persisted": true,
       "task_scope_and_delegation_evidence_persisted": true,
       "provider_binding_evidence_persisted": true
+    },
+    "restart_recovery": {
+      "assessment": "vera_core.SourceMutationRecoveryAssessment",
+      "exact_rehydration": "QualifiedSourceMutationAdapter.rehydrate_mutation",
+      "stale_lifecycle": "DENY",
+      "stale_delegation": "DENY",
+      "missing_transport": "DENY",
+      "provider_binding_tamper": "DENY",
+      "provider_key_rotation": "DENY",
+      "wrong_rehydrated_content": "DENY"
+    },
+    "pre_dispatch_cancellation": {
+      "api": "QualifiedSourceMutationAdapter.cancel_reserved_mutation",
+      "required_state": "RESERVED",
+      "final_effect_state": "CANCELLED_PRE_DISPATCH",
+      "task_dependency_cancelled": true,
+      "same_mutation_id_retry": false,
+      "ambiguous_dispatch_cancel_allowed": false
     }
   }
 }
