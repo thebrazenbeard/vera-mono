@@ -564,9 +564,10 @@ def test_task_dependency_blocks_closeout_until_coordination_command_succeeds(tmp
     assert before.unsatisfied_dependency_ids == ("dep-coordination",)
     assert before.dependency_assessments[0].status == "MISSING"
 
-    runtime.coordination.invoke(
+    runtime.invoke_task_coordination(
+        "task-coordination-dependency",
+        "dep-coordination",
         "coordination_post",
-        permit=runtime.accepted_permit(),
         actor=actor(),
         command_id="task-coordination-command",
         args=(draft(),),
@@ -998,3 +999,35 @@ def test_task_provider_binding_persists_exact_task_provenance_across_restart(tmp
         ).task_dependency
         == prepared.task_dependency
     )
+
+
+def test_task_dependency_rejects_effect_executed_outside_task_provenance(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-provenance-launder", packet())
+    runtime.bind_task_dependency(
+        "task-provenance-launder",
+        "dep-command-launder",
+        kind="COORDINATION_COMMAND",
+        target_id="laundered-command",
+    )
+
+    # Same command target executes through the qualified runtime, but not
+    # through the task-scoped path, so its audit lacks the owning task ref.
+    runtime.coordination.invoke(
+        "coordination_post",
+        permit=runtime.accepted_permit(),
+        actor=actor(),
+        command_id="laundered-command",
+        args=(draft(),),
+    )
+
+    assessment = runtime.assess_task_closeout(
+        "task-provenance-launder",
+        surfaces=surfaces(),
+    )
+    assert assessment.ready is False
+    dependency = assessment.dependency_assessments[0]
+    assert dependency.status == "PROVENANCE_MISMATCH"
+    assert dependency.satisfied is False
+    assert dependency.cancellation_allowed is False
