@@ -323,7 +323,8 @@
       "durable delegated-subject ownership",
       "delegation reassignment return and cancellation closeout gating",
       "delegated-subject mutation ownership guard",
-      "task-bound live-current installation verification"
+      "task-bound live-current installation verification",
+      "task-bound live-current route verification"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -429,7 +430,8 @@
       "supplied_blocker": "DENY",
       "lifecycle_not_accepted": "DENY",
       "bound_dependency_not_satisfied": "DENY",
-      "active_delegation": "DENY"
+      "active_delegation": "DENY",
+      "route_verification_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS"
     },
     "claim_ceiling_required": true,
     "independent_surface_closeout": true,
@@ -613,5 +615,17 @@
     "digest_change_after_PASS": "NOT_CURRENT",
     "task_closeout_gate": true,
     "install_pass_is_route_or_runtime_pass": false
+  },
+  "route_verification": {
+    "schema": "VERA_MONO_ROUTE_VERIFICATION_V1",
+    "contract": "architecture/VERA_ROUTE_VERIFICATION_V1.json",
+    "store": "vera_core.RouteVerificationStore",
+    "adapter": "vera_core.QualifiedRouteVerificationAdapter",
+    "state_path": "route/verification.sqlite",
+    "requirement_grammar": "ROUTE_VERIFY|<route-id>|<expected-target>",
+    "live_refresh_required": true,
+    "stored_pass_is_current_without_transport": false,
+    "current_route_surface_closeout_gate": true,
+    "route_pass_is_runtime_consumption": false
   }
 }
