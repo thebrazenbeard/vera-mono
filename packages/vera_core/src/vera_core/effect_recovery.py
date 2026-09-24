@@ -71,6 +71,10 @@ class EffectReconciliationProof:
 
 @runtime_checkable
 class EffectReconciliationVerifier(Protocol):
+    authority_id: str
+    key_id: str
+    key_digest: str
+
     def verify(
         self,
         proof: EffectReconciliationProof,
@@ -83,13 +87,28 @@ class EffectReconciliationVerifier(Protocol):
 class HmacEffectReconciliationAuthority:
     """Reference external reconciliation authority with injected secret."""
 
-    def __init__(self, issuer_id: str, secret: bytes):
+    def __init__(
+        self,
+        issuer_id: str,
+        secret: bytes,
+        *,
+        key_id: str | None = None,
+    ):
         if type(issuer_id) is not str or not issuer_id:
             raise ValueError("issuer_id must be a non-empty exact string")
         if type(secret) is not bytes or len(secret) < 32:
             raise ValueError("secret must contain at least 32 bytes")
         self.issuer_id = issuer_id
+        self.authority_id = issuer_id
         self._secret = secret
+        self.key_digest = sha256_hex(secret)
+        self.key_id = (
+            key_id
+            if key_id is not None
+            else f"hmac-sha256:{self.key_digest[:16]}"
+        )
+        if type(self.key_id) is not str or not self.key_id:
+            raise ValueError("key_id must be a non-empty exact string")
         self._used: set[str] = set()
 
     def issue(
