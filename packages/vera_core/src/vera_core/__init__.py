@@ -27,6 +27,15 @@ from .execution_adapters import (
     SourceMutationTransport,
     SourceMutationTransportResult,
 )
+from .github_source_transport import (
+    GitHubCommitState,
+    GitHubGitDataClient,
+    GitHubPathState,
+    GitHubSourceCASMismatch,
+    GitHubSourceMutationTransport,
+    GitHubSourceTransportError,
+    GitHubTreeUpdate,
+)
 from .lifecycle import (
     AcceptedLifecyclePermit,
     LifecycleActionDenied,
@@ -149,6 +158,13 @@ __all__ = [
     "LifecycleActionDenied",
     "HmacPCJobAuthority",
     "HmacProviderAuthority",
+    "GitHubCommitState",
+    "GitHubGitDataClient",
+    "GitHubPathState",
+    "GitHubSourceCASMismatch",
+    "GitHubSourceMutationTransport",
+    "GitHubSourceTransportError",
+    "GitHubTreeUpdate",
     "OutboundAuthorityError",
     "PCJobAuthorityProof",
     "PCJobAuthorityVerifier",
