@@ -10,6 +10,7 @@ from vera_recovery import NativeRecoveryCheckpointStore
 
 from .lifecycle import LifecycleReconstruction, NativeVeraLifecycle
 from .lifecycle_journal import LifecycleJournal
+from .outbound_trust import OutboundTrustRegistry
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +21,7 @@ class VeraStatePaths:
     currentness: Path
     lifecycle_journal: Path
     effects: Path
+    outbound_trust: Path
     trust: Path
 
 
@@ -55,6 +57,7 @@ class VeraStateDirectory:
             currentness=candidate / "control" / "currentness.sqlite",
             lifecycle_journal=candidate / "lifecycle" / "journal.sqlite",
             effects=candidate / "effects" / "effects.sqlite",
+            outbound_trust=candidate / "trust" / "outbound.sqlite",
             trust=candidate / "recovery" / "trust",
         )
         self.project_id = project_id
@@ -90,6 +93,9 @@ class VeraStateDirectory:
 
     def effect_fence(self) -> EffectFence:
         return EffectFence(self.paths.effects)
+
+    def outbound_trust_registry(self) -> OutboundTrustRegistry:
+        return OutboundTrustRegistry(self.paths.outbound_trust)
 
     def reconstruct(self) -> LifecycleReconstruction:
         return self.open().reconstruct()
