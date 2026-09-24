@@ -610,6 +610,9 @@ def test_task_effect_dependency_cancelled_pre_dispatch_is_terminal_unsatisfied(t
     )
 
     permit = runtime.accepted_permit()
+    dependency_ref = runtime.tasks.read(
+        "task-effect-dependency"
+    ).dependency_ref("dep-effect")
     runtime.audit.append(
         effect_id=effect_id,
         effect_kind="TEST/REQUIRED",
@@ -622,7 +625,10 @@ def test_task_effect_dependency_cancelled_pre_dispatch_is_terminal_unsatisfied(t
                 "permit_digest": permit.permit_digest,
             },
             "authority_evidence_digest": "3" * 64,
-            "authority_details": {"kind": "TEST"},
+            "authority_details": {
+                "kind": "TEST",
+                "task_dependency": dependency_ref.canonical_body(),
+            },
         },
     )
     reserved = runtime.fence.reserve(
