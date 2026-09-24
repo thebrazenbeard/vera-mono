@@ -28,7 +28,9 @@
       "relevant_surfaces"
     ],
     "exact_subject_required": true,
-    "deterministic_packet_digest": true
+    "deterministic_packet_digest": true,
+    "writable_scope_source_grammar": "SOURCE|<repository>|<ref>|<path-or-prefix/**>",
+    "untyped_writable_scope_grants_qualified_source_write": false
   },
   "checkpoint": {
     "method": "QualifiedVeraRuntime.checkpoint_task",
@@ -151,7 +153,8 @@
     "qualified_scoped_paths": {
       "coordination": "QualifiedVeraRuntime.invoke_task_coordination",
       "provider": "QualifiedVeraRuntime.prepare_task_provider_effect",
-      "pc": "QualifiedVeraRuntime.prepare_task_pc_job using EFFECT target pc:<envelope_id>"
+      "pc": "QualifiedVeraRuntime.prepare_task_pc_job using EFFECT target pc:<envelope_id>",
+      "source_mutation": "QualifiedSourceMutationAdapter.prepare binds PROVIDER_EFFECT target mutation_id after writable-scope and delegation checks"
     },
     "assessment_method": "QualifiedVeraRuntime.assess_task_dependencies",
     "statuses": [
@@ -197,7 +200,8 @@
     "serialization": {
       "task_action_lock": "PortableFileLock",
       "closeout_serialized_against_task_scoped_mutation": true,
-      "task_scoped_outbound_preparation_holds_lock": true
+      "task_scoped_outbound_preparation_holds_lock": true,
+      "qualified_source_mutation_rechecks_scope_and_owner_under_task_lock_before_transport": true
     }
   },
   "delegation_ownership": {
@@ -225,5 +229,17 @@
     "return_shape_enforced": true,
     "active_owner_reference": "vera_core.TaskDelegationRef",
     "stale_owner_reference_after_reassignment": "DENY"
+  },
+  "qualified_source_mutation": {
+    "contract": "architecture/VERA_QUALIFIED_SOURCE_MUTATION_V1.json",
+    "operations": [
+      "WRITE_FILE",
+      "DELETE_FILE",
+      "MOVE_FILE"
+    ],
+    "task_packet_writable_scope_required": true,
+    "delegation_guard_required_for_active_subject": true,
+    "provider_authority_and_lifecycle_required": true,
+    "generic_provider_source_escape": "DENY"
   }
 }
