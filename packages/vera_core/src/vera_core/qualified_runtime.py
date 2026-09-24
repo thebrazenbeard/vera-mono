@@ -1133,10 +1133,48 @@ class QualifiedVeraRuntime:
                     provider.terminal
                     and provider.fence_state in success_states
                 ):
-                    status = "SATISFIED"
-                    reason = (
-                        "provider effect reached a successful terminal state"
-                    )
+                    if provider.provider_id.startswith("source:"):
+                        try:
+                            source_binding = self.source_mutation_bindings.read(
+                                dependency.target_id
+                            )
+                            source_outcome = self.source_mutation_outcomes.read(
+                                dependency.target_id
+                            )
+                        except (KeyError, ValueError):
+                            status = "RECOVERY_REQUIRED"
+                            reason = (
+                                "source provider effect committed but exact "
+                                "source mutation outcome is missing or invalid"
+                            )
+                        else:
+                            if (
+                                source_outcome.source_binding_digest
+                                != source_binding.binding_digest
+                                or source_outcome.provider_binding_digest
+                                != provider_binding.binding_digest
+                                or source_outcome.mechanical_effect_id
+                                != provider.mechanical_effect_id
+                            ):
+                                status = "PROVENANCE_MISMATCH"
+                                reason = (
+                                    "source outcome does not bind the exact "
+                                    "source/provider execution evidence"
+                                )
+                            else:
+                                status = "SATISFIED"
+                                evidence_digest = (
+                                    source_outcome.outcome_digest
+                                )
+                                reason = (
+                                    "source provider effect and exact durable "
+                                    "source outcome both reached success"
+                                )
+                    else:
+                        status = "SATISFIED"
+                        reason = (
+                            "provider effect reached a successful terminal state"
+                        )
                 elif provider.recovery_required:
                     status = "RECOVERY_REQUIRED"
                     reason = provider.reason
@@ -1877,6 +1915,8 @@ class QualifiedVeraRuntime:
                     assessment.provider_authority_current
                 ),
                 "transport_available": assessment.transport_available,
+                "outcome_current": assessment.outcome_current,
+                "new_ref_head": assessment.new_ref_head,
                 "content_rehydration_required": (
                     assessment.content_rehydration_required
                 ),
