@@ -600,3 +600,77 @@ def test_pc_dispatch_rejects_expired_authorization_even_with_valid_proof(tmp_pat
             execute=lambda: calls.append("escaped"),
         )
     assert calls == []
+
+
+def test_ambiguous_external_effect_freezes_actions_and_lifecycle_until_reconciled(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    payload = {"value": "ambiguous"}
+    verifier, authority = provider_authority(
+        permit,
+        payload,
+        effect_id="ambiguous-effect",
+    )
+    gateway = provider_gateway(state, lifecycle, verifier)
+
+    def ambiguous_execution():
+        raise RuntimeError("transport died after dispatch")
+
+    with pytest.raises(RuntimeError):
+        gateway.dispatch_provider_effect(
+            permit=permit,
+            effect_id="ambiguous-effect",
+            provider_id=PROVIDER_ID,
+            operation="WRITE",
+            request_payload=payload,
+            authority=authority,
+            execute=ambiguous_execution,
+        )
+
+    fence = state.effect_fence()
+    ambiguous = fence.read("provider:example-provider:ambiguous-effect")
+    assert ambiguous.state is EffectState.ATTEMPTED_UNKNOWN
+
+    with pytest.raises(EffectFenceError):
+        lifecycle.accepted_action_permit()
+
+    with pytest.raises(EffectFenceError):
+        lifecycle.checkpoint(
+            checkpoint_id="cp-after-ambiguous",
+            runtime_id="runtime-2",
+            expected_memory_head=lifecycle.memory.current_head,
+            expected_checkpoint_head=lifecycle.checkpoints.current_head,
+            expected_currentness_generation=permit.currentness_generation,
+        )
+
+    second_payload = {"value": "must-not-escape"}
+    second_verifier, second_authority = provider_authority(
+        permit,
+        second_payload,
+        effect_id="second-effect",
+    )
+    second_gateway = provider_gateway(state, lifecycle, second_verifier)
+    calls = []
+    with pytest.raises(EffectFenceError):
+        second_gateway.dispatch_provider_effect(
+            permit=permit,
+            effect_id="second-effect",
+            provider_id=PROVIDER_ID,
+            operation="WRITE",
+            request_payload=second_payload,
+            authority=second_authority,
+            execute=lambda: calls.append("escaped"),
+        )
+    assert calls == []
+
+    reconciled = fence.reconcile_unknown(
+        "provider:example-provider:ambiguous-effect",
+        effect_occurred=False,
+        result_digest=None,
+        reconciliation_evidence_digest="f" * 64,
+    )
+    assert reconciled.state is EffectState.RECONCILED_NO_EFFECT
+    assert reconciled.reconciliation_evidence_digest == "f" * 64
+    assert fence.unresolved() == ()
+
+    refreshed = lifecycle.accepted_action_permit()
+    assert refreshed.permit_digest == permit.permit_digest
