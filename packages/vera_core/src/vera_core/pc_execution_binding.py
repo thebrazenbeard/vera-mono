@@ -224,6 +224,20 @@ class PCExecutionBindingStore:
             for row in rows
         )
 
+    def bindings_for_effect(
+        self,
+        effect_id: str,
+    ) -> tuple[PCExecutionBinding, ...]:
+        if type(effect_id) is not str or not effect_id:
+            raise PCExecutionBindingError(
+                "effect_id must be a non-empty exact string"
+            )
+        return tuple(
+            binding
+            for binding in self.all()
+            if binding.effect_id == effect_id
+        )
+
     def context(self) -> dict[str, Any]:
         bindings = self.all()
         return {
