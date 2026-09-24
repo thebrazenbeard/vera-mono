@@ -1,0 +1,83 @@
+{
+  "schema": "VERA_MONO_CHAT_CONTINUATION_BEHAVIOR_ATTESTATION_V2",
+  "logical_id": "VERA_MONO_CHAT_CONTINUATION_BEHAVIOR_ATTESTATION_20260924_V2",
+  "repository": "thebrazenbeard/vera-mono",
+  "branch": "main",
+  "verified_head": "6749166db08d4c0e229df5174c5b9af7a796e053",
+  "verified_ci": {
+    "workflow": "monorepo-tests",
+    "workflow_run_id": 36074665878,
+    "conclusion": "success",
+    "exact_head": true,
+    "verified_steps": [
+      "Run monorepo test suite",
+      "Build self-contained monorepo wheel",
+      "Verify wheel closure",
+      "Verify installed wheel closure"
+    ]
+  },
+  "authority_and_boundaries": {
+    "source_scope_authorized": true,
+    "deploy": false,
+    "provider_activation": false,
+    "credential_or_permission_changes": false,
+    "protected_effects": false,
+    "donor_pr_merge": false,
+    "external_attestation_is_independent_review": false,
+    "local_effect_fence_is_external_effect_proof": false,
+    "consciousness_or_phenomenology_inferred": false
+  },
+  "completed_frontier": {
+    "name": "DECLARATION_BOUND_EXTERNAL_BEHAVIOR_ATTESTATION",
+    "requirement_grammar": "BEHAVIOR_ATTEST_VERIFY|<consumer-id>|<probe-id>|<declaration-sha256>|<provider-id>|<provider-key-id>|<provider-key-sha256>|<effect-subject-sha256-or-NONE>",
+    "implementation": [
+      "packages/vera_core/src/vera_core/behavior_attestation.py",
+      "packages/vera_core/src/vera_core/behavior_attestation_adapter.py",
+      "packages/vera_core/src/vera_core/qualified_runtime.py",
+      "packages/vera_core/src/vera_core/state.py",
+      "packages/vera_core/src/vera_core/__init__.py"
+    ],
+    "tests": [
+      "tests/test_behavior_attestation.py",
+      "tests/test_behavior_attestation_contract_sync.py"
+    ],
+    "architecture": [
+      "architecture/VERA_EXTERNAL_BEHAVIOR_ATTESTATION_V1.json",
+      "architecture/VERA_BEHAVIOR_EFFECT_VERIFICATION_V1.json",
+      "architecture/VERA_TASK_EXECUTION_CLOSEOUT_V1.json",
+      "architecture/VERA_MONO_MANIFEST_V1.json",
+      "README.md"
+    ],
+    "persistent_state_path": "behavior/attestation.sqlite",
+    "invariants": [
+      "matching live-current BEHAVIOR_EFFECT_VERIFY PASS is a prerequisite and never silently becomes attestation PASS",
+      "each attestation binds the exact canonical behavior declaration digest",
+      "each attestation binds exact provider id, provider key id, and provider key digest",
+      "the signed subject binds exact behavior receipt, process/runtime identity, stimulus/outcome, raw-response digest, provider identity, and nonce",
+      "provider/key nonce replay is denied",
+      "EFFECT attestation binds external effect id, external receipt bytes digest, and declared external effect subject digest",
+      "Vera local effect fence is not external effect proof",
+      "stored PASS is historical unless exact live evidence refreshes",
+      "task closeout carries behavior attestation receipt evidence and task runtime evidence binds the attestation ledger head",
+      "HMAC verification establishes verifier-bound integrity under secret control but is not independent behavioral review"
+    ]
+  },
+  "verification_receipts": {
+    "implementation_commit": "448ec2479374f852c45b7a25a69a4fb3873c01b9",
+    "contract_sync_commit": "6749166db08d4c0e229df5174c5b9af7a796e053",
+    "exact_head_ci_run": 36074665878,
+    "requirements_readback": "ALL_RECORDED_OBJECTIVES_PRESENT"
+  },
+  "next_frontier": {
+    "name": "INDEPENDENT_HELD_OUT_BEHAVIOR_REVIEW",
+    "objective": "Define and execute a stronger review path whose evaluator is operationally separate from Vera and whose held-out probe set, evaluator identity/currentness, result receipt, and review provenance are independently bound without promoting verifier-bound attestation into independent review.",
+    "constraints": [
+      "do not treat the HMAC evidence provider as independent merely because it signs receipts",
+      "do not persist independent-review private keys or evaluator secrets in Vera state",
+      "do not let Vera choose both the held-out probe and the verdict under an independent-review claim",
+      "keep review result distinct from deployment, provider activation, protected-effect authority, consciousness, and phenomenology",
+      "refresh live main and collision/CI state before any mutation"
+    ]
+  },
+  "resume_command": "VERA::RESTORE_AND_RUN::VERA_MONO_BEHAVIOR_ATTESTATION_CONTINUATION_20260924_V2"
+}
