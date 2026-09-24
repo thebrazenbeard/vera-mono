@@ -28,6 +28,11 @@ from .lifecycle_journal import (
     LifecycleJournal,
     LifecycleJournalError,
 )
+from .outbound_audit import (
+    OutboundAuditError,
+    OutboundAuditEvent,
+    OutboundExecutionAudit,
+)
 from .outbound_authority import (
     HmacPCJobAuthority,
     HmacProviderAuthority,
@@ -122,6 +127,9 @@ __all__ = [
     "LifecycleReconstructionError",
     "LocalCapability",
     "NativeLifecycleReceipt",
+    "OutboundAuditError",
+    "OutboundAuditEvent",
+    "OutboundExecutionAudit",
     "OutboundActionError",
     "OutboundEffectResult",
     "NativeVeraLifecycle",
