@@ -115,12 +115,17 @@ class LifecycleReconstruction:
     resume_checkpoint_id: str | None
     commitments: tuple[str, ...]
     unfinished_work: tuple[str, ...]
+    unresolved_effects: tuple[tuple[str, str], ...]
     lifecycle_journal_head: str
     claim_ceiling: str
 
     @property
     def accepted_currentness_exists(self) -> bool:
         return self.accepted_checkpoint_digest is not None
+
+    @property
+    def effect_recovery_required(self) -> bool:
+        return bool(self.unresolved_effects)
 
     def as_resume_context(self) -> dict[str, Any]:
         return {
@@ -137,6 +142,11 @@ class LifecycleReconstruction:
             "resume_checkpoint_id": self.resume_checkpoint_id,
             "commitments": list(self.commitments),
             "unfinished_work": list(self.unfinished_work),
+            "effect_recovery_required": self.effect_recovery_required,
+            "unresolved_effects": [
+                {"effect_id": effect_id, "state": state}
+                for effect_id, state in self.unresolved_effects
+            ],
             "currentness_generation": self.currentness_generation,
             "currentness_snapshot_digest": self.currentness_snapshot_digest,
             "current_control_source_digest": self.current_control_source_digest,
@@ -630,6 +640,14 @@ class NativeVeraLifecycle:
         pending: NativeRecoveryCheckpoint | None,
         resume: NativeRecoveryCheckpoint | None,
     ) -> LifecycleReconstruction:
+        unresolved_effects = (
+            ()
+            if self.effect_fence is None
+            else tuple(
+                (receipt.effect_id, receipt.state.value)
+                for receipt in self.effect_fence.unresolved()
+            )
+        )
         return LifecycleReconstruction(
             status=status,
             project_id=self.project_id,
@@ -663,6 +681,7 @@ class NativeVeraLifecycle:
             resume_checkpoint_id=None if resume is None else resume.checkpoint_id,
             commitments=() if resume is None else resume.commitments,
             unfinished_work=() if resume is None else resume.unfinished_work,
+            unresolved_effects=unresolved_effects,
             lifecycle_journal_head=self.journal.head,
             claim_ceiling=(
                 "DETERMINISTIC_LOCAL_RESTART_RECONSTRUCTION_"
