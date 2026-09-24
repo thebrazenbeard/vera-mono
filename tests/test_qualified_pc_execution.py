@@ -559,12 +559,38 @@ def test_reserved_pre_dispatch_effect_can_only_cancel_and_abandon(tmp_path):
         ),
     )
     effect_id = f"pc:{prepared.job.envelope_id}"
+    runtime.audit.append(
+        effect_id=effect_id,
+        effect_kind="PC/PING",
+        event_type="AUTHORITY_VERIFIED",
+        payload={
+            "request_digest": "a" * 64,
+            "mechanical_permit_digest": "b" * 64,
+            "lifecycle_permit": {
+                **prepared.permit.canonical_body(),
+                "permit_digest": prepared.permit.permit_digest,
+            },
+            "authority_evidence_digest": "c" * 64,
+            "authority_details": {"kind": "PC", "test": True},
+        },
+    )
     runtime.fence.reserve(
         effect_id=effect_id,
         request_digest="a" * 64,
         mechanical_permit_digest="b" * 64,
         authority_evidence_digest="c" * 64,
         currentness_evidence_digest=prepared.permit.permit_digest,
+    )
+    runtime.audit.append(
+        effect_id=effect_id,
+        effect_kind="PC/PING",
+        event_type="RESERVED",
+        payload={
+            "request_digest": "a" * 64,
+            "mechanical_permit_digest": "b" * 64,
+            "authority_evidence_digest": "c" * 64,
+            "currentness_evidence_digest": prepared.permit.permit_digest,
+        },
     )
     assessment = adapter.assess(prepared, lease())
     assert assessment is not None
@@ -590,3 +616,4 @@ def test_reserved_pre_dispatch_effect_can_only_cancel_and_abandon(tmp_path):
     )
     assert abandoned.local_state is JournalState.ABANDONED
     assert runtime.fence.read(effect_id).state is EffectState.CANCELLED_PRE_DISPATCH
+    assert runtime.audit.latest(effect_id).event_type == "CANCELLED_PRE_DISPATCH"
