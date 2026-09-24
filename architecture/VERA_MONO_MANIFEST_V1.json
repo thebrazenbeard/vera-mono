@@ -260,6 +260,20 @@
       "runtime_qualified_recovery": "vera_core.LifecycleEffectRecovery",
       "trusted_verifier_required": true,
       "restart_context_surfaces_unresolved_effects": true
-    }
+    },
+    "qualified_runtime": "vera_core.QualifiedVeraRuntime"
+  },
+  "qualified_runtime": {
+    "composition_root": "vera_core.QualifiedVeraRuntime",
+    "state_root": "vera_core.VeraStateDirectory",
+    "owns_runtime_qualified_paths": [
+      "accepted lifecycle permit minting",
+      "coordination gateway",
+      "PC/provider effect gateway",
+      "ambiguous-effect recovery gateway"
+    ],
+    "trusted_authority_verifiers_persisted": false,
+    "trusted_authority_verifiers_injected_by_host": true,
+    "low_level_mechanisms_remain_available_but_not_runtime_qualified": true
   }
 }
