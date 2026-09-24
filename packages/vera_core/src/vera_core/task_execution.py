@@ -204,6 +204,40 @@ class TaskDependencyAssessment:
         return self.status == "MISSING"
 
 
+TASK_DELEGATION_STATUSES = frozenset(
+    {
+        "ACTIVE",
+        "RETURNED",
+        "CANCELLED",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class TaskDelegation:
+    delegation_id: str
+    repository: str
+    ref: str
+    subject: str
+    assignee_ref: str
+    allowed_effects: tuple[str, ...]
+    prohibited_effects: tuple[str, ...]
+    return_shape: tuple[str, ...]
+    evidence_refs: tuple[str, ...]
+    status: str
+    terminal_summary: str | None
+    terminal_evidence_refs: tuple[str, ...]
+    event_digest: str
+
+    @property
+    def active(self) -> bool:
+        return self.status == "ACTIVE"
+
+    @property
+    def scope_key(self) -> tuple[str, str, str]:
+        return (self.repository, self.ref, self.subject)
+
+
 @dataclass(frozen=True, slots=True)
 class TaskCorrection:
     correction_id: str
@@ -238,6 +272,7 @@ class TaskCloseoutAssessment:
     dependency_assessments: tuple[TaskDependencyAssessment, ...]
     unsatisfied_dependency_ids: tuple[str, ...]
     cancelled_dependency_ids: tuple[str, ...]
+    active_delegation_ids: tuple[str, ...]
     unresolved_correction_ids: tuple[str, ...]
     supplied_blockers: tuple[str, ...]
     ready: bool
@@ -252,6 +287,7 @@ class TaskState:
     latest_checkpoint: Mapping[str, Any] | None
     dependencies: tuple[TaskDependency, ...]
     dependency_cancellations: tuple[TaskDependencyCancellation, ...]
+    delegations: tuple[TaskDelegation, ...]
     corrections: tuple[TaskCorrection, ...]
     unresolved_correction_ids: tuple[str, ...]
     closeout: TaskCloseout | None
@@ -275,6 +311,23 @@ class TaskState:
             for item in self.dependencies
             if item.dependency_id not in cancelled
         )
+
+    @property
+    def active_delegations(self) -> tuple[TaskDelegation, ...]:
+        return tuple(item for item in self.delegations if item.active)
+
+    def delegation(self, delegation_id: str) -> TaskDelegation:
+        delegation = next(
+            (
+                item
+                for item in self.delegations
+                if item.delegation_id == delegation_id
+            ),
+            None,
+        )
+        if delegation is None:
+            raise KeyError(delegation_id)
+        return delegation
 
     def dependency_ref(self, dependency_id: str) -> TaskDependencyRef:
         dependency = next(
@@ -309,6 +362,10 @@ class TaskExecutionLedger:
             "TASK_OPENED",
             "TASK_DEPENDENCY",
             "TASK_DEPENDENCY_CANCELLED",
+            "TASK_DELEGATED",
+            "TASK_DELEGATION_REASSIGNED",
+            "TASK_DELEGATION_RETURNED",
+            "TASK_DELEGATION_CANCELLED",
             "TASK_CORRECTION",
             "TASK_CHECKPOINT",
             "TASK_CLOSED",
@@ -591,6 +648,247 @@ class TaskExecutionLedger:
         )
         return self.read(task_id)
 
+    def delegate_work(
+        self,
+        task_id: str,
+        delegation_id: str,
+        *,
+        repository: str,
+        ref: str,
+        subject: str,
+        assignee_ref: str,
+        allowed_effects: Sequence[str],
+        prohibited_effects: Sequence[str],
+        return_shape: Sequence[str],
+        evidence_refs: Sequence[str],
+    ) -> TaskState:
+        state = self.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot delegate work"
+            )
+        _require_text(delegation_id, "delegation_id")
+        repository = _require_text(repository, "repository")
+        ref = _require_text(ref, "ref")
+        subject = _require_text(subject, "delegated subject")
+        assignee_ref = _require_text(assignee_ref, "assignee_ref")
+        allowed = _require_texts(allowed_effects, "allowed_effects")
+        prohibited = _require_texts(
+            prohibited_effects,
+            "prohibited_effects",
+        )
+        returns = _require_texts(return_shape, "return_shape")
+        evidence = _require_texts(evidence_refs, "evidence_refs")
+        if not returns:
+            raise TaskExecutionError(
+                "delegation requires an explicit return shape"
+            )
+        if not evidence:
+            raise TaskExecutionError(
+                "delegation requires binding evidence refs"
+            )
+        overlap = sorted(set(allowed) & set(prohibited))
+        if overlap:
+            raise TaskExecutionError(
+                "delegation effect is both allowed and prohibited: "
+                + ", ".join(overlap)
+            )
+        if delegation_id in {
+            item.delegation_id for item in state.delegations
+        }:
+            raise TaskExecutionError(
+                "delegation identity is already used by this task"
+            )
+        scope = (repository, ref, subject)
+        for other in self.tasks():
+            for delegation in other.active_delegations:
+                if delegation.scope_key == scope:
+                    raise TaskExecutionError(
+                        "delegated subject is already owned by "
+                        f"{other.task_id}:{delegation.delegation_id}:"
+                        f"{delegation.assignee_ref}"
+                    )
+        self.append(
+            event_id=f"{task_id}:DELEGATED:{delegation_id}",
+            task_id=task_id,
+            event_type="TASK_DELEGATED",
+            payload={
+                "schema": "VERA_MONO_TASK_DELEGATION_V1",
+                "delegation_id": delegation_id,
+                "task_subject": state.packet.subject,
+                "packet_digest": state.packet.packet_digest,
+                "repository": repository,
+                "ref": ref,
+                "subject": subject,
+                "assignee_ref": assignee_ref,
+                "allowed_effects": list(allowed),
+                "prohibited_effects": list(prohibited),
+                "return_shape": list(returns),
+                "evidence_refs": list(evidence),
+            },
+        )
+        return self.read(task_id)
+
+    def reassign_delegation(
+        self,
+        task_id: str,
+        delegation_id: str,
+        reassignment_id: str,
+        *,
+        new_assignee_ref: str,
+        evidence_refs: Sequence[str],
+    ) -> TaskState:
+        state = self.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot reassign delegation"
+            )
+        delegation = state.delegation(delegation_id)
+        if not delegation.active:
+            raise TaskExecutionError(
+                "only active delegation may be reassigned"
+            )
+        reassignment_id = _require_text(
+            reassignment_id,
+            "reassignment_id",
+        )
+        new_assignee_ref = _require_text(
+            new_assignee_ref,
+            "new_assignee_ref",
+        )
+        if new_assignee_ref == delegation.assignee_ref:
+            raise TaskExecutionError(
+                "delegation reassignment must change assignee"
+            )
+        evidence = _require_texts(evidence_refs, "evidence_refs")
+        if not evidence:
+            raise TaskExecutionError(
+                "delegation reassignment requires evidence refs"
+            )
+        self.append(
+            event_id=(
+                f"{task_id}:DELEGATION_REASSIGNED:"
+                f"{delegation_id}:{reassignment_id}"
+            ),
+            task_id=task_id,
+            event_type="TASK_DELEGATION_REASSIGNED",
+            payload={
+                "schema": "VERA_MONO_TASK_DELEGATION_REASSIGNMENT_V1",
+                "delegation_id": delegation_id,
+                "task_subject": state.packet.subject,
+                "packet_digest": state.packet.packet_digest,
+                "repository": delegation.repository,
+                "ref": delegation.ref,
+                "subject": delegation.subject,
+                "prior_assignee_ref": delegation.assignee_ref,
+                "new_assignee_ref": new_assignee_ref,
+                "evidence_refs": list(evidence),
+            },
+        )
+        return self.read(task_id)
+
+    def return_delegation(
+        self,
+        task_id: str,
+        delegation_id: str,
+        return_id: str,
+        *,
+        summary: str,
+        result_evidence_refs: Sequence[str],
+    ) -> TaskState:
+        state = self.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot accept delegation return"
+            )
+        delegation = state.delegation(delegation_id)
+        if not delegation.active:
+            raise TaskExecutionError(
+                "only active delegation may be returned"
+            )
+        return_id = _require_text(return_id, "return_id")
+        summary = _require_text(summary, "delegation return summary")
+        evidence = _require_texts(
+            result_evidence_refs,
+            "result_evidence_refs",
+        )
+        if not evidence:
+            raise TaskExecutionError(
+                "delegation return requires result evidence refs"
+            )
+        self.append(
+            event_id=(
+                f"{task_id}:DELEGATION_RETURNED:"
+                f"{delegation_id}:{return_id}"
+            ),
+            task_id=task_id,
+            event_type="TASK_DELEGATION_RETURNED",
+            payload={
+                "schema": "VERA_MONO_TASK_DELEGATION_RETURN_V1",
+                "delegation_id": delegation_id,
+                "task_subject": state.packet.subject,
+                "packet_digest": state.packet.packet_digest,
+                "repository": delegation.repository,
+                "ref": delegation.ref,
+                "subject": delegation.subject,
+                "assignee_ref": delegation.assignee_ref,
+                "summary": summary,
+                "result_evidence_refs": list(evidence),
+            },
+        )
+        return self.read(task_id)
+
+    def cancel_delegation(
+        self,
+        task_id: str,
+        delegation_id: str,
+        cancellation_id: str,
+        *,
+        reason: str,
+        evidence_refs: Sequence[str],
+    ) -> TaskState:
+        state = self.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot cancel delegation"
+            )
+        delegation = state.delegation(delegation_id)
+        if not delegation.active:
+            raise TaskExecutionError(
+                "only active delegation may be cancelled"
+            )
+        cancellation_id = _require_text(
+            cancellation_id,
+            "cancellation_id",
+        )
+        reason = _require_text(reason, "delegation cancellation reason")
+        evidence = _require_texts(evidence_refs, "evidence_refs")
+        if not evidence:
+            raise TaskExecutionError(
+                "delegation cancellation requires evidence refs"
+            )
+        self.append(
+            event_id=(
+                f"{task_id}:DELEGATION_CANCELLED:"
+                f"{delegation_id}:{cancellation_id}"
+            ),
+            task_id=task_id,
+            event_type="TASK_DELEGATION_CANCELLED",
+            payload={
+                "schema": "VERA_MONO_TASK_DELEGATION_CANCELLATION_V1",
+                "delegation_id": delegation_id,
+                "task_subject": state.packet.subject,
+                "packet_digest": state.packet.packet_digest,
+                "repository": delegation.repository,
+                "ref": delegation.ref,
+                "subject": delegation.subject,
+                "assignee_ref": delegation.assignee_ref,
+                "reason": reason,
+                "evidence_refs": list(evidence),
+            },
+        )
+        return self.read(task_id)
+
     def record_correction(
         self,
         task_id: str,
@@ -752,6 +1050,14 @@ class TaskExecutionLedger:
                 "task has unresolved correction recurrence gate: "
                 + ", ".join(state.unresolved_correction_ids)
             )
+        if state.active_delegations:
+            raise TaskExecutionError(
+                "task has active delegated subjects: "
+                + ", ".join(
+                    item.delegation_id
+                    for item in state.active_delegations
+                )
+            )
         _require_text(closeout_id, "closeout_id")
         _require_text(claim_ceiling, "claim_ceiling")
         _require_text(next_frontier, "next_frontier")
@@ -860,6 +1166,7 @@ class TaskExecutionLedger:
         dependencies: list[TaskDependency] = []
         dependency_cancellations: list[TaskDependencyCancellation] = []
         cancelled_dependency_ids: set[str] = set()
+        delegations: dict[str, TaskDelegation] = {}
         corrections: list[TaskCorrection] = []
         unresolved_corrections: set[str] = set()
         closeout: TaskCloseout | None = None
@@ -960,6 +1267,202 @@ class TaskExecutionLedger:
                 )
                 dependency_cancellations.append(cancellation)
                 cancelled_dependency_ids.add(dependency_id)
+            elif event.event_type == "TASK_DELEGATED":
+                delegation_id = _require_text(
+                    event.payload.get("delegation_id"),
+                    "delegation_id",
+                )
+                if event.payload.get("task_subject") != packet.subject:
+                    raise TaskExecutionError(
+                        "delegation task subject diverges from task packet"
+                    )
+                if event.payload.get("packet_digest") != packet.packet_digest:
+                    raise TaskExecutionError(
+                        "delegation packet digest mismatch"
+                    )
+                if delegation_id in delegations:
+                    raise TaskExecutionError(
+                        "duplicate delegation identity in task history"
+                    )
+                allowed = _require_texts(
+                    event.payload.get("allowed_effects", ()),
+                    "allowed_effects",
+                )
+                prohibited = _require_texts(
+                    event.payload.get("prohibited_effects", ()),
+                    "prohibited_effects",
+                )
+                if set(allowed) & set(prohibited):
+                    raise TaskExecutionError(
+                        "persisted delegation has conflicting effect policy"
+                    )
+                returns = _require_texts(
+                    event.payload.get("return_shape", ()),
+                    "return_shape",
+                )
+                evidence = _require_texts(
+                    event.payload.get("evidence_refs", ()),
+                    "evidence_refs",
+                )
+                if not returns or not evidence:
+                    raise TaskExecutionError(
+                        "persisted delegation lacks return shape or evidence"
+                    )
+                delegations[delegation_id] = TaskDelegation(
+                    delegation_id=delegation_id,
+                    repository=_require_text(
+                        event.payload.get("repository"),
+                        "delegation repository",
+                    ),
+                    ref=_require_text(
+                        event.payload.get("ref"),
+                        "delegation ref",
+                    ),
+                    subject=_require_text(
+                        event.payload.get("subject"),
+                        "delegation subject",
+                    ),
+                    assignee_ref=_require_text(
+                        event.payload.get("assignee_ref"),
+                        "delegation assignee_ref",
+                    ),
+                    allowed_effects=allowed,
+                    prohibited_effects=prohibited,
+                    return_shape=returns,
+                    evidence_refs=evidence,
+                    status="ACTIVE",
+                    terminal_summary=None,
+                    terminal_evidence_refs=(),
+                    event_digest=event.event_digest,
+                )
+            elif event.event_type == "TASK_DELEGATION_REASSIGNED":
+                delegation_id = _require_text(
+                    event.payload.get("delegation_id"),
+                    "delegation_id",
+                )
+                delegation = delegations.get(delegation_id)
+                if delegation is None or not delegation.active:
+                    raise TaskExecutionError(
+                        "delegation reassignment lacks active predecessor"
+                    )
+                if (
+                    event.payload.get("task_subject") != packet.subject
+                    or event.payload.get("packet_digest")
+                    != packet.packet_digest
+                    or event.payload.get("repository")
+                    != delegation.repository
+                    or event.payload.get("ref") != delegation.ref
+                    or event.payload.get("subject") != delegation.subject
+                    or event.payload.get("prior_assignee_ref")
+                    != delegation.assignee_ref
+                ):
+                    raise TaskExecutionError(
+                        "delegation reassignment binding mismatch"
+                    )
+                new_assignee = _require_text(
+                    event.payload.get("new_assignee_ref"),
+                    "new_assignee_ref",
+                )
+                if new_assignee == delegation.assignee_ref:
+                    raise TaskExecutionError(
+                        "persisted delegation reassignment did not change assignee"
+                    )
+                evidence = _require_texts(
+                    event.payload.get("evidence_refs", ()),
+                    "evidence_refs",
+                )
+                if not evidence:
+                    raise TaskExecutionError(
+                        "persisted delegation reassignment lacks evidence"
+                    )
+                delegations[delegation_id] = TaskDelegation(
+                    delegation_id=delegation.delegation_id,
+                    repository=delegation.repository,
+                    ref=delegation.ref,
+                    subject=delegation.subject,
+                    assignee_ref=new_assignee,
+                    allowed_effects=delegation.allowed_effects,
+                    prohibited_effects=delegation.prohibited_effects,
+                    return_shape=delegation.return_shape,
+                    evidence_refs=tuple(
+                        dict.fromkeys(
+                            (*delegation.evidence_refs, *evidence)
+                        )
+                    ),
+                    status="ACTIVE",
+                    terminal_summary=None,
+                    terminal_evidence_refs=(),
+                    event_digest=event.event_digest,
+                )
+            elif event.event_type in {
+                "TASK_DELEGATION_RETURNED",
+                "TASK_DELEGATION_CANCELLED",
+            }:
+                delegation_id = _require_text(
+                    event.payload.get("delegation_id"),
+                    "delegation_id",
+                )
+                delegation = delegations.get(delegation_id)
+                if delegation is None or not delegation.active:
+                    raise TaskExecutionError(
+                        "delegation terminal event lacks active predecessor"
+                    )
+                if (
+                    event.payload.get("task_subject") != packet.subject
+                    or event.payload.get("packet_digest")
+                    != packet.packet_digest
+                    or event.payload.get("repository")
+                    != delegation.repository
+                    or event.payload.get("ref") != delegation.ref
+                    or event.payload.get("subject") != delegation.subject
+                    or event.payload.get("assignee_ref")
+                    != delegation.assignee_ref
+                ):
+                    raise TaskExecutionError(
+                        "delegation terminal binding mismatch"
+                    )
+                if event.event_type == "TASK_DELEGATION_RETURNED":
+                    status = "RETURNED"
+                    summary = _require_text(
+                        event.payload.get("summary"),
+                        "delegation return summary",
+                    )
+                    terminal_evidence = _require_texts(
+                        event.payload.get(
+                            "result_evidence_refs",
+                            (),
+                        ),
+                        "result_evidence_refs",
+                    )
+                else:
+                    status = "CANCELLED"
+                    summary = _require_text(
+                        event.payload.get("reason"),
+                        "delegation cancellation reason",
+                    )
+                    terminal_evidence = _require_texts(
+                        event.payload.get("evidence_refs", ()),
+                        "evidence_refs",
+                    )
+                if not terminal_evidence:
+                    raise TaskExecutionError(
+                        "delegation terminal event lacks evidence"
+                    )
+                delegations[delegation_id] = TaskDelegation(
+                    delegation_id=delegation.delegation_id,
+                    repository=delegation.repository,
+                    ref=delegation.ref,
+                    subject=delegation.subject,
+                    assignee_ref=delegation.assignee_ref,
+                    allowed_effects=delegation.allowed_effects,
+                    prohibited_effects=delegation.prohibited_effects,
+                    return_shape=delegation.return_shape,
+                    evidence_refs=delegation.evidence_refs,
+                    status=status,
+                    terminal_summary=summary,
+                    terminal_evidence_refs=terminal_evidence,
+                    event_digest=event.event_digest,
+                )
             elif event.event_type == "TASK_CORRECTION":
                 correction_id = _require_text(
                     event.payload.get("correction_id"),
@@ -1076,6 +1579,7 @@ class TaskExecutionLedger:
             latest_checkpoint=latest_checkpoint,
             dependencies=tuple(dependencies),
             dependency_cancellations=tuple(dependency_cancellations),
+            delegations=tuple(delegations.values()),
             corrections=tuple(corrections),
             unresolved_correction_ids=tuple(
                 sorted(unresolved_corrections)
@@ -1229,6 +1733,38 @@ class TaskExecutionLedger:
                 }
                 for state in states
                 for dependency in state.dependencies
+            ],
+            "delegations": [
+                {
+                    "task_id": state.task_id,
+                    "delegation_id": delegation.delegation_id,
+                    "repository": delegation.repository,
+                    "ref": delegation.ref,
+                    "subject": delegation.subject,
+                    "assignee_ref": delegation.assignee_ref,
+                    "allowed_effects": list(delegation.allowed_effects),
+                    "prohibited_effects": list(
+                        delegation.prohibited_effects
+                    ),
+                    "return_shape": list(delegation.return_shape),
+                    "status": delegation.status,
+                    "terminal_summary": delegation.terminal_summary,
+                    "event_digest": delegation.event_digest,
+                }
+                for state in states
+                for delegation in state.delegations
+            ],
+            "active_delegation_owners": [
+                {
+                    "task_id": state.task_id,
+                    "delegation_id": delegation.delegation_id,
+                    "repository": delegation.repository,
+                    "ref": delegation.ref,
+                    "subject": delegation.subject,
+                    "assignee_ref": delegation.assignee_ref,
+                }
+                for state in states
+                for delegation in state.active_delegations
             ],
             "closed_task_ids": [
                 state.task_id for state in states if state.closed
