@@ -80,9 +80,32 @@ class LifecycleEffectGateway:
         *,
         lifecycle: NativeVeraLifecycle,
         fence: EffectFence,
+        pc_authority_verifier: PCJobAuthorityVerifier | None = None,
+        provider_authority_verifiers: Mapping[
+            str, ProviderAuthorityVerifier
+        ] | None = None,
     ):
         self.lifecycle = lifecycle
         self.fence = fence
+        if (
+            pc_authority_verifier is not None
+            and not isinstance(pc_authority_verifier, PCJobAuthorityVerifier)
+        ):
+            raise TypeError(
+                "pc_authority_verifier must satisfy PCJobAuthorityVerifier"
+            )
+        self._pc_authority_verifier = pc_authority_verifier
+        registry = dict(provider_authority_verifiers or {})
+        for provider_id, verifier in registry.items():
+            if type(provider_id) is not str or not provider_id:
+                raise ValueError(
+                    "provider authority registry keys must be non-empty strings"
+                )
+            if not isinstance(verifier, ProviderAuthorityVerifier):
+                raise TypeError(
+                    f"provider verifier for {provider_id!r} does not satisfy protocol"
+                )
+        self._provider_authority_verifiers = registry
 
     def _dispatch_verified(
         self,
@@ -180,7 +203,6 @@ class LifecycleEffectGateway:
         job: JobEnvelope,
         authorization: AuthorizationEnvelope,
         authority_proof: PCJobAuthorityProof,
-        authority_verifier: PCJobAuthorityVerifier,
         execute: Callable[[], T],
     ) -> OutboundEffectResult:
         if type(job) is not JobEnvelope:
@@ -189,9 +211,10 @@ class LifecycleEffectGateway:
             raise OutboundActionError(
                 "PC effect requires an exact AuthorizationEnvelope"
             )
-        if not isinstance(authority_verifier, PCJobAuthorityVerifier):
+        authority_verifier = self._pc_authority_verifier
+        if authority_verifier is None:
             raise OutboundAuthorityError(
-                "PC effect requires a PCJobAuthorityVerifier"
+                "PC effect requires a trusted gateway-injected authority verifier"
             )
         job.validate()
         authorization.validate()
@@ -272,7 +295,6 @@ class LifecycleEffectGateway:
         operation: str,
         request_payload: Any,
         authority: ProviderAuthorityEnvelope,
-        authority_verifier: ProviderAuthorityVerifier,
         execute: Callable[[], T],
     ) -> OutboundEffectResult:
         if type(provider_id) is not str or not provider_id:
@@ -283,9 +305,10 @@ class LifecycleEffectGateway:
             raise OutboundAuthorityError(
                 "provider effect requires exact ProviderAuthorityEnvelope"
             )
-        if not isinstance(authority_verifier, ProviderAuthorityVerifier):
+        authority_verifier = self._provider_authority_verifiers.get(provider_id)
+        if authority_verifier is None:
             raise OutboundAuthorityError(
-                "provider effect requires a ProviderAuthorityVerifier"
+                f"no trusted authority verifier registered for provider {provider_id!r}"
             )
         provider_request_digest = self.provider_request_digest(
             provider_id=provider_id,
