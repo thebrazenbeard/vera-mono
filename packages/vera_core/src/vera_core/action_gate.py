@@ -318,6 +318,7 @@ class LifecycleEffectGateway:
 
         def verify_authority() -> str:
             subject = provider_authority_subject(
+                effect_id=effect_id,
                 provider_id=provider_id,
                 operation=operation,
                 request_digest=provider_request_digest,
