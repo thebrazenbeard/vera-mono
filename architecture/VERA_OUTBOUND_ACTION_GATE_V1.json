@@ -102,7 +102,11 @@
       "terminal_reconciliation_states": [
         "RECONCILED_COMMITTED",
         "RECONCILED_NO_EFFECT"
-      ]
+      ],
+      "runtime_qualified_reconciliation": "vera_core.LifecycleEffectRecovery",
+      "trusted_reconciliation_verifier_required": true,
+      "caller_minted_reconciliation_verifier_accepted": false,
+      "restart_context_surfaces_unresolved_effects": true
     }
   },
   "fail_closed_states": [
