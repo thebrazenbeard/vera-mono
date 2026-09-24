@@ -12,21 +12,16 @@ from pc_connection.journal import (
 from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
 from vera_assurance import EffectFenceError, EffectState
 
-from .qualified_runtime import PreparedPCDispatch, QualifiedVeraRuntime
+from .pc_execution_binding import (
+    PCExecutionBinding,
+    PCExecutionBindingStore,
+    PCExecutionLease,
+    PreparedPCDispatch,
+)
+from .qualified_runtime import QualifiedVeraRuntime
 
 
 T = TypeVar("T")
-
-
-@dataclass(frozen=True, slots=True)
-class PCExecutionLease:
-    """Exact server/host attempt identity; no job-id inference is allowed."""
-
-    job_id: str
-    attempt_id: str
-    claim_generation: int
-    lease_id: str
-    lease_fence: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +69,7 @@ class QualifiedPCExecutionAdapter:
         *,
         runtime: QualifiedVeraRuntime,
         journal: JobJournal,
+        bindings: PCExecutionBindingStore | None = None,
     ):
         if type(runtime) is not QualifiedVeraRuntime:
             raise TypeError("runtime must be exact QualifiedVeraRuntime")
@@ -81,6 +77,9 @@ class QualifiedPCExecutionAdapter:
             raise TypeError("journal must be exact JobJournal")
         self.runtime = runtime
         self.journal = journal
+        if bindings is not None and type(bindings) is not PCExecutionBindingStore:
+            raise TypeError("bindings must be exact PCExecutionBindingStore")
+        self.bindings = bindings
 
     @staticmethod
     def _event(
@@ -225,6 +224,8 @@ class QualifiedPCExecutionAdapter:
         execute: Callable[[], T],
     ) -> QualifiedPCExecutionResult:
         identity = self.identity(prepared, lease)
+        if self.bindings is not None:
+            self.bindings.bind(prepared, lease)
         assessment = self.assess(prepared, lease)
 
         if assessment is None:
@@ -362,6 +363,8 @@ class QualifiedPCExecutionAdapter:
         event_source: Callable[[str], PCJournalEventEvidence],
     ) -> AttemptProjection:
         identity = self.identity(prepared, lease)
+        if self.bindings is not None:
+            self.bindings.bind(prepared, lease)
         current = self.journal.get(identity.job_id, identity.attempt_id)
         if current is None or current.local_state is not JournalState.RESULT_OBSERVED:
             raise EffectFenceError(
@@ -385,6 +388,24 @@ class QualifiedPCExecutionAdapter:
             ),
         )
 
+    def recover_bound_attempts(
+        self,
+    ) -> tuple[
+        tuple[PCExecutionBinding, PCExecutionRecoveryAssessment | None],
+        ...,
+    ]:
+        if self.bindings is None:
+            raise ValueError(
+                "recover_bound_attempts requires a durable PCExecutionBindingStore"
+            )
+        return tuple(
+            (
+                binding,
+                self.assess(binding.prepared, binding.lease),
+            )
+            for binding in self.bindings.all()
+        )
+
     def confirm_terminal_readback(
         self,
         prepared: PreparedPCDispatch,
@@ -395,6 +416,8 @@ class QualifiedPCExecutionAdapter:
         event_source: Callable[[str], PCJournalEventEvidence],
     ) -> AttemptProjection:
         identity = self.identity(prepared, lease)
+        if self.bindings is not None:
+            self.bindings.bind(prepared, lease)
         current = self.journal.get(identity.job_id, identity.attempt_id)
         if current is None or current.local_state is not JournalState.COMPLETING:
             raise EffectFenceError(
