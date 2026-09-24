@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from coordination_bus import SQLiteCoordinationRepository
 from r8a0.trust import configure_provisioning_root
 from vera_assurance import AtomicCurrentnessStore, EffectFence
 from vera_memory import MemoryLedger
@@ -28,6 +29,7 @@ class VeraStatePaths:
     outbound_trust: Path
     pc_execution_bindings: Path
     provider_execution_bindings: Path
+    coordination: Path
     trust: Path
 
 
@@ -71,6 +73,7 @@ class VeraStateDirectory:
             provider_execution_bindings=(
                 candidate / "provider" / "execution-bindings.sqlite"
             ),
+            coordination=candidate / "coordination" / "events.sqlite",
             trust=candidate / "recovery" / "trust",
         )
         self.project_id = project_id
@@ -128,6 +131,9 @@ class VeraStateDirectory:
             self.paths.provider_execution_bindings
         )
 
+    def coordination_repository(self) -> SQLiteCoordinationRepository:
+        return SQLiteCoordinationRepository(self.paths.coordination)
+
     def reconstruct(self) -> LifecycleReconstruction:
         return self.open().reconstruct()
 
@@ -156,4 +162,5 @@ class VeraStateDirectory:
         context["provider_execution_bindings"] = (
             self.provider_execution_binding_store().context()
         )
+        context["coordination"] = self.coordination_repository().context()
         return context
