@@ -346,3 +346,34 @@ def test_pc_job_cannot_dispatch_without_exact_accepted_lifecycle_permit(tmp_path
             execute=lambda: calls.append("stale-pc"),
         )
     assert calls == ["pc"]
+
+
+def test_old_permit_is_rejected_after_new_generation_is_accepted(tmp_path):
+    state, lifecycle, old_permit = build_accepted(tmp_path)
+    lifecycle.checkpoint(
+        checkpoint_id="cp2",
+        runtime_id="runtime-2",
+        expected_memory_head=lifecycle.memory.current_head,
+        expected_checkpoint_head=lifecycle.checkpoints.current_head,
+        expected_currentness_generation=old_permit.currentness_generation,
+    )
+    new_permit = lifecycle.accepted_action_permit()
+    assert new_permit.currentness_generation == old_permit.currentness_generation + 1
+    assert new_permit.permit_digest != old_permit.permit_digest
+
+    calls = []
+    gateway = LifecycleEffectGateway(
+        lifecycle=lifecycle,
+        fence=state.effect_fence(),
+    )
+    with pytest.raises(LifecycleActionDenied):
+        gateway.dispatch_provider_effect(
+            permit=old_permit,
+            effect_id="stale-generation",
+            provider_id="example-provider",
+            operation="WRITE",
+            request_payload={"value": 9},
+            authority_evidence_digest="e" * 64,
+            execute=lambda: calls.append("escaped"),
+        )
+    assert calls == []
