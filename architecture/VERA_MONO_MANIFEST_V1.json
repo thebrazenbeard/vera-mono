@@ -261,7 +261,25 @@
       "trusted_verifier_required": true,
       "restart_context_surfaces_unresolved_effects": true
     },
-    "qualified_runtime": "vera_core.QualifiedVeraRuntime"
+    "qualified_runtime": "vera_core.QualifiedVeraRuntime",
+    "trust_lifecycle": {
+      "contract": "architecture/VERA_OUTBOUND_TRUST_LIFECYCLE_V1.json",
+      "registry": "vera_core.OutboundTrustRegistry",
+      "state_path": "trust/outbound.sqlite",
+      "key_material_persisted": false,
+      "currentness_receipts": true,
+      "trust_roles": [
+        "PC",
+        "PROVIDER",
+        "RECONCILIATION"
+      ],
+      "rotation": true,
+      "revocation": true,
+      "reactivation": true,
+      "CAS_registry_generation": true,
+      "digest_chained_history": true,
+      "external_effect_execution_serialized_against_trust_mutation": true
+    }
   },
   "qualified_runtime": {
     "composition_root": "vera_core.QualifiedVeraRuntime",
@@ -270,10 +288,20 @@
       "accepted lifecycle permit minting",
       "coordination gateway",
       "PC/provider effect gateway",
-      "ambiguous-effect recovery gateway"
+      "ambiguous-effect recovery gateway",
+      "PC/provider request preparation with lifecycle-bound authority subjects",
+      "persistent authority-currentness enforcement"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
-    "low_level_mechanisms_remain_available_but_not_runtime_qualified": true
+    "low_level_mechanisms_remain_available_but_not_runtime_qualified": true,
+    "pc_adapter": [
+      "prepare_pc_job",
+      "dispatch_pc_job"
+    ],
+    "provider_adapter": [
+      "prepare_provider_effect",
+      "dispatch_provider_effect"
+    ]
   }
 }
