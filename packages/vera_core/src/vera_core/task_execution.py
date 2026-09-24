@@ -1022,6 +1022,22 @@ class TaskExecutionLedger:
                 for state in states
                 if state.unresolved_correction_ids
             ],
+            "tasks_with_dependencies": [
+                {
+                    "task_id": state.task_id,
+                    "dependencies": [
+                        {
+                            "dependency_id": dependency.dependency_id,
+                            "kind": dependency.kind,
+                            "target_id": dependency.target_id,
+                            "event_digest": dependency.event_digest,
+                        }
+                        for dependency in state.dependencies
+                    ],
+                }
+                for state in states
+                if state.dependencies
+            ],
             "closed_task_ids": [
                 state.task_id for state in states if state.closed
             ],
