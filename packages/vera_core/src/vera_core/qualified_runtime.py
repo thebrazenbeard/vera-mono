@@ -44,7 +44,10 @@ from .provider_execution_binding import (
     ProviderExecutionRecoveryAssessment,
 )
 from .state import VeraStateDirectory
-from .source_mutation import QualifiedSourceMutationAdapter
+from .source_mutation import (
+    QualifiedSourceMutationAdapter,
+    SourceMutationRecoveryAssessment,
+)
 from .source_mutation_binding import SourceMutationBindingStore
 from .task_execution import (
     TaskCloseoutAssessment,
@@ -1735,6 +1738,11 @@ class QualifiedVeraRuntime:
             for binding in self.provider_execution_bindings.all()
         )
 
+    def recover_source_mutations(
+        self,
+    ) -> tuple[SourceMutationRecoveryAssessment, ...]:
+        return self.source_mutation_adapter().recover_mutations()
+
     def resume_context(self) -> dict[str, Any]:
         context = self.lifecycle.reconstruct().as_resume_context()
         context["outbound_trust"] = self.outbound_trust.context()
@@ -1832,6 +1840,42 @@ class QualifiedVeraRuntime:
                 "reason": assessment.reason,
             }
             for assessment in self.coordination.recover_commands()
+        ]
+        context["source_mutation_recovery"] = [
+            {
+                "mutation_id": assessment.mutation_id,
+                "task_id": assessment.task_id,
+                "dependency_id": assessment.dependency_id,
+                "repository": assessment.repository,
+                "ref": assessment.ref,
+                "operation": assessment.operation,
+                "path": assessment.path,
+                "destination_path": assessment.destination_path,
+                "provider_fence_state": assessment.provider_fence_state,
+                "lifecycle_permit_current": (
+                    assessment.lifecycle_permit_current
+                ),
+                "task_open": assessment.task_open,
+                "packet_current": assessment.packet_current,
+                "writable_scope_current": (
+                    assessment.writable_scope_current
+                ),
+                "delegation_current": assessment.delegation_current,
+                "provider_binding_current": (
+                    assessment.provider_binding_current
+                ),
+                "transport_available": assessment.transport_available,
+                "content_rehydration_required": (
+                    assessment.content_rehydration_required
+                ),
+                "dispatch_candidate_allowed": (
+                    assessment.dispatch_candidate_allowed
+                ),
+                "recovery_required": assessment.recovery_required,
+                "terminal": assessment.terminal,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_source_mutations()
         ]
         context["provider_execution_recovery"] = [
             {
