@@ -123,7 +123,7 @@ class LifecycleEffectGateway:
             # dispatch claim. The shared lifecycle lock prevents a canonical
             # lifecycle transition from interleaving with execution.
             self.lifecycle.validate_action_permit(permit)
-            executing = self.fence.claim_dispatch(
+            self.fence.claim_dispatch(
                 effect_id=effect_id,
                 request_digest=request_digest,
                 mechanical_permit_digest=mechanical_permit_digest,
@@ -132,6 +132,14 @@ class LifecycleEffectGateway:
             )
             try:
                 value = execute()
+                result_digest = _digest(
+                    {
+                        "schema": "VERA_MONO_EFFECT_RESULT_V1",
+                        "effect_id": effect_id,
+                        "effect_kind": effect_kind,
+                        "value": _normalize(value),
+                    }
+                )
             except BaseException:
                 self.fence.settle(
                     effect_id,
@@ -140,14 +148,6 @@ class LifecycleEffectGateway:
                 )
                 raise
 
-            result_digest = _digest(
-                {
-                    "schema": "VERA_MONO_EFFECT_RESULT_V1",
-                    "effect_id": effect_id,
-                    "effect_kind": effect_kind,
-                    "value": _normalize(value),
-                }
-            )
             committed = self.fence.settle(
                 effect_id,
                 result_digest=result_digest,
