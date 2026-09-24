@@ -1,0 +1,348 @@
+import pytest
+
+from coordination_bus import (
+    ALL_PERMISSIONS,
+    ActorContext,
+    CoordinationBus,
+    CoordinationEventDraft,
+    InMemoryCoordinationRepository,
+)
+from pc_connection.contracts import JobEnvelope
+from vera_assurance import EffectFenceError, EffectState
+from vera_core import (
+    LifecycleActionDenied,
+    LifecycleBoundCoordinationBus,
+    LifecycleEffectGateway,
+    NativeVeraLifecycle,
+    VeraStateDirectory,
+)
+from vera_memory import AdmissionRequest, MemoryClass
+
+
+PROJECT = "vera-mono"
+IDENTITY = "vera"
+
+
+def build_accepted(tmp_path):
+    state = VeraStateDirectory(
+        tmp_path / "state",
+        project_id=PROJECT,
+        identity_id=IDENTITY,
+    )
+    lifecycle = state.open()
+    request = AdmissionRequest(
+        record_id="m1",
+        text="accepted state",
+        memory_class=MemoryClass.WORKING_PROJECT,
+        source_actor="test",
+        authority_ref="authority:test",
+        privacy_ref="privacy:test",
+        provenance_refs=("source:test",),
+        operation_id="op1",
+        project_id=PROJECT,
+        governed_identity_id=IDENTITY,
+    )
+    admitted = lifecycle.memory.admit(
+        request,
+        expected_head=lifecycle.memory.current_head,
+    )
+    lifecycle.checkpoint(
+        checkpoint_id="cp1",
+        runtime_id="runtime-1",
+        expected_memory_head=admitted["store_head"],
+        expected_checkpoint_head=lifecycle.checkpoints.current_head,
+        expected_currentness_generation=None,
+    )
+    permit = lifecycle.accepted_action_permit()
+    return state, lifecycle, permit
+
+
+def status_draft():
+    return CoordinationEventDraft(
+        thread_key="lifecycle-bound-bus",
+        source_branch="workstream/memory",
+        target_branch="workstream/integration",
+        event_type="STATUS",
+        status="IN_PROGRESS",
+        objective="Prove exact accepted lifecycle gating",
+        summary="This event may leave Vera only from accepted currentness.",
+    )
+
+
+def pc_job():
+    return JobEnvelope.from_mapping(
+        {
+            "schema_version": "VERA_PCCC_JOB_V1",
+            "envelope_id": "00000000-0000-7000-8000-000000000001",
+            "request_id": "00000000-0000-7000-8000-000000000002",
+            "idempotency_key": "lifecycle-bound-ping-001",
+            "project_id": PROJECT,
+            "requester_principal_id": "service/vera",
+            "requester_principal_type": "SERVICE",
+            "host_id": "00000000-0000-7000-8000-000000000003",
+            "operation_id": "PING",
+            "operation_version": 1,
+            "parameters_digest": "0" * 64,
+            "artifact_manifest_digest": "0" * 64,
+            "read_roots_digest": "1" * 64,
+            "write_root_id": "NONE",
+            "authorization_id": "00000000-0000-7000-8000-000000000004",
+            "authorization_revision": 1,
+            "not_before": "2026-08-01T20:00:00.000000Z",
+            "expires_at": "2026-08-01T20:15:00.000000Z",
+            "timeout_seconds": 30,
+            "max_attempts": 1,
+            "lease_ttl_seconds": 90,
+            "retry_class": "PURE_READ",
+            "protocol_min_version": "1.0.0",
+            "agent_min_version": "0.1.0",
+            "required_local_policy_digest": "2" * 64,
+            "required_capability_digest": "3" * 64,
+            "issuer_revocation_epoch": 0,
+            "host_revocation_epoch": 0,
+            "nonce": "00000000-0000-7000-8000-000000000005",
+            "trace_correlation_id": "00000000-0000-7000-8000-000000000006",
+        }
+    )
+
+
+def test_coordination_gateway_covers_every_public_bus_command(tmp_path):
+    state, lifecycle, _ = build_accepted(tmp_path)
+    bus = CoordinationBus(InMemoryCoordinationRepository())
+    gateway = LifecycleBoundCoordinationBus(
+        lifecycle=lifecycle,
+        bus=bus,
+        fence=state.effect_fence(),
+    )
+    public = {
+        name
+        for name in dir(bus)
+        if name.startswith("coordination_")
+    } | {"entry_checkpoint", "exit_checkpoint"}
+    assert public <= gateway.COMMANDS
+
+
+def test_coordination_write_consumes_exact_permit_and_is_single_use_fenced(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    repo = InMemoryCoordinationRepository()
+    bus = CoordinationBus(repo)
+    gateway = LifecycleBoundCoordinationBus(
+        lifecycle=lifecycle,
+        bus=bus,
+        fence=state.effect_fence(),
+    )
+    actor = ActorContext("workstream/memory", ALL_PERMISSIONS)
+
+    effect = gateway.invoke(
+        "coordination_post",
+        permit=permit,
+        actor=actor,
+        command_id="bus-command-1",
+        args=(status_draft(),),
+    )
+    assert effect.fence_receipt.state is EffectState.COMMITTED
+    assert effect.value.receipt.database_write_confirmed is True
+    assert len(repo.list_thread("lifecycle-bound-bus")) == 1
+
+    with pytest.raises(EffectFenceError):
+        gateway.invoke(
+            "coordination_post",
+            permit=permit,
+            actor=actor,
+            command_id="bus-command-1",
+            args=(status_draft(),),
+        )
+    assert len(repo.list_thread("lifecycle-bound-bus")) == 1
+
+
+def test_every_coordination_read_is_also_lifecycle_permit_bound(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    gateway = LifecycleBoundCoordinationBus(
+        lifecycle=lifecycle,
+        bus=CoordinationBus(InMemoryCoordinationRepository()),
+        fence=state.effect_fence(),
+    )
+    actor = ActorContext("workstream/memory", ALL_PERMISSIONS)
+    result = gateway.invoke(
+        "coordination_read_inbox",
+        permit=permit,
+        actor=actor,
+    )
+    assert result.receipt.result_class == "COMPLETE"
+
+    request = AdmissionRequest(
+        record_id="m2",
+        text="memory advanced without accepted currentness",
+        memory_class=MemoryClass.WORKING_PROJECT,
+        source_actor="test",
+        authority_ref="authority:test",
+        privacy_ref="privacy:test",
+        provenance_refs=("source:test",),
+        operation_id="op2",
+        project_id=PROJECT,
+        governed_identity_id=IDENTITY,
+    )
+    lifecycle.memory.admit(
+        request,
+        expected_head=lifecycle.memory.current_head,
+    )
+    with pytest.raises(LifecycleActionDenied):
+        gateway.invoke(
+            "coordination_read_inbox",
+            permit=permit,
+            actor=actor,
+        )
+
+
+def test_interrupted_candidate_blocks_prior_accepted_permit_from_escaping(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    lifecycle.checkpoints.append(
+        checkpoint_id="cp2",
+        runtime_id="runtime-interrupted",
+        memory_head_digest=lifecycle.memory.current_head,
+        control_source_digest=permit.control_source_digest,
+        expected_head=lifecycle.checkpoints.current_head,
+        unfinished_work=("interrupted candidate",),
+    )
+    calls = []
+    gateway = LifecycleEffectGateway(
+        lifecycle=lifecycle,
+        fence=state.effect_fence(),
+    )
+    with pytest.raises(LifecycleActionDenied):
+        gateway.dispatch_provider_effect(
+            permit=permit,
+            effect_id="e1",
+            provider_id="example-provider",
+            operation="WRITE",
+            request_payload={"value": 1},
+            authority_evidence_digest="a" * 64,
+            execute=lambda: calls.append("escaped"),
+        )
+    assert calls == []
+
+
+def test_blocked_candidate_blocks_prior_accepted_permit_from_escaping(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    hostile = {
+        "project_id": PROJECT,
+        "identity_id": "wrong-identity",
+        "runtime_id": "runtime-1",
+        "memory_head_digest": lifecycle.memory.current_head,
+        "recovery_checkpoint_digest": permit.recovery_checkpoint_digest,
+        "recovery_checkpoint_generation": permit.recovery_checkpoint_generation,
+        "control_source_digest": "b" * 64,
+    }
+    from vera_core import LifecycleAssuranceError
+
+    with pytest.raises(LifecycleAssuranceError):
+        lifecycle.checkpoint(
+            checkpoint_id="cp-blocked",
+            runtime_id="runtime-blocked",
+            expected_memory_head=lifecycle.memory.current_head,
+            expected_checkpoint_head=lifecycle.checkpoints.current_head,
+            expected_currentness_generation=permit.currentness_generation,
+            assurance_baseline=hostile,
+        )
+
+    calls = []
+    gateway = LifecycleEffectGateway(
+        lifecycle=lifecycle,
+        fence=state.effect_fence(),
+    )
+    with pytest.raises(LifecycleActionDenied):
+        gateway.dispatch_provider_effect(
+            permit=permit,
+            effect_id="e2",
+            provider_id="example-provider",
+            operation="WRITE",
+            request_payload={"value": 2},
+            authority_evidence_digest="a" * 64,
+            execute=lambda: calls.append("escaped"),
+        )
+    assert calls == []
+
+
+def test_provider_effect_is_bound_to_permit_and_at_most_once(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    calls = []
+    gateway = LifecycleEffectGateway(
+        lifecycle=lifecycle,
+        fence=state.effect_fence(),
+    )
+    result = gateway.dispatch_provider_effect(
+        permit=permit,
+        effect_id="provider-write-1",
+        provider_id="example-provider",
+        operation="WRITE",
+        request_payload={"value": 7},
+        authority_evidence_digest="c" * 64,
+        execute=lambda: calls.append("executed") or {"ok": True},
+    )
+    assert result.fence_receipt.state is EffectState.COMMITTED
+    assert result.lifecycle_permit_digest == permit.permit_digest
+    assert calls == ["executed"]
+
+    with pytest.raises(EffectFenceError):
+        gateway.dispatch_provider_effect(
+            permit=permit,
+            effect_id="provider-write-1",
+            provider_id="example-provider",
+            operation="WRITE",
+            request_payload={"value": 7},
+            authority_evidence_digest="c" * 64,
+            execute=lambda: calls.append("executed-again"),
+        )
+    assert calls == ["executed"]
+
+
+def test_pc_job_cannot_dispatch_without_exact_accepted_lifecycle_permit(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    gateway = LifecycleEffectGateway(
+        lifecycle=lifecycle,
+        fence=state.effect_fence(),
+    )
+    calls = []
+    result = gateway.dispatch_pc_job(
+        permit=permit,
+        job=pc_job(),
+        authority_evidence_digest="d" * 64,
+        execute=lambda: calls.append("pc") or {"pong": True},
+    )
+    assert result.effect_kind == "PC/PING"
+    assert result.fence_receipt.currentness_evidence_digest == permit.permit_digest
+    assert calls == ["pc"]
+
+    request = AdmissionRequest(
+        record_id="m-stale",
+        text="stale the old accepted permit",
+        memory_class=MemoryClass.WORKING_PROJECT,
+        source_actor="test",
+        authority_ref="authority:test",
+        privacy_ref="privacy:test",
+        provenance_refs=("source:test",),
+        operation_id="op-stale",
+        project_id=PROJECT,
+        governed_identity_id=IDENTITY,
+    )
+    lifecycle.memory.admit(
+        request,
+        expected_head=lifecycle.memory.current_head,
+    )
+    with pytest.raises(LifecycleActionDenied):
+        gateway.dispatch_pc_job(
+            permit=permit,
+            job=JobEnvelope.from_mapping(
+                {
+                    **pc_job().__dict__,
+                    "envelope_id": "00000000-0000-7000-8000-000000000007",
+                    "request_id": "00000000-0000-7000-8000-000000000008",
+                    "authorization_id": "00000000-0000-7000-8000-000000000009",
+                    "nonce": "00000000-0000-7000-8000-00000000000a",
+                    "trace_correlation_id": "00000000-0000-7000-8000-00000000000b",
+                }
+            ),
+            authority_evidence_digest="d" * 64,
+            execute=lambda: calls.append("stale-pc"),
+        )
+    assert calls == ["pc"]
