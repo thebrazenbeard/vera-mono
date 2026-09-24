@@ -455,7 +455,8 @@
       "qualified_paths": [
         "invoke_task_coordination",
         "prepare_task_provider_effect",
-        "prepare_task_pc_job"
+        "prepare_task_pc_job",
+        "qualified source mutation"
       ],
       "one_durable_owner_per_kind_target": true,
       "post_hoc_claim": "DENY",
@@ -485,8 +486,32 @@
         "method": "QualifiedVeraRuntime.assert_task_subject_mutation_allowed",
         "active_scope_requires_current_owner_ref": true,
         "stale_or_wrong_assignee": "DENY",
-        "nondelegated_scope": "NO_DELEGATION_BLOCK"
+        "nondelegated_scope": "NO_DELEGATION_BLOCK",
+        "source_mutation_adapter": "QualifiedSourceMutationAdapter",
+        "writable_scope_required": true
       }
     }
+  },
+  "qualified_source_mutation": {
+    "schema": "VERA_MONO_QUALIFIED_SOURCE_MUTATION_V1",
+    "contract": "architecture/VERA_QUALIFIED_SOURCE_MUTATION_V1.json",
+    "adapter": "vera_core.QualifiedSourceMutationAdapter",
+    "transport": "vera_core.SourceMutationTransport",
+    "provider_namespace": "source:<repository>",
+    "operations": [
+      "WRITE_FILE",
+      "DELETE_FILE",
+      "MOVE_FILE"
+    ],
+    "writable_scope_source": "TaskPacket.writable_scope",
+    "writable_scope_grammar": "SOURCE|<repository>|<ref>|<path-or-prefix/**>",
+    "delegation_guard": "TaskExecutionLedger.assert_subject_mutation_allowed",
+    "prepare_and_prewrite_recheck": true,
+    "task_dependency_kind": "PROVIDER_EFFECT",
+    "generic_provider_dispatch_for_source_namespace": false,
+    "generic_provider_execute_for_source_namespace": false,
+    "expected_ref_head_and_blob_CAS": true,
+    "transport_result_mismatch": "ATTEMPTED_UNKNOWN",
+    "merge_deploy_install_authority": false
   }
 }
