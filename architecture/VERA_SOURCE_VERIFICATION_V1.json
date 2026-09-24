@@ -1,0 +1,117 @@
+{
+  "schema": "VERA_MONO_SOURCE_VERIFICATION_V1",
+  "purpose": "Require durable exact-commit verification evidence when a task packet declares source checks, so a committed source mutation cannot be promoted to task/source completion merely because the write itself succeeded.",
+  "composition": {
+    "runtime": "vera_core.QualifiedVeraRuntime",
+    "store": "vera_core.SourceVerificationStore",
+    "adapter": "vera_core.QualifiedSourceVerificationAdapter",
+    "transport_protocol": "vera_core.SourceVerificationTransport",
+    "state_path": "<vera-state-root>/source/verification.sqlite"
+  },
+  "requirement_grammar": {
+    "syntax": "SOURCE_VERIFY|<repository>|<ref>|<check-name>",
+    "owner": "TaskPacket.evidence_requirements",
+    "matching_scope": "exact repository + exact ref",
+    "duplicate_check_names": "deduplicated in declaration order",
+    "untyped_evidence_requirement": "does not create source verification obligation"
+  },
+  "prerequisites": [
+    "exact SourceMutationBinding is readable",
+    "exact durable SourceMutationOutcome is readable",
+    "source outcome binds the exact source mutation binding",
+    "source outcome binds the exact ProviderExecutionBinding",
+    "source outcome mechanical effect id matches provider:<provider_id>:<provider_effect_id>",
+    "source outcome repository/ref/operation/path/destination/previous head match the durable source binding",
+    "mechanical effect fence is COMMITTED or RECONCILED_COMMITTED",
+    "effect request digest matches the durable source outcome",
+    "effect result digest matches the durable source outcome",
+    "owning task is still open when new verification evidence is appended",
+    "accepted Vera lifecycle/currentness is current before external verification is treated as qualified evidence"
+  ],
+  "observation": {
+    "receipt_schema": "VERA_MONO_SOURCE_VERIFICATION_RECEIPT_V1",
+    "event_schema": "VERA_MONO_SOURCE_VERIFICATION_EVENT_V1",
+    "append_only_digest_chain": true,
+    "binds": [
+      "mutation_id",
+      "repository",
+      "ref",
+      "exact commit_sha",
+      "observed_ref_head",
+      "exact required check names",
+      "individual check observations",
+      "aggregate status"
+    ],
+    "check_statuses": [
+      "PASS",
+      "FAIL",
+      "PENDING",
+      "UNAVAILABLE"
+    ],
+    "aggregate_statuses": [
+      "PASS",
+      "FAIL",
+      "PENDING",
+      "UNAVAILABLE",
+      "STALE_HEAD"
+    ],
+    "stale_head_rule": "observed_ref_head != exact mutation outcome new_ref_head => STALE_HEAD regardless of individual check success"
+  },
+  "task_dependency_semantics": {
+    "dependency_kind": "PROVIDER_EFFECT",
+    "source_provider_namespace": "source:<repository>",
+    "no_matching_SOURCE_VERIFY_requirement": "successful source effect + exact durable source outcome may satisfy the source dependency",
+    "matching_SOURCE_VERIFY_requirement": {
+      "no_observation": "PENDING",
+      "PASS": "SATISFIED",
+      "FAIL": "PENDING",
+      "PENDING": "PENDING",
+      "UNAVAILABLE": "PENDING",
+      "STALE_HEAD": "PROVENANCE_MISMATCH"
+    },
+    "satisfied_evidence_digest_binds": [
+      "mutation_id",
+      "source mutation outcome digest",
+      "source verification receipt digest",
+      "exact commit SHA"
+    ],
+    "task_closeout": "blocked while any active dependency is not SATISFIED"
+  },
+  "restart": {
+    "context_keys": [
+      "source_verifications",
+      "source_verification_recovery"
+    ],
+    "conversation_state_required": false,
+    "latest_observation_reassessed_against": "current exact source outcome and current task requirements",
+    "missing_transport": "verification remains blocked; no inferred success",
+    "task_closed": "new verification observations are rejected"
+  },
+  "concrete_github_transport": {
+    "transport": "vera_core.GitHubSourceVerificationTransport",
+    "api_client": "vera_core.GitHubGitDataAPIClient",
+    "commit_binding": "GraphQL repository.object(oid:<exact commit>) with returned oid equality required",
+    "check_surface": "GitHub statusCheckRollup.contexts",
+    "pagination": "exhaustive contexts(first:100,after:<cursor>) until hasNextPage=false",
+    "accepted_context_types": [
+      "CheckRun",
+      "StatusContext"
+    ],
+    "missing_required_context": "UNAVAILABLE",
+    "duplicate_same_name_contexts": "conservative aggregate FAIL > UNAVAILABLE > PENDING > PASS",
+    "branch_head": "read separately; moved ref becomes STALE_HEAD at SourceVerificationStore",
+    "credentials": "host injected and not persisted by this mechanism",
+    "write_authority_created": false
+  },
+  "boundaries": {
+    "source_verification_is_not_source_write_authority": true,
+    "source_verification_is_not_merge_authority": true,
+    "source_verification_is_not_deployment": true,
+    "source_verification_is_not_installation_or_registration": true,
+    "source_verification_is_not_runtime_consumption": true,
+    "source_verification_is_not_behavioral_qualification": true,
+    "source_verification_is_not_independent_review": true,
+    "passing_source_checks_do_not_promote_other_closeout_surfaces": true,
+    "source_presence_is_not_activation": true
+  }
+}
