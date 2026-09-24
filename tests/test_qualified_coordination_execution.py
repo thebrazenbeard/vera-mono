@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 from coordination_bus import (
@@ -5,8 +7,12 @@ from coordination_bus import (
     ActorContext,
     CoordinationEventDraft,
 )
-from vera_assurance import EffectState
-from vera_core import QualifiedVeraRuntime, VeraStateDirectory
+from vera_assurance import EffectFenceError, EffectState
+from vera_core import (
+    CoordinationCommandJournalError,
+    QualifiedVeraRuntime,
+    VeraStateDirectory,
+)
 from vera_memory import AdmissionRequest, MemoryClass
 
 
@@ -146,7 +152,7 @@ def test_crash_after_coordination_commit_before_result_journal_never_replays(
             "qualified-coordination"
         )
     )
-    with pytest.raises(Exception):
+    with pytest.raises(EffectFenceError):
         restarted.coordination.invoke(
             "coordination_post",
             permit=restarted.accepted_permit(),
@@ -247,3 +253,62 @@ def test_reserved_coordination_command_cancels_without_dispatch(tmp_path, monkey
     assert runtime.coordination.bus.repository.list_thread(
         "qualified-coordination"
     ) == ()
+
+
+def test_coordination_command_journal_detects_deleted_result_row(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.coordination.invoke(
+        "coordination_post",
+        permit=runtime.accepted_permit(),
+        actor=actor(),
+        command_id="coord-tamper",
+        args=(draft("journal tamper detection"),),
+    )
+    assert runtime.coordination_commands.verify_integrity()
+
+    with sqlite3.connect(runtime.coordination_commands.path) as db:
+        db.execute(
+            "DELETE FROM command_results WHERE command_id='coord-tamper'"
+        )
+
+    with pytest.raises(CoordinationCommandJournalError):
+        runtime.coordination_commands.verify_integrity()
+    with pytest.raises(CoordinationCommandJournalError):
+        runtime.coordination.assess_command("coord-tamper")
+
+
+def test_coordination_result_repository_mismatch_requires_recovery(tmp_path, monkeypatch):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.coordination.invoke(
+        "coordination_post",
+        permit=runtime.accepted_permit(),
+        actor=actor(),
+        command_id="coord-repo-mismatch",
+        args=(draft("repository evidence cross-check"),),
+    )
+    recorded = runtime.coordination_commands.read_result(
+        "coord-repo-mismatch"
+    )
+    assert recorded is not None
+
+    original_get = runtime.coordination.bus.repository.get
+
+    def hide_committed_event(event_id):
+        if event_id == recorded.event_id:
+            return None
+        return original_get(event_id)
+
+    monkeypatch.setattr(
+        runtime.coordination.bus.repository,
+        "get",
+        hide_committed_event,
+    )
+    assessment = runtime.coordination.assess_command(
+        "coord-repo-mismatch"
+    )
+    assert assessment.result_recorded is True
+    assert assessment.fence_state == "COMMITTED"
+    assert assessment.recovery_required is True
+    assert assessment.terminal is False
