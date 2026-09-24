@@ -1,11 +1,15 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from coordination_bus import CoordinationBus, InMemoryCoordinationRepository
 from pc_connection.contracts import AuthorizationEnvelope, JobEnvelope
 from vera_core import (
     HmacEffectReconciliationAuthority,
     HmacPCJobAuthority,
     HmacProviderAuthority,
+    OutboundAuthorityError,
+    OutboundTrustError,
     QualifiedVeraRuntime,
     VeraStateDirectory,
 )
@@ -230,3 +234,157 @@ def test_qualified_runtime_does_not_invent_unconfigured_authority(tmp_path):
     assert runtime.coordination is None
     assert runtime.recovery is None
     assert runtime.outbound_trust.generation == 0
+
+
+def test_provider_key_rotation_invalidates_live_runtime_verifier(tmp_path):
+    state = accepted_state(tmp_path)
+    first = HmacProviderAuthority(
+        "provider-authority",
+        PROVIDER,
+        b"a" * 32,
+        key_id="provider-v1",
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=first.authority_id,
+        role="PROVIDER",
+        provider_id=PROVIDER,
+        key_id=first.key_id,
+        key_digest=first.key_digest,
+        expected_registry_generation=0,
+    )
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        provider_authority_verifiers={PROVIDER: first},
+    )
+    prepared = runtime.prepare_provider_effect(
+        effect_id="rotated-provider-effect",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload={"value": 1},
+    )
+    old_authority = first.issue(
+        effect_id=prepared.effect_id,
+        operation=prepared.operation,
+        request_digest=prepared.request_digest,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+
+    second = HmacProviderAuthority(
+        "provider-authority",
+        PROVIDER,
+        b"b" * 32,
+        key_id="provider-v2",
+    )
+    trust.rotate(
+        authority_id=second.authority_id,
+        role="PROVIDER",
+        provider_id=PROVIDER,
+        key_id=second.key_id,
+        key_digest=second.key_digest,
+        expected_registry_generation=1,
+        expected_authority_generation=1,
+    )
+
+    calls = []
+    with pytest.raises(OutboundTrustError):
+        runtime.dispatch_provider_effect(
+            prepared,
+            authority=old_authority,
+            execute=lambda: calls.append("escaped"),
+        )
+    assert calls == []
+
+    refreshed = QualifiedVeraRuntime.from_state_directory(
+        state,
+        provider_authority_verifiers={PROVIDER: second},
+    )
+    fresh_prepared = refreshed.prepare_provider_effect(
+        effect_id="rotated-provider-effect-v2",
+        provider_id=PROVIDER,
+        operation="WRITE",
+        request_payload={"value": 2},
+    )
+    fresh_authority = second.issue(
+        effect_id=fresh_prepared.effect_id,
+        operation=fresh_prepared.operation,
+        request_digest=fresh_prepared.request_digest,
+        lifecycle_permit_digest=fresh_prepared.permit.permit_digest,
+    )
+    result = refreshed.dispatch_provider_effect(
+        fresh_prepared,
+        authority=fresh_authority,
+        execute=lambda: {"ok": 2},
+    )
+    assert result.value == {"ok": 2}
+
+
+def test_pc_revocation_epoch_survives_reactivation_and_rejects_old_authorization(tmp_path):
+    state = accepted_state(tmp_path)
+    job = pc_job()
+    authorization = pc_authorization(job)
+    first = HmacPCJobAuthority(
+        authorization.issuer_id,
+        b"a" * 32,
+        key_id="pc-v1",
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=first.authority_id,
+        role="PC",
+        key_id=first.key_id,
+        key_digest=first.key_digest,
+        expected_registry_generation=0,
+    )
+    trust.revoke(
+        authority_id=first.authority_id,
+        role="PC",
+        expected_registry_generation=1,
+        expected_revocation_epoch=0,
+    )
+
+    second = HmacPCJobAuthority(
+        authorization.issuer_id,
+        b"b" * 32,
+        key_id="pc-v2",
+    )
+    current = trust.reactivate(
+        authority_id=second.authority_id,
+        role="PC",
+        key_id=second.key_id,
+        key_digest=second.key_digest,
+        expected_registry_generation=2,
+        expected_authority_generation=1,
+        expected_revocation_epoch=1,
+    )
+    assert current.revocation_epoch == 1
+
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        pc_authority_verifier=second,
+        clock=lambda: datetime(
+            2026,
+            8,
+            1,
+            20,
+            5,
+            tzinfo=timezone.utc,
+        ),
+    )
+    prepared = runtime.prepare_pc_job(
+        job=job,
+        authorization=authorization,
+    )
+    proof = second.issue(
+        job=job,
+        authorization=authorization,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+    calls = []
+    with pytest.raises(OutboundAuthorityError):
+        runtime.dispatch_pc_job(
+            prepared,
+            authority_proof=proof,
+            execute=lambda: calls.append("escaped"),
+        )
+    assert calls == []
