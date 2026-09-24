@@ -216,6 +216,29 @@ class PCExecutionBindingStore:
             for row in rows
         )
 
+    def context(self) -> dict[str, Any]:
+        bindings = self.all()
+        return {
+            "schema": "VERA_MONO_PC_EXECUTION_BINDING_CONTEXT_V1",
+            "binding_count": len(bindings),
+            "bindings": [
+                {
+                    "binding_digest": binding.binding_digest,
+                    "effect_id": binding.effect_id,
+                    "job_id": binding.lease.job_id,
+                    "attempt_id": binding.lease.attempt_id,
+                    "claim_generation": binding.lease.claim_generation,
+                    "lease_fence": binding.lease.lease_fence,
+                    "host_id": binding.prepared.job.host_id,
+                    "operation_id": binding.prepared.job.operation_id,
+                    "lifecycle_permit_digest": (
+                        binding.prepared.permit.permit_digest
+                    ),
+                }
+                for binding in bindings
+            ],
+        }
+
     @classmethod
     def _decode(
         cls,
