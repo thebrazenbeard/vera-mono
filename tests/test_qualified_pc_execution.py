@@ -536,3 +536,57 @@ def test_pc_binding_attempt_identity_is_append_only(tmp_path):
             prepared,
             lease(lease_fence=2),
         )
+
+
+def test_reserved_pre_dispatch_effect_can_only_cancel_and_abandon(tmp_path):
+    _, runtime, adapter, prepared, proof, _ = runtime_and_adapter(tmp_path)
+    events = Events()
+    identity = adapter.identity(prepared, lease())
+    adapter.journal.record_claim(
+        identity,
+        **adapter._event(
+            events,
+            "CLAIM_RECORDED",
+            {"stage": "CLAIM_RECORDED", "job_digest": prepared.job_digest},
+        ),
+    )
+    adapter.journal.start_preparation(
+        identity,
+        **adapter._event(
+            events,
+            "PREPARATION_STARTED",
+            {"stage": "PREPARATION_STARTED", "job_digest": prepared.job_digest},
+        ),
+    )
+    effect_id = f"pc:{prepared.job.envelope_id}"
+    runtime.fence.reserve(
+        effect_id=effect_id,
+        request_digest="a" * 64,
+        mechanical_permit_digest="b" * 64,
+        authority_evidence_digest="c" * 64,
+        currentness_evidence_digest=prepared.permit.permit_digest,
+    )
+    assessment = adapter.assess(prepared, lease())
+    assert assessment is not None
+    assert assessment.pre_dispatch_cancel_allowed is True
+    assert assessment.recovery_required is False
+    assert assessment.replay_allowed is False
+
+    calls = []
+    with pytest.raises(EffectFenceError):
+        adapter.execute(
+            prepared,
+            authority_proof=proof,
+            lease=lease(),
+            event_source=events,
+            execute=lambda: calls.append("escaped"),
+        )
+    assert calls == []
+
+    abandoned = adapter.cancel_reserved_attempt(
+        prepared,
+        lease=lease(),
+        event_source=events,
+    )
+    assert abandoned.local_state is JournalState.ABANDONED
+    assert runtime.fence.read(effect_id).state is EffectState.CANCELLED_PRE_DISPATCH
