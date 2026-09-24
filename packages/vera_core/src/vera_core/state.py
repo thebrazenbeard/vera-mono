@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from r8a0.trust import configure_provisioning_root
-from vera_assurance import AtomicCurrentnessStore
+from vera_assurance import AtomicCurrentnessStore, EffectFence
 from vera_memory import MemoryLedger
 from vera_recovery import NativeRecoveryCheckpointStore
 
@@ -19,6 +19,7 @@ class VeraStatePaths:
     recovery: Path
     currentness: Path
     lifecycle_journal: Path
+    effects: Path
     trust: Path
 
 
@@ -53,6 +54,7 @@ class VeraStateDirectory:
             recovery=candidate / "recovery" / "checkpoints.sqlite",
             currentness=candidate / "control" / "currentness.sqlite",
             lifecycle_journal=candidate / "lifecycle" / "journal.sqlite",
+            effects=candidate / "effects" / "effects.sqlite",
             trust=candidate / "recovery" / "trust",
         )
         self.project_id = project_id
@@ -83,6 +85,9 @@ class VeraStateDirectory:
             identity_id=self.identity_id,
             currentness_subject_id=self.currentness_subject_id,
         )
+
+    def effect_fence(self) -> EffectFence:
+        return EffectFence(self.paths.effects)
 
     def reconstruct(self) -> LifecycleReconstruction:
         return self.open().reconstruct()
