@@ -445,3 +445,90 @@ def test_correction_lineage_subject_tamper_fails_closed(tmp_path):
 
     with pytest.raises(TaskExecutionError):
         ledger.read("task-correction-tamper")
+
+
+def test_task_dependency_binding_survives_restart_and_is_exact(tmp_path):
+    path = tmp_path / "tasks.sqlite"
+    ledger = TaskExecutionLedger(path)
+    opened = ledger.open_task(
+        "task-dependency",
+        packet(),
+        lifecycle_evidence_digest="a" * 64,
+    )
+    assert opened.dependencies == ()
+
+    bound = ledger.bind_dependency(
+        "task-dependency",
+        "dep-effect-1",
+        kind="EFFECT",
+        target_id="provider:example:effect-1",
+    )
+    assert len(bound.dependencies) == 1
+    dependency = bound.dependencies[0]
+    assert dependency.dependency_id == "dep-effect-1"
+    assert dependency.kind == "EFFECT"
+    assert dependency.target_id == "provider:example:effect-1"
+    assert len(dependency.event_digest) == 64
+
+    reopened = TaskExecutionLedger(path).read("task-dependency")
+    assert reopened.dependencies == bound.dependencies
+
+    with pytest.raises(TaskExecutionError):
+        ledger.bind_dependency(
+            "task-dependency",
+            "dep-effect-1",
+            kind="EFFECT",
+            target_id="provider:example:effect-2",
+        )
+    with pytest.raises(TaskExecutionError):
+        ledger.bind_dependency(
+            "task-dependency",
+            "dep-effect-2",
+            kind="EFFECT",
+            target_id="provider:example:effect-1",
+        )
+    with pytest.raises(TaskExecutionError):
+        ledger.bind_dependency(
+            "task-dependency",
+            "dep-invalid",
+            kind="UNKNOWN",
+            target_id="x",
+        )
+
+
+def test_task_dependency_subject_tamper_fails_closed(tmp_path):
+    path = tmp_path / "tasks.sqlite"
+    ledger = TaskExecutionLedger(path)
+    ledger.open_task(
+        "task-dependency-tamper",
+        packet(),
+        lifecycle_evidence_digest="a" * 64,
+    )
+    ledger.bind_dependency(
+        "task-dependency-tamper",
+        "dep-1",
+        kind="COORDINATION_COMMAND",
+        target_id="coordination:command-1",
+    )
+
+    with sqlite3.connect(path) as db:
+        row = db.execute(
+            """
+            SELECT payload_json FROM events
+            WHERE event_type='TASK_DEPENDENCY'
+            """
+        ).fetchone()
+        import json
+
+        payload = json.loads(row[0])
+        payload["subject"] = "different-subject"
+        db.execute(
+            """
+            UPDATE events SET payload_json=?
+            WHERE event_type='TASK_DEPENDENCY'
+            """,
+            (json.dumps(payload, sort_keys=True, separators=(",", ":")),),
+        )
+
+    with pytest.raises(TaskExecutionError):
+        TaskExecutionLedger(path).read("task-dependency-tamper")
