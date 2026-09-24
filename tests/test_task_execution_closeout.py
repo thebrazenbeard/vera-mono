@@ -320,3 +320,128 @@ def test_task_journal_tamper_fails_closed(tmp_path):
         )
     with pytest.raises(TaskExecutionError):
         ledger.verify_chain()
+
+
+def test_correction_recurrence_requires_changed_method_guard_or_blocker(tmp_path):
+    ledger = TaskExecutionLedger(tmp_path / "tasks.sqlite")
+    ledger.open_task(
+        "task-correction",
+        packet(),
+        lifecycle_evidence_digest="a" * 64,
+    )
+    corrected = ledger.record_correction(
+        "task-correction",
+        "corr-1",
+        summary="The previous route repeated an already-corrected failure.",
+        obsolete_route="retry the same method with a new label",
+        required_change=(
+            "change the controlling method or add a regression guard"
+        ),
+        current_owner_ref="VERA_TASK_EXECUTION_AND_CLOSEOUT_V2",
+        provenance_refs=("current-user-correction", "project-owner-source"),
+    )
+    assert corrected.unresolved_correction_ids == ("corr-1",)
+
+    with pytest.raises(TaskExecutionError):
+        ledger.checkpoint(
+            "task-correction",
+            "cp-unaddressed",
+            completed_evidence=("failure reproduced",),
+            blockers=(),
+            protected_effects_still_gated=(),
+            next_frontier="do not repeat the obsolete route",
+            lifecycle_evidence_digest="b" * 64,
+        )
+
+    with pytest.raises(TaskExecutionError):
+        ledger.checkpoint(
+            "task-correction",
+            "cp-no-change",
+            completed_evidence=("failure reproduced",),
+            blockers=(),
+            protected_effects_still_gated=(),
+            next_frontier="still unresolved",
+            lifecycle_evidence_digest="b" * 64,
+            correction_ids_addressed=("corr-1",),
+        )
+
+    repaired = ledger.checkpoint(
+        "task-correction",
+        "cp-repaired",
+        completed_evidence=("negative regression test added",),
+        blockers=(),
+        protected_effects_still_gated=(),
+        next_frontier="run exact acceptance evidence",
+        lifecycle_evidence_digest="c" * 64,
+        correction_ids_addressed=("corr-1",),
+        regression_guard=(
+            "negative regression test proves the obsolete route fails closed"
+        ),
+    )
+    assert repaired.unresolved_correction_ids == ()
+    assert repaired.latest_checkpoint["correction_ids_addressed"] == [
+        "corr-1"
+    ]
+
+
+def test_unresolved_correction_blocks_qualified_task_closeout(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-correction-closeout", packet())
+    runtime.record_task_correction(
+        "task-correction-closeout",
+        "corr-1",
+        summary="A repeated correction has not yet been repaired.",
+        obsolete_route="repeat old route",
+        required_change="change method",
+        current_owner_ref="VERA_TASK_EXECUTION_AND_CLOSEOUT_V2",
+        provenance_refs=("current-user-correction",),
+    )
+    assessment = runtime.assess_task_closeout(
+        "task-correction-closeout",
+        surfaces=surfaces(),
+    )
+    assert assessment.ready is False
+    assert assessment.unresolved_correction_ids == ("corr-1",)
+    with pytest.raises(TaskExecutionError):
+        runtime.close_task(
+            "task-correction-closeout",
+            "close-blocked",
+            surfaces=surfaces(),
+            evidence_refs=("CI PASS",),
+            claim_ceiling="SOURCE_ONLY",
+            next_frontier="repair correction",
+        )
+
+
+def test_correction_lineage_subject_tamper_fails_closed(tmp_path):
+    ledger = TaskExecutionLedger(tmp_path / "tasks.sqlite")
+    ledger.open_task(
+        "task-correction-tamper",
+        packet(),
+        lifecycle_evidence_digest="a" * 64,
+    )
+    ledger.record_correction(
+        "task-correction-tamper",
+        "corr-1",
+        summary="preserve exact referent",
+        obsolete_route="wrong referent",
+        required_change="keep correction on original subject",
+        current_owner_ref="VERA_TASK_EXECUTION_AND_CLOSEOUT_V2",
+        provenance_refs=("correction-source",),
+    )
+    with sqlite3.connect(ledger.path) as db:
+        row = db.execute(
+            "SELECT payload_json FROM events WHERE event_type='TASK_CORRECTION'"
+        ).fetchone()
+        import json
+
+        payload = json.loads(row[0])
+        payload["subject"] = "different-subject"
+        db.execute(
+            "UPDATE events SET payload_json=? WHERE event_type='TASK_CORRECTION'",
+            (json.dumps(payload, sort_keys=True, separators=(',', ':')),),
+        )
+
+    with pytest.raises(TaskExecutionError):
+        ledger.read("task-correction-tamper")
