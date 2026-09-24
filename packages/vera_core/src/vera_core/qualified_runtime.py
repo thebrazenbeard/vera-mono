@@ -46,6 +46,7 @@ from .state import VeraStateDirectory
 from .task_execution import (
     TaskCloseoutAssessment,
     TaskDependencyAssessment,
+    TaskDelegation,
     TaskDependencyRef,
     TaskExecutionError,
     TaskExecutionLedger,
@@ -587,6 +588,88 @@ class QualifiedVeraRuntime:
                     )
                 raise
 
+    def delegate_task_work(
+        self,
+        task_id: str,
+        delegation_id: str,
+        *,
+        repository: str,
+        ref: str,
+        subject: str,
+        assignee_ref: str,
+        allowed_effects: tuple[str, ...],
+        prohibited_effects: tuple[str, ...],
+        return_shape: tuple[str, ...],
+        evidence_refs: tuple[str, ...],
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            return self.tasks.delegate_work(
+                task_id,
+                delegation_id,
+                repository=repository,
+                ref=ref,
+                subject=subject,
+                assignee_ref=assignee_ref,
+                allowed_effects=allowed_effects,
+                prohibited_effects=prohibited_effects,
+                return_shape=return_shape,
+                evidence_refs=evidence_refs,
+            )
+
+    def reassign_task_delegation(
+        self,
+        task_id: str,
+        delegation_id: str,
+        reassignment_id: str,
+        *,
+        new_assignee_ref: str,
+        evidence_refs: tuple[str, ...],
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            return self.tasks.reassign_delegation(
+                task_id,
+                delegation_id,
+                reassignment_id,
+                new_assignee_ref=new_assignee_ref,
+                evidence_refs=evidence_refs,
+            )
+
+    def return_task_delegation(
+        self,
+        task_id: str,
+        delegation_id: str,
+        return_id: str,
+        *,
+        summary: str,
+        result_evidence_refs: tuple[str, ...],
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            return self.tasks.return_delegation(
+                task_id,
+                delegation_id,
+                return_id,
+                summary=summary,
+                result_evidence_refs=result_evidence_refs,
+            )
+
+    def cancel_task_delegation(
+        self,
+        task_id: str,
+        delegation_id: str,
+        cancellation_id: str,
+        *,
+        reason: str,
+        evidence_refs: tuple[str, ...],
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            return self.tasks.cancel_delegation(
+                task_id,
+                delegation_id,
+                cancellation_id,
+                reason=reason,
+                evidence_refs=evidence_refs,
+            )
+
     def record_task_correction(
         self,
         task_id: str,
@@ -1060,6 +1143,16 @@ class QualifiedVeraRuntime:
                 )
             )
 
+        active_delegation_ids = tuple(
+            delegation.delegation_id
+            for delegation in state.active_delegations
+        )
+        if active_delegation_ids:
+            reasons.append(
+                "task delegated subjects remain active: "
+                + ", ".join(active_delegation_ids)
+            )
+
         unresolved_correction_ids = state.unresolved_correction_ids
         if unresolved_correction_ids:
             reasons.append(
@@ -1086,6 +1179,7 @@ class QualifiedVeraRuntime:
             dependency_assessments=dependency_assessments,
             unsatisfied_dependency_ids=unsatisfied_dependency_ids,
             cancelled_dependency_ids=state.cancelled_dependency_ids,
+            active_delegation_ids=active_delegation_ids,
             unresolved_correction_ids=unresolved_correction_ids,
             supplied_blockers=blockers,
             ready=not reasons,
@@ -1147,12 +1241,23 @@ class QualifiedVeraRuntime:
                 )
                 for item in state.dependency_cancellations
             )
+            delegation_evidence_refs = tuple(
+                (
+                    "task-delegation:"
+                    f"{item.delegation_id}:"
+                    f"{item.status}:"
+                    f"{item.event_digest}"
+                )
+                for item in state.delegations
+                if not item.active
+            )
             merged_evidence = tuple(
                 dict.fromkeys(
                     (
                         *evidence_refs,
                         *dependency_evidence_refs,
                         *cancellation_evidence_refs,
+                        *delegation_evidence_refs,
                     )
                 )
             )
@@ -1563,6 +1668,23 @@ class QualifiedVeraRuntime:
         }
         context["coordination_commands"] = self.coordination_commands.context()
         context["tasks"] = self.tasks.context()
+        context["task_delegation_ownership"] = [
+            {
+                "task_id": task.task_id,
+                "delegation_id": delegation.delegation_id,
+                "repository": delegation.repository,
+                "ref": delegation.ref,
+                "subject": delegation.subject,
+                "assignee_ref": delegation.assignee_ref,
+                "allowed_effects": list(delegation.allowed_effects),
+                "prohibited_effects": list(
+                    delegation.prohibited_effects
+                ),
+                "return_shape": list(delegation.return_shape),
+            }
+            for task in self.tasks.tasks()
+            for delegation in task.active_delegations
+        ]
         context["task_dependency_recovery"] = [
             {
                 "task_id": task.task_id,
