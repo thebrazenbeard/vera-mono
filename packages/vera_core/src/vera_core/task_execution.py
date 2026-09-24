@@ -373,6 +373,50 @@ class TaskExecutionLedger:
         )
         return self.read(task_id)
 
+    def record_correction(
+        self,
+        task_id: str,
+        correction_id: str,
+        *,
+        summary: str,
+        obsolete_route: str,
+        required_change: str,
+        current_owner_ref: str,
+        provenance_refs: Sequence[str],
+    ) -> TaskState:
+        state = self.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot accept correction"
+            )
+        _require_text(correction_id, "correction_id")
+        _require_text(summary, "summary")
+        _require_text(obsolete_route, "obsolete_route")
+        _require_text(required_change, "required_change")
+        _require_text(current_owner_ref, "current_owner_ref")
+        refs = _require_texts(provenance_refs, "provenance_refs")
+        if not refs:
+            raise TaskExecutionError(
+                "correction lineage requires provenance_refs"
+            )
+        self.append(
+            event_id=f"{task_id}:CORRECTION:{correction_id}",
+            task_id=task_id,
+            event_type="TASK_CORRECTION",
+            payload={
+                "schema": "VERA_MONO_TASK_CORRECTION_V1",
+                "correction_id": correction_id,
+                "subject": state.packet.subject,
+                "packet_digest": state.packet.packet_digest,
+                "summary": summary,
+                "obsolete_route": obsolete_route,
+                "required_change": required_change,
+                "current_owner_ref": current_owner_ref,
+                "provenance_refs": list(refs),
+            },
+        )
+        return self.read(task_id)
+
     def checkpoint(
         self,
         task_id: str,
@@ -383,6 +427,10 @@ class TaskExecutionLedger:
         protected_effects_still_gated: Sequence[str],
         next_frontier: str,
         lifecycle_evidence_digest: str,
+        correction_ids_addressed: Sequence[str] = (),
+        method_change: str | None = None,
+        regression_guard: str | None = None,
+        blocker_classification: str | None = None,
     ) -> TaskState:
         state = self.read(task_id)
         if state.closed:
@@ -393,6 +441,44 @@ class TaskExecutionLedger:
             lifecycle_evidence_digest,
             "lifecycle_evidence_digest",
         )
+        addressed = _require_texts(
+            correction_ids_addressed,
+            "correction_ids_addressed",
+        )
+        unresolved = set(state.unresolved_correction_ids)
+        addressed_set = set(addressed)
+        if addressed_set - unresolved:
+            raise TaskExecutionError(
+                "checkpoint addresses correction that is not unresolved"
+            )
+        if unresolved and addressed_set != unresolved:
+            raise TaskExecutionError(
+                "next checkpoint after correction must address all unresolved corrections"
+            )
+        normalized_response = {
+            "method_change": (
+                None
+                if method_change is None
+                else _require_text(method_change, "method_change")
+            ),
+            "regression_guard": (
+                None
+                if regression_guard is None
+                else _require_text(regression_guard, "regression_guard")
+            ),
+            "blocker_classification": (
+                None
+                if blocker_classification is None
+                else _require_text(
+                    blocker_classification,
+                    "blocker_classification",
+                )
+            ),
+        }
+        if addressed and not any(normalized_response.values()):
+            raise TaskExecutionError(
+                "correction recurrence requires method change, regression guard, or blocker classification"
+            )
         self.append(
             event_id=f"{task_id}:CHECKPOINT:{checkpoint_id}",
             task_id=task_id,
@@ -417,6 +503,12 @@ class TaskExecutionLedger:
                     )
                 ),
                 "next_frontier": next_frontier,
+                "correction_ids_addressed": list(addressed),
+                "method_change": normalized_response["method_change"],
+                "regression_guard": normalized_response["regression_guard"],
+                "blocker_classification": normalized_response[
+                    "blocker_classification"
+                ],
                 "lifecycle_evidence_digest": lifecycle_evidence_digest,
             },
         )
