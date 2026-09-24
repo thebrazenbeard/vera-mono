@@ -7,12 +7,22 @@ from typing import Any, Callable, Mapping, TypeVar
 
 from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
 from vera_assurance import EffectFence, EffectReceipt
-from pc_connection.envelopes import JobEnvelope
+from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 
 from .lifecycle import (
     AcceptedLifecyclePermit,
     LifecycleActionDenied,
     NativeVeraLifecycle,
+)
+from .outbound_authority import (
+    OutboundAuthorityError,
+    PCJobAuthorityProof,
+    PCJobAuthorityVerifier,
+    ProviderAuthorityEnvelope,
+    ProviderAuthorityVerifier,
+    pc_authority_subject,
+    provider_authority_subject,
+    validate_pc_authorization_binding,
 )
 
 
@@ -74,25 +84,20 @@ class LifecycleEffectGateway:
         self.lifecycle = lifecycle
         self.fence = fence
 
-    def dispatch(
+    def _dispatch_verified(
         self,
         *,
         permit: AcceptedLifecyclePermit,
         effect_id: str,
         effect_kind: str,
         request_payload: Any,
-        authority_evidence_digest: str,
+        verify_authority: Callable[[], str],
         execute: Callable[[], T],
     ) -> OutboundEffectResult:
         if type(effect_id) is not str or not effect_id:
             raise OutboundActionError("effect_id must be a non-empty exact string")
         if type(effect_kind) is not str or not effect_kind:
             raise OutboundActionError("effect_kind must be a non-empty exact string")
-        self._require_sha256(
-            authority_evidence_digest,
-            "authority_evidence_digest",
-        )
-
         normalized_request = {
             "schema": "VERA_MONO_LIFECYCLE_BOUND_EFFECT_REQUEST_V1",
             "effect_id": effect_id,
@@ -112,6 +117,11 @@ class LifecycleEffectGateway:
 
         with self.lifecycle.action_lock():
             self.lifecycle.validate_action_permit(permit)
+            authority_evidence_digest = verify_authority()
+            self._require_sha256(
+                authority_evidence_digest,
+                "authority_evidence_digest",
+            )
             self.fence.reserve(
                 effect_id=effect_id,
                 request_digest=request_digest,
@@ -168,26 +178,89 @@ class LifecycleEffectGateway:
         *,
         permit: AcceptedLifecyclePermit,
         job: JobEnvelope,
-        authority_evidence_digest: str,
+        authorization: AuthorizationEnvelope,
+        authority_proof: PCJobAuthorityProof,
+        authority_verifier: PCJobAuthorityVerifier,
         execute: Callable[[], T],
     ) -> OutboundEffectResult:
         if type(job) is not JobEnvelope:
             raise OutboundActionError("PC effect requires an exact JobEnvelope")
+        if type(authorization) is not AuthorizationEnvelope:
+            raise OutboundActionError(
+                "PC effect requires an exact AuthorizationEnvelope"
+            )
+        if not isinstance(authority_verifier, PCJobAuthorityVerifier):
+            raise OutboundAuthorityError(
+                "PC effect requires a PCJobAuthorityVerifier"
+            )
         job.validate()
+        authorization.validate()
         if job.project_id != self.lifecycle.project_id:
             raise LifecycleActionDenied(
                 "PC job project does not match accepted lifecycle project"
             )
-        return self.dispatch(
+
+        def verify_authority() -> str:
+            validate_pc_authorization_binding(job, authorization)
+            subject = pc_authority_subject(
+                job_digest=job.digest(),
+                authorization_digest=authorization.digest(),
+                lifecycle_permit_digest=permit.permit_digest,
+            )
+            if not authority_verifier.verify(
+                authority_proof,
+                expected_subject=subject,
+            ):
+                raise OutboundAuthorityError(
+                    "PC authority proof verification failed for exact job, authorization, and lifecycle permit"
+                )
+            return _digest(
+                {
+                    "schema": "VERA_MONO_PC_VERIFIED_AUTHORITY_EVIDENCE_V1",
+                    "job_digest": job.digest(),
+                    "authorization_digest": authorization.digest(),
+                    "authority_proof": authority_proof,
+                    "lifecycle_permit_digest": permit.permit_digest,
+                }
+            )
+
+        return self._dispatch_verified(
             permit=permit,
             effect_id=f"pc:{job.envelope_id}",
             effect_kind=f"PC/{job.operation_id}",
             request_payload={
                 "job_digest": job.digest(),
+                "authorization_digest": authorization.digest(),
                 "job": job,
+                "authorization": authorization,
+                "authority_subject": authority_proof.subject,
             },
-            authority_evidence_digest=authority_evidence_digest,
+            verify_authority=verify_authority,
             execute=execute,
+        )
+
+    @staticmethod
+    def provider_request_digest(
+        *,
+        provider_id: str,
+        operation: str,
+        request_payload: Any,
+    ) -> str:
+        if type(provider_id) is not str or not provider_id:
+            raise OutboundActionError(
+                "provider_id must be a non-empty exact string"
+            )
+        if type(operation) is not str or not operation:
+            raise OutboundActionError(
+                "operation must be a non-empty exact string"
+            )
+        return _digest(
+            {
+                "schema": "VERA_MONO_PROVIDER_REQUEST_V1",
+                "provider_id": provider_id,
+                "operation": operation,
+                "request_payload": request_payload,
+            }
         )
 
     def dispatch_provider_effect(
@@ -198,19 +271,63 @@ class LifecycleEffectGateway:
         provider_id: str,
         operation: str,
         request_payload: Any,
-        authority_evidence_digest: str,
+        authority: ProviderAuthorityEnvelope,
+        authority_verifier: ProviderAuthorityVerifier,
         execute: Callable[[], T],
     ) -> OutboundEffectResult:
         if type(provider_id) is not str or not provider_id:
             raise OutboundActionError("provider_id must be a non-empty exact string")
         if type(operation) is not str or not operation:
             raise OutboundActionError("operation must be a non-empty exact string")
-        return self.dispatch(
+        if type(authority) is not ProviderAuthorityEnvelope:
+            raise OutboundAuthorityError(
+                "provider effect requires exact ProviderAuthorityEnvelope"
+            )
+        if not isinstance(authority_verifier, ProviderAuthorityVerifier):
+            raise OutboundAuthorityError(
+                "provider effect requires a ProviderAuthorityVerifier"
+            )
+        provider_request_digest = self.provider_request_digest(
+            provider_id=provider_id,
+            operation=operation,
+            request_payload=request_payload,
+        )
+
+        def verify_authority() -> str:
+            subject = provider_authority_subject(
+                provider_id=provider_id,
+                operation=operation,
+                request_digest=provider_request_digest,
+                lifecycle_permit_digest=permit.permit_digest,
+            )
+            if not authority_verifier.verify(
+                authority,
+                expected_provider_id=provider_id,
+                expected_operation=operation,
+                expected_subject=subject,
+            ):
+                raise OutboundAuthorityError(
+                    "provider authority verification failed for exact request and lifecycle permit"
+                )
+            return _digest(
+                {
+                    "schema": "VERA_MONO_PROVIDER_VERIFIED_AUTHORITY_EVIDENCE_V1",
+                    "provider_request_digest": provider_request_digest,
+                    "authority": authority,
+                    "lifecycle_permit_digest": permit.permit_digest,
+                }
+            )
+
+        return self._dispatch_verified(
             permit=permit,
             effect_id=f"provider:{provider_id}:{effect_id}",
             effect_kind=f"PROVIDER/{provider_id}/{operation}",
-            request_payload=request_payload,
-            authority_evidence_digest=authority_evidence_digest,
+            request_payload={
+                "provider_request_digest": provider_request_digest,
+                "request_payload": request_payload,
+                "authority_subject": authority.subject,
+            },
+            verify_authority=verify_authority,
             execute=execute,
         )
 
@@ -306,7 +423,7 @@ class LifecycleBoundCoordinationBus:
                 "command": command,
             }
         )
-        return self.effects.dispatch(
+        return self.effects._dispatch_verified(
             permit=permit,
             effect_id=f"coordination:{command_id}",
             effect_kind=f"COORDINATION/{command}",
@@ -316,6 +433,6 @@ class LifecycleBoundCoordinationBus:
                 "args": args,
                 "kwargs": call_kwargs,
             },
-            authority_evidence_digest=authority_binding_digest,
+            verify_authority=lambda: authority_binding_digest,
             execute=lambda: method(actor, *args, **call_kwargs),
         )
