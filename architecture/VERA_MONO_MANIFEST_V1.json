@@ -322,7 +322,8 @@
       "dependency-aware task restart and closeout gating",
       "durable delegated-subject ownership",
       "delegation reassignment return and cancellation closeout gating",
-      "delegated-subject mutation ownership guard"
+      "delegated-subject mutation ownership guard",
+      "task-bound live-current installation verification"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -596,5 +597,21 @@
     "source_pass_is_package_pass": false,
     "package_pass_is_install_pass": false,
     "package_pass_is_runtime_pass": false
+  },
+  "installation_verification": {
+    "schema": "VERA_MONO_INSTALLATION_VERIFICATION_V1",
+    "contract": "architecture/VERA_INSTALLATION_VERIFICATION_V1.json",
+    "store": "vera_core.InstallationVerificationStore",
+    "adapter": "vera_core.QualifiedInstallationVerificationAdapter",
+    "state_path": "install/verification.sqlite",
+    "requirement_grammar": "INSTALL_VERIFY|<target-id>|<distribution>|<version>",
+    "concrete_python_transport": "vera_core.PythonDistributionInstallationTransport",
+    "read_only": true,
+    "append_only_receipts": true,
+    "live_currentness_refresh": true,
+    "stored_PASS_without_live_transport": "NOT_CURRENT",
+    "digest_change_after_PASS": "NOT_CURRENT",
+    "task_closeout_gate": true,
+    "install_pass_is_route_or_runtime_pass": false
   }
 }
