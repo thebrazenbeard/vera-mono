@@ -59,11 +59,50 @@
     "pc_dispatch": "LifecycleEffectGateway.dispatch_pc_job",
     "provider_dispatch": "LifecycleEffectGateway.dispatch_provider_effect",
     "currentness_evidence_digest": "accepted lifecycle permit digest",
-    "authority_evidence_digest": "independent caller/provider authority evidence; lifecycle permit never substitutes for it",
+    "authority_evidence_digest": "digest of successfully verified exact authority evidence; opaque caller-supplied digests are not a qualified authority path",
     "retry_semantics": {
       "same_effect_id_after_commit": "DENY",
       "exception_or_uncertain_result": "ATTEMPTED_UNKNOWN",
-      "blind_retry_after_unknown": "DENY"
+      "blind_retry_after_unknown": "DENY",
+      "provider_authority_replay_to_different_effect_id": "DENY_BY_SUBJECT_BINDING"
+    },
+    "authority_model": {
+      "pc": {
+        "authorization_envelope": "pc_connection.AuthorizationEnvelope",
+        "exact_subject_proof": "vera_core.PCJobAuthorityProof",
+        "trusted_verifier_injection": "LifecycleEffectGateway(pc_authority_verifier=...)",
+        "caller_supplied_verifier_allowed": false,
+        "shared_job_authorization_fields_checked": true,
+        "job_and_authorization_windows_checked_at_dispatch": true,
+        "opaque_authorization_job_id": "bound by exact authorization digest rather than guessed equality"
+      },
+      "provider": {
+        "envelope": "vera_core.ProviderAuthorityEnvelope",
+        "trusted_verifier_registry": "LifecycleEffectGateway(provider_authority_verifiers={provider_id: verifier})",
+        "caller_supplied_verifier_allowed": false,
+        "authority_subject_binds": [
+          "effect_id",
+          "provider_id",
+          "operation",
+          "exact request digest",
+          "accepted lifecycle permit digest"
+        ]
+      }
+    },
+    "unresolved_effect_barrier": {
+      "blocks_new_outbound_effects": true,
+      "blocks_new_lifecycle_currentness_transitions": true,
+      "unresolved_states": [
+        "RESERVED",
+        "EXECUTING",
+        "ATTEMPTED_UNKNOWN"
+      ],
+      "reconciliation_api": "EffectFence.reconcile_unknown",
+      "reconciliation_requires_external_evidence_digest": true,
+      "terminal_reconciliation_states": [
+        "RECONCILED_COMMITTED",
+        "RECONCILED_NO_EFFECT"
+      ]
     }
   },
   "fail_closed_states": [
@@ -87,6 +126,8 @@
     "coordination_actor_permissions_are_still_checked_by_bus": true,
     "decision_authority_is_still_external_and_exact_subject_bound": true,
     "pc_authorization_contracts_remain_required": true,
-    "raw_low_level_mechanisms_are_not_the_runtime_qualified_escape_path": true
+    "raw_low_level_mechanisms_are_not_the_runtime_qualified_escape_path": true,
+    "caller_minted_provider_or_pc_verifier_is_authority": false,
+    "trusted_verifiers_are_host_injected": true
   }
 }
