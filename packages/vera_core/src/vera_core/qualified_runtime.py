@@ -10,6 +10,7 @@ from vera_assurance import EffectFence, EffectReceipt, EffectState
 from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 
 from .action_gate import LifecycleBoundCoordinationBus, LifecycleEffectGateway
+from .coordination_command_journal import CoordinationCommandJournal
 from .effect_recovery import (
     EffectReconciliationVerifier,
     LifecycleEffectRecovery,
@@ -68,6 +69,7 @@ class QualifiedVeraRuntime:
     provider_execution_transports: Mapping[str, ProviderExecutionTransport]
     pc_execution_bindings: PCExecutionBindingStore
     provider_execution_bindings: ProviderExecutionBindingStore
+    coordination_commands: CoordinationCommandJournal
 
     @classmethod
     def from_state_directory(
@@ -100,6 +102,7 @@ class QualifiedVeraRuntime:
         provider_execution_bindings = (
             state.provider_execution_binding_store()
         )
+        coordination_commands = state.coordination_command_journal()
 
         if pc_authority_verifier is not None:
             outbound_trust.assert_current(
@@ -177,6 +180,7 @@ class QualifiedVeraRuntime:
             bus=resolved_coordination_bus,
             fence=fence,
             audit=audit,
+            command_journal=coordination_commands,
         )
         recovery = (
             None
@@ -200,6 +204,7 @@ class QualifiedVeraRuntime:
             provider_execution_transports=provider_transports,
             pc_execution_bindings=pc_execution_bindings,
             provider_execution_bindings=provider_execution_bindings,
+            coordination_commands=coordination_commands,
         )
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
@@ -567,6 +572,31 @@ class QualifiedVeraRuntime:
                 "verify_integrity",
             ),
         }
+        context["coordination_commands"] = self.coordination_commands.context()
+        context["coordination_command_recovery"] = [
+            {
+                "command_id": assessment.command_id,
+                "effect_id": assessment.effect_id,
+                "command": assessment.command,
+                "actor_workstream": assessment.actor_workstream,
+                "request_digest": assessment.request_digest,
+                "result_recorded": assessment.result_recorded,
+                "fence_state": assessment.fence_state,
+                "lifecycle_permit_current": (
+                    assessment.lifecycle_permit_current
+                ),
+                "retry_candidate_allowed": (
+                    assessment.retry_candidate_allowed
+                ),
+                "pre_dispatch_cancel_allowed": (
+                    assessment.pre_dispatch_cancel_allowed
+                ),
+                "recovery_required": assessment.recovery_required,
+                "terminal": assessment.terminal,
+                "reason": assessment.reason,
+            }
+            for assessment in self.coordination.recover_commands()
+        ]
         context["provider_execution_recovery"] = [
             {
                 "effect_id": assessment.effect_id,
