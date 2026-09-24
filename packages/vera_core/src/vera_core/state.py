@@ -17,6 +17,7 @@ from .outbound_audit import OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 from .pc_execution_binding import PCExecutionBindingStore
 from .provider_execution_binding import ProviderExecutionBindingStore
+from .route_verification import RouteVerificationStore
 from .source_mutation_binding import SourceMutationBindingStore
 from .source_mutation_outcome import SourceMutationOutcomeStore
 from .source_verification import SourceVerificationStore
@@ -39,6 +40,7 @@ class VeraStatePaths:
     source_mutation_outcomes: Path
     source_verifications: Path
     installation_verifications: Path
+    route_verifications: Path
     coordination: Path
     coordination_commands: Path
     tasks: Path
@@ -96,6 +98,9 @@ class VeraStateDirectory:
             ),
             installation_verifications=(
                 candidate / "install" / "verification.sqlite"
+            ),
+            route_verifications=(
+                candidate / "route" / "verification.sqlite"
             ),
             coordination=candidate / "coordination" / "events.sqlite",
             coordination_commands=(
@@ -187,6 +192,11 @@ class VeraStateDirectory:
             self.paths.installation_verifications
         )
 
+    def route_verification_store(
+        self,
+    ) -> RouteVerificationStore:
+        return RouteVerificationStore(self.paths.route_verifications)
+
     def coordination_repository(self) -> SQLiteCoordinationRepository:
         return SQLiteCoordinationRepository(self.paths.coordination)
 
@@ -235,6 +245,9 @@ class VeraStateDirectory:
         )
         context["installation_verifications"] = (
             self.installation_verification_store().context()
+        )
+        context["route_verifications"] = (
+            self.route_verification_store().context()
         )
         context["coordination"] = self.coordination_repository().context()
         context["coordination_commands"] = (
