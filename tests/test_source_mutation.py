@@ -385,3 +385,47 @@ def test_source_provider_cannot_escape_through_generic_callback_dispatch(tmp_pat
             ),
         )
     assert transport.calls == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        "src/../README.md",
+        "src\\evil.py",
+        "/src/absolute.py",
+        "src//double.py",
+    ),
+)
+def test_source_scope_rejects_path_normalization_bypasses_before_transport(
+    tmp_path,
+    path,
+):
+    _, runtime, _, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-path-bypass",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|src/**"),
+    )
+    with pytest.raises(SourceMutationError):
+        runtime.source_mutation_adapter().prepare(
+            "task-path-bypass",
+            "dep-path-bypass",
+            write_request(path=path),
+        )
+    assert transport.calls == []
+    assert runtime.tasks.read("task-path-bypass").dependencies == ()
+
+
+def test_source_scope_prefix_boundary_does_not_match_similar_sibling(tmp_path):
+    _, runtime, _, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-prefix-boundary",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|src/**"),
+    )
+    with pytest.raises(SourceMutationError):
+        runtime.source_mutation_adapter().prepare(
+            "task-prefix-boundary",
+            "dep-prefix-boundary",
+            write_request(path="src2/escape.py"),
+        )
+    assert transport.calls == []
+    assert runtime.tasks.read("task-prefix-boundary").dependencies == ()
