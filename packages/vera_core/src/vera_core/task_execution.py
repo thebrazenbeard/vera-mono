@@ -148,6 +148,31 @@ class TaskDependency:
     event_digest: str
 
 
+TASK_DEPENDENCY_STATUSES = frozenset(
+    {
+        "SATISFIED",
+        "MISSING",
+        "PENDING",
+        "RECOVERY_REQUIRED",
+        "TERMINAL_UNSATISFIED",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class TaskDependencyAssessment:
+    dependency_id: str
+    kind: str
+    target_id: str
+    status: str
+    evidence_digest: str | None
+    reason: str
+
+    @property
+    def satisfied(self) -> bool:
+        return self.status == "SATISFIED"
+
+
 @dataclass(frozen=True, slots=True)
 class TaskCorrection:
     correction_id: str
@@ -179,6 +204,8 @@ class TaskCloseoutAssessment:
     unresolved_effect_ids: tuple[str, ...]
     coordination_recovery_ids: tuple[str, ...]
     provider_recovery_ids: tuple[str, ...]
+    dependency_assessments: tuple[TaskDependencyAssessment, ...]
+    unsatisfied_dependency_ids: tuple[str, ...]
     unresolved_correction_ids: tuple[str, ...]
     supplied_blockers: tuple[str, ...]
     ready: bool
