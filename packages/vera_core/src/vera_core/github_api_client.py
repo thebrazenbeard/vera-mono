@@ -14,6 +14,7 @@ from .github_source_transport import (
     GitHubSourceTransportError,
     GitHubTreeUpdate,
 )
+from .github_source_verification import GitHubCheckContextState
 
 
 class GitHubAPIError(GitHubSourceTransportError):
@@ -322,6 +323,201 @@ class GitHubGitDataAPIClient:
             mode=mode,
             object_type=object_type,
         )
+
+    def get_commit_check_contexts(
+        self,
+        repository: str,
+        commit_sha: str,
+    ) -> tuple[GitHubCheckContextState, ...]:
+        if type(commit_sha) is not str or not commit_sha:
+            raise GitHubAPIError(
+                "commit_sha must be a non-empty exact string"
+            )
+        owner, name = self._repo_parts(repository)
+        after: str | None = None
+        seen_cursors: set[str] = set()
+        contexts: list[GitHubCheckContextState] = []
+
+        while True:
+            data = self._graphql(
+                """
+                query VeraCommitChecks(
+                  $owner:String!,
+                  $name:String!,
+                  $oid:GitObjectID!,
+                  $after:String
+                ) {
+                  repository(owner:$owner,name:$name) {
+                    object(oid:$oid) {
+                      ... on Commit {
+                        oid
+                        statusCheckRollup {
+                          contexts(first:100,after:$after) {
+                            nodes {
+                              __typename
+                              ... on CheckRun {
+                                name
+                                status
+                                conclusion
+                                databaseId
+                                detailsUrl
+                              }
+                              ... on StatusContext {
+                                context
+                                state
+                                targetUrl
+                              }
+                            }
+                            pageInfo {
+                              hasNextPage
+                              endCursor
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                """,
+                {
+                    "owner": owner,
+                    "name": name,
+                    "oid": commit_sha,
+                    "after": after,
+                },
+            )
+            repository_data = data.get("repository")
+            if not isinstance(repository_data, Mapping):
+                raise GitHubAPIError(
+                    "GitHub check lookup returned no repository"
+                )
+            commit = repository_data.get("object")
+            if not isinstance(commit, Mapping):
+                raise GitHubAPIError(
+                    "GitHub check lookup returned no exact commit object"
+                )
+            if commit.get("oid") != commit_sha:
+                raise GitHubAPIError(
+                    "GitHub check lookup commit OID mismatch"
+                )
+            rollup = commit.get("statusCheckRollup")
+            if rollup is None:
+                return ()
+            if not isinstance(rollup, Mapping):
+                raise GitHubAPIError(
+                    "GitHub statusCheckRollup must be an object or null"
+                )
+            connection = rollup.get("contexts")
+            if not isinstance(connection, Mapping):
+                raise GitHubAPIError(
+                    "GitHub status check contexts are missing"
+                )
+            nodes = connection.get("nodes")
+            page_info = connection.get("pageInfo")
+            if not isinstance(nodes, list) or not isinstance(
+                page_info, Mapping
+            ):
+                raise GitHubAPIError(
+                    "GitHub status check pagination response is incomplete"
+                )
+
+            for node in nodes:
+                if not isinstance(node, Mapping):
+                    raise GitHubAPIError(
+                        "GitHub status check context must be an object"
+                    )
+                kind = node.get("__typename")
+                if kind == "CheckRun":
+                    check_name = node.get("name")
+                    status = node.get("status")
+                    conclusion = node.get("conclusion")
+                    database_id = node.get("databaseId")
+                    details_url = node.get("detailsUrl")
+                    if (
+                        type(check_name) is not str
+                        or not check_name
+                        or type(status) is not str
+                        or not status
+                    ):
+                        raise GitHubAPIError(
+                            "GitHub CheckRun context is incomplete"
+                        )
+                    contexts.append(
+                        GitHubCheckContextState(
+                            name=check_name,
+                            kind="CHECK_RUN",
+                            status=status,
+                            conclusion=(
+                                None
+                                if conclusion is None
+                                else str(conclusion)
+                            ),
+                            external_id=(
+                                None
+                                if database_id is None
+                                else f"check-run:{database_id}"
+                            ),
+                            details_ref=(
+                                details_url
+                                if type(details_url) is str
+                                and details_url
+                                else None
+                            ),
+                        )
+                    )
+                elif kind == "StatusContext":
+                    context_name = node.get("context")
+                    state = node.get("state")
+                    target_url = node.get("targetUrl")
+                    if (
+                        type(context_name) is not str
+                        or not context_name
+                        or type(state) is not str
+                        or not state
+                    ):
+                        raise GitHubAPIError(
+                            "GitHub StatusContext is incomplete"
+                        )
+                    contexts.append(
+                        GitHubCheckContextState(
+                            name=context_name,
+                            kind="STATUS_CONTEXT",
+                            status=state,
+                            conclusion=None,
+                            external_id=None,
+                            details_ref=(
+                                target_url
+                                if type(target_url) is str
+                                and target_url
+                                else None
+                            ),
+                        )
+                    )
+                else:
+                    raise GitHubAPIError(
+                        "GitHub returned unsupported status context type"
+                    )
+
+            has_next = page_info.get("hasNextPage")
+            end_cursor = page_info.get("endCursor")
+            if type(has_next) is not bool:
+                raise GitHubAPIError(
+                    "GitHub status check pageInfo lacks hasNextPage"
+                )
+            if not has_next:
+                break
+            if type(end_cursor) is not str or not end_cursor:
+                raise GitHubAPIError(
+                    "GitHub status check pagination lacks endCursor"
+                )
+            if end_cursor in seen_cursors:
+                raise GitHubAPIError(
+                    "GitHub status check pagination cursor repeated"
+                )
+            seen_cursors.add(end_cursor)
+            after = end_cursor
+
+        return tuple(contexts)
 
     def create_blob(
         self,
