@@ -191,6 +191,26 @@ class OutboundTrustRegistry:
             return False
         return True
 
+    def states(self) -> tuple[AuthorityTrustState, ...]:
+        self.verify_chain()
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT * FROM authorities ORDER BY scope_key"
+            ).fetchall()
+        return tuple(
+            AuthorityTrustState(
+                authority_id=str(row["authority_id"]),
+                role=str(row["role"]),
+                provider_id=row["provider_id"],
+                authority_generation=int(row["authority_generation"]),
+                revocation_epoch=int(row["revocation_epoch"]),
+                key_id=str(row["key_id"]),
+                key_digest=str(row["key_digest"]),
+                enabled=bool(row["enabled"]),
+            )
+            for row in rows
+        )
+
     @_trust_mutation_locked
     def register(
         self,
