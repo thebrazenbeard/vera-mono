@@ -325,7 +325,8 @@
       "delegated-subject mutation ownership guard",
       "task-bound live-current installation verification",
       "task-bound live-current route verification",
-      "task-bound live runtime-consumption verification"
+      "task-bound live runtime-consumption verification",
+      "task-bound live behavior/effect verification from exact host/external evidence"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -433,7 +434,8 @@
       "bound_dependency_not_satisfied": "DENY",
       "active_delegation": "DENY",
       "route_verification_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
-      "runtime_consumption_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS"
+      "runtime_consumption_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
+      "behavior_effect_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS"
     },
     "claim_ceiling_required": true,
     "independent_surface_closeout": true,
@@ -643,5 +645,22 @@
     "matching_declared_route_must_be_current": true,
     "runtime_consumption_surface_closeout_gate": true,
     "consumption_pass_is_behavioral_qualification": false
+  },
+  "behavior_effect_verification": {
+    "schema": "VERA_MONO_BEHAVIOR_EFFECT_VERIFICATION_V1",
+    "contract": "architecture/VERA_BEHAVIOR_EFFECT_VERIFICATION_V1.json",
+    "store": "vera_core.BehaviorEffectVerificationStore",
+    "adapter": "vera_core.QualifiedBehaviorEffectVerificationAdapter",
+    "transport_protocol": "vera_core.BehaviorEffectVerificationTransport",
+    "concrete_json_transport": "vera_core.JsonFileBehaviorEffectVerificationTransport",
+    "state_path": "behavior/verification.sqlite",
+    "requirement_grammar": "BEHAVIOR_EFFECT_VERIFY|<consumer-id>|<probe-id>|<BEHAVIOR-or-EFFECT>|<stimulus-sha256>|<outcome-sha256>",
+    "matching_runtime_consumption_same_consumer_required": true,
+    "runtime_consumption_pass_is_behavior_effect_pass": false,
+    "exact_live_process_state_binding": true,
+    "exact_external_evidence_refresh_required": true,
+    "effect_kind_requires_external_effect_receipt": true,
+    "behavior_effect_pass_is_protected_effect_authority": false,
+    "behavior_effect_pass_is_deployment": false
   }
 }
