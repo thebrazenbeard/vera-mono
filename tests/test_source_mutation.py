@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import pytest
 
@@ -240,11 +240,9 @@ def test_active_delegation_requires_exact_owner_ref_before_source_write(tmp_path
     prepared = adapter.prepare(
         "task-1",
         "dep-source-2",
-        SourceMutationRequest(
-            **{
-                **request.__dict__,
-                "mutation_id": "mutation-2",
-            }
+        replace(
+            request,
+            mutation_id="mutation-2",
         ),
         delegation_ref=owner_ref,
     )
