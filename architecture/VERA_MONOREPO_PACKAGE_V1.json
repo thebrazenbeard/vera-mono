@@ -1,0 +1,73 @@
+{
+  "schema": "VERA_MONO_PACKAGE_V1",
+  "purpose": "Produce one installable wheel containing the monorepo-local Vera Python implementation and runtime resources without reintroducing sibling-repository dependencies.",
+  "distribution": {
+    "name": "vera-mono",
+    "version": "0.1.0",
+    "build_backend": "setuptools.build_meta",
+    "python": ">=3.12",
+    "root_pyproject": "pyproject.toml",
+    "output": "vera_mono-0.1.0-*.whl"
+  },
+  "package_roots": [
+    "vera_core",
+    "rezon",
+    "portfolio_runtime",
+    "protocol",
+    "runtime_cohesion",
+    "tul_fixture",
+    "vera_identity",
+    "coordination_bus",
+    "vera_memory",
+    "vera_assurance",
+    "pc_connection",
+    "vera_control",
+    "r8a0",
+    "vera_recovery"
+  ],
+  "resources": {
+    "packaged": true,
+    "representative_required": [
+      "vera_control/resources/architecture/control/vendor/vera-control-plane/VERA_R10A0_PROJECT_SOURCE_MANIFEST_R10.json",
+      "vera_identity/resources/architecture/identity/VERA_PROJECT_IDENTITY_V1.json",
+      "vera_memory/resources/architecture/integration/VERA_DEEP_MEMORY_ARCHIVE_INTEGRATION_V1.json",
+      "runtime_cohesion/resources/ORGASM_RUNTIME_CONTRACT_V1.json",
+      "vera_assurance/resources/architecture/VERA_DRIFTGUARD_TRANSFERABILITY_V1.json"
+    ],
+    "top_level_repository_architecture_docs_in_wheel": false
+  },
+  "ci_acceptance": {
+    "workflow": ".github/workflows/tests.yml",
+    "order": [
+      "run full monorepo pytest suite",
+      "pip wheel the root project with --no-deps",
+      "verify wheel archive closure and representative runtime resources",
+      "install wheel into an isolated target directory",
+      "import every expected top-level runtime package from the installed target",
+      "read representative packaged resources through importlib.resources"
+    ],
+    "wheel_verifier": "scripts/verify_monorepo_wheel.py",
+    "installed_verifier": "scripts/verify_installed_monorepo.py",
+    "unsafe_archive_paths": "DENY",
+    "missing_expected_package_or_resource": "DENY"
+  },
+  "self_containment": {
+    "git_submodules": false,
+    "sibling_repo_runtime_dependencies": false,
+    "code_from_local_package_roots": true,
+    "external_python_dependency": [
+      "jsonschema>=4.0"
+    ],
+    "external_provider_infrastructure_allowed_via_local_adapters": true
+  },
+  "boundaries": {
+    "wheel_build_pass_is_not_installation": true,
+    "wheel_install_in_ci_target_is_not_project_or_production_installation": true,
+    "package_import_pass_is_not_runtime_consumption": true,
+    "package_import_pass_is_not_behavioral_qualification": true,
+    "package_build_is_not_provider_activation": true,
+    "package_build_is_not_deployment": true,
+    "package_build_does_not_grant_protected_effect_authority": true,
+    "source_repository_remains_canonical_source": true
+  }
+}
