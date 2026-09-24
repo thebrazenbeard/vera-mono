@@ -110,9 +110,17 @@ class LifecycleEffectGateway:
             )
         self._pc_authority_verifier = pc_authority_verifier
         self._outbound_trust_registry = outbound_trust_registry
-        if audit is not None and type(audit) is not OutboundExecutionAudit:
+        resolved_audit = (
+            audit
+            if audit is not None
+            else getattr(lifecycle, "effect_audit", None)
+        )
+        if (
+            resolved_audit is not None
+            and type(resolved_audit) is not OutboundExecutionAudit
+        ):
             raise TypeError("audit must be exact OutboundExecutionAudit")
-        self.audit = audit
+        self.audit = resolved_audit
         registry = dict(provider_authority_verifiers or {})
         for provider_id, verifier in registry.items():
             if type(provider_id) is not str or not provider_id:
