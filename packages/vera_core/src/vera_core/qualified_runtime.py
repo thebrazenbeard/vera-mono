@@ -260,6 +260,27 @@ class QualifiedVeraRuntime:
             lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
         )
 
+    def record_task_correction(
+        self,
+        task_id: str,
+        correction_id: str,
+        *,
+        summary: str,
+        obsolete_route: str,
+        required_change: str,
+        current_owner_ref: str,
+        provenance_refs: tuple[str, ...],
+    ) -> TaskState:
+        return self.tasks.record_correction(
+            task_id,
+            correction_id,
+            summary=summary,
+            obsolete_route=obsolete_route,
+            required_change=required_change,
+            current_owner_ref=current_owner_ref,
+            provenance_refs=provenance_refs,
+        )
+
     def checkpoint_task(
         self,
         task_id: str,
@@ -269,6 +290,10 @@ class QualifiedVeraRuntime:
         blockers: tuple[str, ...] = (),
         protected_effects_still_gated: tuple[str, ...] = (),
         next_frontier: str,
+        correction_ids_addressed: tuple[str, ...] = (),
+        method_change: str | None = None,
+        regression_guard: str | None = None,
+        blocker_classification: str | None = None,
     ) -> TaskState:
         unresolved = tuple(
             f"{receipt.effect_id}:{receipt.state.value}"
@@ -287,6 +312,10 @@ class QualifiedVeraRuntime:
             protected_effects_still_gated=protected,
             next_frontier=next_frontier,
             lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+            correction_ids_addressed=correction_ids_addressed,
+            method_change=method_change,
+            regression_guard=regression_guard,
+            blocker_classification=blocker_classification,
         )
 
     def assess_task_closeout(
@@ -347,6 +376,13 @@ class QualifiedVeraRuntime:
                 + ", ".join(provider_recovery_ids)
             )
 
+        unresolved_correction_ids = state.unresolved_correction_ids
+        if unresolved_correction_ids:
+            reasons.append(
+                "task corrections remain unresolved: "
+                + ", ".join(unresolved_correction_ids)
+            )
+
         blockers = tuple(additional_blockers)
         if blockers:
             reasons.append(
@@ -363,6 +399,7 @@ class QualifiedVeraRuntime:
             unresolved_effect_ids=unresolved_effect_ids,
             coordination_recovery_ids=coordination_recovery_ids,
             provider_recovery_ids=provider_recovery_ids,
+            unresolved_correction_ids=unresolved_correction_ids,
             supplied_blockers=blockers,
             ready=not reasons,
             reasons=tuple(reasons),
