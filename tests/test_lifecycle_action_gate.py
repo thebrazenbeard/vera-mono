@@ -12,13 +12,16 @@ from coordination_bus import (
 from pc_connection.contracts import AuthorizationEnvelope, JobEnvelope
 from vera_assurance import EffectFenceError, EffectState
 from vera_core import (
+    HmacEffectReconciliationAuthority,
     HmacPCJobAuthority,
     HmacProviderAuthority,
     LifecycleActionDenied,
     LifecycleAssuranceError,
     LifecycleBoundCoordinationBus,
     LifecycleEffectGateway,
+    LifecycleEffectRecovery,
     OutboundAuthorityError,
+    EffectRecoveryAuthorityError,
     VeraStateDirectory,
 )
 from vera_memory import AdmissionRequest, MemoryClass
@@ -671,16 +674,80 @@ def test_ambiguous_external_effect_freezes_actions_and_lifecycle_until_reconcile
         )
     assert calls == []
 
-    reconciled = fence.reconcile_unknown(
-        "provider:example-provider:ambiguous-effect",
+    recovery_authority = HmacEffectReconciliationAuthority(
+        "effect-recovery-owner",
+        b"r" * 32,
+    )
+    recovery = LifecycleEffectRecovery(
+        fence=fence,
+        verifier=recovery_authority,
+    )
+    proof = recovery_authority.issue(
+        ambiguous,
         effect_occurred=False,
         result_digest=None,
-        reconciliation_evidence_digest="f" * 64,
+    )
+    reconciled = recovery.reconcile(
+        "provider:example-provider:ambiguous-effect",
+        proof=proof,
+        effect_occurred=False,
+        result_digest=None,
     )
     assert reconciled.state is EffectState.RECONCILED_NO_EFFECT
-    assert reconciled.reconciliation_evidence_digest == "f" * 64
+    assert reconciled.reconciliation_evidence_digest is not None
     assert fence.unresolved() == ()
     assert lifecycle.reconstruct().effect_recovery_required is False
 
     refreshed = lifecycle.accepted_action_permit()
     assert refreshed.permit_digest == permit.permit_digest
+
+
+def test_caller_minted_reconciliation_verifier_cannot_clear_ambiguous_effect(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    payload = {"value": "ambiguous-recovery"}
+    provider_verifier, authority = provider_authority(
+        permit,
+        payload,
+        effect_id="ambiguous-recovery",
+    )
+    gateway = provider_gateway(state, lifecycle, provider_verifier)
+
+    with pytest.raises(RuntimeError):
+        gateway.dispatch_provider_effect(
+            permit=permit,
+            effect_id="ambiguous-recovery",
+            provider_id=PROVIDER_ID,
+            operation="WRITE",
+            request_payload=payload,
+            authority=authority,
+            execute=lambda: (_ for _ in ()).throw(RuntimeError("unknown outcome")),
+        )
+
+    fence = state.effect_fence()
+    effect_id = "provider:example-provider:ambiguous-recovery"
+    receipt = fence.read(effect_id)
+    trusted = HmacEffectReconciliationAuthority(
+        "effect-recovery-owner",
+        b"t" * 32,
+    )
+    attacker = HmacEffectReconciliationAuthority(
+        "effect-recovery-owner",
+        b"x" * 32,
+    )
+    forged = attacker.issue(
+        receipt,
+        effect_occurred=False,
+        result_digest=None,
+    )
+    recovery = LifecycleEffectRecovery(
+        fence=fence,
+        verifier=trusted,
+    )
+    with pytest.raises(EffectRecoveryAuthorityError):
+        recovery.reconcile(
+            effect_id,
+            proof=forged,
+            effect_occurred=False,
+            result_digest=None,
+        )
+    assert fence.read(effect_id).state is EffectState.ATTEMPTED_UNKNOWN
