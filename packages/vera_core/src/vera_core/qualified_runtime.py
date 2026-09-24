@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, TypeVar
 
 from vera_assurance import EffectFence
+from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 
 from .action_gate import LifecycleBoundCoordinationBus, LifecycleEffectGateway
 from .effect_recovery import (
@@ -13,11 +14,40 @@ from .effect_recovery import (
 )
 from .lifecycle import AcceptedLifecyclePermit, NativeVeraLifecycle
 from .outbound_authority import (
+    PCJobAuthorityProof,
     PCJobAuthorityVerifier,
+    ProviderAuthorityEnvelope,
     ProviderAuthorityVerifier,
+    pc_authority_subject,
+    provider_authority_subject,
+    validate_pc_authorization_binding,
 )
 from .outbound_trust import OutboundTrustRegistry
 from .state import VeraStateDirectory
+
+
+T = TypeVar("T")
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedPCDispatch:
+    permit: AcceptedLifecyclePermit
+    job: JobEnvelope
+    authorization: AuthorizationEnvelope
+    job_digest: str
+    authorization_digest: str
+    authority_subject: str
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedProviderDispatch:
+    permit: AcceptedLifecyclePermit
+    effect_id: str
+    provider_id: str
+    operation: str
+    request_payload: Any
+    request_digest: str
+    authority_subject: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +151,108 @@ class QualifiedVeraRuntime:
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
         return self.lifecycle.accepted_action_permit()
+
+    def prepare_pc_job(
+        self,
+        *,
+        job: JobEnvelope,
+        authorization: AuthorizationEnvelope,
+    ) -> PreparedPCDispatch:
+        validate_pc_authorization_binding(job, authorization)
+        if job.project_id != self.lifecycle.project_id:
+            raise ValueError("PC job project does not match qualified runtime")
+        permit = self.accepted_permit()
+        job_digest = job.digest()
+        authorization_digest = authorization.digest()
+        return PreparedPCDispatch(
+            permit=permit,
+            job=job,
+            authorization=authorization,
+            job_digest=job_digest,
+            authorization_digest=authorization_digest,
+            authority_subject=pc_authority_subject(
+                job_digest=job_digest,
+                authorization_digest=authorization_digest,
+                lifecycle_permit_digest=permit.permit_digest,
+            ),
+        )
+
+    def dispatch_pc_job(
+        self,
+        prepared: PreparedPCDispatch,
+        *,
+        authority_proof: PCJobAuthorityProof,
+        execute: Callable[[], T],
+    ) -> Any:
+        if type(prepared) is not PreparedPCDispatch:
+            raise TypeError("prepared must be exact PreparedPCDispatch")
+        if prepared.job.digest() != prepared.job_digest:
+            raise ValueError("prepared PC job changed after preparation")
+        if prepared.authorization.digest() != prepared.authorization_digest:
+            raise ValueError("prepared PC authorization changed after preparation")
+        return self.effects.dispatch_pc_job(
+            permit=prepared.permit,
+            job=prepared.job,
+            authorization=prepared.authorization,
+            authority_proof=authority_proof,
+            execute=execute,
+        )
+
+    def prepare_provider_effect(
+        self,
+        *,
+        effect_id: str,
+        provider_id: str,
+        operation: str,
+        request_payload: Any,
+    ) -> PreparedProviderDispatch:
+        permit = self.accepted_permit()
+        request_digest = self.effects.provider_request_digest(
+            provider_id=provider_id,
+            operation=operation,
+            request_payload=request_payload,
+        )
+        return PreparedProviderDispatch(
+            permit=permit,
+            effect_id=effect_id,
+            provider_id=provider_id,
+            operation=operation,
+            request_payload=request_payload,
+            request_digest=request_digest,
+            authority_subject=provider_authority_subject(
+                effect_id=effect_id,
+                provider_id=provider_id,
+                operation=operation,
+                request_digest=request_digest,
+                lifecycle_permit_digest=permit.permit_digest,
+            ),
+        )
+
+    def dispatch_provider_effect(
+        self,
+        prepared: PreparedProviderDispatch,
+        *,
+        authority: ProviderAuthorityEnvelope,
+        execute: Callable[[], T],
+    ) -> Any:
+        if type(prepared) is not PreparedProviderDispatch:
+            raise TypeError("prepared must be exact PreparedProviderDispatch")
+        observed_digest = self.effects.provider_request_digest(
+            provider_id=prepared.provider_id,
+            operation=prepared.operation,
+            request_payload=prepared.request_payload,
+        )
+        if observed_digest != prepared.request_digest:
+            raise ValueError("prepared provider request changed after preparation")
+        return self.effects.dispatch_provider_effect(
+            permit=prepared.permit,
+            effect_id=prepared.effect_id,
+            provider_id=prepared.provider_id,
+            operation=prepared.operation,
+            request_payload=prepared.request_payload,
+            authority=authority,
+            execute=execute,
+        )
 
     def resume_context(self) -> dict[str, Any]:
         return self.lifecycle.reconstruct().as_resume_context()
