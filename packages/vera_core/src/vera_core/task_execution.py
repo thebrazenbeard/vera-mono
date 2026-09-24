@@ -438,12 +438,16 @@ class TaskExecutionLedger:
             raise TaskExecutionError(
                 f"unsupported task dependency kind: {kind!r}"
             )
-        if dependency_id in {
-            item.dependency_id for item in state.dependencies
-        }:
-            raise TaskExecutionError(
-                "task dependency identity is already bound"
-            )
+        existing_by_id = {
+            item.dependency_id: item for item in state.dependencies
+        }
+        existing = existing_by_id.get(dependency_id)
+        if existing is not None:
+            if existing.kind != kind or existing.target_id != target_id:
+                raise TaskExecutionError(
+                    "task dependency identity is already bound differently"
+                )
+            return state
         if (kind, target_id) in {
             (item.kind, item.target_id) for item in state.dependencies
         }:
