@@ -138,4 +138,7 @@ class VeraStateDirectory:
             ),
             "repaired_effect_ids": list(integrity.repaired_effect_ids),
         }
+        context["pc_execution_bindings"] = (
+            self.pc_execution_binding_store().context()
+        )
         return context
