@@ -140,6 +140,11 @@ from .source_mutation import (
     normalize_source_path,
     source_provider_id,
 )
+from .source_mutation_outcome import (
+    SourceMutationOutcome,
+    SourceMutationOutcomeError,
+    SourceMutationOutcomeStore,
+)
 from .source_mutation_binding import (
     SourceMutationBinding,
     SourceMutationBindingError,
@@ -200,6 +205,9 @@ __all__ = [
     "SourceMutationRequest",
     "SourceMutationRecoveryAssessment",
     "SourceMutationResult",
+    "SourceMutationOutcome",
+    "SourceMutationOutcomeError",
+    "SourceMutationOutcomeStore",
     "SourceMutationBinding",
     "SourceMutationBindingError",
     "SourceMutationBindingStore",
