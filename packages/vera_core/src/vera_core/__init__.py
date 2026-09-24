@@ -40,6 +40,12 @@ from .outbound_authority import (
     provider_authority_subject,
     validate_pc_authorization_binding,
 )
+from .outbound_trust import (
+    AuthorityCurrentnessReceipt,
+    AuthorityTrustState,
+    OutboundTrustError,
+    OutboundTrustRegistry,
+)
 from .qualified_runtime import QualifiedVeraRuntime
 from .reasoning_cascade import (
     CascadeEngine,
@@ -53,6 +59,10 @@ from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
     "AcceptedLifecyclePermit",
+    "AuthorityCurrentnessReceipt",
+    "AuthorityTrustState",
+    "OutboundTrustError",
+    "OutboundTrustRegistry",
     "EffectRecoveryAuthorityError",
     "EffectReconciliationProof",
     "EffectReconciliationVerifier",
