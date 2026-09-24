@@ -18,6 +18,7 @@ from vera_recovery import NativeRecoveryCheckpoint, NativeRecoveryCheckpointStor
 from r8a0.portable_lock import PortableFileLock
 
 from .lifecycle_journal import LifecycleJournal
+from .outbound_audit import OutboundExecutionAudit
 
 
 class LifecycleAssuranceError(ValueError):
@@ -176,6 +177,7 @@ class NativeVeraLifecycle:
         currentness_subject_id: str = "vera-runtime",
         journal: LifecycleJournal | None = None,
         effect_fence: EffectFence | None = None,
+        effect_audit: OutboundExecutionAudit | None = None,
     ):
         if memory.project_id != project_id or checkpoints.project_id != project_id:
             raise ValueError("lifecycle project_id does not match component stores")
@@ -192,6 +194,11 @@ class NativeVeraLifecycle:
         self.identity_id = identity_id
         self.currentness_subject_id = currentness_subject_id
         self.effect_fence = effect_fence
+        if effect_audit is not None and effect_fence is None:
+            raise ValueError(
+                "effect_audit requires effect_fence for cross-ledger integrity"
+            )
+        self.effect_audit = effect_audit
         self.journal = journal or LifecycleJournal(
             checkpoints.path.with_name("lifecycle-journal.sqlite")
         )
@@ -203,11 +210,21 @@ class NativeVeraLifecycle:
         """Serialize lifecycle transitions with outbound command/effect gates."""
         return PortableFileLock(self._action_lock_path)
 
+    def _assert_outbound_effect_integrity(self) -> None:
+        if self.effect_audit is None:
+            return
+        if self.effect_fence is None:
+            raise LifecycleActionDenied(
+                "outbound audit exists without an effect fence"
+            )
+        self.effect_audit.verify_fence_consistency(self.effect_fence)
+
     def accepted_action_permit(self) -> AcceptedLifecyclePermit:
         """Mint a permit only from the exact currently accepted lifecycle state."""
         with self.action_lock():
             if self.effect_fence is not None:
                 self.effect_fence.assert_clear()
+            self._assert_outbound_effect_integrity()
             state = self.reconstruct()
             if state.status not in {"ACCEPTED_CURRENT", "ACCEPTED_RECONCILED"}:
                 raise LifecycleActionDenied(
@@ -269,6 +286,7 @@ class NativeVeraLifecycle:
         ):
             raise LifecycleActionDenied("lifecycle permit digest mismatch")
 
+        self._assert_outbound_effect_integrity()
         state = self.reconstruct(reconcile_journal=False)
         if state.status != "ACCEPTED_CURRENT":
             raise LifecycleActionDenied(
@@ -369,6 +387,7 @@ class NativeVeraLifecycle:
     ) -> NativeLifecycleReceipt:
         if self.effect_fence is not None:
             self.effect_fence.assert_clear()
+        self._assert_outbound_effect_integrity()
         self.journal.verify_chain()
         observed_memory_head = self.memory.current_head
         if observed_memory_head != expected_memory_head:
@@ -480,6 +499,7 @@ class NativeVeraLifecycle:
         )
 
     def reconstruct(self, *, reconcile_journal: bool = True) -> LifecycleReconstruction:
+        self._assert_outbound_effect_integrity()
         self.journal.verify_chain()
         live_memory_head = self.memory.current_head
         control_digest = local_r10_source_digest()
