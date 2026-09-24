@@ -393,6 +393,7 @@
     "event_types": [
       "TASK_OPENED",
       "TASK_DEPENDENCY",
+      "TASK_DEPENDENCY_CANCELLED",
       "TASK_CORRECTION",
       "TASK_CHECKPOINT",
       "TASK_CLOSED"
@@ -447,7 +448,18 @@
         "invoke_task_coordination",
         "prepare_task_provider_effect",
         "prepare_task_pc_job"
-      ]
+      ],
+      "one_durable_owner_per_kind_target": true,
+      "post_hoc_claim": "DENY",
+      "exact_replay": "IDEMPOTENT",
+      "cancellation_event": "TASK_DEPENDENCY_CANCELLED",
+      "cancellation_allowed_only_before_target_start": true,
+      "cancellation_allowed_restart_flag": true,
+      "automatic_restart_cancellation": false,
+      "cancelled_dependency_id_reuse": "DENY",
+      "cancellation_evidence_auto_carried_into_closeout": true,
+      "task_action_lock": "PORTABLE_FILE_LOCK",
+      "closeout_serialized_against_task_scoped_work": true
     }
   }
 }
