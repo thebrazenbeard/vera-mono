@@ -1,0 +1,107 @@
+{
+  "schema": "VERA_MONO_TASK_EXECUTION_CLOSEOUT_V1",
+  "purpose": "Provide native durable task packets, resumable checkpoints, and evidence-bounded multi-surface closeout for substantial vera-mono work.",
+  "source_semantics": {
+    "native_project_owner": {
+      "logical_id": "VERA_TASK_EXECUTION_AND_CLOSEOUT",
+      "schema": "VERA_TASK_EXECUTION_AND_CLOSEOUT_V2"
+    },
+    "implementation_role": "monorepo-native derived runtime mechanism",
+    "project_source_presence_is_runtime_qualification": false,
+    "task_packet_grants_new_authority": false
+  },
+  "owner": "vera_core.TaskExecutionLedger",
+  "composition_root": "vera_core.QualifiedVeraRuntime",
+  "state_path": "<vera-state-root>/tasks/tasks.sqlite",
+  "task_packet": {
+    "fields": [
+      "purpose",
+      "subject",
+      "completion_state",
+      "evidence_requirements",
+      "writable_scope",
+      "non_targets",
+      "forbidden_shortcuts_or_effects",
+      "priority_order",
+      "unknowns",
+      "return_shape",
+      "relevant_surfaces"
+    ],
+    "exact_subject_required": true,
+    "deterministic_packet_digest": true
+  },
+  "checkpoint": {
+    "method": "QualifiedVeraRuntime.checkpoint_task",
+    "persists": [
+      "exact task subject",
+      "completed evidence references",
+      "blockers",
+      "protected effects still gated",
+      "next runnable frontier",
+      "runtime/lifecycle evidence digest"
+    ],
+    "automatically_surfaces_unresolved_effect_fence_entries": true,
+    "conversation_is_durable_state": false
+  },
+  "closeout_surfaces": [
+    "source",
+    "build/package",
+    "install/registration",
+    "current route",
+    "runtime consumption",
+    "behavior/effect",
+    "docs/rules",
+    "memory/privacy",
+    "workspace/coordination"
+  ],
+  "closeout_states": [
+    "verified-current",
+    "changed-and-verified",
+    "pending",
+    "out-of-scope",
+    "not-applicable"
+  ],
+  "closeout_rules": {
+    "every_relevant_surface_required": true,
+    "pending_relevant_surface_forbids_close": true,
+    "evidence_refs_required": true,
+    "blockers_forbid_close": true,
+    "claim_ceiling_required": true,
+    "next_frontier_required": true,
+    "surface_states_do_not_inherit_from_other_surfaces": true
+  },
+  "qualified_closeout_gate": {
+    "method": "QualifiedVeraRuntime.assess_task_closeout",
+    "requires_accepted_lifecycle": true,
+    "unresolved_effect_fence_forbids_close": true,
+    "coordination_recovery_gap_forbids_close": true,
+    "provider_recovery_gap_forbids_close": true,
+    "caller_supplied_blocker_forbids_close": true,
+    "runtime_evidence_digest_binds": [
+      "lifecycle reconstruction",
+      "outbound audit head",
+      "outbound trust head",
+      "coordination repository head when available",
+      "coordination command projection digest"
+    ]
+  },
+  "integrity": {
+    "journal": "append-only digest-chained SQLite event ledger",
+    "event_types": [
+      "TASK_OPENED",
+      "TASK_CHECKPOINT",
+      "TASK_CLOSED"
+    ],
+    "events_after_closeout": "FAIL_CLOSED",
+    "packet_digest_mismatch": "FAIL_CLOSED",
+    "event_payload_tamper": "FAIL_CLOSED"
+  },
+  "boundaries": {
+    "task_closeout_is_not_installation": true,
+    "task_closeout_is_not_provider_activation": true,
+    "task_closeout_is_not_protected_effect_authority": true,
+    "passing_tests_do_not_close_unproven_surfaces": true,
+    "destructive_cleanup_is_separate_effect": true,
+    "independent_review_not_implied": true
+  }
+}
