@@ -101,4 +101,6 @@ class VeraStateDirectory:
         return self.open().reconstruct()
 
     def resume_context(self) -> dict:
-        return self.reconstruct().as_resume_context()
+        context = self.reconstruct().as_resume_context()
+        context["outbound_trust"] = self.outbound_trust_registry().context()
+        return context
