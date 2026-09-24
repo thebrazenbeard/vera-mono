@@ -315,7 +315,9 @@
       "provider restart recovery assessment",
       "detached provider transport payload snapshot",
       "persistent coordination repository",
-      "coordination command/result recovery journal"
+      "coordination command/result recovery journal",
+      "durable task packets and resumable checkpoints",
+      "multi-surface evidence-bounded task closeout"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -375,5 +377,48 @@
     "committed_missing_command_result": "RECOVERY_REQUIRED_NO_REPLAY",
     "reserved": "CANCEL_PRE_DISPATCH_NO_EFFECT_ID_REUSE",
     "source_presence_is_deployment": false
+  },
+  "task_execution_closeout": {
+    "schema": "VERA_MONO_TASK_EXECUTION_CLOSEOUT_V1",
+    "contract": "architecture/VERA_TASK_EXECUTION_CLOSEOUT_V1.json",
+    "project_source_owner": {
+      "logical_id": "VERA_TASK_EXECUTION_AND_CLOSEOUT",
+      "schema": "VERA_TASK_EXECUTION_AND_CLOSEOUT_V2"
+    },
+    "ledger": "vera_core.TaskExecutionLedger",
+    "composition_root": "vera_core.QualifiedVeraRuntime",
+    "state_path": "tasks/tasks.sqlite",
+    "event_types": [
+      "TASK_OPENED",
+      "TASK_CHECKPOINT",
+      "TASK_CLOSED"
+    ],
+    "durable_task_packet": true,
+    "resumable_checkpoint": true,
+    "conversational_state_is_durable_state": false,
+    "closeout_surfaces": [
+      "source",
+      "build/package",
+      "install/registration",
+      "current route",
+      "runtime consumption",
+      "behavior/effect",
+      "docs/rules",
+      "memory/privacy",
+      "workspace/coordination"
+    ],
+    "closeout_gate": {
+      "pending_surface": "DENY",
+      "no_evidence": "DENY",
+      "unresolved_effect": "DENY",
+      "coordination_recovery_gap": "DENY",
+      "provider_recovery_gap": "DENY",
+      "supplied_blocker": "DENY",
+      "lifecycle_not_accepted": "DENY"
+    },
+    "claim_ceiling_required": true,
+    "independent_surface_closeout": true,
+    "protected_effect_authority": false,
+    "install_or_deploy_implied": false
   }
 }
