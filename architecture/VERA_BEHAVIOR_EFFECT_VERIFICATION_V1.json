@@ -1,0 +1,143 @@
+{
+  "schema": "VERA_MONO_BEHAVIOR_EFFECT_VERIFICATION_V1",
+  "purpose": "Verify that the exact live consumed Vera runtime exhibits a declared behavior or externally observable effect from host/external evidence, instead of inferring behavioral qualification from source, installation, route selection, or runtime consumption.",
+  "requirement_grammar": {
+    "syntax": "BEHAVIOR_EFFECT_VERIFY|<consumer-id>|<probe-id>|<BEHAVIOR-or-EFFECT>|<stimulus-sha256>|<outcome-sha256>",
+    "owner": "TaskPacket.evidence_requirements",
+    "requirement_requires_surface": "behavior/effect",
+    "matching_runtime_consumption_requirement_required": true,
+    "conflicting_bindings_for_same_consumer_probe": "DENY"
+  },
+  "composition": {
+    "store": "vera_core.BehaviorEffectVerificationStore",
+    "adapter": "vera_core.QualifiedBehaviorEffectVerificationAdapter",
+    "transport_protocol": "vera_core.BehaviorEffectVerificationTransport",
+    "concrete_json_transport": "vera_core.JsonFileBehaviorEffectVerificationTransport",
+    "state_path": "<vera-state-root>/behavior/verification.sqlite"
+  },
+  "runtime_consumption_prerequisite": {
+    "grammar": "RUNTIME_CONSUME_VERIFY|<same-consumer-id>|<route-id>|<expected-target>",
+    "exact_same_consumer_required": true,
+    "live_current_PASS_required": true,
+    "behavior_receipt_binds": [
+      "runtime consumption receipt digest",
+      "consumed process instance id",
+      "consumed runtime state digest"
+    ],
+    "runtime_consumption_PASS_is_behavior_effect_PASS": false,
+    "runtime_process_or_state_change_invalidates_behavior_effect_PASS": true
+  },
+  "observation": {
+    "receipt_schema": "VERA_MONO_BEHAVIOR_EFFECT_VERIFICATION_V1",
+    "append_only_digest_chain": true,
+    "statuses": [
+      "PASS",
+      "FAIL",
+      "UNAVAILABLE"
+    ],
+    "kinds": [
+      "BEHAVIOR",
+      "EFFECT"
+    ],
+    "binds": [
+      "task id",
+      "task packet digest",
+      "consumer id",
+      "probe id",
+      "evidence kind",
+      "expected stimulus digest",
+      "expected outcome digest",
+      "runtime consumption receipt digest",
+      "consumed process instance id",
+      "consumed runtime state digest",
+      "observed process instance id",
+      "observed runtime state digest",
+      "observed stimulus digest",
+      "observed outcome digest",
+      "external effect id when EFFECT",
+      "external effect receipt digest when EFFECT",
+      "external evidence digest",
+      "external evidence reference"
+    ],
+    "pass_requires": [
+      "host/external observation is available",
+      "consumer/probe/kind exactly match the declaration",
+      "observed process instance equals the exact live consumed process",
+      "observed runtime state digest equals the exact live consumed state",
+      "observed stimulus digest equals the declared stimulus digest",
+      "observed outcome digest equals the declared outcome digest",
+      "external evidence digest is present",
+      "external evidence reference is present"
+    ],
+    "behavior_kind": {
+      "external_effect_id_allowed": false,
+      "external_effect_receipt_digest_allowed": false
+    },
+    "effect_kind": {
+      "external_effect_id_required": true,
+      "external_effect_receipt_digest_required": true
+    }
+  },
+  "live_currentness": {
+    "stored_PASS_is_sufficient_without_refresh": false,
+    "live_external_observation_must_match_exact_stored_PASS": true,
+    "current_runtime_consumption_receipt_must_match_stored_behavior_receipt": true,
+    "current_process_instance_must_match": true,
+    "current_runtime_state_digest_must_match": true,
+    "external_evidence_digest_change_invalidates_stored_PASS": true,
+    "external_effect_receipt_change_invalidates_stored_PASS": true,
+    "missing_transport_after_stored_PASS": "PENDING_NOT_CURRENT"
+  },
+  "json_external_evidence_transport": {
+    "mechanism": "read-only host/external-written JSON evidence file",
+    "mutation": false,
+    "exact_evidence_digest": "SHA-256 over raw evidence-file bytes",
+    "required_common_fields": [
+      "probe_id",
+      "evidence_kind",
+      "process_instance_id",
+      "runtime_state_digest",
+      "stimulus_digest",
+      "outcome_digest"
+    ],
+    "effect_only_fields": [
+      "external_effect_id",
+      "external_effect_receipt_digest"
+    ],
+    "missing_file": "UNAVAILABLE",
+    "credentials_required": false
+  },
+  "task_closeout": {
+    "any_matching_BEHAVIOR_EFFECT_VERIFY_requires_all_current_PASS": true,
+    "behavior_effect_surface_must_be": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "out_of_scope_or_not_applicable_with_requirement": "DENY",
+    "evidence_ref": "task-behavior-effect:<consumer-id>:<probe-id>:<receipt-digest>",
+    "task_runtime_evidence_cut_includes_behavior_effect_verification_head": true,
+    "closed_task_new_observation": "DENY"
+  },
+  "restart": {
+    "conversation_state_required": false,
+    "state_store_reopened_from_VeraStateDirectory": true,
+    "runtime_context": "behavior_effect_recovery",
+    "live_transport_missing": "stored PASS is historical evidence only, not current qualification"
+  },
+  "boundaries": {
+    "source_pass_is_not_behavior_effect_pass": true,
+    "package_pass_is_not_behavior_effect_pass": true,
+    "installation_pass_is_not_behavior_effect_pass": true,
+    "route_pass_is_not_behavior_effect_pass": true,
+    "runtime_consumption_pass_is_not_behavior_effect_pass": true,
+    "behavior_effect_pass_is_not_provider_activation": true,
+    "behavior_effect_pass_is_not_protected_effect_authority": true,
+    "behavior_effect_pass_is_not_deployment": true,
+    "behavior_effect_pass_is_not_independent_review": true,
+    "behavior_effect_pass_is_not_consciousness_or_phenomenology_evidence": true,
+    "verification_transport_is_read_only": true,
+    "verification_grants_no_runtime_mutation_authority": true,
+    "host_external_evidence_requires_truthful_external_observation": true,
+    "JSON_file_digest_proves_exact_bytes_not_host_truthfulness": true
+  }
+}
