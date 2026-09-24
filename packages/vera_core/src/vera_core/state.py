@@ -11,6 +11,7 @@ from vera_recovery import NativeRecoveryCheckpointStore
 from .lifecycle import LifecycleReconstruction, NativeVeraLifecycle
 from .lifecycle_journal import LifecycleJournal
 from .outbound_trust import OutboundTrustRegistry
+from .pc_execution_binding import PCExecutionBindingStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +23,7 @@ class VeraStatePaths:
     lifecycle_journal: Path
     effects: Path
     outbound_trust: Path
+    pc_execution_bindings: Path
     trust: Path
 
 
@@ -58,6 +60,9 @@ class VeraStateDirectory:
             lifecycle_journal=candidate / "lifecycle" / "journal.sqlite",
             effects=candidate / "effects" / "effects.sqlite",
             outbound_trust=candidate / "trust" / "outbound.sqlite",
+            pc_execution_bindings=(
+                candidate / "pc" / "execution-bindings.sqlite"
+            ),
             trust=candidate / "recovery" / "trust",
         )
         self.project_id = project_id
@@ -96,6 +101,9 @@ class VeraStateDirectory:
 
     def outbound_trust_registry(self) -> OutboundTrustRegistry:
         return OutboundTrustRegistry(self.paths.outbound_trust)
+
+    def pc_execution_binding_store(self) -> PCExecutionBindingStore:
+        return PCExecutionBindingStore(self.paths.pc_execution_bindings)
 
     def reconstruct(self) -> LifecycleReconstruction:
         return self.open().reconstruct()
