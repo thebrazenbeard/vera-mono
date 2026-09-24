@@ -355,3 +355,71 @@ def test_delegation_return_must_exactly_satisfy_declared_return_shape(tmp_path):
 
     current = runtime.tasks.read("task-a").delegation("d1")
     assert current.active is True
+
+
+def test_active_delegation_blocks_independent_subject_mutation_claim(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    delegated = runtime.start_task("task-a", packet("task-a"))
+    delegated = delegate(runtime, "task-a")
+    owner_ref = delegated.delegation_ref("d1")
+
+    with pytest.raises(TaskExecutionError):
+        runtime.assert_task_subject_mutation_allowed(
+            repository=owner_ref.repository,
+            ref=owner_ref.ref,
+            subject=owner_ref.subject,
+            actor_ref="parent/runtime",
+        )
+
+    with pytest.raises(TaskExecutionError):
+        runtime.assert_task_subject_mutation_allowed(
+            repository=owner_ref.repository,
+            ref=owner_ref.ref,
+            subject=owner_ref.subject,
+            actor_ref="worker/b",
+            delegation_ref=owner_ref,
+        )
+
+    assert runtime.assert_task_subject_mutation_allowed(
+        repository=owner_ref.repository,
+        ref=owner_ref.ref,
+        subject=owner_ref.subject,
+        actor_ref="worker/a",
+        delegation_ref=owner_ref,
+    ) == owner_ref
+
+
+def test_terminal_delegation_releases_subject_from_delegation_guard(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-a", packet("task-a"))
+    delegated = delegate(runtime, "task-a")
+    owner_ref = delegated.delegation_ref("d1")
+    runtime.return_task_delegation(
+        "task-a",
+        "d1",
+        "return-release",
+        summary="scope returned",
+        return_values={
+            "exact head": "abc123",
+            "changed files": "packages/vera_core/src/vera_core/delegated.py",
+            "test evidence": "CI:PASS",
+        },
+        result_evidence_refs=("bus:return-release",),
+    )
+
+    assert runtime.assert_task_subject_mutation_allowed(
+        repository=owner_ref.repository,
+        ref=owner_ref.ref,
+        subject=owner_ref.subject,
+        actor_ref="parent/runtime",
+    ) is None
+    with pytest.raises(TaskExecutionError):
+        runtime.assert_task_subject_mutation_allowed(
+            repository=owner_ref.repository,
+            ref=owner_ref.ref,
+            subject=owner_ref.subject,
+            actor_ref="worker/a",
+            delegation_ref=owner_ref,
+        )
