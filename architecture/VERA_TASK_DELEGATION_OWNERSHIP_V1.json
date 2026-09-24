@@ -91,6 +91,11 @@
       "stale_owner_ref": "DENY",
       "exact_current_owner_ref": "ALLOW_DELEGATION_GUARD_ONLY"
     },
-    "note": "Passing the delegation guard does not grant repository/provider authority; downstream mutation adapters must still enforce their own authority."
+    "note": "Passing the delegation guard does not grant repository/provider authority; downstream mutation adapters must still enforce their own authority.",
+    "source_mutation_adapter": "vera_core.QualifiedSourceMutationAdapter",
+    "source_mutation_contract": "architecture/VERA_QUALIFIED_SOURCE_MUTATION_V1.json",
+    "source_mutation_rechecks_guard_immediately_before_transport": true,
+    "source_mutation_also_requires_task_packet_writable_scope": true,
+    "generic_provider_dispatch_for_source_namespace": "DENY"
   }
 }
