@@ -279,6 +279,24 @@
       "CAS_registry_generation": true,
       "digest_chained_history": true,
       "external_effect_execution_serialized_against_trust_mutation": true
+    },
+    "effect_integrity": {
+      "contract": "architecture/VERA_OUTBOUND_EFFECT_INTEGRITY_V1.json",
+      "audit": "vera_core.OutboundExecutionAudit",
+      "fence": "vera_assurance.EffectFence",
+      "automatic_restart_repair": true,
+      "lifecycle_gate": true,
+      "cross_checks": [
+        "state",
+        "request_digest",
+        "mechanical_permit_digest",
+        "authority_evidence_digest",
+        "currentness_evidence_digest",
+        "result_digest",
+        "reconciliation_evidence_digest"
+      ],
+      "unaudited_fence_effect": "FAIL_CLOSED",
+      "authority_only_audit_event": "ALLOWED_NO_EFFECT_RESERVED"
     }
   },
   "qualified_runtime": {
@@ -290,7 +308,9 @@
       "PC/provider effect gateway",
       "ambiguous-effect recovery gateway",
       "PC/provider request preparation with lifecycle-bound authority subjects",
-      "persistent authority-currentness enforcement"
+      "persistent authority-currentness enforcement",
+      "outbound audit/effect-fence restart reconciliation",
+      "cross-ledger outbound integrity gating"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
