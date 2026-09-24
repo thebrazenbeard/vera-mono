@@ -88,16 +88,21 @@ class VeraStateDirectory:
         currentness = AtomicCurrentnessStore(self.paths.currentness)
         journal = LifecycleJournal(self.paths.lifecycle_journal)
         effect_fence = EffectFence(self.paths.effects)
-        return NativeVeraLifecycle(
+        effect_audit = OutboundExecutionAudit(self.paths.outbound_audit)
+        lifecycle = NativeVeraLifecycle(
             memory=memory,
             checkpoints=checkpoints,
             currentness=currentness,
             journal=journal,
             effect_fence=effect_fence,
+            effect_audit=effect_audit,
             project_id=self.project_id,
             identity_id=self.identity_id,
             currentness_subject_id=self.currentness_subject_id,
         )
+        with lifecycle.action_lock():
+            effect_audit.repair_from_fence(effect_fence)
+        return lifecycle
 
     def effect_fence(self) -> EffectFence:
         return EffectFence(self.paths.effects)
