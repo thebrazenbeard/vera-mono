@@ -753,3 +753,37 @@ def test_task_pc_execution_binding_persists_task_provenance(tmp_path):
         reopened.prepared.task_dependency
         == task_prepared.task_dependency
     )
+
+
+def test_task_pc_dependency_rejects_non_task_execution_binding(tmp_path):
+    state, runtime, _, prepared, _, _ = runtime_and_adapter(tmp_path)
+    runtime.start_task(
+        "task-pc-launder",
+        TaskPacket(
+            purpose="Reject PC evidence laundering.",
+            subject="pc-task-launder",
+            completion_state="Only task-bound PC evidence may satisfy dependency.",
+            evidence_requirements=("task provenance",),
+            writable_scope=("local-test-state",),
+            non_targets=("deployment",),
+            forbidden_shortcuts_or_effects=("no post-hoc provenance",),
+            priority_order=("correctness", "evidence"),
+            unknowns=(),
+            return_shape=("assessment",),
+            relevant_surfaces=("source",),
+        ),
+    )
+    runtime.bind_task_dependency(
+        "task-pc-launder",
+        "dep-pc-launder",
+        kind="EFFECT",
+        target_id=f"pc:{prepared.job.envelope_id}",
+    )
+
+    # Persist the same PC attempt through the non-task prepared object.
+    state.pc_execution_binding_store().bind(prepared, lease())
+
+    assessment = runtime.assess_task_dependencies("task-pc-launder")[0]
+    assert assessment.status == "PROVENANCE_MISMATCH"
+    assert assessment.satisfied is False
+    assert assessment.cancellation_allowed is False
