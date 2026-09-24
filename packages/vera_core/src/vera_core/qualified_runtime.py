@@ -135,6 +135,7 @@ class QualifiedVeraRuntime:
                 fence=fence,
                 verifier=reconciliation_verifier,
                 outbound_trust_registry=outbound_trust,
+                audit=audit,
             )
         )
         return cls(
