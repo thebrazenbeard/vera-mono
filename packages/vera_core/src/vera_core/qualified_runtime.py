@@ -22,6 +22,7 @@ from .outbound_authority import (
     provider_authority_subject,
     validate_pc_authorization_binding,
 )
+from .outbound_audit import OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 from .pc_execution_binding import PreparedPCDispatch
 from .state import VeraStateDirectory
@@ -58,6 +59,7 @@ class QualifiedVeraRuntime:
     coordination: LifecycleBoundCoordinationBus | None
     recovery: LifecycleEffectRecovery | None
     outbound_trust: OutboundTrustRegistry
+    audit: OutboundExecutionAudit
 
     @classmethod
     def from_state_directory(
@@ -79,6 +81,8 @@ class QualifiedVeraRuntime:
         fence = lifecycle.effect_fence or state.effect_fence()
         outbound_trust = state.outbound_trust_registry()
         outbound_trust.verify_chain()
+        audit = state.outbound_execution_audit()
+        audit.verify_chain()
 
         if pc_authority_verifier is not None:
             outbound_trust.assert_current(
@@ -111,6 +115,7 @@ class QualifiedVeraRuntime:
             pc_authority_verifier=pc_authority_verifier,
             provider_authority_verifiers=provider_authority_verifiers,
             outbound_trust_registry=outbound_trust,
+            audit=audit,
             clock=clock,
         )
         coordination = (
@@ -120,6 +125,7 @@ class QualifiedVeraRuntime:
                 lifecycle=lifecycle,
                 bus=coordination_bus,
                 fence=fence,
+                audit=audit,
             )
         )
         recovery = (
@@ -138,6 +144,7 @@ class QualifiedVeraRuntime:
             coordination=coordination,
             recovery=recovery,
             outbound_trust=outbound_trust,
+            audit=audit,
         )
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
@@ -258,4 +265,5 @@ class QualifiedVeraRuntime:
     def resume_context(self) -> dict[str, Any]:
         context = self.lifecycle.reconstruct().as_resume_context()
         context["outbound_trust"] = self.outbound_trust.context()
+        context["outbound_audit"] = self.audit.context()
         return context
