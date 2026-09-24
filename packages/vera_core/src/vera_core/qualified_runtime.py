@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Callable, Mapping, TypeVar
 
 from coordination_bus import CoordinationBus
+from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
 from vera_assurance import EffectFence, EffectReceipt, EffectState
 from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 
@@ -42,6 +43,14 @@ from .provider_execution_binding import (
     ProviderExecutionRecoveryAssessment,
 )
 from .state import VeraStateDirectory
+from .task_execution import (
+    CLOSEOUT_STATES,
+    TaskCloseoutAssessment,
+    TaskExecutionError,
+    TaskExecutionLedger,
+    TaskPacket,
+    TaskState,
+)
 
 
 T = TypeVar("T")
@@ -70,6 +79,7 @@ class QualifiedVeraRuntime:
     pc_execution_bindings: PCExecutionBindingStore
     provider_execution_bindings: ProviderExecutionBindingStore
     coordination_commands: CoordinationCommandJournal
+    tasks: TaskExecutionLedger
 
     @classmethod
     def from_state_directory(
@@ -103,6 +113,7 @@ class QualifiedVeraRuntime:
             state.provider_execution_binding_store()
         )
         coordination_commands = state.coordination_command_journal()
+        tasks = state.task_execution_ledger()
 
         if pc_authority_verifier is not None:
             outbound_trust.assert_current(
@@ -205,10 +216,189 @@ class QualifiedVeraRuntime:
             pc_execution_bindings=pc_execution_bindings,
             provider_execution_bindings=provider_execution_bindings,
             coordination_commands=coordination_commands,
+            tasks=tasks,
         )
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
         return self.lifecycle.accepted_action_permit()
+
+    def _task_runtime_evidence_digest(self) -> str:
+        lifecycle_context = self.lifecycle.reconstruct().as_resume_context()
+        integrity = self.audit.verify_fence_consistency(self.fence)
+        trust_head = self.outbound_trust.verify_chain()
+        repository = self.coordination.bus.repository
+        verify_coordination = getattr(repository, "verify_integrity", None)
+        coordination_head = (
+            verify_coordination()
+            if callable(verify_coordination)
+            else None
+        )
+        coordination_projection = (
+            self.coordination_commands.verify_integrity()
+        )
+        body = {
+            "schema": "VERA_MONO_TASK_RUNTIME_EVIDENCE_V1",
+            "project_id": self.lifecycle.project_id,
+            "identity_id": self.lifecycle.identity_id,
+            "lifecycle": lifecycle_context,
+            "outbound_audit_head_digest": integrity.audit_head_digest,
+            "outbound_trust_head_digest": trust_head,
+            "coordination_head_digest": coordination_head,
+            "coordination_command_projection_digest": (
+                coordination_projection
+            ),
+        }
+        return sha256_hex(canonical_json_bytes(body))
+
+    def start_task(
+        self,
+        task_id: str,
+        packet: TaskPacket,
+    ) -> TaskState:
+        return self.tasks.open_task(
+            task_id,
+            packet,
+            lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+        )
+
+    def checkpoint_task(
+        self,
+        task_id: str,
+        checkpoint_id: str,
+        *,
+        completed_evidence: tuple[str, ...] = (),
+        blockers: tuple[str, ...] = (),
+        protected_effects_still_gated: tuple[str, ...] = (),
+        next_frontier: str,
+    ) -> TaskState:
+        unresolved = tuple(
+            f"{receipt.effect_id}:{receipt.state.value}"
+            for receipt in self.fence.unresolved()
+        )
+        protected = tuple(
+            dict.fromkeys(
+                (*protected_effects_still_gated, *unresolved)
+            )
+        )
+        return self.tasks.checkpoint(
+            task_id,
+            checkpoint_id,
+            completed_evidence=completed_evidence,
+            blockers=blockers,
+            protected_effects_still_gated=protected,
+            next_frontier=next_frontier,
+            lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+        )
+
+    def assess_task_closeout(
+        self,
+        task_id: str,
+        *,
+        surfaces: Mapping[str, str],
+        additional_blockers: tuple[str, ...] = (),
+    ) -> TaskCloseoutAssessment:
+        state = self.tasks.read(task_id)
+        reasons: list[str] = []
+        surfaces_ready = True
+        try:
+            self.tasks._validate_surfaces(state.packet, surfaces)
+        except TaskExecutionError as exc:
+            surfaces_ready = False
+            reasons.append(str(exc))
+
+        reconstruction = self.lifecycle.reconstruct()
+        lifecycle_status = reconstruction.status
+        if lifecycle_status not in {
+            "ACCEPTED_CURRENT",
+            "ACCEPTED_RECONCILED",
+        }:
+            reasons.append(
+                f"lifecycle is not accepted-current: {lifecycle_status}"
+            )
+
+        unresolved_effect_ids = tuple(
+            receipt.effect_id
+            for receipt in self.fence.unresolved()
+        )
+        if unresolved_effect_ids:
+            reasons.append(
+                "unresolved protected effects remain: "
+                + ", ".join(unresolved_effect_ids)
+            )
+
+        coordination_recovery_ids = tuple(
+            assessment.command_id
+            for assessment in self.coordination.recover_commands()
+            if assessment.recovery_required
+        )
+        if coordination_recovery_ids:
+            reasons.append(
+                "coordination commands require recovery: "
+                + ", ".join(coordination_recovery_ids)
+            )
+
+        provider_recovery_ids = tuple(
+            assessment.effect_id
+            for assessment in self.recover_provider_effects()
+            if assessment.recovery_required
+        )
+        if provider_recovery_ids:
+            reasons.append(
+                "provider effects require recovery: "
+                + ", ".join(provider_recovery_ids)
+            )
+
+        blockers = tuple(additional_blockers)
+        if blockers:
+            reasons.append(
+                "task blockers remain: " + ", ".join(blockers)
+            )
+
+        if state.closed:
+            reasons.append("task is already closed")
+
+        return TaskCloseoutAssessment(
+            task_id=task_id,
+            lifecycle_status=lifecycle_status,
+            surfaces_ready=surfaces_ready,
+            unresolved_effect_ids=unresolved_effect_ids,
+            coordination_recovery_ids=coordination_recovery_ids,
+            provider_recovery_ids=provider_recovery_ids,
+            supplied_blockers=blockers,
+            ready=not reasons,
+            reasons=tuple(reasons),
+        )
+
+    def close_task(
+        self,
+        task_id: str,
+        closeout_id: str,
+        *,
+        surfaces: Mapping[str, str],
+        evidence_refs: tuple[str, ...],
+        claim_ceiling: str,
+        next_frontier: str,
+        additional_blockers: tuple[str, ...] = (),
+    ) -> TaskState:
+        assessment = self.assess_task_closeout(
+            task_id,
+            surfaces=surfaces,
+            additional_blockers=additional_blockers,
+        )
+        if not assessment.ready:
+            raise TaskExecutionError(
+                "task closeout blocked: " + "; ".join(assessment.reasons)
+            )
+        return self.tasks.close_task(
+            task_id,
+            closeout_id,
+            surfaces=surfaces,
+            evidence_refs=evidence_refs,
+            blockers=(),
+            claim_ceiling=claim_ceiling,
+            next_frontier=next_frontier,
+            lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+        )
 
     def cancel_reserved_effect(self, effect_id: str) -> EffectReceipt:
         """Cancel an effect proven not to have crossed the dispatch claim."""
@@ -573,6 +763,7 @@ class QualifiedVeraRuntime:
             ),
         }
         context["coordination_commands"] = self.coordination_commands.context()
+        context["tasks"] = self.tasks.context()
         context["coordination_command_recovery"] = [
             {
                 "command_id": assessment.command_id,
