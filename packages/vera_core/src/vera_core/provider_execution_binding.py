@@ -10,6 +10,7 @@ from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
 
 from .lifecycle import AcceptedLifecyclePermit
 from .outbound_authority import provider_authority_subject
+from .task_execution import TaskDependencyRef
 
 
 class ProviderExecutionBindingError(ValueError):
@@ -35,6 +36,7 @@ class PreparedProviderDispatch:
     request_payload: Any
     request_digest: str
     authority_subject: str
+    task_dependency: TaskDependencyRef | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +62,7 @@ class ProviderExecutionBinding:
     request_digest: str
     authority_subject: str
     permit: AcceptedLifecyclePermit
+    task_dependency: TaskDependencyRef | None
 
 
 class ProviderExecutionBindingStore:
@@ -71,7 +74,8 @@ class ProviderExecutionBindingStore:
     content that may itself contain secrets.
     """
 
-    SCHEMA = "VERA_MONO_PROVIDER_EXECUTION_BINDING_V1"
+    SCHEMA = "VERA_MONO_PROVIDER_EXECUTION_BINDING_V2"
+    LEGACY_SCHEMA = "VERA_MONO_PROVIDER_EXECUTION_BINDING_V1"
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
@@ -108,6 +112,11 @@ class ProviderExecutionBindingStore:
                 "permit_digest": prepared.permit.permit_digest,
             },
             "request_payload_persisted": False,
+            "task_dependency": (
+                None
+                if prepared.task_dependency is None
+                else prepared.task_dependency.canonical_body()
+            ),
         }
 
     def bind(
@@ -161,6 +170,7 @@ class ProviderExecutionBindingStore:
             request_digest=prepared.request_digest,
             authority_subject=prepared.authority_subject,
             permit=prepared.permit,
+            task_dependency=prepared.task_dependency,
         )
 
     def read(self, effect_id: str) -> ProviderExecutionBinding:
@@ -212,6 +222,11 @@ class ProviderExecutionBindingStore:
                     "authority_subject": binding.authority_subject,
                     "lifecycle_permit_digest": binding.permit.permit_digest,
                     "request_payload_persisted": False,
+                    "task_dependency": (
+                        None
+                        if binding.task_dependency is None
+                        else binding.task_dependency.canonical_body()
+                    ),
                 }
                 for binding in bindings
             ],
@@ -235,7 +250,7 @@ class ProviderExecutionBindingStore:
             ) from exc
         if (
             not isinstance(payload, dict)
-            or payload.get("schema") != cls.SCHEMA
+            or payload.get("schema") not in {cls.SCHEMA, cls.LEGACY_SCHEMA}
             or payload.get("request_payload_persisted") is not False
         ):
             raise ProviderExecutionBindingError(
@@ -265,8 +280,37 @@ class ProviderExecutionBindingStore:
             raise ProviderExecutionBindingError(
                 "stored provider authority subject mismatch"
             )
+        raw_task_dependency = payload.get("task_dependency")
+        task_dependency = None
+        if raw_task_dependency is not None:
+            if not isinstance(raw_task_dependency, dict):
+                raise ProviderExecutionBindingError(
+                    "stored provider task dependency must be an object"
+                )
+            try:
+                task_dependency = TaskDependencyRef(
+                    task_id=str(raw_task_dependency["task_id"]),
+                    dependency_id=str(raw_task_dependency["dependency_id"]),
+                    kind=str(raw_task_dependency["kind"]),
+                    target_id=str(raw_task_dependency["target_id"]),
+                    binding_event_digest=str(
+                        raw_task_dependency["binding_event_digest"]
+                    ),
+                )
+            except KeyError as exc:
+                raise ProviderExecutionBindingError(
+                    "stored provider task dependency is incomplete"
+                ) from exc
+            if (
+                task_dependency.kind != "PROVIDER_EFFECT"
+                or task_dependency.target_id != payload["effect_id"]
+                or len(task_dependency.binding_event_digest) != 64
+            ):
+                raise ProviderExecutionBindingError(
+                    "stored provider task dependency binding mismatch"
+                )
         expected_payload = {
-            "schema": cls.SCHEMA,
+            "schema": payload["schema"],
             "effect_id": payload["effect_id"],
             "provider_id": payload["provider_id"],
             "operation": payload["operation"],
@@ -278,6 +322,12 @@ class ProviderExecutionBindingStore:
             },
             "request_payload_persisted": False,
         }
+        if payload["schema"] == cls.SCHEMA:
+            expected_payload["task_dependency"] = (
+                None
+                if task_dependency is None
+                else task_dependency.canonical_body()
+            )
         if _exact_json(expected_payload) != payload_json:
             raise ProviderExecutionBindingError(
                 "provider execution binding canonical readback mismatch"
@@ -290,4 +340,5 @@ class ProviderExecutionBindingStore:
             request_digest=payload["request_digest"],
             authority_subject=subject,
             permit=permit,
+            task_dependency=task_dependency,
         )
