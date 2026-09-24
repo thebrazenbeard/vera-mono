@@ -16,6 +16,7 @@ from .outbound_audit import OutboundExecutionAudit
 from .outbound_trust import OutboundTrustRegistry
 from .pc_execution_binding import PCExecutionBindingStore
 from .provider_execution_binding import ProviderExecutionBindingStore
+from .source_mutation_binding import SourceMutationBindingStore
 from .task_execution import TaskExecutionLedger
 
 
@@ -31,6 +32,7 @@ class VeraStatePaths:
     outbound_trust: Path
     pc_execution_bindings: Path
     provider_execution_bindings: Path
+    source_mutation_bindings: Path
     coordination: Path
     coordination_commands: Path
     tasks: Path
@@ -76,6 +78,9 @@ class VeraStateDirectory:
             ),
             provider_execution_bindings=(
                 candidate / "provider" / "execution-bindings.sqlite"
+            ),
+            source_mutation_bindings=(
+                candidate / "source" / "mutation-bindings.sqlite"
             ),
             coordination=candidate / "coordination" / "events.sqlite",
             coordination_commands=(
@@ -139,6 +144,13 @@ class VeraStateDirectory:
             self.paths.provider_execution_bindings
         )
 
+    def source_mutation_binding_store(
+        self,
+    ) -> SourceMutationBindingStore:
+        return SourceMutationBindingStore(
+            self.paths.source_mutation_bindings
+        )
+
     def coordination_repository(self) -> SQLiteCoordinationRepository:
         return SQLiteCoordinationRepository(self.paths.coordination)
 
@@ -175,6 +187,9 @@ class VeraStateDirectory:
         )
         context["provider_execution_bindings"] = (
             self.provider_execution_binding_store().context()
+        )
+        context["source_mutation_bindings"] = (
+            self.source_mutation_binding_store().context()
         )
         context["coordination"] = self.coordination_repository().context()
         context["coordination_commands"] = (
