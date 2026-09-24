@@ -74,6 +74,7 @@ from .provider_execution_binding import (
     ProviderExecutionBinding,
     ProviderExecutionBindingError,
     ProviderExecutionBindingStore,
+    ProviderExecutionRecoveryAssessment,
 )
 from .qualified_runtime import QualifiedVeraRuntime
 from .reasoning_cascade import (
@@ -126,6 +127,7 @@ __all__ = [
     "ProviderExecutionBinding",
     "ProviderExecutionBindingError",
     "ProviderExecutionBindingStore",
+    "ProviderExecutionRecoveryAssessment",
     "QualifiedVeraRuntime",
     "pc_authority_subject",
     "provider_authority_subject",
