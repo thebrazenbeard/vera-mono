@@ -692,3 +692,23 @@ def test_qualified_pc_journal_path_uses_runtime_injected_transport(tmp_path):
         "transport": "pc",
         "operation": "PING",
     }
+
+
+def test_qualified_pc_adapter_uses_runtime_binding_store_by_default(tmp_path):
+    state, runtime, adapter, prepared, proof, _ = runtime_and_adapter(tmp_path)
+    assert adapter.bindings.path == runtime.pc_execution_bindings.path
+
+    adapter.execute(
+        prepared,
+        authority_proof=proof,
+        lease=lease(),
+        event_source=Events(),
+        execute=lambda: {"pong": True},
+    )
+
+    resume = runtime.resume_context()
+    assert resume["pc_execution_bindings"]["binding_count"] == 1
+    binding = resume["pc_execution_bindings"]["bindings"][0]
+    assert binding["effect_id"] == f"pc:{prepared.job.envelope_id}"
+    assert binding["attempt_id"] == lease().attempt_id
+    assert binding["lifecycle_permit_digest"] == prepared.permit.permit_digest
