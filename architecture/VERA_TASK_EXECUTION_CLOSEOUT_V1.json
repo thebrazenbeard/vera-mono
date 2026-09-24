@@ -30,7 +30,8 @@
     "exact_subject_required": true,
     "deterministic_packet_digest": true,
     "writable_scope_source_grammar": "SOURCE|<repository>|<ref>|<path-or-prefix/**>",
-    "untyped_writable_scope_grants_qualified_source_write": false
+    "untyped_writable_scope_grants_qualified_source_write": false,
+    "evidence_requirement_source_verification_grammar": "SOURCE_VERIFY|<repository>|<ref>|<check-name>"
   },
   "checkpoint": {
     "method": "QualifiedVeraRuntime.checkpoint_task",
@@ -87,7 +88,8 @@
       "coordination command projection digest"
     ],
     "bound_task_dependency_not_satisfied_forbids_close": true,
-    "active_delegation_forbids_close": true
+    "active_delegation_forbids_close": true,
+    "required_source_verification_forbids_close": "matching SOURCE_VERIFY requirements remain non-PASS"
   },
   "integrity": {
     "journal": "append-only digest-chained SQLite event ledger",
@@ -174,7 +176,16 @@
       "provider": [
         "COMMITTED",
         "RECONCILED_COMMITTED"
-      ]
+      ],
+      "source_provider_effect": {
+        "no_SOURCE_VERIFY_requirement": "successful terminal source provider effect + exact durable source mutation outcome",
+        "matching_SOURCE_VERIFY_requirement": "successful terminal source provider effect + exact durable source mutation outcome + exact-commit PASS verification receipt",
+        "FAIL": "PENDING",
+        "PENDING": "PENDING",
+        "UNAVAILABLE": "PENDING",
+        "STALE_HEAD": "PROVENANCE_MISMATCH",
+        "evidence_digest": "composite digest binding mutation id + source outcome digest + verification receipt digest + exact commit SHA"
+      }
     },
     "terminal_no_effect_is_satisfied": false,
     "unresolved_or_unsatisfied_forbids_closeout": true,
@@ -240,6 +251,8 @@
     "task_packet_writable_scope_required": true,
     "delegation_guard_required_for_active_subject": true,
     "provider_authority_and_lifecycle_required": true,
-    "generic_provider_source_escape": "DENY"
+    "generic_provider_source_escape": "DENY",
+    "source_verification_contract": "architecture/VERA_SOURCE_VERIFICATION_V1.json",
+    "source_verification_runtime": "vera_core.QualifiedSourceVerificationAdapter"
   }
 }
