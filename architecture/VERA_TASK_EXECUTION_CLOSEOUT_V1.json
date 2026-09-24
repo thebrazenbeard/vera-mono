@@ -159,7 +159,8 @@
       "MISSING",
       "PENDING",
       "RECOVERY_REQUIRED",
-      "TERMINAL_UNSATISFIED"
+      "TERMINAL_UNSATISFIED",
+      "PROVENANCE_MISMATCH"
     ],
     "success_semantics": {
       "effect": [
@@ -220,6 +221,9 @@
     ],
     "active_delegation_forbids_closeout": true,
     "terminal_delegation_evidence_auto_carried_into_closeout": true,
-    "restart_context_exposes_active_owner": true
+    "restart_context_exposes_active_owner": true,
+    "return_shape_enforced": true,
+    "active_owner_reference": "vera_core.TaskDelegationRef",
+    "stale_owner_reference_after_reassignment": "DENY"
   }
 }
