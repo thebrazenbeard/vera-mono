@@ -159,6 +159,76 @@ def authority_for(verifier, prepared):
     )
 
 
+def reserve_source_effect_without_dispatch(runtime, prepared):
+    dispatch = prepared.provider_dispatch
+    mechanical_effect_id = (
+        f"provider:{dispatch.provider_id}:{dispatch.effect_id}"
+    )
+    effect_kind = (
+        f"PROVIDER/{dispatch.provider_id}/{dispatch.operation}"
+    )
+    outer_payload = {
+        "provider_request_digest": dispatch.request_digest,
+        "request_payload": dispatch.request_payload,
+        "authority_subject": dispatch.authority_subject,
+    }
+    request_digest = runtime.effects.effect_request_digest(
+        permit=dispatch.permit,
+        effect_id=mechanical_effect_id,
+        effect_kind=effect_kind,
+        request_payload=outer_payload,
+    )
+    mechanical_permit_digest = runtime.effects.mechanical_permit_digest(
+        permit=dispatch.permit,
+        effect_id=mechanical_effect_id,
+        request_digest=request_digest,
+    )
+    authority_evidence_digest = "a" * 64
+    runtime.audit.append(
+        effect_id=mechanical_effect_id,
+        effect_kind=effect_kind,
+        event_type="AUTHORITY_VERIFIED",
+        payload={
+            "request_digest": request_digest,
+            "mechanical_permit_digest": mechanical_permit_digest,
+            "lifecycle_permit": {
+                **dispatch.permit.canonical_body(),
+                "permit_digest": dispatch.permit.permit_digest,
+            },
+            "authority_evidence_digest": authority_evidence_digest,
+            "authority_details": {
+                "kind": "TEST_PRE_DISPATCH_RESERVATION",
+                "task_dependency": (
+                    None
+                    if dispatch.task_dependency is None
+                    else dispatch.task_dependency.canonical_body()
+                ),
+            },
+        },
+    )
+    reserved = runtime.fence.reserve(
+        effect_id=mechanical_effect_id,
+        request_digest=request_digest,
+        mechanical_permit_digest=mechanical_permit_digest,
+        authority_evidence_digest=authority_evidence_digest,
+        currentness_evidence_digest=dispatch.permit.permit_digest,
+    )
+    runtime.audit.append(
+        effect_id=mechanical_effect_id,
+        effect_kind=effect_kind,
+        event_type="RESERVED",
+        payload={
+            "request_digest": reserved.request_digest,
+            "mechanical_permit_digest": reserved.mechanical_permit_digest,
+            "authority_evidence_digest": reserved.authority_evidence_digest,
+            "currentness_evidence_digest": (
+                reserved.currentness_evidence_digest
+            ),
+        },
+    )
+    return mechanical_effect_id
+
+
 def test_source_write_requires_task_packet_writable_scope_before_transport(tmp_path):
     _, runtime, verifier, transport = runtime_with_source(tmp_path)
     runtime.start_task(
@@ -865,4 +935,125 @@ def test_source_restart_candidate_dies_when_provider_verifier_rotates(tmp_path):
             "mutation-provider-rotation",
             content="print('qualified')\n",
         )
+    assert transport.calls == []
+
+
+
+def test_reserved_source_effect_can_cancel_dependency_without_reusing_identity(tmp_path):
+    _, runtime, _, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-cancel-reserved",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    adapter = runtime.source_mutation_adapter()
+    prepared = adapter.prepare(
+        "task-cancel-reserved",
+        "dep-cancel-reserved",
+        write_request(
+            mutation_id="mutation-cancel-reserved",
+            path="src/cancel-reserved.py",
+        ),
+    )
+    mechanical_effect_id = reserve_source_effect_without_dispatch(
+        runtime,
+        prepared,
+    )
+
+    cancelled = adapter.cancel_reserved_mutation(
+        "mutation-cancel-reserved",
+        actor_ref="vera",
+        reason="restart proved transport callback never began",
+    )
+    assert cancelled.mechanical_effect_id == mechanical_effect_id
+    assert (
+        cancelled.effect_receipt.state
+        is EffectState.CANCELLED_PRE_DISPATCH
+    )
+    assert cancelled.task_state.active_dependencies == ()
+    assert "dep-cancel-reserved" in (
+        cancelled.task_state.cancelled_dependency_ids
+    )
+    assert transport.calls == []
+
+    old = runtime.assess_provider_effect(
+        "mutation-cancel-reserved"
+    )
+    assert old.terminal is True
+    assert old.dispatch_candidate_allowed is False
+    assert old.fence_state == "CANCELLED_PRE_DISPATCH"
+
+    replacement = adapter.prepare(
+        "task-cancel-reserved",
+        "dep-cancel-replacement",
+        write_request(
+            mutation_id="mutation-cancel-replacement",
+            path="src/cancel-reserved.py",
+        ),
+    )
+    assert replacement.request.mutation_id == (
+        "mutation-cancel-replacement"
+    )
+
+
+def test_reserved_source_cancellation_follows_current_delegation_owner(tmp_path):
+    _, runtime, _, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-cancel-delegated",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    delegated = runtime.delegate_task_work(
+        "task-cancel-delegated",
+        "delegation-cancel",
+        repository=REPOSITORY,
+        ref=REF,
+        subject="cancel-owned.py",
+        assignee_ref="worker:one",
+        allowed_effects=("SOURCE_WRITE_FILE",),
+        prohibited_effects=(),
+        return_shape=("commit",),
+        evidence_refs=("delegation:evidence",),
+    )
+    adapter = runtime.source_mutation_adapter()
+    prepared = adapter.prepare(
+        "task-cancel-delegated",
+        "dep-cancel-delegated",
+        write_request(
+            mutation_id="mutation-cancel-delegated",
+            path="src/cancel-owned.py",
+            subject="cancel-owned.py",
+            actor_ref="worker:one",
+        ),
+        delegation_ref=delegated.delegation_ref(
+            "delegation-cancel"
+        ),
+    )
+    reserve_source_effect_without_dispatch(runtime, prepared)
+
+    reassigned = runtime.reassign_task_delegation(
+        "task-cancel-delegated",
+        "delegation-cancel",
+        "reassign-cancel",
+        new_assignee_ref="worker:two",
+        evidence_refs=("reassign:evidence",),
+    )
+    current_ref = reassigned.delegation_ref("delegation-cancel")
+
+    with pytest.raises(TaskExecutionError):
+        adapter.cancel_reserved_mutation(
+            "mutation-cancel-delegated",
+            actor_ref="worker:one",
+            delegation_ref=prepared.delegation_ref,
+            reason="stale owner must not cancel",
+        )
+
+    cancelled = adapter.cancel_reserved_mutation(
+        "mutation-cancel-delegated",
+        actor_ref="worker:two",
+        delegation_ref=current_ref,
+        reason="current delegated owner abandons pre-dispatch attempt",
+    )
+    assert (
+        cancelled.effect_receipt.state
+        is EffectState.CANCELLED_PRE_DISPATCH
+    )
     assert transport.calls == []
