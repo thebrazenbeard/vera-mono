@@ -6,7 +6,8 @@
     "adapter": "vera_core.QualifiedPCExecutionAdapter",
     "binding_store": "vera_core.PCExecutionBindingStore",
     "host_journal": "pc_connection.JobJournal",
-    "effect_fence": "vera_assurance.EffectFence"
+    "effect_fence": "vera_assurance.EffectFence",
+    "execution_transport": "vera_core.PCExecutionTransport"
   },
   "durable_binding": {
     "state_path": "<vera-state-root>/pc/execution-bindings.sqlite",
@@ -56,7 +57,8 @@
       "JobJournal",
       "EffectFence"
     ],
-    "conversational_prepared_object_required": false
+    "conversational_prepared_object_required": false,
+    "qualified_execution_method": "QualifiedPCExecutionAdapter.execute_via_runtime_transport"
   },
   "pre_dispatch_cancellation": {
     "runtime_method": "QualifiedVeraRuntime.cancel_reserved_effect",
@@ -71,7 +73,9 @@
     "outbound_trust_currentness_validation": true,
     "trust_mutation_serialized_against_effect_execution": true,
     "effect_id_single_use": true,
-    "host_attempt_identity_conflict_fails_closed": true
+    "host_attempt_identity_conflict_fails_closed": true,
+    "host_injected_execution_transport": true,
+    "transport_host_id_must_match_job_host_id": true
   },
   "boundaries": {
     "job_journal_authorizes_work": false,
@@ -80,6 +84,7 @@
     "source_presence_is_deployment": false,
     "adapter_requires_a_verified_local_JobJournal_surface": true,
     "windows_host_owns_actual_local_file_and_process_access": true,
-    "no_production_provider_or_pc_mutation_implied": true
+    "no_production_provider_or_pc_mutation_implied": true,
+    "caller_supplied_execution_callback_is_runtime_qualified": false
   }
 }
