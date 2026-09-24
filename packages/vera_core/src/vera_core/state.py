@@ -10,6 +10,7 @@ from vera_memory import MemoryLedger
 from vera_recovery import NativeRecoveryCheckpointStore
 
 from .behavior_effect_verification import BehaviorEffectVerificationStore
+from .behavior_attestation import BehaviorAttestationStore
 from .coordination_command_journal import CoordinationCommandJournal
 from .lifecycle import LifecycleReconstruction, NativeVeraLifecycle
 from .lifecycle_journal import LifecycleJournal
@@ -45,6 +46,7 @@ class VeraStatePaths:
     route_verifications: Path
     runtime_consumption_verifications: Path
     behavior_effect_verifications: Path
+    behavior_attestations: Path
     coordination: Path
     coordination_commands: Path
     tasks: Path
@@ -111,6 +113,9 @@ class VeraStateDirectory:
             ),
             behavior_effect_verifications=(
                 candidate / "behavior" / "verification.sqlite"
+            ),
+            behavior_attestations=(
+                candidate / "behavior" / "attestation.sqlite"
             ),
             coordination=candidate / "coordination" / "events.sqlite",
             coordination_commands=(
@@ -221,6 +226,13 @@ class VeraStateDirectory:
             self.paths.behavior_effect_verifications
         )
 
+    def behavior_attestation_store(
+        self,
+    ) -> BehaviorAttestationStore:
+        return BehaviorAttestationStore(
+            self.paths.behavior_attestations
+        )
+
     def coordination_repository(self) -> SQLiteCoordinationRepository:
         return SQLiteCoordinationRepository(self.paths.coordination)
 
@@ -278,6 +290,9 @@ class VeraStateDirectory:
         )
         context["behavior_effect_verifications"] = (
             self.behavior_effect_verification_store().context()
+        )
+        context["behavior_attestations"] = (
+            self.behavior_attestation_store().context()
         )
         context["coordination"] = self.coordination_repository().context()
         context["coordination_commands"] = (

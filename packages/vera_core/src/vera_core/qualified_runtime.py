@@ -22,6 +22,17 @@ from .behavior_effect_verification_adapter import (
     BehaviorEffectAssessment,
     QualifiedBehaviorEffectVerificationAdapter,
 )
+from .behavior_attestation import (
+    BehaviorAttestationError,
+    BehaviorAttestationReceipt,
+    BehaviorAttestationStore,
+    BehaviorAttestationTransport,
+    behavior_attestation_requirements,
+)
+from .behavior_attestation_adapter import (
+    BehaviorAttestationAssessment,
+    QualifiedBehaviorAttestationAdapter,
+)
 from .coordination_command_journal import CoordinationCommandJournal
 from .effect_recovery import (
     EffectReconciliationVerifier,
@@ -164,6 +175,10 @@ class QualifiedVeraRuntime:
     behavior_effect_transports: Mapping[
         str, BehaviorEffectVerificationTransport
     ]
+    behavior_attestations: BehaviorAttestationStore
+    behavior_attestation_transports: Mapping[
+        tuple[str, str], BehaviorAttestationTransport
+    ]
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
 
@@ -198,6 +213,9 @@ class QualifiedVeraRuntime:
         ] | None = None,
         behavior_effect_transports: Mapping[
             str, BehaviorEffectVerificationTransport
+        ] | None = None,
+        behavior_attestation_transports: Mapping[
+            tuple[str, str], BehaviorAttestationTransport
         ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
@@ -238,6 +256,8 @@ class QualifiedVeraRuntime:
             state.behavior_effect_verification_store()
         )
         behavior_effect_verifications.verify_chain()
+        behavior_attestations = state.behavior_attestation_store()
+        behavior_attestations.verify_chain()
         coordination_commands = state.coordination_command_journal()
         tasks = state.task_execution_ledger()
 
@@ -452,6 +472,35 @@ class QualifiedVeraRuntime:
                     "runtime-consumption transport for the same consumer"
                 )
 
+        attestation_transports = dict(
+            behavior_attestation_transports or {}
+        )
+        for scope, transport in attestation_transports.items():
+            if (
+                not isinstance(scope, tuple)
+                or len(scope) != 2
+                or not all(type(item) is str and item for item in scope)
+            ):
+                raise TypeError(
+                    "behavior attestation transport keys must be "
+                    "(consumer_id, provider_id)"
+                )
+            if not isinstance(transport, BehaviorAttestationTransport):
+                raise TypeError(
+                    f"behavior attestation transport for {scope!r} "
+                    "does not satisfy BehaviorAttestationTransport"
+                )
+            if (transport.consumer_id, transport.provider_id) != scope:
+                raise ValueError(
+                    "behavior attestation transport identity mismatch for "
+                    f"{scope!r}"
+                )
+            if scope[0] not in behavior_transports:
+                raise ValueError(
+                    "behavior attestation transport requires a matching live "
+                    "behavior/effect transport for the same consumer"
+                )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -508,6 +557,8 @@ class QualifiedVeraRuntime:
             runtime_consumption_transports=consumption_transports,
             behavior_effect_verifications=behavior_effect_verifications,
             behavior_effect_transports=behavior_transports,
+            behavior_attestations=behavior_attestations,
+            behavior_attestation_transports=attestation_transports,
             coordination_commands=coordination_commands,
             tasks=tasks,
         )
@@ -550,6 +601,9 @@ class QualifiedVeraRuntime:
         behavior_effect_head = (
             self.behavior_effect_verifications.verify_chain()
         )
+        behavior_attestation_head = (
+            self.behavior_attestations.verify_chain()
+        )
         body = {
             "schema": "VERA_MONO_TASK_RUNTIME_EVIDENCE_V1",
             "project_id": self.lifecycle.project_id,
@@ -573,6 +627,9 @@ class QualifiedVeraRuntime:
             ),
             "behavior_effect_verification_head_digest": (
                 behavior_effect_head
+            ),
+            "behavior_attestation_verification_head_digest": (
+                behavior_attestation_head
             ),
         }
         return sha256_hex(canonical_json_bytes(body))
@@ -1251,6 +1308,39 @@ class QualifiedVeraRuntime:
         self,
     ) -> tuple[BehaviorEffectAssessment, ...]:
         return self.behavior_effect_verification_adapter().recover()
+
+    def behavior_attestation_adapter(
+        self,
+    ) -> QualifiedBehaviorAttestationAdapter:
+        return QualifiedBehaviorAttestationAdapter(
+            runtime=self,
+            transports=self.behavior_attestation_transports,
+        )
+
+    def assess_behavior_attestation(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+    ) -> BehaviorAttestationAssessment:
+        return self.behavior_attestation_adapter().assess(
+            task_id, consumer_id, probe_id
+        )
+
+    def verify_task_behavior_attestation(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+    ) -> BehaviorAttestationReceipt:
+        return self.behavior_attestation_adapter().verify(
+            task_id, consumer_id, probe_id
+        )
+
+    def recover_behavior_attestations(
+        self,
+    ) -> tuple[BehaviorAttestationAssessment, ...]:
+        return self.behavior_attestation_adapter().recover()
 
     def assess_task_dependencies(
         self,
@@ -1970,6 +2060,58 @@ class QualifiedVeraRuntime:
                         )
                     )
 
+        behavior_attestation_requirements_for_task = (
+            behavior_attestation_requirements(
+                state.packet.evidence_requirements
+            )
+        )
+        behavior_attestation_assessments: tuple[
+            BehaviorAttestationAssessment, ...
+        ] = ()
+        if behavior_attestation_requirements_for_task:
+            if "behavior/effect" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "BEHAVIOR_ATTEST_VERIFY evidence requires the "
+                    "behavior/effect closeout surface"
+                )
+            elif surfaces.get("behavior/effect") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required behavior attestation cannot close a "
+                    "behavior/effect surface that is not verified-current "
+                    "or changed-and-verified"
+                )
+            try:
+                behavior_attestation_assessments = (
+                    self.behavior_attestation_adapter().assess_task(
+                        task_id
+                    )
+                )
+            except BehaviorAttestationError as exc:
+                reasons.append(
+                    "behavior attestation contract is invalid: " + str(exc)
+                )
+            else:
+                not_current_attestations = tuple(
+                    assessment
+                    for assessment in behavior_attestation_assessments
+                    if not assessment.passed
+                )
+                if not_current_attestations:
+                    reasons.append(
+                        "required behavior attestations are not "
+                        "verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.consumer_id}/{item.probe_id}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current_attestations
+                        )
+                    )
+
         active_delegation_ids = tuple(
             delegation.delegation_id
             for delegation in state.active_delegations
@@ -2108,6 +2250,22 @@ class QualifiedVeraRuntime:
                     "verified behavior/effect lacks durable evidence digest: "
                     + ", ".join(missing_behavior_effect_evidence)
                 )
+            behavior_attestation_assessments = (
+                self.behavior_attestation_adapter().assess_task(
+                    task_id
+                )
+            )
+            missing_behavior_attestation_evidence = tuple(
+                f"{item.consumer_id}/{item.probe_id}"
+                for item in behavior_attestation_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_behavior_attestation_evidence:
+                raise TaskExecutionError(
+                    "verified behavior attestation lacks durable evidence "
+                    "digest: "
+                    + ", ".join(missing_behavior_attestation_evidence)
+                )
             binding_digests = {
                 dependency.dependency_id: dependency.event_digest
                 for dependency in state.dependencies
@@ -2183,6 +2341,17 @@ class QualifiedVeraRuntime:
                 if item.passed
                 and item.latest_receipt_digest is not None
             )
+            behavior_attestation_evidence_refs = tuple(
+                (
+                    "task-behavior-attestation:"
+                    f"{item.consumer_id}:"
+                    f"{item.probe_id}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in behavior_attestation_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
             merged_evidence = tuple(
                 dict.fromkeys(
                     (
@@ -2194,6 +2363,7 @@ class QualifiedVeraRuntime:
                         *route_evidence_refs,
                         *runtime_consumption_evidence_refs,
                         *behavior_effect_evidence_refs,
+                        *behavior_attestation_evidence_refs,
                     )
                 )
             )
@@ -2789,6 +2959,63 @@ class QualifiedVeraRuntime:
                 "reason": assessment.reason,
             }
             for assessment in self.recover_behavior_effect_verifications()
+        ]
+        context["behavior_attestations"] = (
+            self.behavior_attestations.context()
+        )
+        context["behavior_attestation_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "consumer_id": assessment.consumer_id,
+                "probe_id": assessment.probe_id,
+                "evidence_kind": assessment.evidence_kind,
+                "expected_declaration_digest": (
+                    assessment.expected_declaration_digest
+                ),
+                "expected_provider_id": assessment.expected_provider_id,
+                "expected_provider_key_id": (
+                    assessment.expected_provider_key_id
+                ),
+                "expected_provider_key_digest": (
+                    assessment.expected_provider_key_digest
+                ),
+                "expected_effect_subject_digest": (
+                    assessment.expected_effect_subject_digest
+                ),
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": assessment.latest_receipt_digest,
+                "latest_behavior_effect_receipt_digest": (
+                    assessment.latest_behavior_effect_receipt_digest
+                ),
+                "latest_attestation_subject_digest": (
+                    assessment.latest_attestation_subject_digest
+                ),
+                "latest_external_evidence_digest": (
+                    assessment.latest_external_evidence_digest
+                ),
+                "transport_available": assessment.transport_available,
+                "behavior_effect_current": (
+                    assessment.behavior_effect_current
+                ),
+                "current_behavior_effect_receipt_digest": (
+                    assessment.current_behavior_effect_receipt_digest
+                ),
+                "current_attestation_subject_digest": (
+                    assessment.current_attestation_subject_digest
+                ),
+                "current_external_evidence_digest": (
+                    assessment.current_external_evidence_digest
+                ),
+                "current_signature_valid": (
+                    assessment.current_signature_valid
+                ),
+                "current_matches_receipt": (
+                    assessment.current_matches_receipt
+                ),
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_behavior_attestations()
         ]
         context["coordination"] = {
             "schema": "VERA_MONO_COORDINATION_RUNTIME_CONTEXT_V1",
