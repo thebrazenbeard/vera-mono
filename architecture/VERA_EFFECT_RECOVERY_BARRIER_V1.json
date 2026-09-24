@@ -29,12 +29,28 @@
     "requires": "external reconciliation evidence SHA-256 digest",
     "effect_occurred_true_requires_result_digest": true,
     "effect_occurred_false_forbids_result_digest": true,
-    "operator_reset_to_retry": false
+    "operator_reset_to_retry": false,
+    "runtime_qualified_api": "vera_core.LifecycleEffectRecovery.reconcile",
+    "low_level_mechanical_api": "vera_assurance.EffectFence.reconcile_unknown",
+    "trusted_verifier_injected": true,
+    "caller_minted_verifier_accepted": false,
+    "proof_subject_binds": [
+      "effect_id",
+      "request_digest",
+      "ambiguous state",
+      "mechanical permit digest",
+      "original authority evidence digest",
+      "original lifecycle/currentness evidence digest",
+      "claimed effect occurrence",
+      "claimed result digest"
+    ],
+    "external_evidence_digest": "derived only after trusted reconciliation proof verification on the runtime-qualified path"
   },
   "invariant": "An effect with unknown external outcome freezes outbound mutation and lifecycle advancement until separately evidenced reconciliation resolves the ambiguity.",
   "boundaries": {
     "reconciliation_evidence_is_not_minted_by_effect_fence": true,
     "lifecycle_permit_is_not_reconciliation_evidence": true,
-    "effect_fence_is_not_protected_effect_authority": true
+    "effect_fence_is_not_protected_effect_authority": true,
+    "raw_effect_fence_reconciliation_is_runtime_qualified": false
   }
 }
