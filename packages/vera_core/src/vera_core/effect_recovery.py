@@ -8,6 +8,8 @@ from typing import Protocol, runtime_checkable
 from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
 from vera_assurance import EffectFence, EffectReceipt, EffectState
 
+from .outbound_trust import OutboundTrustRegistry
+
 
 RECONCILIATION_PROOF_SCHEMA = "VERA_MONO_EFFECT_RECONCILIATION_PROOF_V1"
 
@@ -123,6 +125,16 @@ class HmacEffectReconciliationAuthority:
             effect_occurred=effect_occurred,
             result_digest=result_digest,
         )
+        if proof.issuer_id != self._verifier.authority_id:
+            raise EffectRecoveryAuthorityError(
+                "reconciliation proof issuer does not match trusted verifier"
+            )
+        trust_receipt = self._outbound_trust_registry.assert_current(
+            authority_id=self._verifier.authority_id,
+            role="RECONCILIATION",
+            key_id=self._verifier.key_id,
+            key_digest=self._verifier.key_digest,
+        )
         unsigned = EffectReconciliationProof(
             schema=RECONCILIATION_PROOF_SCHEMA,
             issuer_id=self.issuer_id,
@@ -187,6 +199,7 @@ class LifecycleEffectRecovery:
         *,
         fence: EffectFence,
         verifier: EffectReconciliationVerifier,
+        outbound_trust_registry: OutboundTrustRegistry,
     ):
         if not isinstance(verifier, EffectReconciliationVerifier):
             raise TypeError(
@@ -194,6 +207,11 @@ class LifecycleEffectRecovery:
             )
         self.fence = fence
         self._verifier = verifier
+        if type(outbound_trust_registry) is not OutboundTrustRegistry:
+            raise TypeError(
+                "outbound_trust_registry must be exact OutboundTrustRegistry"
+            )
+        self._outbound_trust_registry = outbound_trust_registry
 
     def reconcile(
         self,
@@ -225,6 +243,19 @@ class LifecycleEffectRecovery:
                         "issuer_id": proof.issuer_id,
                         "subject": proof.subject,
                         "verification_token": proof.verification_token,
+                    },
+                    "authority_currentness": {
+                        "schema": trust_receipt.schema,
+                        "authority_id": trust_receipt.authority_id,
+                        "role": trust_receipt.role,
+                        "provider_id": trust_receipt.provider_id,
+                        "authority_generation": trust_receipt.authority_generation,
+                        "revocation_epoch": trust_receipt.revocation_epoch,
+                        "key_id": trust_receipt.key_id,
+                        "key_digest": trust_receipt.key_digest,
+                        "registry_generation": trust_receipt.registry_generation,
+                        "registry_head_digest": trust_receipt.registry_head_digest,
+                        "receipt_digest": trust_receipt.receipt_digest,
                     },
                 }
             )
