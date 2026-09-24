@@ -43,6 +43,11 @@ from .github_source_transport import (
     GitHubSourceTransportError,
     GitHubTreeUpdate,
 )
+from .github_source_verification import (
+    GitHubCheckContextState,
+    GitHubSourceVerificationClient,
+    GitHubSourceVerificationTransport,
+)
 from .lifecycle import (
     AcceptedLifecyclePermit,
     LifecycleActionDenied,
@@ -203,6 +208,9 @@ __all__ = [
     "GitHubSourceMutationTransport",
     "GitHubSourceTransportError",
     "GitHubTreeUpdate",
+    "GitHubCheckContextState",
+    "GitHubSourceVerificationClient",
+    "GitHubSourceVerificationTransport",
     "OutboundAuthorityError",
     "PCJobAuthorityProof",
     "PCJobAuthorityVerifier",
