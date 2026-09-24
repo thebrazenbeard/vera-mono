@@ -775,3 +775,50 @@ def test_task_closeout_serializes_against_task_scoped_mutation(tmp_path):
     thread.join(timeout=1.0)
     assert len(outcomes) == 1
     assert outcomes[0].closed is True
+
+
+def test_qualified_task_dependency_rejects_post_hoc_coordination_claim(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.coordination.invoke(
+        "coordination_post",
+        permit=runtime.accepted_permit(),
+        actor=actor(),
+        command_id="already-executed-command",
+        args=(draft(),),
+    )
+    runtime.start_task("task-post-hoc-coordination", packet())
+
+    with pytest.raises(TaskExecutionError):
+        runtime.bind_task_dependency(
+            "task-post-hoc-coordination",
+            "dep-post-hoc",
+            kind="COORDINATION_COMMAND",
+            target_id="already-executed-command",
+        )
+    assert runtime.tasks.read(
+        "task-post-hoc-coordination"
+    ).dependencies == ()
+
+
+def test_qualified_task_dependency_rejects_post_hoc_provider_preparation(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.prepare_provider_effect(
+        effect_id="already-prepared-provider",
+        provider_id="unconfigured-provider",
+        operation="WRITE",
+        request_payload={"value": 1},
+    )
+    runtime.start_task("task-post-hoc-provider", packet())
+
+    with pytest.raises(TaskExecutionError):
+        runtime.bind_task_dependency(
+            "task-post-hoc-provider",
+            "dep-post-hoc-provider",
+            kind="PROVIDER_EFFECT",
+            target_id="already-prepared-provider",
+        )
+    assert runtime.tasks.read(
+        "task-post-hoc-provider"
+    ).dependencies == ()
