@@ -822,3 +822,89 @@ def test_qualified_task_dependency_rejects_post_hoc_provider_preparation(tmp_pat
     assert runtime.tasks.read(
         "task-post-hoc-provider"
     ).dependencies == ()
+
+
+def test_task_dependency_can_cancel_only_before_target_start_and_closeout_carries_evidence(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-cancel-dependency", packet())
+    runtime.bind_task_dependency(
+        "task-cancel-dependency",
+        "dep-cancel",
+        kind="EFFECT",
+        target_id="effect:not-started",
+    )
+
+    cancelled = runtime.cancel_task_dependency(
+        "task-cancel-dependency",
+        "dep-cancel",
+        reason="request was invalid before any dispatch preparation",
+    )
+    assert cancelled.active_dependencies == ()
+    assert cancelled.cancelled_dependency_ids == ("dep-cancel",)
+
+    assessment = runtime.assess_task_closeout(
+        "task-cancel-dependency",
+        surfaces=surfaces(),
+    )
+    assert assessment.ready is True
+    assert assessment.dependency_assessments == ()
+    assert assessment.cancelled_dependency_ids == ("dep-cancel",)
+
+    closed = runtime.close_task(
+        "task-cancel-dependency",
+        "close-cancelled-dependency",
+        surfaces=surfaces(),
+        evidence_refs=("validation corrected",),
+        claim_ceiling="SOURCE_ONLY",
+        next_frontier="NONE",
+    )
+    assert any(
+        ref.startswith("task-dependency-cancelled:dep-cancel:")
+        for ref in closed.closeout.evidence_refs
+    )
+
+
+def test_task_scoped_coordination_auto_cancels_dependency_on_preparation_failure(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-auto-cancel", packet())
+
+    with pytest.raises(Exception):
+        runtime.invoke_task_coordination(
+            "task-auto-cancel",
+            "dep-invalid-command",
+            "not_a_coordination_command",
+            actor=actor(),
+            command_id="never-bound-command",
+        )
+
+    task = runtime.tasks.read("task-auto-cancel")
+    assert task.active_dependencies == ()
+    assert task.cancelled_dependency_ids == ("dep-invalid-command",)
+    with pytest.raises(KeyError):
+        runtime.coordination_commands.read_binding("never-bound-command")
+
+
+def test_task_dependency_cannot_cancel_after_target_started(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-no-post-start-cancel", packet())
+    runtime.invoke_task_coordination(
+        "task-no-post-start-cancel",
+        "dep-started",
+        "coordination_post",
+        actor=actor(),
+        command_id="started-command",
+        args=(draft(),),
+    )
+
+    with pytest.raises(TaskExecutionError):
+        runtime.cancel_task_dependency(
+            "task-no-post-start-cancel",
+            "dep-started",
+            reason="attempt to erase executed dependency",
+        )
+    assert runtime.tasks.read(
+        "task-no-post-start-cancel"
+    ).cancelled_dependency_ids == ()
