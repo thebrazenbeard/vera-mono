@@ -14,6 +14,7 @@ from vera_assurance import (
 from vera_control.local_profile import local_r10_source_digest
 from vera_memory import MemoryLedger
 from vera_recovery import NativeRecoveryCheckpoint, NativeRecoveryCheckpointStore
+from r8a0.portable_lock import PortableFileLock
 
 from .lifecycle_journal import LifecycleJournal
 
@@ -28,6 +29,47 @@ class LifecycleAssuranceError(ValueError):
 
 class LifecycleReconstructionError(ValueError):
     pass
+
+
+class LifecycleActionDenied(PermissionError):
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class AcceptedLifecyclePermit:
+    schema: str
+    project_id: str
+    identity_id: str
+    runtime_id: str
+    memory_head_digest: str
+    recovery_checkpoint_id: str
+    recovery_checkpoint_digest: str
+    recovery_checkpoint_generation: int
+    control_source_digest: str
+    currentness_subject_id: str
+    currentness_generation: int
+    currentness_snapshot_digest: str
+    currentness_payload_digest: str
+    lifecycle_journal_head: str
+    permit_digest: str
+
+    def canonical_body(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "project_id": self.project_id,
+            "identity_id": self.identity_id,
+            "runtime_id": self.runtime_id,
+            "memory_head_digest": self.memory_head_digest,
+            "recovery_checkpoint_id": self.recovery_checkpoint_id,
+            "recovery_checkpoint_digest": self.recovery_checkpoint_digest,
+            "recovery_checkpoint_generation": self.recovery_checkpoint_generation,
+            "control_source_digest": self.control_source_digest,
+            "currentness_subject_id": self.currentness_subject_id,
+            "currentness_generation": self.currentness_generation,
+            "currentness_snapshot_digest": self.currentness_snapshot_digest,
+            "currentness_payload_digest": self.currentness_payload_digest,
+            "lifecycle_journal_head": self.lifecycle_journal_head,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,6 +182,108 @@ class NativeVeraLifecycle:
         self.journal = journal or LifecycleJournal(
             checkpoints.path.with_name("lifecycle-journal.sqlite")
         )
+        self._action_lock_path = self.journal.path.with_suffix(
+            self.journal.path.suffix + ".action-lock.sqlite3"
+        )
+
+    def action_lock(self) -> PortableFileLock:
+        """Serialize lifecycle transitions with outbound command/effect gates."""
+        return PortableFileLock(self._action_lock_path)
+
+    def accepted_action_permit(self) -> AcceptedLifecyclePermit:
+        """Mint a permit only from the exact currently accepted lifecycle state."""
+        with self.action_lock():
+            state = self.reconstruct()
+            if state.status not in {"ACCEPTED_CURRENT", "ACCEPTED_RECONCILED"}:
+                raise LifecycleActionDenied(
+                    f"outbound action denied from lifecycle state {state.status}"
+                )
+            if (
+                state.accepted_checkpoint_id is None
+                or state.accepted_checkpoint_digest is None
+                or state.accepted_runtime_id is None
+                or state.accepted_memory_head_digest is None
+                or state.currentness_generation is None
+                or state.currentness_snapshot_digest is None
+            ):
+                raise LifecycleActionDenied(
+                    "accepted lifecycle state is incomplete"
+                )
+            current = self.currentness.read(self.currentness_subject_id)
+            body = {
+                "schema": "VERA_MONO_ACCEPTED_LIFECYCLE_PERMIT_V1",
+                "project_id": self.project_id,
+                "identity_id": self.identity_id,
+                "runtime_id": state.accepted_runtime_id,
+                "memory_head_digest": state.accepted_memory_head_digest,
+                "recovery_checkpoint_id": state.accepted_checkpoint_id,
+                "recovery_checkpoint_digest": state.accepted_checkpoint_digest,
+                "recovery_checkpoint_generation": (
+                    state.latest_checkpoint_generation
+                    if state.latest_checkpoint_id == state.accepted_checkpoint_id
+                    else self.checkpoints.read(
+                        state.accepted_checkpoint_id
+                    ).generation
+                ),
+                "control_source_digest": state.current_control_source_digest,
+                "currentness_subject_id": self.currentness_subject_id,
+                "currentness_generation": current.generation,
+                "currentness_snapshot_digest": current.snapshot_digest,
+                "currentness_payload_digest": current.payload_digest,
+                "lifecycle_journal_head": self.journal.head,
+            }
+            return AcceptedLifecyclePermit(
+                **body,
+                permit_digest=sha256_hex(canonical_json_bytes(body)),
+            )
+
+    def validate_action_permit(
+        self,
+        permit: AcceptedLifecyclePermit,
+    ) -> AcceptedLifecyclePermit:
+        """Fail closed unless a permit still names the exact accepted state."""
+        if type(permit) is not AcceptedLifecyclePermit:
+            raise LifecycleActionDenied(
+                "outbound action requires an exact AcceptedLifecyclePermit"
+            )
+        if permit.schema != "VERA_MONO_ACCEPTED_LIFECYCLE_PERMIT_V1":
+            raise LifecycleActionDenied("unsupported lifecycle permit schema")
+        if (
+            sha256_hex(canonical_json_bytes(permit.canonical_body()))
+            != permit.permit_digest
+        ):
+            raise LifecycleActionDenied("lifecycle permit digest mismatch")
+
+        state = self.reconstruct(reconcile_journal=False)
+        if state.status != "ACCEPTED_CURRENT":
+            raise LifecycleActionDenied(
+                f"outbound action denied from lifecycle state {state.status}"
+            )
+        current = self.currentness.read(self.currentness_subject_id)
+        accepted = self.checkpoints.read(
+            state.accepted_checkpoint_id or ""
+        )
+        expected = {
+            "project_id": self.project_id,
+            "identity_id": self.identity_id,
+            "runtime_id": accepted.runtime_id,
+            "memory_head_digest": accepted.memory_head_digest,
+            "recovery_checkpoint_id": accepted.checkpoint_id,
+            "recovery_checkpoint_digest": accepted.checkpoint_digest,
+            "recovery_checkpoint_generation": accepted.generation,
+            "control_source_digest": state.current_control_source_digest,
+            "currentness_subject_id": self.currentness_subject_id,
+            "currentness_generation": current.generation,
+            "currentness_snapshot_digest": current.snapshot_digest,
+            "currentness_payload_digest": current.payload_digest,
+            "lifecycle_journal_head": self.journal.head,
+        }
+        for key, value in expected.items():
+            if getattr(permit, key) != value:
+                raise LifecycleActionDenied(
+                    f"stale lifecycle permit field: {key}"
+                )
+        return permit
 
     @staticmethod
     def default_policy() -> DriftPolicy:
@@ -167,6 +311,34 @@ class NativeVeraLifecycle:
         )
 
     def checkpoint(
+        self,
+        *,
+        checkpoint_id: str,
+        runtime_id: str,
+        expected_memory_head: str,
+        expected_checkpoint_head: str,
+        expected_currentness_generation: int | None,
+        commitments: tuple[str, ...] = (),
+        unfinished_work: tuple[str, ...] = (),
+        assurance_baseline: Mapping[str, Any] | None = None,
+        assurance_policy: DriftPolicy | None = None,
+        created_at: str | None = None,
+    ) -> NativeLifecycleReceipt:
+        with self.action_lock():
+            return self._checkpoint_unlocked(
+                checkpoint_id=checkpoint_id,
+                runtime_id=runtime_id,
+                expected_memory_head=expected_memory_head,
+                expected_checkpoint_head=expected_checkpoint_head,
+                expected_currentness_generation=expected_currentness_generation,
+                commitments=commitments,
+                unfinished_work=unfinished_work,
+                assurance_baseline=assurance_baseline,
+                assurance_policy=assurance_policy,
+                created_at=created_at,
+            )
+
+    def _checkpoint_unlocked(
         self,
         *,
         checkpoint_id: str,
