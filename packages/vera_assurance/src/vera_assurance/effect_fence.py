@@ -234,6 +234,13 @@ class EffectFence:
                 receipt.currentness_evidence_digest,
             )
 
+    def all(self) -> tuple[EffectReceipt, ...]:
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT * FROM effects ORDER BY effect_id"
+            ).fetchall()
+        return tuple(self._row(row) for row in rows)
+
     def unresolved(self) -> tuple[EffectReceipt, ...]:
         states = (
             EffectState.RESERVED.value,
