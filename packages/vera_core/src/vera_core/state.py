@@ -76,11 +76,13 @@ class VeraStateDirectory:
         )
         currentness = AtomicCurrentnessStore(self.paths.currentness)
         journal = LifecycleJournal(self.paths.lifecycle_journal)
+        effect_fence = EffectFence(self.paths.effects)
         return NativeVeraLifecycle(
             memory=memory,
             checkpoints=checkpoints,
             currentness=currentness,
             journal=journal,
+            effect_fence=effect_fence,
             project_id=self.project_id,
             identity_id=self.identity_id,
             currentness_subject_id=self.currentness_subject_id,
