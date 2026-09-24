@@ -172,16 +172,37 @@ def provider_authority(
     return verifier, envelope
 
 
+def register_trust(state, *, role, verifier, provider_id=None):
+    registry = state.outbound_trust_registry()
+    if not registry.has_scope(role=role, provider_id=provider_id):
+        registry.register(
+            authority_id=verifier.authority_id,
+            role=role,
+            provider_id=provider_id,
+            key_id=verifier.key_id,
+            key_digest=verifier.key_digest,
+            expected_registry_generation=registry.generation,
+        )
+    return registry
+
+
 def provider_gateway(state, lifecycle, verifier):
+    registry = register_trust(
+        state,
+        role="PROVIDER",
+        provider_id=PROVIDER_ID,
+        verifier=verifier,
+    )
     return LifecycleEffectGateway(
         lifecycle=lifecycle,
         fence=state.effect_fence(),
         provider_authority_verifiers={PROVIDER_ID: verifier},
+        outbound_trust_registry=registry,
     )
 
 
 def pc_authority(permit, job, authorization, *, secret=b"c" * 32):
-    verifier = HmacPCJobAuthority("pc-authority", secret)
+    verifier = HmacPCJobAuthority(authorization.issuer_id, secret)
     proof = verifier.issue(
         job=job,
         authorization=authorization,
@@ -191,10 +212,16 @@ def pc_authority(permit, job, authorization, *, secret=b"c" * 32):
 
 
 def pc_gateway(state, lifecycle, verifier, *, now=None):
+    registry = register_trust(
+        state,
+        role="PC",
+        verifier=verifier,
+    )
     return LifecycleEffectGateway(
         lifecycle=lifecycle,
         fence=state.effect_fence(),
         pc_authority_verifier=verifier,
+        outbound_trust_registry=registry,
         clock=lambda: now
         or datetime(2026, 8, 1, 20, 5, tzinfo=timezone.utc),
     )
@@ -444,7 +471,7 @@ def test_pc_authorization_field_mismatch_fails_before_authority_issue(tmp_path):
     _, _, permit = build_accepted(tmp_path)
     job = pc_job()
     authorization = pc_authorization(job, authorization_revision=2)
-    verifier = HmacPCJobAuthority("pc-authority", b"c" * 32)
+    verifier = HmacPCJobAuthority(authorization.issuer_id, b"c" * 32)
     with pytest.raises(OutboundAuthorityError):
         verifier.issue(
             job=job,
@@ -457,7 +484,7 @@ def test_caller_minted_pc_verifier_cannot_replace_trusted_verifier(tmp_path):
     state, lifecycle, permit = build_accepted(tmp_path)
     job = pc_job()
     authorization = pc_authorization(job)
-    trusted = HmacPCJobAuthority("pc-authority", b"t" * 32)
+    trusted = HmacPCJobAuthority(authorization.issuer_id, b"t" * 32)
     attacker, forged = pc_authority(
         permit,
         job,
@@ -678,9 +705,15 @@ def test_ambiguous_external_effect_freezes_actions_and_lifecycle_until_reconcile
         "effect-recovery-owner",
         b"r" * 32,
     )
+    recovery_registry = register_trust(
+        state,
+        role="RECONCILIATION",
+        verifier=recovery_authority,
+    )
     recovery = LifecycleEffectRecovery(
         fence=fence,
         verifier=recovery_authority,
+        outbound_trust_registry=recovery_registry,
     )
     proof = recovery_authority.issue(
         ambiguous,
@@ -739,9 +772,15 @@ def test_caller_minted_reconciliation_verifier_cannot_clear_ambiguous_effect(tmp
         effect_occurred=False,
         result_digest=None,
     )
+    recovery_registry = register_trust(
+        state,
+        role="RECONCILIATION",
+        verifier=trusted,
+    )
     recovery = LifecycleEffectRecovery(
         fence=fence,
         verifier=trusted,
+        outbound_trust_registry=recovery_registry,
     )
     with pytest.raises(EffectRecoveryAuthorityError):
         recovery.reconcile(
