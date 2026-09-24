@@ -129,13 +129,23 @@
       "runtime": "vera_core.QualifiedVeraRuntime",
       "provider": [
         "prepare_provider_effect",
-        "dispatch_provider_effect"
+        "execute_provider_effect"
       ],
       "pc": [
         "prepare_pc_job",
-        "dispatch_pc_job"
+        "execute_pc_job"
       ],
       "caller_supplies_lifecycle_permit": false
+    },
+    "execution_transport_binding": {
+      "contract": "architecture/VERA_EXECUTION_TRANSPORT_BINDING_V1.json",
+      "pc_protocol": "vera_core.PCExecutionTransport",
+      "provider_protocol": "vera_core.ProviderExecutionTransport",
+      "pc_qualified_method": "QualifiedVeraRuntime.execute_pc_job",
+      "provider_qualified_method": "QualifiedVeraRuntime.execute_provider_effect",
+      "caller_supplied_callback_runtime_qualified": false,
+      "trusted_transport_injected_by_host": true,
+      "verifier_and_transport_identity_are_independent_checks": true
     }
   },
   "fail_closed_states": [
