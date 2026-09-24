@@ -1,0 +1,93 @@
+{
+  "schema": "VERA_MONO_OUTBOUND_TRUST_LIFECYCLE_V1",
+  "purpose": "Persist verifier identity/currentness without persisting verifier secrets, and bind each qualified outbound effect to the exact currently trusted authority cut.",
+  "owner": "vera_core.OutboundTrustRegistry",
+  "state_path": "<vera-state-root>/trust/outbound.sqlite",
+  "trust_roles": {
+    "PC": {
+      "scope": "single PC authorization issuer authority",
+      "provider_id": null,
+      "dispatch_epoch_binding": "JobEnvelope.issuer_revocation_epoch and AuthorizationEnvelope.issuer_revocation_epoch must equal live registry revocation_epoch"
+    },
+    "PROVIDER": {
+      "scope": "one authority per provider_id",
+      "provider_scoped": true,
+      "dispatch_epoch_binding": "live registry receipt checked at dispatch"
+    },
+    "RECONCILIATION": {
+      "scope": "effect ambiguity reconciliation authority",
+      "provider_id": null,
+      "dispatch_epoch_binding": "live registry receipt checked before reconciliation"
+    }
+  },
+  "persisted_state": [
+    "authority_id",
+    "role",
+    "provider_id",
+    "authority_generation",
+    "revocation_epoch",
+    "key_id",
+    "key_digest",
+    "enabled",
+    "registry_generation",
+    "digest-chained mutation history"
+  ],
+  "non_persisted_state": [
+    "HMAC verifier secret/key bytes",
+    "provider credentials",
+    "PC credentials",
+    "reconciliation credentials"
+  ],
+  "mutation_contract": {
+    "register": "new scope only; CAS registry generation",
+    "rotate": "enabled scope; CAS registry generation + authority generation; key identity must change",
+    "revoke": "enabled scope; CAS registry generation + revocation epoch; increments revocation epoch and disables",
+    "reactivate": "revoked scope only; CAS registry generation + authority generation + revocation epoch; increments authority generation while preserving advanced revocation epoch",
+    "portable_lock": "trust mutations serialized by PortableFileLock",
+    "protected_effect_authority": "NOT_MINTED_BY_REGISTRY"
+  },
+  "currentness_receipt": {
+    "schema": "VERA_MONO_AUTHORITY_CURRENTNESS_RECEIPT_V1",
+    "fields": [
+      "authority_id",
+      "role",
+      "provider_id",
+      "authority_generation",
+      "revocation_epoch",
+      "key_id",
+      "key_digest",
+      "registry_generation",
+      "registry_head_digest",
+      "receipt_digest"
+    ],
+    "chain_verified_before_issue": true,
+    "included_in_effect_authority_evidence": true
+  },
+  "serialization": {
+    "outbound_execution_holds_lifecycle_action_lock": true,
+    "outbound_execution_holds_trust_lock_when_external_trust_is_used": true,
+    "trust_rotation_or_revocation_cannot_interleave_with_qualified_external_execution": true,
+    "ambiguity_reconciliation_holds_trust_lock": true
+  },
+  "qualified_runtime": {
+    "composition_root": "vera_core.QualifiedVeraRuntime",
+    "provider_adapter": [
+      "prepare_provider_effect",
+      "dispatch_provider_effect"
+    ],
+    "pc_adapter": [
+      "prepare_pc_job",
+      "dispatch_pc_job"
+    ],
+    "preparation_output": "exact accepted lifecycle permit + request/authorization digest + authority subject",
+    "caller_selects_lifecycle_permit": false
+  },
+  "boundaries": {
+    "verifier_key_digest_is_identity_not_secret_material": true,
+    "trust_registration_is_not_provider_activation": true,
+    "trust_currentness_is_not_effect_authority_by_itself": true,
+    "lifecycle_currentness_is_separate_from_authority_currentness": true,
+    "registry_source_presence_is_not_runtime_install_or_qualification": true,
+    "raw_registry_mutation_requires_external_administrative_authority_outside_this_source_contract": true
+  }
+}
