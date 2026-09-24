@@ -506,3 +506,63 @@ def test_source_binding_survives_restart_without_prepared_object(tmp_path):
     assert persisted["task_id"] == "task-restart-binding"
     assert persisted["path"] == "src/restart.py"
     assert persisted["content_persisted"] is False
+
+
+def test_prepared_source_binding_is_restart_dispatch_candidate_with_rehydration(tmp_path):
+    _, runtime, _, _ = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-recovery-candidate",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    runtime.source_mutation_adapter().prepare(
+        "task-recovery-candidate",
+        "dep-recovery-candidate",
+        write_request(
+            mutation_id="mutation-recovery-candidate",
+            path="src/recovery.py",
+        ),
+    )
+
+    assessment = runtime.recover_source_mutations()[0]
+    assert assessment.mutation_id == "mutation-recovery-candidate"
+    assert assessment.provider_fence_state is None
+    assert assessment.task_open is True
+    assert assessment.packet_current is True
+    assert assessment.writable_scope_current is True
+    assert assessment.delegation_current is True
+    assert assessment.provider_binding_current is True
+    assert assessment.transport_available is True
+    assert assessment.content_rehydration_required is True
+    assert assessment.dispatch_candidate_allowed is True
+    assert assessment.recovery_required is False
+
+
+def test_ambiguous_source_mutation_is_restart_recovery_not_replay_candidate(tmp_path):
+    _, runtime, verifier, _ = runtime_with_source(
+        tmp_path,
+        bad_result=True,
+    )
+    runtime.start_task(
+        "task-ambiguous-source",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    adapter = runtime.source_mutation_adapter()
+    prepared = adapter.prepare(
+        "task-ambiguous-source",
+        "dep-ambiguous-source",
+        write_request(
+            mutation_id="mutation-ambiguous-source",
+            path="src/ambiguous.py",
+        ),
+    )
+    with pytest.raises(SourceMutationError):
+        adapter.execute(
+            prepared,
+            authority=authority_for(verifier, prepared),
+        )
+
+    assessment = runtime.recover_source_mutations()[0]
+    assert assessment.provider_fence_state == "ATTEMPTED_UNKNOWN"
+    assert assessment.dispatch_candidate_allowed is False
+    assert assessment.recovery_required is True
+    assert assessment.terminal is False
