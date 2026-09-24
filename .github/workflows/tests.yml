@@ -32,3 +32,4 @@ jobs:
         run: |
           python -m pip install --no-deps --target .wheel-install dist/*.whl
           PYTHONPATH="$PWD/.wheel-install" python scripts/verify_installed_monorepo.py
+          PYTHONPATH="$PWD/.wheel-install" python -m vera_core --help
