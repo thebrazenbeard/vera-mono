@@ -44,6 +44,9 @@ class OutboundExecutionAudit:
             "EXECUTING",
             "COMMITTED",
             "ATTEMPTED_UNKNOWN",
+            "CANCELLED_PRE_DISPATCH",
+            "RECONCILED_COMMITTED",
+            "RECONCILED_NO_EFFECT",
         }
     )
 
@@ -228,15 +231,28 @@ class OutboundExecutionAudit:
 
         predecessor = self.GENESIS_HEAD
         expected_sequence = 1
-        seen_terminal: set[str] = set()
-        stage_rank = {
-            "AUTHORITY_VERIFIED": 0,
-            "RESERVED": 1,
-            "EXECUTING": 2,
-            "COMMITTED": 3,
-            "ATTEMPTED_UNKNOWN": 3,
+        terminal_types = {
+            "COMMITTED",
+            "CANCELLED_PRE_DISPATCH",
+            "RECONCILED_COMMITTED",
+            "RECONCILED_NO_EFFECT",
         }
-        last_rank: dict[str, int] = {}
+        allowed_next = {
+            None: {"AUTHORITY_VERIFIED"},
+            "AUTHORITY_VERIFIED": {"RESERVED"},
+            "RESERVED": {"EXECUTING", "CANCELLED_PRE_DISPATCH"},
+            "EXECUTING": {
+                "COMMITTED",
+                "ATTEMPTED_UNKNOWN",
+                "RECONCILED_COMMITTED",
+                "RECONCILED_NO_EFFECT",
+            },
+            "ATTEMPTED_UNKNOWN": {
+                "RECONCILED_COMMITTED",
+                "RECONCILED_NO_EFFECT",
+            },
+        }
+        last_type: dict[str, str] = {}
         for row in rows:
             event = self._row(row)
             if event.sequence != expected_sequence:
@@ -249,21 +265,15 @@ class OutboundExecutionAudit:
                 raise OutboundAuditError(
                     "outbound audit contains unsupported event type"
                 )
-            rank = stage_rank[event.event_type]
-            prior_rank = last_rank.get(event.effect_id, -1)
-            if event.effect_id in seen_terminal or rank <= prior_rank:
+            prior_type = last_type.get(event.effect_id)
+            if prior_type in terminal_types:
+                raise OutboundAuditError(
+                    "outbound audit terminal effect has later events"
+                )
+            expected = allowed_next.get(prior_type, set())
+            if event.event_type not in expected:
                 raise OutboundAuditError(
                     "outbound audit effect stage ordering is invalid"
-                )
-            if event.event_type in {"COMMITTED", "ATTEMPTED_UNKNOWN"}:
-                if prior_rank != 2:
-                    raise OutboundAuditError(
-                        "outbound audit terminal event requires EXECUTING"
-                    )
-                seen_terminal.add(event.effect_id)
-            elif rank != prior_rank + 1:
-                raise OutboundAuditError(
-                    "outbound audit effect stage has a gap"
                 )
 
             body = {
@@ -281,7 +291,7 @@ class OutboundExecutionAudit:
                     "outbound audit event digest mismatch"
                 )
             predecessor = observed
-            last_rank[event.effect_id] = rank
+            last_type[event.effect_id] = event.event_type
             expected_sequence += 1
 
         if sequence != expected_sequence - 1:
