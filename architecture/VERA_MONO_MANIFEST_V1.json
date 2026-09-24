@@ -310,7 +310,10 @@
       "PC/provider request preparation with lifecycle-bound authority subjects",
       "persistent authority-currentness enforcement",
       "outbound audit/effect-fence restart reconciliation",
-      "cross-ledger outbound integrity gating"
+      "cross-ledger outbound integrity gating",
+      "payload-safe provider execution binding and restart rehydration",
+      "provider restart recovery assessment",
+      "detached provider transport payload snapshot"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -329,6 +332,16 @@
       "provider_protocol": "vera_core.ProviderExecutionTransport",
       "transports_persisted": false,
       "caller_callbacks_runtime_qualified": false
+    },
+    "provider_execution_binding": {
+      "contract": "architecture/VERA_PROVIDER_EXECUTION_BINDING_V1.json",
+      "store": "vera_core.ProviderExecutionBindingStore",
+      "state_path": "provider/execution-bindings.sqlite",
+      "request_payload_persisted": false,
+      "prepare_persists_binding": true,
+      "restart_rehydration": true,
+      "restart_recovery_assessment": true,
+      "stale_permit_refresh": false
     }
   },
   "qualified_pc_execution": {
