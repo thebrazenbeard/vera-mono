@@ -7,13 +7,16 @@ from coordination_bus import (
     CoordinationEventDraft,
     InMemoryCoordinationRepository,
 )
-from pc_connection.contracts import JobEnvelope
+from pc_connection.contracts import AuthorizationEnvelope, JobEnvelope
 from vera_assurance import EffectFenceError, EffectState
 from vera_core import (
+    HmacPCJobAuthority,
+    HmacProviderAuthority,
     LifecycleActionDenied,
+    LifecycleAssuranceError,
     LifecycleBoundCoordinationBus,
     LifecycleEffectGateway,
-    NativeVeraLifecycle,
+    OutboundAuthorityError,
     VeraStateDirectory,
 )
 from vera_memory import AdmissionRequest, MemoryClass
@@ -21,6 +24,7 @@ from vera_memory import AdmissionRequest, MemoryClass
 
 PROJECT = "vera-mono"
 IDENTITY = "vera"
+PROVIDER_ID = "example-provider"
 
 
 def build_accepted(tmp_path):
@@ -69,41 +73,101 @@ def status_draft():
     )
 
 
-def pc_job():
-    return JobEnvelope.from_mapping(
-        {
-            "schema_version": "VERA_PCCC_JOB_V1",
-            "envelope_id": "00000000-0000-7000-8000-000000000001",
-            "request_id": "00000000-0000-7000-8000-000000000002",
-            "idempotency_key": "lifecycle-bound-ping-001",
-            "project_id": PROJECT,
-            "requester_principal_id": "service/vera",
-            "requester_principal_type": "SERVICE",
-            "host_id": "00000000-0000-7000-8000-000000000003",
-            "operation_id": "PING",
-            "operation_version": 1,
-            "parameters_digest": "0" * 64,
-            "artifact_manifest_digest": "0" * 64,
-            "read_roots_digest": "1" * 64,
-            "write_root_id": "NONE",
-            "authorization_id": "00000000-0000-7000-8000-000000000004",
-            "authorization_revision": 1,
-            "not_before": "2026-08-01T20:00:00.000000Z",
-            "expires_at": "2026-08-01T20:15:00.000000Z",
-            "timeout_seconds": 30,
-            "max_attempts": 1,
-            "lease_ttl_seconds": 90,
-            "retry_class": "PURE_READ",
-            "protocol_min_version": "1.0.0",
-            "agent_min_version": "0.1.0",
-            "required_local_policy_digest": "2" * 64,
-            "required_capability_digest": "3" * 64,
-            "issuer_revocation_epoch": 0,
-            "host_revocation_epoch": 0,
-            "nonce": "00000000-0000-7000-8000-000000000005",
-            "trace_correlation_id": "00000000-0000-7000-8000-000000000006",
-        }
+def pc_job(**changes):
+    value = {
+        "schema_version": "VERA_PCCC_JOB_V1",
+        "envelope_id": "00000000-0000-7000-8000-000000000001",
+        "request_id": "00000000-0000-7000-8000-000000000002",
+        "idempotency_key": "lifecycle-bound-ping-001",
+        "project_id": PROJECT,
+        "requester_principal_id": "service/vera",
+        "requester_principal_type": "SERVICE",
+        "host_id": "00000000-0000-7000-8000-000000000003",
+        "operation_id": "PING",
+        "operation_version": 1,
+        "parameters_digest": "0" * 64,
+        "artifact_manifest_digest": "0" * 64,
+        "read_roots_digest": "1" * 64,
+        "write_root_id": "NONE",
+        "authorization_id": "00000000-0000-7000-8000-000000000004",
+        "authorization_revision": 1,
+        "not_before": "2026-08-01T20:00:00.000000Z",
+        "expires_at": "2026-08-01T20:15:00.000000Z",
+        "timeout_seconds": 30,
+        "max_attempts": 1,
+        "lease_ttl_seconds": 90,
+        "retry_class": "PURE_READ",
+        "protocol_min_version": "1.0.0",
+        "agent_min_version": "0.1.0",
+        "required_local_policy_digest": "2" * 64,
+        "required_capability_digest": "3" * 64,
+        "issuer_revocation_epoch": 0,
+        "host_revocation_epoch": 0,
+        "nonce": "00000000-0000-7000-8000-000000000005",
+        "trace_correlation_id": "00000000-0000-7000-8000-000000000006",
+    }
+    value.update(changes)
+    return JobEnvelope.from_mapping(value)
+
+
+def pc_authorization(job, **changes):
+    value = {
+        "schema_version": "VERA_PCCC_AUTHORIZATION_V1",
+        "envelope_id": "00000000-0000-7000-8000-000000000011",
+        "job_id": "00000000-0000-7000-8000-000000000012",
+        "issuer_id": "issuer/pccc-owner",
+        "subject_user_id": "user/operator",
+        "host_id": job.host_id,
+        "operation": job.operation_id,
+        "operation_version": job.operation_version,
+        "parameters_digest": job.parameters_digest,
+        "artifact_manifest_digest": job.artifact_manifest_digest,
+        "read_roots_digest": job.read_roots_digest,
+        "write_root_id": job.write_root_id,
+        "authorization_id": job.authorization_id,
+        "authorization_revision": job.authorization_revision,
+        "issued_at": "2026-08-01T19:59:00.000000Z",
+        "not_before": job.not_before,
+        "expires_at": job.expires_at,
+        "nonce": "00000000-0000-7000-8000-000000000014",
+        "max_attempts": job.max_attempts,
+        "lease_ttl_seconds": job.lease_ttl_seconds,
+        "protocol_min_version": job.protocol_min_version,
+        "agent_min_version": job.agent_min_version,
+        "issuer_revocation_epoch": job.issuer_revocation_epoch,
+        "host_revocation_epoch": job.host_revocation_epoch,
+    }
+    value.update(changes)
+    return AuthorizationEnvelope.from_mapping(value)
+
+
+def provider_authority(gateway, permit, request_payload, *, operation="WRITE"):
+    verifier = HmacProviderAuthority(
+        "provider-authority",
+        PROVIDER_ID,
+        b"p" * 32,
     )
+    request_digest = gateway.provider_request_digest(
+        provider_id=PROVIDER_ID,
+        operation=operation,
+        request_payload=request_payload,
+    )
+    envelope = verifier.issue(
+        operation=operation,
+        request_digest=request_digest,
+        lifecycle_permit_digest=permit.permit_digest,
+    )
+    return verifier, envelope
+
+
+def pc_authority(permit, job, authorization):
+    verifier = HmacPCJobAuthority("pc-authority", b"c" * 32)
+    proof = verifier.issue(
+        job=job,
+        authorization=authorization,
+        lifecycle_permit_digest=permit.permit_digest,
+    )
+    return verifier, proof
 
 
 def test_coordination_gateway_covers_every_public_bus_command(tmp_path):
@@ -115,9 +179,7 @@ def test_coordination_gateway_covers_every_public_bus_command(tmp_path):
         fence=state.effect_fence(),
     )
     public = {
-        name
-        for name in dir(bus)
-        if name.startswith("coordination_")
+        name for name in dir(bus) if name.startswith("coordination_")
     } | {"entry_checkpoint", "exit_checkpoint"}
     assert public <= gateway.COMMANDS
 
@@ -125,10 +187,9 @@ def test_coordination_gateway_covers_every_public_bus_command(tmp_path):
 def test_coordination_write_consumes_exact_permit_and_is_single_use_fenced(tmp_path):
     state, lifecycle, permit = build_accepted(tmp_path)
     repo = InMemoryCoordinationRepository()
-    bus = CoordinationBus(repo)
     gateway = LifecycleBoundCoordinationBus(
         lifecycle=lifecycle,
-        bus=bus,
+        bus=CoordinationBus(repo),
         fence=state.effect_fence(),
     )
     actor = ActorContext("workstream/memory", ALL_PERMISSIONS)
@@ -182,10 +243,7 @@ def test_every_coordination_read_is_also_lifecycle_permit_bound(tmp_path):
         project_id=PROJECT,
         governed_identity_id=IDENTITY,
     )
-    lifecycle.memory.admit(
-        request,
-        expected_head=lifecycle.memory.current_head,
-    )
+    lifecycle.memory.admit(request, expected_head=lifecycle.memory.current_head)
     with pytest.raises(LifecycleActionDenied):
         gateway.invoke(
             "coordination_read_inbox",
@@ -194,7 +252,7 @@ def test_every_coordination_read_is_also_lifecycle_permit_bound(tmp_path):
         )
 
 
-def test_interrupted_candidate_blocks_prior_accepted_permit_from_escaping(tmp_path):
+def test_interrupted_candidate_blocks_verified_provider_authority(tmp_path):
     state, lifecycle, permit = build_accepted(tmp_path)
     lifecycle.checkpoints.append(
         checkpoint_id="cp2",
@@ -209,20 +267,23 @@ def test_interrupted_candidate_blocks_prior_accepted_permit_from_escaping(tmp_pa
         lifecycle=lifecycle,
         fence=state.effect_fence(),
     )
+    payload = {"value": 1}
+    verifier, authority = provider_authority(gateway, permit, payload)
     with pytest.raises(LifecycleActionDenied):
         gateway.dispatch_provider_effect(
             permit=permit,
             effect_id="e1",
-            provider_id="example-provider",
+            provider_id=PROVIDER_ID,
             operation="WRITE",
-            request_payload={"value": 1},
-            authority_evidence_digest="a" * 64,
+            request_payload=payload,
+            authority=authority,
+            authority_verifier=verifier,
             execute=lambda: calls.append("escaped"),
         )
     assert calls == []
 
 
-def test_blocked_candidate_blocks_prior_accepted_permit_from_escaping(tmp_path):
+def test_blocked_candidate_blocks_verified_provider_authority(tmp_path):
     state, lifecycle, permit = build_accepted(tmp_path)
     hostile = {
         "project_id": PROJECT,
@@ -233,8 +294,6 @@ def test_blocked_candidate_blocks_prior_accepted_permit_from_escaping(tmp_path):
         "recovery_checkpoint_generation": permit.recovery_checkpoint_generation,
         "control_source_digest": "b" * 64,
     }
-    from vera_core import LifecycleAssuranceError
-
     with pytest.raises(LifecycleAssuranceError):
         lifecycle.checkpoint(
             checkpoint_id="cp-blocked",
@@ -250,68 +309,137 @@ def test_blocked_candidate_blocks_prior_accepted_permit_from_escaping(tmp_path):
         lifecycle=lifecycle,
         fence=state.effect_fence(),
     )
+    payload = {"value": 2}
+    verifier, authority = provider_authority(gateway, permit, payload)
     with pytest.raises(LifecycleActionDenied):
         gateway.dispatch_provider_effect(
             permit=permit,
             effect_id="e2",
-            provider_id="example-provider",
+            provider_id=PROVIDER_ID,
             operation="WRITE",
-            request_payload={"value": 2},
-            authority_evidence_digest="a" * 64,
+            request_payload=payload,
+            authority=authority,
+            authority_verifier=verifier,
             execute=lambda: calls.append("escaped"),
         )
     assert calls == []
 
 
-def test_provider_effect_is_bound_to_permit_and_at_most_once(tmp_path):
+def test_provider_effect_requires_exact_verified_authority_and_effect_fence(tmp_path):
     state, lifecycle, permit = build_accepted(tmp_path)
     calls = []
     gateway = LifecycleEffectGateway(
         lifecycle=lifecycle,
         fence=state.effect_fence(),
     )
+    payload = {"value": 7}
+    verifier, authority = provider_authority(gateway, permit, payload)
     result = gateway.dispatch_provider_effect(
         permit=permit,
         effect_id="provider-write-1",
-        provider_id="example-provider",
+        provider_id=PROVIDER_ID,
         operation="WRITE",
-        request_payload={"value": 7},
-        authority_evidence_digest="c" * 64,
+        request_payload=payload,
+        authority=authority,
+        authority_verifier=verifier,
         execute=lambda: calls.append("executed") or {"ok": True},
     )
     assert result.fence_receipt.state is EffectState.COMMITTED
     assert result.lifecycle_permit_digest == permit.permit_digest
     assert calls == ["executed"]
 
+    verifier2, authority2 = provider_authority(gateway, permit, payload)
     with pytest.raises(EffectFenceError):
         gateway.dispatch_provider_effect(
             permit=permit,
             effect_id="provider-write-1",
-            provider_id="example-provider",
+            provider_id=PROVIDER_ID,
             operation="WRITE",
-            request_payload={"value": 7},
-            authority_evidence_digest="c" * 64,
+            request_payload=payload,
+            authority=authority2,
+            authority_verifier=verifier2,
             execute=lambda: calls.append("executed-again"),
         )
     assert calls == ["executed"]
 
 
-def test_pc_job_cannot_dispatch_without_exact_accepted_lifecycle_permit(tmp_path):
+def test_provider_authority_cannot_be_replayed_for_changed_request(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    gateway = LifecycleEffectGateway(
+        lifecycle=lifecycle,
+        fence=state.effect_fence(),
+    )
+    original = {"value": 1}
+    verifier, authority = provider_authority(gateway, permit, original)
+    calls = []
+    with pytest.raises(OutboundAuthorityError):
+        gateway.dispatch_provider_effect(
+            permit=permit,
+            effect_id="changed-request",
+            provider_id=PROVIDER_ID,
+            operation="WRITE",
+            request_payload={"value": 2},
+            authority=authority,
+            authority_verifier=verifier,
+            execute=lambda: calls.append("escaped"),
+        )
+    assert calls == []
+
+
+def test_pc_job_requires_authorization_envelope_and_exact_subject_proof(tmp_path):
     state, lifecycle, permit = build_accepted(tmp_path)
     gateway = LifecycleEffectGateway(
         lifecycle=lifecycle,
         fence=state.effect_fence(),
     )
     calls = []
+    job = pc_job()
+    authorization = pc_authorization(job)
+    verifier, proof = pc_authority(permit, job, authorization)
     result = gateway.dispatch_pc_job(
         permit=permit,
-        job=pc_job(),
-        authority_evidence_digest="d" * 64,
+        job=job,
+        authorization=authorization,
+        authority_proof=proof,
+        authority_verifier=verifier,
         execute=lambda: calls.append("pc") or {"pong": True},
     )
     assert result.effect_kind == "PC/PING"
     assert result.fence_receipt.currentness_evidence_digest == permit.permit_digest
     assert calls == ["pc"]
+
+
+def test_pc_authorization_field_mismatch_fails_before_execution(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    gateway = LifecycleEffectGateway(
+        lifecycle=lifecycle,
+        fence=state.effect_fence(),
+    )
+    job = pc_job()
+    authorization = pc_authorization(
+        job,
+        authorization_revision=2,
+    )
+    verifier = HmacPCJobAuthority("pc-authority", b"c" * 32)
+    calls = []
+    with pytest.raises(OutboundAuthorityError):
+        verifier.issue(
+            job=job,
+            authorization=authorization,
+            lifecycle_permit_digest=permit.permit_digest,
+        )
+    assert calls == []
+
+
+def test_pc_authority_for_old_permit_cannot_escape_after_memory_moves(tmp_path):
+    state, lifecycle, permit = build_accepted(tmp_path)
+    gateway = LifecycleEffectGateway(
+        lifecycle=lifecycle,
+        fence=state.effect_fence(),
+    )
+    job = pc_job()
+    authorization = pc_authorization(job)
+    verifier, proof = pc_authority(permit, job, authorization)
 
     request = AdmissionRequest(
         record_id="m-stale",
@@ -325,27 +453,19 @@ def test_pc_job_cannot_dispatch_without_exact_accepted_lifecycle_permit(tmp_path
         project_id=PROJECT,
         governed_identity_id=IDENTITY,
     )
-    lifecycle.memory.admit(
-        request,
-        expected_head=lifecycle.memory.current_head,
-    )
+    lifecycle.memory.admit(request, expected_head=lifecycle.memory.current_head)
+
+    calls = []
     with pytest.raises(LifecycleActionDenied):
         gateway.dispatch_pc_job(
             permit=permit,
-            job=JobEnvelope.from_mapping(
-                {
-                    **pc_job().__dict__,
-                    "envelope_id": "00000000-0000-7000-8000-000000000007",
-                    "request_id": "00000000-0000-7000-8000-000000000008",
-                    "authorization_id": "00000000-0000-7000-8000-000000000009",
-                    "nonce": "00000000-0000-7000-8000-00000000000a",
-                    "trace_correlation_id": "00000000-0000-7000-8000-00000000000b",
-                }
-            ),
-            authority_evidence_digest="d" * 64,
+            job=job,
+            authorization=authorization,
+            authority_proof=proof,
+            authority_verifier=verifier,
             execute=lambda: calls.append("stale-pc"),
         )
-    assert calls == ["pc"]
+    assert calls == []
 
 
 def test_old_permit_is_rejected_after_new_generation_is_accepted(tmp_path):
@@ -366,14 +486,17 @@ def test_old_permit_is_rejected_after_new_generation_is_accepted(tmp_path):
         lifecycle=lifecycle,
         fence=state.effect_fence(),
     )
+    payload = {"value": 9}
+    verifier, authority = provider_authority(gateway, old_permit, payload)
     with pytest.raises(LifecycleActionDenied):
         gateway.dispatch_provider_effect(
             permit=old_permit,
             effect_id="stale-generation",
-            provider_id="example-provider",
+            provider_id=PROVIDER_ID,
             operation="WRITE",
-            request_payload={"value": 9},
-            authority_evidence_digest="e" * 64,
+            request_payload=payload,
+            authority=authority,
+            authority_verifier=verifier,
             execute=lambda: calls.append("escaped"),
         )
     assert calls == []
