@@ -84,7 +84,8 @@
       "coordination repository head when available",
       "coordination command projection digest"
     ],
-    "bound_task_dependency_not_satisfied_forbids_close": true
+    "bound_task_dependency_not_satisfied_forbids_close": true,
+    "active_delegation_forbids_close": true
   },
   "integrity": {
     "journal": "append-only digest-chained SQLite event ledger",
@@ -93,6 +94,10 @@
       "TASK_DEPENDENCY",
       "TASK_DEPENDENCY_CANCELLED",
       "TASK_CORRECTION",
+      "TASK_DELEGATED",
+      "TASK_DELEGATION_REASSIGNED",
+      "TASK_DELEGATION_RETURNED",
+      "TASK_DELEGATION_CANCELLED",
       "TASK_CHECKPOINT",
       "TASK_CLOSED"
     ],
@@ -193,5 +198,28 @@
       "closeout_serialized_against_task_scoped_mutation": true,
       "task_scoped_outbound_preparation_holds_lock": true
     }
+  },
+  "delegation_ownership": {
+    "contract": "architecture/VERA_TASK_DELEGATION_OWNERSHIP_V1.json",
+    "qualified_methods": [
+      "QualifiedVeraRuntime.delegate_task_work",
+      "QualifiedVeraRuntime.reassign_task_delegation",
+      "QualifiedVeraRuntime.return_task_delegation",
+      "QualifiedVeraRuntime.cancel_task_delegation"
+    ],
+    "exact_scope": [
+      "repository",
+      "ref",
+      "subject"
+    ],
+    "one_active_owner_per_scope": true,
+    "assignee_owned_until": [
+      "returned",
+      "cancelled",
+      "explicitly reassigned"
+    ],
+    "active_delegation_forbids_closeout": true,
+    "terminal_delegation_evidence_auto_carried_into_closeout": true,
+    "restart_context_exposes_active_owner": true
   }
 }
