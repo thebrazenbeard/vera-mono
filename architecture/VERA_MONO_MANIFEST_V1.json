@@ -324,7 +324,8 @@
       "delegation reassignment return and cancellation closeout gating",
       "delegated-subject mutation ownership guard",
       "task-bound live-current installation verification",
-      "task-bound live-current route verification"
+      "task-bound live-current route verification",
+      "task-bound live runtime-consumption verification"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -431,7 +432,8 @@
       "lifecycle_not_accepted": "DENY",
       "bound_dependency_not_satisfied": "DENY",
       "active_delegation": "DENY",
-      "route_verification_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS"
+      "route_verification_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
+      "runtime_consumption_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS"
     },
     "claim_ceiling_required": true,
     "independent_surface_closeout": true,
@@ -627,5 +629,19 @@
     "stored_pass_is_current_without_transport": false,
     "current_route_surface_closeout_gate": true,
     "route_pass_is_runtime_consumption": false
+  },
+  "runtime_consumption_verification": {
+    "schema": "VERA_MONO_RUNTIME_CONSUMPTION_VERIFICATION_V1",
+    "contract": "architecture/VERA_RUNTIME_CONSUMPTION_VERIFICATION_V1.json",
+    "store": "vera_core.RuntimeConsumptionVerificationStore",
+    "adapter": "vera_core.QualifiedRuntimeConsumptionAdapter",
+    "state_path": "runtime/consumption-verification.sqlite",
+    "requirement_grammar": "RUNTIME_CONSUME_VERIFY|<consumer-id>|<route-id>|<expected-target>",
+    "live_refresh_required": true,
+    "stored_pass_is_current_without_transport": false,
+    "optional_route_cross_binding": true,
+    "matching_declared_route_must_be_current": true,
+    "runtime_consumption_surface_closeout_gate": true,
+    "consumption_pass_is_behavioral_qualification": false
   }
 }
