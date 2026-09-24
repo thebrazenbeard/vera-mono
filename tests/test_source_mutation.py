@@ -566,3 +566,62 @@ def test_ambiguous_source_mutation_is_restart_recovery_not_replay_candidate(tmp_
     assert assessment.dispatch_candidate_allowed is False
     assert assessment.recovery_required is True
     assert assessment.terminal is False
+
+
+def test_source_restart_rehydrates_exact_write_without_persisting_content(tmp_path):
+    _, runtime, verifier, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-rehydrate",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    runtime.source_mutation_adapter().prepare(
+        "task-rehydrate",
+        "dep-rehydrate",
+        write_request(
+            mutation_id="mutation-rehydrate",
+            path="src/rehydrate.py",
+        ),
+    )
+
+    adapter = runtime.source_mutation_adapter()
+    restored = adapter.rehydrate_mutation(
+        "mutation-rehydrate",
+        content="print('qualified')\n",
+    )
+    assert restored.request.content_digest == (
+        runtime.source_mutation_bindings.read(
+            "mutation-rehydrate"
+        ).content_digest
+    )
+    result = adapter.execute(
+        restored,
+        authority=authority_for(verifier, restored),
+    )
+    assert result.transport_result.new_ref_head == "head-after"
+    assert len(transport.calls) == 1
+
+
+def test_source_restart_rejects_wrong_rehydrated_content_before_transport(tmp_path):
+    _, runtime, _, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-rehydrate-wrong",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    runtime.source_mutation_adapter().prepare(
+        "task-rehydrate-wrong",
+        "dep-rehydrate-wrong",
+        write_request(
+            mutation_id="mutation-rehydrate-wrong",
+            path="src/rehydrate-wrong.py",
+        ),
+    )
+
+    with pytest.raises(
+        SourceMutationError,
+        match="does not match durable content digest",
+    ):
+        runtime.source_mutation_adapter().rehydrate_mutation(
+            "mutation-rehydrate-wrong",
+            content="print('different')\n",
+        )
+    assert transport.calls == []
