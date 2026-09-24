@@ -629,6 +629,15 @@ def test_ambiguous_external_effect_freezes_actions_and_lifecycle_until_reconcile
     fence = state.effect_fence()
     ambiguous = fence.read("provider:example-provider:ambiguous-effect")
     assert ambiguous.state is EffectState.ATTEMPTED_UNKNOWN
+    restart_state = lifecycle.reconstruct()
+    assert restart_state.effect_recovery_required is True
+    assert restart_state.unresolved_effects == (
+        (
+            "provider:example-provider:ambiguous-effect",
+            "ATTEMPTED_UNKNOWN",
+        ),
+    )
+    assert restart_state.as_resume_context()["effect_recovery_required"] is True
 
     with pytest.raises(EffectFenceError):
         lifecycle.accepted_action_permit()
@@ -671,6 +680,7 @@ def test_ambiguous_external_effect_freezes_actions_and_lifecycle_until_reconcile
     assert reconciled.state is EffectState.RECONCILED_NO_EFFECT
     assert reconciled.reconciliation_evidence_digest == "f" * 64
     assert fence.unresolved() == ()
+    assert lifecycle.reconstruct().effect_recovery_required is False
 
     refreshed = lifecycle.accepted_action_permit()
     assert refreshed.permit_digest == permit.permit_digest
