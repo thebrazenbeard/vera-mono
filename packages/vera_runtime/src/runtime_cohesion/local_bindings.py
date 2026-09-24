@@ -61,6 +61,15 @@ def git_blob_sha(raw: bytes) -> str:
     return hashlib.sha1(header + raw).hexdigest()
 
 
+def portable_text_bytes(raw: bytes) -> bytes:
+    """Canonicalize repository text across LF/CRLF working-tree checkouts."""
+    return raw.replace(b"\r\n", b"\n")
+
+
+def portable_text_git_blob_sha(raw: bytes) -> str:
+    return git_blob_sha(portable_text_bytes(raw))
+
+
 def _require_git_sha(value: Any, *, label: str) -> str:
     if type(value) is not str or len(value) != 40:
         raise LocalBindingError(f"{label} must be an exact 40-character Git SHA")
@@ -116,7 +125,7 @@ def load_local_affective_contract(root: Path | str | None = None) -> str:
         raw = path.read_bytes()
     except OSError as exc:
         raise LocalBindingError("local affective contract is unavailable") from exc
-    if git_blob_sha(raw) != AFFECTIVE_CONTRACT_BLOB:
+    if portable_text_git_blob_sha(raw) != AFFECTIVE_CONTRACT_BLOB:
         raise LocalBindingError("local affective contract bytes drifted from admitted blob")
     return raw.decode("utf-8")
 
@@ -166,7 +175,7 @@ def validate_local_affective_source_binding(
     repo = monorepo_root(root)
     if _git(repo, "rev-parse", f"{commit}:{AFFECTIVE_CONTRACT_REPO_PATH}") != AFFECTIVE_CONTRACT_BLOB:
         raise LocalBindingError("local affective source commit does not resolve admitted contract blob")
-    if git_blob_sha(contract_text.encode("utf-8")) != AFFECTIVE_CONTRACT_BLOB:
+    if portable_text_git_blob_sha(contract_text.encode("utf-8")) != AFFECTIVE_CONTRACT_BLOB:
         raise LocalBindingError("supplied affective contract text does not match admitted local blob")
 
     normalized = dict(binding)
@@ -214,7 +223,7 @@ def build_local_implementation_cut(
         file_path = (repo / repo_path).resolve()
         if not file_path.is_file():
             raise LocalBindingError(f"local runtime module is missing: {logical_path}")
-        live_blob = git_blob_sha(file_path.read_bytes())
+        live_blob = portable_text_git_blob_sha(file_path.read_bytes())
         committed_blob = _git(repo, "rev-parse", f"{commit}:{repo_path}")
         if committed_blob != live_blob:
             raise LocalBindingError(f"live runtime bytes differ from current commit: {logical_path}")
@@ -266,7 +275,7 @@ def validate_local_implementation_cut(
         live = (repo / repo_path).resolve()
         if not live.is_file():
             raise LocalBindingError(f"implementation file is missing: {logical_path}")
-        if git_blob_sha(live.read_bytes()) != blob:
+        if portable_text_git_blob_sha(live.read_bytes()) != blob:
             raise LocalBindingError(f"executing bytes do not match implementation cut: {logical_path}")
         if _git(repo, "rev-parse", f"{commit}:{repo_path}") != blob:
             raise LocalBindingError(f"commit resolves different implementation blob: {logical_path}")

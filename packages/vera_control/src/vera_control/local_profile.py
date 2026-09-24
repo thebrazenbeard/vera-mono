@@ -96,6 +96,17 @@ def git_blob_sha(raw: bytes) -> str:
     return hashlib.sha1(header + raw).hexdigest()
 
 
+def portable_text_git_blob_sha(raw: bytes) -> str:
+    """Hash repository text independent of checkout CRLF conversion.
+
+    The frozen source artifacts are text files committed with LF endings. Git on
+    Windows may materialize those same blobs as CRLF. Normalize only CRLF to LF
+    before reconstructing the Git blob identity so source closure remains stable
+    across supported host platforms.
+    """
+    return git_blob_sha(raw.replace(b"\r\n", b"\n"))
+
+
 def validate_local_r10_source_closure() -> tuple[str, ...]:
     """Verify that the complete frozen R10 control-source cut exists locally.
 
@@ -113,7 +124,7 @@ def validate_local_r10_source_closure() -> tuple[str, ...]:
         if not path.is_file():
             errors.append(f"{artifact.logical_id}: local source missing")
             continue
-        observed = git_blob_sha(path.read_bytes())
+        observed = portable_text_git_blob_sha(path.read_bytes())
         if observed != artifact.git_blob:
             errors.append(
                 f"{artifact.logical_id}: expected {artifact.git_blob}, observed {observed}"

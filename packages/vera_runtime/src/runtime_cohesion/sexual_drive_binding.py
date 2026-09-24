@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from . import inference_boundary_repaired as ib
-from .local_bindings import MONOREPO_REPOSITORY, current_commit
+from .local_bindings import MONOREPO_REPOSITORY, current_commit, portable_text_bytes
 
 
 _RESOURCE_ROOT = Path(__file__).resolve().parent / "resources" / "sexual_drive"
@@ -63,7 +63,7 @@ def _load_trusted_contract() -> dict[str, Any]:
         semantic_bytes = _LOCAL_SEMANTIC_PATH.read_bytes()
     except OSError as exc:
         raise ValueError("local sexual-drive semantic owner is unavailable") from exc
-    if hashlib.sha256(semantic_bytes).hexdigest() != _PINNED_SEMANTIC_SHA256:
+    if hashlib.sha256(portable_text_bytes(semantic_bytes)).hexdigest() != _PINNED_SEMANTIC_SHA256:
         raise ValueError("local sexual-drive semantic owner digest mismatch")
     return trusted
 
