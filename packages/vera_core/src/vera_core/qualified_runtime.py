@@ -1864,6 +1864,9 @@ class QualifiedVeraRuntime:
                 "provider_binding_current": (
                     assessment.provider_binding_current
                 ),
+                "provider_authority_current": (
+                    assessment.provider_authority_current
+                ),
                 "transport_available": assessment.transport_available,
                 "content_rehydration_required": (
                     assessment.content_rehydration_required
