@@ -1037,3 +1037,31 @@ def test_task_dependency_rejects_effect_executed_outside_task_provenance(tmp_pat
     assert dependency.status == "PROVENANCE_MISMATCH"
     assert dependency.satisfied is False
     assert dependency.cancellation_allowed is False
+
+
+def test_task_provider_dependency_rejects_direct_non_task_preparation(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-provider-launder", packet())
+    runtime.bind_task_dependency(
+        "task-provider-launder",
+        "dep-provider-launder",
+        kind="PROVIDER_EFFECT",
+        target_id="provider-launder",
+    )
+
+    runtime.prepare_provider_effect(
+        effect_id="provider-launder",
+        provider_id="example-provider",
+        operation="WRITE",
+        request_payload={"value": "outside-task"},
+    )
+
+    assessment = runtime.assess_task_closeout(
+        "task-provider-launder",
+        surfaces=surfaces(),
+    )
+    dependency = assessment.dependency_assessments[0]
+    assert assessment.ready is False
+    assert dependency.status == "PROVENANCE_MISMATCH"
+    assert dependency.cancellation_allowed is False
