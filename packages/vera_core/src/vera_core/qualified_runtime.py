@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Mapping, TypeVar
 
-from vera_assurance import EffectFence
+from vera_assurance import EffectFence, EffectReceipt, EffectState
 from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 
 from .action_gate import LifecycleBoundCoordinationBus, LifecycleEffectGateway
@@ -142,6 +142,16 @@ class QualifiedVeraRuntime:
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
         return self.lifecycle.accepted_action_permit()
+
+    def cancel_reserved_effect(self, effect_id: str) -> EffectReceipt:
+        """Cancel an effect proven not to have crossed the dispatch claim."""
+        with self.lifecycle.action_lock():
+            receipt = self.fence.read(effect_id)
+            if receipt.state is not EffectState.RESERVED:
+                raise ValueError(
+                    "only a mechanically RESERVED pre-dispatch effect may be cancelled"
+                )
+            return self.fence.cancel_before_dispatch(effect_id)
 
     def prepare_pc_job(
         self,
