@@ -560,16 +560,29 @@ class OutboundTrustRegistry:
             rows = db.execute(
                 "SELECT * FROM events ORDER BY registry_generation"
             ).fetchall()
+            authority_rows = db.execute(
+                "SELECT * FROM authorities ORDER BY scope_key"
+            ).fetchall()
             generation, head = self._meta(db)
+
         predecessor = self.GENESIS_HEAD
         expected_generation = 1
+        projection: dict[str, dict[str, Any]] = {}
         for row in rows:
             if int(row["registry_generation"]) != expected_generation:
                 raise OutboundTrustError("outbound trust event generation gap")
             if row["predecessor_digest"] != predecessor:
                 raise OutboundTrustError("outbound trust predecessor mismatch")
-            import json
-            payload = json.loads(row["payload_json"])
+            try:
+                payload = json.loads(row["payload_json"])
+            except json.JSONDecodeError as exc:
+                raise OutboundTrustError(
+                    "outbound trust event payload is invalid JSON"
+                ) from exc
+            if not isinstance(payload, dict):
+                raise OutboundTrustError(
+                    "outbound trust event payload must be an object"
+                )
             body = {
                 "schema": "VERA_MONO_OUTBOUND_TRUST_EVENT_V1",
                 "registry_generation": expected_generation,
@@ -581,13 +594,151 @@ class OutboundTrustRegistry:
             observed = sha256_hex(canonical_json_bytes(body))
             if observed != row["event_digest"]:
                 raise OutboundTrustError("outbound trust event digest mismatch")
+
+            scope_key = str(row["scope_key"])
+            event_type = str(row["event_type"])
+            required = {
+                "authority_id",
+                "role",
+                "provider_id",
+                "authority_generation",
+                "revocation_epoch",
+                "key_id",
+                "key_digest",
+                "enabled",
+            }
+            if set(payload) != required:
+                raise OutboundTrustError(
+                    "outbound trust event payload field set mismatch"
+                )
+            expected_scope = self._scope_key(
+                str(payload["role"]),
+                payload["provider_id"],
+            )
+            if expected_scope != scope_key:
+                raise OutboundTrustError(
+                    "outbound trust event scope binding mismatch"
+                )
+            self._require_text(str(payload["authority_id"]), "authority_id")
+            self._require_text(str(payload["key_id"]), "key_id")
+            self._require_digest(str(payload["key_digest"]), "key_digest")
+            authority_generation = payload["authority_generation"]
+            revocation_epoch = payload["revocation_epoch"]
+            enabled = payload["enabled"]
+            if (
+                isinstance(authority_generation, bool)
+                or not isinstance(authority_generation, int)
+                or authority_generation < 1
+            ):
+                raise OutboundTrustError(
+                    "outbound trust authority generation is invalid"
+                )
+            if (
+                isinstance(revocation_epoch, bool)
+                or not isinstance(revocation_epoch, int)
+                or revocation_epoch < 0
+            ):
+                raise OutboundTrustError(
+                    "outbound trust revocation epoch is invalid"
+                )
+            if type(enabled) is not bool:
+                raise OutboundTrustError(
+                    "outbound trust enabled flag must be boolean"
+                )
+
+            prior = projection.get(scope_key)
+            if event_type == "REGISTER":
+                if (
+                    prior is not None
+                    or authority_generation != 1
+                    or revocation_epoch != 0
+                    or enabled is not True
+                ):
+                    raise OutboundTrustError(
+                        "invalid outbound trust REGISTER transition"
+                    )
+            elif event_type == "ROTATE":
+                if prior is None or prior["enabled"] is not True:
+                    raise OutboundTrustError(
+                        "invalid outbound trust ROTATE predecessor"
+                    )
+                if (
+                    payload["authority_id"] != prior["authority_id"]
+                    or authority_generation
+                    != prior["authority_generation"] + 1
+                    or revocation_epoch != prior["revocation_epoch"]
+                    or enabled is not True
+                    or (
+                        payload["key_id"] == prior["key_id"]
+                        and payload["key_digest"] == prior["key_digest"]
+                    )
+                ):
+                    raise OutboundTrustError(
+                        "invalid outbound trust ROTATE transition"
+                    )
+            elif event_type == "REVOKE":
+                if prior is None or prior["enabled"] is not True:
+                    raise OutboundTrustError(
+                        "invalid outbound trust REVOKE predecessor"
+                    )
+                if (
+                    payload["authority_id"] != prior["authority_id"]
+                    or authority_generation
+                    != prior["authority_generation"]
+                    or revocation_epoch != prior["revocation_epoch"] + 1
+                    or payload["key_id"] != prior["key_id"]
+                    or payload["key_digest"] != prior["key_digest"]
+                    or enabled is not False
+                ):
+                    raise OutboundTrustError(
+                        "invalid outbound trust REVOKE transition"
+                    )
+            elif event_type == "REACTIVATE":
+                if prior is None or prior["enabled"] is not False:
+                    raise OutboundTrustError(
+                        "invalid outbound trust REACTIVATE predecessor"
+                    )
+                if (
+                    authority_generation
+                    != prior["authority_generation"] + 1
+                    or revocation_epoch != prior["revocation_epoch"]
+                    or enabled is not True
+                ):
+                    raise OutboundTrustError(
+                        "invalid outbound trust REACTIVATE transition"
+                    )
+            else:
+                raise OutboundTrustError(
+                    f"unknown outbound trust event type: {event_type}"
+                )
+
+            projection[scope_key] = dict(payload)
             predecessor = observed
             expected_generation += 1
+
         if generation != expected_generation - 1:
             raise OutboundTrustError("outbound trust meta generation mismatch")
         expected_head = predecessor if rows else self.GENESIS_HEAD
         if head != expected_head:
             raise OutboundTrustError("outbound trust meta head mismatch")
+
+        stored_projection: dict[str, dict[str, Any]] = {}
+        for row in authority_rows:
+            scope_key = str(row["scope_key"])
+            stored_projection[scope_key] = {
+                "authority_id": str(row["authority_id"]),
+                "role": str(row["role"]),
+                "provider_id": row["provider_id"],
+                "authority_generation": int(row["authority_generation"]),
+                "revocation_epoch": int(row["revocation_epoch"]),
+                "key_id": str(row["key_id"]),
+                "key_digest": str(row["key_digest"]),
+                "enabled": bool(row["enabled"]),
+            }
+        if stored_projection != projection:
+            raise OutboundTrustError(
+                "outbound trust authority projection diverges from event history"
+            )
         return head
 
     @staticmethod
