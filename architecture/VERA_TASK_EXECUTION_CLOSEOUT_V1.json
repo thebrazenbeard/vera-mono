@@ -89,6 +89,7 @@
     "journal": "append-only digest-chained SQLite event ledger",
     "event_types": [
       "TASK_OPENED",
+      "TASK_CORRECTION",
       "TASK_CHECKPOINT",
       "TASK_CLOSED"
     ],
@@ -103,5 +104,28 @@
     "passing_tests_do_not_close_unproven_surfaces": true,
     "destructive_cleanup_is_separate_effect": true,
     "independent_review_not_implied": true
+  },
+  "correction_recurrence": {
+    "event": "TASK_CORRECTION",
+    "record_method": "TaskExecutionLedger.record_correction",
+    "qualified_method": "QualifiedVeraRuntime.record_task_correction",
+    "binds": [
+      "exact task subject",
+      "task packet digest",
+      "correction summary",
+      "obsolete route",
+      "required change",
+      "current owner reference",
+      "provenance references"
+    ],
+    "provenance_required": true,
+    "next_checkpoint_must_address_all_unresolved_corrections": true,
+    "next_checkpoint_requires_one_or_more": [
+      "method_change",
+      "regression_guard",
+      "blocker_classification"
+    ],
+    "unresolved_correction_forbids_closeout": true,
+    "obsolete_route_may_not_be_silently_reoffered": true
   }
 }
