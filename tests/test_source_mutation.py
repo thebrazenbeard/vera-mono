@@ -7,6 +7,7 @@ from vera_assurance import EffectState
 from vera_core import (
     HmacProviderAuthority,
     QualifiedVeraRuntime,
+    SourceMutationBindingError,
     SourceMutationError,
     SourceMutationRequest,
     SourceMutationTransportResult,
@@ -624,4 +625,195 @@ def test_source_restart_rejects_wrong_rehydrated_content_before_transport(tmp_pa
             "mutation-rehydrate-wrong",
             content="print('different')\n",
         )
+    assert transport.calls == []
+
+
+
+def test_source_restart_rejects_prepared_mutation_after_lifecycle_moves(tmp_path):
+    _, runtime, _, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-stale-lifecycle",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    runtime.source_mutation_adapter().prepare(
+        "task-stale-lifecycle",
+        "dep-stale-lifecycle",
+        write_request(
+            mutation_id="mutation-stale-lifecycle",
+            path="src/stale-lifecycle.py",
+        ),
+    )
+
+    admitted = runtime.lifecycle.memory.admit(
+        AdmissionRequest(
+            record_id="m2",
+            text="advance canonical memory after source preparation",
+            memory_class=MemoryClass.WORKING_PROJECT,
+            source_actor="test",
+            authority_ref="authority:test",
+            privacy_ref="privacy:test",
+            provenance_refs=("source:test",),
+            operation_id="op2",
+            project_id=PROJECT,
+            governed_identity_id=IDENTITY,
+        ),
+        expected_head=runtime.lifecycle.memory.current_head,
+    )
+    assert admitted["store_head"] == runtime.lifecycle.memory.current_head
+
+    assessment = runtime.recover_source_mutations()[0]
+    assert assessment.lifecycle_permit_current is False
+    assert assessment.dispatch_candidate_allowed is False
+
+    with pytest.raises(
+        SourceMutationError,
+        match="not a current dispatch candidate",
+    ):
+        runtime.source_mutation_adapter().rehydrate_mutation(
+            "mutation-stale-lifecycle",
+            content="print('qualified')\n",
+        )
+    assert transport.calls == []
+
+
+def test_source_restart_rejects_stale_delegation_after_reassignment(tmp_path):
+    _, runtime, _, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-delegation-restart",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    delegated = runtime.delegate_task_work(
+        "task-delegation-restart",
+        "delegation-restart",
+        repository=REPOSITORY,
+        ref=REF,
+        subject="restart-owned.py",
+        assignee_ref="worker:one",
+        allowed_effects=("SOURCE_WRITE_FILE",),
+        prohibited_effects=(),
+        return_shape=("commit",),
+        evidence_refs=("delegation:evidence",),
+    )
+    owner_ref = delegated.delegation_ref("delegation-restart")
+    runtime.source_mutation_adapter().prepare(
+        "task-delegation-restart",
+        "dep-delegation-restart",
+        write_request(
+            mutation_id="mutation-delegation-restart",
+            path="src/restart-owned.py",
+            subject="restart-owned.py",
+            actor_ref="worker:one",
+        ),
+        delegation_ref=owner_ref,
+    )
+    runtime.reassign_task_delegation(
+        "task-delegation-restart",
+        "delegation-restart",
+        "reassign-restart",
+        new_assignee_ref="worker:two",
+        evidence_refs=("reassign:evidence",),
+    )
+
+    assessment = runtime.recover_source_mutations()[0]
+    assert assessment.delegation_current is False
+    assert assessment.dispatch_candidate_allowed is False
+
+    with pytest.raises(
+        SourceMutationError,
+        match="not a current dispatch candidate",
+    ):
+        runtime.source_mutation_adapter().rehydrate_mutation(
+            "mutation-delegation-restart",
+            content="print('qualified')\n",
+        )
+    assert transport.calls == []
+
+
+def test_source_restart_without_transport_is_not_dispatch_candidate(tmp_path):
+    state, runtime, verifier, _ = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-no-transport",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    runtime.source_mutation_adapter().prepare(
+        "task-no-transport",
+        "dep-no-transport",
+        write_request(
+            mutation_id="mutation-no-transport",
+            path="src/no-transport.py",
+        ),
+    )
+
+    reopened = QualifiedVeraRuntime.from_state_directory(
+        VeraStateDirectory(
+            state.paths.root,
+            project_id=PROJECT,
+            identity_id=IDENTITY,
+        ),
+        provider_authority_verifiers={PROVIDER_ID: verifier},
+    )
+    assessment = reopened.recover_source_mutations()[0]
+    assert assessment.transport_available is False
+    assert assessment.dispatch_candidate_allowed is False
+    assert assessment.recovery_required is False
+
+
+def test_source_binding_tamper_fails_closed_on_read(tmp_path):
+    state, runtime, _, _ = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-binding-tamper",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    runtime.source_mutation_adapter().prepare(
+        "task-binding-tamper",
+        "dep-binding-tamper",
+        write_request(
+            mutation_id="mutation-binding-tamper",
+            path="src/binding-tamper.py",
+        ),
+    )
+
+    with sqlite3.connect(state.paths.source_mutation_bindings) as db:
+        db.execute(
+            """
+            UPDATE source_mutation_bindings
+            SET payload_json='{}'
+            WHERE mutation_id='mutation-binding-tamper'
+            """
+        )
+
+    with pytest.raises(SourceMutationBindingError):
+        state.source_mutation_binding_store().read(
+            "mutation-binding-tamper"
+        )
+
+
+def test_source_recovery_detects_tampered_provider_binding_cross_store(tmp_path):
+    state, runtime, _, transport = runtime_with_source(tmp_path)
+    runtime.start_task(
+        "task-provider-binding-tamper",
+        packet("SOURCE|thebrazenbeard/vera-mono|main|**"),
+    )
+    runtime.source_mutation_adapter().prepare(
+        "task-provider-binding-tamper",
+        "dep-provider-binding-tamper",
+        write_request(
+            mutation_id="mutation-provider-binding-tamper",
+            path="src/provider-binding-tamper.py",
+        ),
+    )
+
+    with sqlite3.connect(state.paths.provider_execution_bindings) as db:
+        db.execute(
+            """
+            UPDATE provider_execution_bindings
+            SET payload_json='{}'
+            WHERE effect_id='mutation-provider-binding-tamper'
+            """
+        )
+
+    assessment = runtime.recover_source_mutations()[0]
+    assert assessment.provider_binding_current is False
+    assert assessment.dispatch_candidate_allowed is False
+    assert assessment.recovery_required is True
     assert transport.calls == []
