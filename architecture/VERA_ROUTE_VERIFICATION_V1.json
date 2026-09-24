@@ -1,0 +1,84 @@
+{
+  "schema": "VERA_MONO_ROUTE_VERIFICATION_V1",
+  "purpose": "Verify the live selected route for an explicitly declared task route instead of inferring current routing from source, package, installation, or a past observation.",
+  "requirement_grammar": {
+    "syntax": "ROUTE_VERIFY|<route-id>|<expected-target>",
+    "owner": "TaskPacket.evidence_requirements",
+    "requirement_requires_surface": "current route",
+    "conflicting_targets_for_same_route": "DENY"
+  },
+  "composition": {
+    "store": "vera_core.RouteVerificationStore",
+    "adapter": "vera_core.QualifiedRouteVerificationAdapter",
+    "transport_protocol": "vera_core.RouteVerificationTransport",
+    "concrete_json_transport": "vera_core.JsonFileRouteVerificationTransport",
+    "state_path": "<vera-state-root>/route/verification.sqlite"
+  },
+  "observation": {
+    "receipt_schema": "VERA_MONO_ROUTE_VERIFICATION_V1",
+    "append_only_digest_chain": true,
+    "statuses": [
+      "PASS",
+      "FAIL",
+      "UNAVAILABLE"
+    ],
+    "binds": [
+      "task id",
+      "task packet digest",
+      "route id",
+      "expected target",
+      "selected target",
+      "route digest",
+      "evidence reference"
+    ],
+    "pass_requires": [
+      "route is available",
+      "selected target exactly equals expected target",
+      "route digest is present",
+      "evidence reference is present"
+    ]
+  },
+  "live_currentness": {
+    "stored_PASS_is_sufficient_without_refresh": false,
+    "current_observation_must_match_stored_PASS_digest": true,
+    "current_selected_target_must_match_expected_target": true,
+    "missing_transport_after_stored_PASS": "PENDING_NOT_CURRENT",
+    "route_digest_change_after_PASS": "PENDING_NOT_CURRENT",
+    "changed_selected_target": "FAIL_OR_NOT_CURRENT"
+  },
+  "json_route_transport": {
+    "mechanism": "read-only JSON file",
+    "mutation": false,
+    "route_digest": "SHA-256 over canonical JSON object",
+    "selected_target": "configured target_field, default 'target'",
+    "missing_file": "UNAVAILABLE",
+    "credentials_required": false
+  },
+  "task_closeout": {
+    "any_matching_ROUTE_VERIFY_requirement_requires_all_current_PASS": true,
+    "current_route_surface_must_be": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "out_of_scope_or_not_applicable_with_requirement": "DENY",
+    "evidence_ref": "task-route:<route-id>:<receipt-digest>",
+    "task_runtime_evidence_cut_includes_route_verification_head": true,
+    "closed_task_new_observation": "DENY"
+  },
+  "restart": {
+    "conversation_state_required": false,
+    "state_store_reopened_from_VeraStateDirectory": true,
+    "runtime_context": "route_verification_recovery",
+    "live_transport_missing": "stored PASS is historical evidence only, not current verification"
+  },
+  "boundaries": {
+    "source_pass_is_not_route_pass": true,
+    "package_pass_is_not_route_pass": true,
+    "installation_pass_is_not_route_pass": true,
+    "route_pass_is_not_runtime_consumption": true,
+    "route_pass_is_not_behavioral_qualification": true,
+    "route_pass_is_not_provider_activation": true,
+    "route_verification_is_read_only": true,
+    "route_verification_grants_no_route_mutation_authority": true
+  }
+}
