@@ -1775,6 +1775,56 @@ class QualifiedVeraRuntime:
                         )
                     )
 
+        runtime_consumption_requirements_for_task = (
+            runtime_consumption_requirements(
+                state.packet.evidence_requirements
+            )
+        )
+        runtime_consumption_assessments: tuple[
+            RuntimeConsumptionAssessment, ...
+        ] = ()
+        if runtime_consumption_requirements_for_task:
+            if "runtime consumption" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "RUNTIME_CONSUME_VERIFY evidence requires the "
+                    "runtime consumption closeout surface"
+                )
+            elif surfaces.get("runtime consumption") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required runtime consumption evidence cannot close a "
+                    "runtime consumption surface that is not "
+                    "verified-current or changed-and-verified"
+                )
+            try:
+                runtime_consumption_assessments = (
+                    self.runtime_consumption_adapter().assess_task(task_id)
+                )
+            except RuntimeConsumptionVerificationError as exc:
+                reasons.append(
+                    "runtime consumption verification contract is invalid: "
+                    + str(exc)
+                )
+            else:
+                not_current_consumers = tuple(
+                    assessment
+                    for assessment in runtime_consumption_assessments
+                    if not assessment.passed
+                )
+                if not_current_consumers:
+                    reasons.append(
+                        "required runtime consumers are not verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.consumer_id}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current_consumers
+                        )
+                    )
+
         active_delegation_ids = tuple(
             delegation.delegation_id
             for delegation in state.active_delegations
@@ -1885,6 +1935,19 @@ class QualifiedVeraRuntime:
                     "verified route lacks durable evidence digest: "
                     + ", ".join(missing_route_evidence)
                 )
+            runtime_consumption_assessments = (
+                self.runtime_consumption_adapter().assess_task(task_id)
+            )
+            missing_runtime_consumption_evidence = tuple(
+                item.consumer_id
+                for item in runtime_consumption_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_runtime_consumption_evidence:
+                raise TaskExecutionError(
+                    "verified runtime consumption lacks durable evidence digest: "
+                    + ", ".join(missing_runtime_consumption_evidence)
+                )
             binding_digests = {
                 dependency.dependency_id: dependency.event_digest
                 for dependency in state.dependencies
@@ -1939,6 +2002,16 @@ class QualifiedVeraRuntime:
                 if item.passed
                 and item.latest_receipt_digest is not None
             )
+            runtime_consumption_evidence_refs = tuple(
+                (
+                    "task-runtime-consumption:"
+                    f"{item.consumer_id}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in runtime_consumption_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
             merged_evidence = tuple(
                 dict.fromkeys(
                     (
@@ -1948,6 +2021,7 @@ class QualifiedVeraRuntime:
                         *delegation_evidence_refs,
                         *installation_evidence_refs,
                         *route_evidence_refs,
+                        *runtime_consumption_evidence_refs,
                     )
                 )
             )
