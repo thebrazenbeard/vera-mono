@@ -684,6 +684,23 @@ class QualifiedVeraRuntime:
             actor_ref=actor_ref,
         )
 
+    def assert_task_subject_mutation_allowed(
+        self,
+        *,
+        repository: str,
+        ref: str,
+        subject: str,
+        actor_ref: str,
+        delegation_ref: TaskDelegationRef | None = None,
+    ) -> TaskDelegationRef | None:
+        return self.tasks.assert_subject_mutation_allowed(
+            repository=repository,
+            ref=ref,
+            subject=subject,
+            actor_ref=actor_ref,
+            delegation_ref=delegation_ref,
+        )
+
     def record_task_correction(
         self,
         task_id: str,
