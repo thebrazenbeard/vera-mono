@@ -227,6 +227,7 @@ class TaskDelegation:
     status: str
     terminal_summary: str | None
     terminal_evidence_refs: tuple[str, ...]
+    return_values: Mapping[str, str] | None
     event_digest: str
 
     @property
@@ -830,6 +831,7 @@ class TaskExecutionLedger:
         return_id: str,
         *,
         summary: str,
+        return_values: Mapping[str, str],
         result_evidence_refs: Sequence[str],
     ) -> TaskState:
         state = self.read(task_id)
@@ -844,6 +846,22 @@ class TaskExecutionLedger:
             )
         return_id = _require_text(return_id, "return_id")
         summary = _require_text(summary, "delegation return summary")
+        if not isinstance(return_values, Mapping):
+            raise TaskExecutionError(
+                "delegation return_values must be a mapping"
+            )
+        expected_return_keys = set(delegation.return_shape)
+        observed_return_keys = set(return_values)
+        if observed_return_keys != expected_return_keys:
+            raise TaskExecutionError(
+                "delegation return values do not match return shape; "
+                f"missing={sorted(expected_return_keys - observed_return_keys)}, "
+                f"extra={sorted(observed_return_keys - expected_return_keys)}"
+            )
+        normalized_return_values = {
+            key: _require_text(return_values[key], f"return_values[{key}]")
+            for key in delegation.return_shape
+        }
         evidence = _require_texts(
             result_evidence_refs,
             "result_evidence_refs",
@@ -869,6 +887,7 @@ class TaskExecutionLedger:
                 "subject": delegation.subject,
                 "assignee_ref": delegation.assignee_ref,
                 "summary": summary,
+                "return_values": normalized_return_values,
                 "result_evidence_refs": list(evidence),
             },
         )
@@ -1414,6 +1433,7 @@ class TaskExecutionLedger:
                     status="ACTIVE",
                     terminal_summary=None,
                     terminal_evidence_refs=(),
+                    return_values=None,
                     event_digest=event.event_digest,
                 )
             elif event.event_type == "TASK_DELEGATION_REASSIGNED":
@@ -1473,6 +1493,7 @@ class TaskExecutionLedger:
                     status="ACTIVE",
                     terminal_summary=None,
                     terminal_evidence_refs=(),
+                    return_values=None,
                     event_digest=event.event_digest,
                 )
             elif event.event_type in {
@@ -1508,6 +1529,22 @@ class TaskExecutionLedger:
                         event.payload.get("summary"),
                         "delegation return summary",
                     )
+                    raw_return_values = event.payload.get("return_values")
+                    if not isinstance(raw_return_values, dict):
+                        raise TaskExecutionError(
+                            "persisted delegation return values are missing"
+                        )
+                    if set(raw_return_values) != set(delegation.return_shape):
+                        raise TaskExecutionError(
+                            "persisted delegation return values do not match return shape"
+                        )
+                    return_values = {
+                        key: _require_text(
+                            raw_return_values[key],
+                            f"return_values[{key}]",
+                        )
+                        for key in delegation.return_shape
+                    }
                     terminal_evidence = _require_texts(
                         event.payload.get(
                             "result_evidence_refs",
@@ -1521,6 +1558,7 @@ class TaskExecutionLedger:
                         event.payload.get("reason"),
                         "delegation cancellation reason",
                     )
+                    return_values = None
                     terminal_evidence = _require_texts(
                         event.payload.get("evidence_refs", ()),
                         "evidence_refs",
@@ -1542,6 +1580,7 @@ class TaskExecutionLedger:
                     status=status,
                     terminal_summary=summary,
                     terminal_evidence_refs=terminal_evidence,
+                    return_values=return_values,
                     event_digest=event.event_digest,
                 )
             elif event.event_type == "TASK_CORRECTION":
@@ -1830,6 +1869,14 @@ class TaskExecutionLedger:
                     "return_shape": list(delegation.return_shape),
                     "status": delegation.status,
                     "terminal_summary": delegation.terminal_summary,
+                    "terminal_evidence_refs": list(
+                        delegation.terminal_evidence_refs
+                    ),
+                    "return_values": (
+                        None
+                        if delegation.return_values is None
+                        else dict(delegation.return_values)
+                    ),
                     "event_digest": delegation.event_digest,
                 }
                 for state in states
