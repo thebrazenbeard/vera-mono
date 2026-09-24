@@ -38,6 +38,20 @@ class PreparedProviderDispatch:
 
 
 @dataclass(frozen=True, slots=True)
+class ProviderExecutionRecoveryAssessment:
+    effect_id: str
+    mechanical_effect_id: str
+    provider_id: str
+    operation: str
+    fence_state: str | None
+    lifecycle_permit_current: bool
+    dispatch_candidate_allowed: bool
+    recovery_required: bool
+    terminal: bool
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class ProviderExecutionBinding:
     binding_digest: str
     effect_id: str
