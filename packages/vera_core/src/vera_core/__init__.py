@@ -92,6 +92,17 @@ from .reasoning_cascade import (
     ReasoningRequest,
 )
 from .registry import CAPABILITIES, LocalCapability, capability, validate_registry
+from .task_execution import (
+    CLOSEOUT_STATES,
+    CLOSEOUT_SURFACES,
+    TaskCloseout,
+    TaskCloseoutAssessment,
+    TaskEvent,
+    TaskExecutionError,
+    TaskExecutionLedger,
+    TaskPacket,
+    TaskState,
+)
 from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
@@ -162,6 +173,15 @@ __all__ = [
     "OutboundEffectResult",
     "NativeVeraLifecycle",
     "ReasoningRequest",
+    "CLOSEOUT_STATES",
+    "CLOSEOUT_SURFACES",
+    "TaskCloseout",
+    "TaskCloseoutAssessment",
+    "TaskEvent",
+    "TaskExecutionError",
+    "TaskExecutionLedger",
+    "TaskPacket",
+    "TaskState",
     "VeraStateDirectory",
     "VeraStatePaths",
     "capability",
