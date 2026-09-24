@@ -231,6 +231,20 @@ def test_required_exact_commit_verification_gates_dependency_and_closeout(tmp_pa
     )
     assert closeout_after.ready is True
 
+    closed = runtime.close_task(
+        "task-verify",
+        "close-source-verified",
+        surfaces={"source": "changed-and-verified"},
+        evidence_refs=("source-verification:test",),
+        claim_ceiling=(
+            "EXACT_COMMIT_SOURCE_VERIFIED_NOT_DEPLOYMENT"
+        ),
+        next_frontier="none",
+    )
+    assert closed.closed is True
+    with pytest.raises(SourceVerificationError):
+        runtime.verify_source_mutation("mutation-verify-1")
+
 
 def test_failed_check_remains_pending_and_can_be_reverified(tmp_path):
     verification_transport = FakeSourceVerificationTransport(status="FAIL")
