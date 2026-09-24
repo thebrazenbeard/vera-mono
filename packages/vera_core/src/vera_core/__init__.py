@@ -69,10 +69,13 @@ from .qualified_pc import (
     QualifiedPCExecutionAdapter,
     QualifiedPCExecutionResult,
 )
-from .qualified_runtime import (
+from .provider_execution_binding import (
     PreparedProviderDispatch,
-    QualifiedVeraRuntime,
+    ProviderExecutionBinding,
+    ProviderExecutionBindingError,
+    ProviderExecutionBindingStore,
 )
+from .qualified_runtime import QualifiedVeraRuntime
 from .reasoning_cascade import (
     CascadeEngine,
     CascadeOutcome,
@@ -120,6 +123,9 @@ __all__ = [
     "QualifiedPCExecutionResult",
     "PreparedPCDispatch",
     "PreparedProviderDispatch",
+    "ProviderExecutionBinding",
+    "ProviderExecutionBindingError",
+    "ProviderExecutionBindingStore",
     "QualifiedVeraRuntime",
     "pc_authority_subject",
     "provider_authority_subject",
