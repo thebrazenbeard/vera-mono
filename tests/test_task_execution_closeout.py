@@ -941,3 +941,60 @@ def test_restart_marks_only_missing_dependency_as_safe_to_cancel(tmp_path):
     assert recovered["dep-missing"]["cancellation_allowed"] is True
     assert recovered["dep-pending-provider"]["status"] == "PENDING"
     assert recovered["dep-pending-provider"]["cancellation_allowed"] is False
+
+
+def test_task_scoped_coordination_is_bidirectionally_bound_in_outbound_audit(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-audit-provenance", packet())
+
+    runtime.invoke_task_coordination(
+        "task-audit-provenance",
+        "dep-audit-command",
+        "coordination_post",
+        actor=actor(),
+        command_id="task-audit-command",
+        args=(draft(),),
+    )
+
+    dependency = runtime.tasks.read(
+        "task-audit-provenance"
+    ).dependency_ref("dep-audit-command")
+    events = runtime.audit.events("coordination:task-audit-command")
+    authority = events[0]
+    assert authority.event_type == "AUTHORITY_VERIFIED"
+    assert (
+        authority.payload["authority_details"]["task_dependency"]
+        == dependency.canonical_body()
+    )
+
+
+def test_task_provider_binding_persists_exact_task_provenance_across_restart(tmp_path):
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    runtime.start_task("task-provider-provenance", packet())
+
+    prepared = runtime.prepare_task_provider_effect(
+        "task-provider-provenance",
+        "dep-provider-provenance",
+        effect_id="provider-provenance",
+        provider_id="example-provider",
+        operation="WRITE",
+        request_payload={"value": 7},
+    )
+    assert prepared.task_dependency is not None
+    assert prepared.task_dependency.task_id == "task-provider-provenance"
+    assert prepared.task_dependency.dependency_id == "dep-provider-provenance"
+
+    restarted = QualifiedVeraRuntime.from_state_directory(state)
+    rebound = restarted.rehydrate_provider_effect(
+        "provider-provenance",
+        request_payload={"value": 7},
+    )
+    assert rebound.task_dependency == prepared.task_dependency
+    assert (
+        restarted.provider_execution_bindings.read(
+            "provider-provenance"
+        ).task_dependency
+        == prepared.task_dependency
+    )
