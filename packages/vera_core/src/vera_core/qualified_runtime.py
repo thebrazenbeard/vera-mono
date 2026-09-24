@@ -1331,6 +1331,9 @@ class QualifiedVeraRuntime:
                         "target_id": assessment.target_id,
                         "status": assessment.status,
                         "evidence_digest": assessment.evidence_digest,
+                        "cancellation_allowed": (
+                            assessment.cancellation_allowed
+                        ),
                         "reason": assessment.reason,
                     }
                     for assessment in self.assess_task_dependencies(
