@@ -83,7 +83,7 @@
       "source_verification_recovery"
     ],
     "conversation_state_required": false,
-    "latest_observation_reassessed_against": "current exact source outcome and current task requirements",
+    "latest_observation_reassessed_against": "current exact source outcome, current task requirements, and live ref head when PASS is used as current evidence",
     "missing_transport": "verification remains blocked; no inferred success",
     "task_closed": "new verification observations are rejected"
   },
@@ -113,5 +113,14 @@
     "source_verification_is_not_independent_review": true,
     "passing_source_checks_do_not_promote_other_closeout_surfaces": true,
     "source_presence_is_not_activation": true
+  },
+  "currentness": {
+    "transport_contract": "SourceVerificationTransport.observe_ref_head",
+    "stored_PASS_is_sufficient_without_live_ref_refresh": false,
+    "live_ref_must_still_equal_exact_verified_commit": true,
+    "later_ref_movement": "PROVENANCE_MISMATCH",
+    "missing_transport_after_stored_PASS": "PENDING_NOT_CURRENT",
+    "github_collection_order": "collect exact-commit check contexts, then refresh mutable branch head",
+    "rationale": "material ref movement creates a new current source subject; an older PASS remains historical evidence but is not current-source evidence"
   }
 }
