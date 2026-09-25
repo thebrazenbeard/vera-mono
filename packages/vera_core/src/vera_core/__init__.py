@@ -64,6 +64,15 @@ from .action_gate import (
     OutboundActionError,
     OutboundEffectResult,
 )
+from .capability_state import (
+    CapabilityActivation,
+    CapabilityHealth,
+    CapabilityImplementationStatus,
+    CapabilityLearningPolicy,
+    CapabilityMaturity,
+    CapabilityPresence,
+    CapabilityState,
+)
 from .coordination_command_journal import (
     CoordinationCommandBinding,
     CoordinationCommandJournal,
@@ -403,6 +412,13 @@ __all__ = [
     "LifecycleEffectRecovery",
     "reconciliation_subject",
     "CAPABILITIES",
+    "CapabilityActivation",
+    "CapabilityHealth",
+    "CapabilityImplementationStatus",
+    "CapabilityLearningPolicy",
+    "CapabilityMaturity",
+    "CapabilityPresence",
+    "CapabilityState",
     "CascadeEngine",
     "CascadeOutcome",
     "CoordinationCommandBinding",
