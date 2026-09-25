@@ -1,0 +1,45 @@
+{
+  "schema": "VERA_SALIENCE_CONTROL_BINDING_V1",
+  "status": "SOURCE_INTEGRATION_CANDIDATE",
+  "owner": "runtime_cohesion.salience_control",
+  "role": "PRE_ACTION_ATTENTION_AND_SALIENCE_ARBITRATION",
+  "upstream_inputs": [
+    "perceptual",
+    "semantic",
+    "motivational",
+    "incentive",
+    "epistemic",
+    "hazard",
+    "avoidance",
+    "satiation"
+  ],
+  "downstream_boundary": {
+    "may_inform": [
+      "attention focus",
+      "candidate generation",
+      "planning context"
+    ],
+    "does_not_replace": [
+      "protocol.initiative_kernel",
+      "vera_core action/effect authority gates"
+    ]
+  },
+  "hard_non_equivalences": [
+    "SALIENCE != TRUTH",
+    "SALIENCE != EVIDENCE",
+    "SALIENCE != AUTHORITY",
+    "PROTECTIVE_FOCUS != EFFECT_AUTHORITY",
+    "ATTENTION_SELECTION != ACTION_SELECTION",
+    "ACTION_SELECTION != EXECUTION",
+    "GOAL_OBLIGATION != PERMISSION"
+  ],
+  "policy_defaults_are": "CONFIGURABLE_REFERENCE_VALUES_NOT_UNIVERSAL_TRUTHS",
+  "protective_saturation_rule": "protective attention remains unpreemptable, but sustained protective share above policy is audited as protective_saturation",
+  "authorization_effect": "NONE",
+  "memory_admission_effect": "NONE",
+  "identity_effect": "NONE",
+  "truth_effect": "NONE",
+  "runtime_dependency_on_meso_crct": false,
+  "donor_ref": "thebrazenbeard/meso-crct@8316eb3c3a82705e227cb0c275877fae039ab75a",
+  "claim_ceiling": "SOURCE_MECHANISM_ONLY_NOT_INSTALLATION_NOT_ROUTE_NOT_BEHAVIORAL_QUALIFICATION"
+}

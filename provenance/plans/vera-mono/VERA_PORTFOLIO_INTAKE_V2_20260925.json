@@ -55,8 +55,9 @@
       "ref": "6ca7873bf066178aa2a21cd9244f500a3ab1c845",
       "draft_candidate_ref": "8316eb3c3a82705e227cb0c275877fae039ab75a",
       "prior_disposition": "NO_IMPLEMENTATION_TO_MIGRATE",
-      "disposition": "DRAFT_SALIENCE_CONTROL_RESEARCH_CANDIDATE",
-      "reason": "A general salience/valuation control plane would fill a Vera gap, but the substantive V2 implementation remains on a draft stacked branch and is not canonical donor runtime."
+      "disposition": "MIGRATED_BOUNDED_SALIENCE_CONTROL_CORE",
+      "target": "runtime_cohesion.salience_control",
+      "reason": "A domain-neutral pre-action salience and attention-control subset was conceptually adapted from the exact draft head after hostile review. MESO action/intent, memory/review, hedonic, provenance, and runtime ownership remain excluded; the donor draft is not treated as canonical Vera runtime."
     },
     {
       "repository": "thebrazenbeard/unbound-sol",
