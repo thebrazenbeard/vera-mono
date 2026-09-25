@@ -41,9 +41,12 @@
       "ref": "42e4409dff3baee4acb63b48c9f64c7367a4fd22",
       "prior_ref": "f96b73f1a9d78cb23675e05ef9c14e38ce37a122",
       "prior_disposition": "NO_IMPLEMENTATION_TO_MIGRATE_EMPTY_REPO",
-      "disposition": "MIGRATED_BOUNDED_RETRY_DEDUPE",
-      "target": "coordination_bus.retry_guard",
-      "reason": "The stale empty-repo classification was refreshed against current CCB Base. Vera adapted only the process-local short-window retry reservation/rollback mechanism with a route-sensitive canonical coordination key. CCB priority, DLQ, routing, telemetry, heartbeat, and lease/subscription deltas remain separate review subjects."
+      "disposition": "MIGRATED_RETRY_DEDUPE_AND_DERIVED_HEALTH",
+      "targets": [
+        "coordination_bus.retry_guard",
+        "vera_core.CoordinationCommandJournal.health_projection"
+      ],
+      "reason": "The stale empty-repo classification was refreshed against current CCB Base. Vera adapted the process-local short-window retry reservation/rollback mechanism with a route-sensitive canonical coordination key, then adapted CCB observability semantics as a read-only health projection over Vera's existing integrity-checked command journal rather than creating a second telemetry store. CCB priority, DLQ, node routing, leases/subscriptions, and heartbeat sink/scheduler remain separate or deferred subjects."
     },
     {
       "repository": "thebrazenbeard/WorkBridgeMCP",
