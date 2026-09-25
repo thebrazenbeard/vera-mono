@@ -1,0 +1,24 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/world-zero",
+  "donor_head": "4cf0e094ebc6d4792f9dac9b3e0798a4307edf87",
+  "inspected_source_blobs": {
+    "src/worldzero/science/mechanisms.py": "9ef8e5164c0f1fad6e5345dcf6540383f5033e42",
+    "src/worldzero/validation/holdouts.py": "4931073cc84174b1ca9ba7df7ce5606a6404f21b",
+    "src/worldzero/science/comparison_protocol.py": "fe1b46abe3f31a3a326eb4bd2e04de242d16194b"
+  },
+  "adaptation": {
+    "target": "packages/vera_assurance/src/vera_assurance/mechanism_admission.py",
+    "mechanism": "falsification-first source-level mechanism gate requiring clarity, identifiability or hard-invariant basis, preregistered kill test, holdout/invariant value, ablation value, structural rival analysis, proportionate complexity, numerical integrity, and no unresolved negative transfer",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false,
+    "world_model_semantics_imported": false
+  },
+  "excluded_claims": [
+    "internal gate is independent review",
+    "admissible mechanism is behaviorally qualified",
+    "passing evidence grants installation/runtime/effect authority",
+    "World Zero model or domain assumptions are imported"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE4_CI"
+}
