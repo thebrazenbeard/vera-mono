@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+from email.parser import Parser
+from email.policy import default
 from pathlib import Path
 import sys
 from zipfile import ZipFile
@@ -85,10 +87,11 @@ def main(argv: list[str]) -> int:
         )
         if len(metadata_names) != 1:
             fail("wheel must contain exactly one distribution METADATA file")
-        metadata = archive.read(metadata_names[0]).decode("utf-8")
-        if "\nName: vera-mono\n" not in "\n" + metadata:
+        metadata_text = archive.read(metadata_names[0]).decode("utf-8")
+        metadata = Parser(policy=default).parsestr(metadata_text)
+        if metadata.get("Name") != "vera-mono":
             fail("wheel METADATA does not identify vera-mono")
-        if "\nVersion: 0.1.0\n" not in "\n" + metadata:
+        if metadata.get("Version") != "0.1.0":
             fail("wheel METADATA carries unexpected version")
 
         entry_point_names = sorted(
