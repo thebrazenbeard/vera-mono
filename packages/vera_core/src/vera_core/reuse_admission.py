@@ -46,6 +46,7 @@ class ReuseConsumer:
     repository: str
     exact_subject: str | None
     visibility: str = "PUBLIC"
+    independence_ref: str | None = None
 
     def __post_init__(self) -> None:
         if type(self.repository) is not str or not self.repository:
@@ -59,6 +60,12 @@ class ReuseConsumer:
                 raise ValueError("public consumer requires an exact commit subject")
         elif self.exact_subject is not None:
             raise ValueError("opaque private consumer must not expose a raw subject")
+        if self.independence_ref is not None and (
+            type(self.independence_ref) is not str or not self.independence_ref
+        ):
+            raise ValueError(
+                "independence_ref must be null or a non-empty exact string"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +114,18 @@ class ReuseCandidate:
         if len(identities) != len(self.consumers) or len(repositories) < 2:
             raise ReusePromotionError(
                 "PROVEN_REUSABLE consumers must be materially independent"
+            )
+        independence_refs = [consumer.independence_ref for consumer in self.consumers]
+        if any(
+            type(ref) is not str or not ref
+            for ref in independence_refs
+        ):
+            raise ReusePromotionError(
+                "PROVEN_REUSABLE requires explicit independence evidence"
+            )
+        if len(set(independence_refs)) != len(independence_refs):
+            raise ReusePromotionError(
+                "PROVEN_REUSABLE requires distinct independence evidence"
             )
         if len(set(self.promotion_evidence)) < 2:
             raise ReusePromotionError(
