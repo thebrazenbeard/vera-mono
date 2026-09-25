@@ -13,6 +13,7 @@ from .behavior_effect_verification import BehaviorEffectVerificationStore
 from .behavior_attestation import BehaviorAttestationStore
 from .independent_behavior_review import IndependentBehaviorReviewStore
 from .coordination_command_journal import CoordinationCommandJournal
+from .corrective_learning import CorrectiveLearningLedger
 from .lifecycle import LifecycleReconstruction, NativeVeraLifecycle
 from .lifecycle_journal import LifecycleJournal
 from .installation_verification import InstallationVerificationStore
@@ -52,6 +53,7 @@ class VeraStatePaths:
     coordination: Path
     coordination_commands: Path
     tasks: Path
+    corrective_learning: Path
     trust: Path
 
 
@@ -127,6 +129,9 @@ class VeraStateDirectory:
                 candidate / "coordination" / "commands.sqlite"
             ),
             tasks=candidate / "tasks" / "tasks.sqlite",
+            corrective_learning=(
+                candidate / "learning" / "corrections.sqlite"
+            ),
             trust=candidate / "recovery" / "trust",
         )
         self.project_id = project_id
@@ -254,6 +259,9 @@ class VeraStateDirectory:
     def task_execution_ledger(self) -> TaskExecutionLedger:
         return TaskExecutionLedger(self.paths.tasks)
 
+    def corrective_learning_ledger(self) -> CorrectiveLearningLedger:
+        return CorrectiveLearningLedger(self.paths.corrective_learning)
+
     def reconstruct(self) -> LifecycleReconstruction:
         return self.open().reconstruct()
 
@@ -314,4 +322,7 @@ class VeraStateDirectory:
             self.coordination_command_journal().context()
         )
         context["tasks"] = self.task_execution_ledger().context()
+        context["corrective_learning"] = (
+            self.corrective_learning_ledger().context()
+        )
         return context
