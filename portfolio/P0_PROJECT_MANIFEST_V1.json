@@ -1,0 +1,54 @@
+{
+  "schema": "PROJECT_RUNNER_P0_PROJECT_MANIFEST_V1",
+  "corpus_id": "PROJECT_RUNNER_PORTFOLIO_CORPUS_V1",
+  "classification": {
+    "project_id": "vera-mono",
+    "repository": "thebrazenbeard/vera-mono",
+    "priority": "P0",
+    "family_id": "vera-runtime",
+    "activity_state": "ACTIVE_HEAVY",
+    "observed_at": "2026-09-24T13:08:00-04:00",
+    "source_kind": "PUBLIC_CORPUS_SNAPSHOT",
+    "source_subject": "thebrazenbeard/project-runner@4bc9dfee1204c774d077419ee9c3fdf91ebc141f:portfolio/corpus.public.json"
+  },
+  "role": {
+    "purpose": "Self-contained Vera implementation with local lifecycle, recovery, assurance and effect gates.",
+    "status": "Main advances persistent trust, authority rotation and ambiguity recovery; Windows portability remains open.",
+    "current_frontier": "Finish portable recovery and reduce external runtime dependency without erasing provenance."
+  },
+  "governance": {
+    "priority_is_authority": false,
+    "scheduling_requires_currentness": true,
+    "effect_requires_explicit_authority": true,
+    "merge_deploy_not_granted": true
+  },
+  "build_tracks": [
+    {
+      "id": "windows-portability",
+      "goal": "Remove remaining Unix-only recovery/provisioning assumptions.",
+      "acceptance": [
+        "Locking has a Windows-safe implementation.",
+        "Provisioning does not require /etc paths.",
+        "Recovery tests exercise supported Windows behavior."
+      ]
+    },
+    {
+      "id": "local-lifecycle",
+      "goal": "Keep memory, checkpoints, currentness, assurance and effects in one native lifecycle.",
+      "acceptance": [
+        "Interrupted candidates cannot escape effect fences.",
+        "Checkpointed is not accepted/current.",
+        "Exact accepted lifecycle receipts gate coordination/effects."
+      ]
+    },
+    {
+      "id": "dependency-reduction",
+      "goal": "Absorb required mechanisms without erasing source provenance.",
+      "acceptance": [
+        "Vendored/absorbed mechanisms retain origin/license evidence.",
+        "Essential lifecycle behavior is monorepo-local.",
+        "External services remain adapters rather than hidden cognitive/runtime roots."
+      ]
+    }
+  ]
+}
