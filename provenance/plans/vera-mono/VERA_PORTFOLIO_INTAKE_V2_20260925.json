@@ -38,10 +38,12 @@
     },
     {
       "repository": "thebrazenbeard/ccb-core",
-      "ref": "f96b73f1a9d78cb23675e05ef9c14e38ce37a122",
+      "ref": "42e4409dff3baee4acb63b48c9f64c7367a4fd22",
+      "prior_ref": "f96b73f1a9d78cb23675e05ef9c14e38ce37a122",
       "prior_disposition": "NO_IMPLEMENTATION_TO_MIGRATE_EMPTY_REPO",
-      "disposition": "REASSESS_COORDINATION_DELTA",
-      "reason": "The prior empty-repo observation is stale; current main contains durable routing, admission, deduplication, telemetry and dead-letter mechanics. Import only deltas not already owned by vera_coordination."
+      "disposition": "MIGRATED_BOUNDED_RETRY_DEDUPE",
+      "target": "coordination_bus.retry_guard",
+      "reason": "The stale empty-repo classification was refreshed against current CCB Base. Vera adapted only the process-local short-window retry reservation/rollback mechanism with a route-sensitive canonical coordination key. CCB priority, DLQ, routing, telemetry, heartbeat, and lease/subscription deltas remain separate review subjects."
     },
     {
       "repository": "thebrazenbeard/WorkBridgeMCP",
