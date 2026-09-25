@@ -1,6 +1,6 @@
 {
   "schema": "VERA_PORTFOLIO_INTAKE_V5_20260925",
-  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE2_SOURCE_AND_PACKAGE_SURFACES_CLOSED_PENDING_FINAL_CI",
+  "status": "INTEGRATED_ON_MAIN_AND_VERIFIED",
   "observed_date": "2026-09-25",
   "owner_repository": "thebrazenbeard/vera-mono",
   "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V4_20260925.json",
@@ -137,7 +137,7 @@
     "overlapping mechanisms already owned locally where re-import would create duplicate authority/state owners",
     "private-specific implementation details not authorized for public republication"
   ],
-  "claim_ceiling": "ALL_71_REPOSITORIES_ENUMERATED; V4 HIGH-VALUE BOUNDED FRONTIER IMPLEMENTED ON WAVE2; FINAL CROSS-PLATFORM CI/WHEEL CLOSURE STILL REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME_CONSUMPTION; NOT BEHAVIORAL_QUALIFICATION; NOT INDEPENDENT_REVIEW",
+  "claim_ceiling": "ALL_71_REPOSITORIES_ENUMERATED; WAVE2 SOURCE ADAPTATIONS AND PACKAGE SURFACES INTEGRATED ON MAIN AT A749DD6F; DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE VERIFIED; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME_CONSUMPTION; NOT BEHAVIORAL_QUALIFICATION; NOT INDEPENDENT_REVIEW",
   "hostile_review": {
     "objection": "Source-level donor adaptation can become dead utility code, and nominally frozen evidence objects can still hide mutable payloads.",
     "disposition": "PARTIALLY_ACCEPTED",
@@ -176,5 +176,28 @@
     "core_export_commit": "f7a2ae47c3ab14d586b95bebe24c4ffee0af2438",
     "memory_export_commit": "d547ddbf7b4b514708c9739412088e85c38fda1b",
     "purpose": "Make admitted wave-2 primitives available through the existing broad vera_core and vera_memory package composition surfaces without binding them into QualifiedVeraRuntime."
+  },
+  "integrated_main_head": "a749dd6f7bc2dd801756514d47b623af9dfad2e1",
+  "verification": {
+    "dependency_review": {
+      "run_id": 36197301686,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36197301619,
+      "conclusion": "success",
+      "platforms": [
+        "ubuntu-24.04",
+        "windows-latest"
+      ],
+      "includes": [
+        "monorepo tests",
+        "wheel build",
+        "wheel closure",
+        "installed wheel closure"
+      ]
+    },
+    "observed_main_head_matches_candidate": true,
+    "promotion_actor": "UNKNOWN_FROM_AVAILABLE_EVIDENCE"
   }
 }
