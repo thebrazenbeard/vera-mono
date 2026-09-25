@@ -1,0 +1,25 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/hc-brain",
+  "donor_head": "80a55949b0bb7549b7f678fba8ecedce854e3c0e",
+  "inspected_source_blobs": {
+    "basic operating instructions/CAPABILITY_ACTIVATION_STATES.md": "f5b01a7828dd5d1212ab3e66416593606982b6b2",
+    "runtime/reference_kernel/governed_kernel_v2.py": "94f927c05f38f664370b672ed994b64029e64825",
+    "runtime/reference_kernel/test_vera_adversarial_kernel_v2.py": "ff566e434d106c2f3b608f7246ef8b59e53e6768"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/capability_state.py",
+    "mechanism": "orthogonal capability presence, activation, developmental maturity, health, implementation, and learning-policy axes with effect authorization explicitly external",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false,
+    "identity_architecture_imported": false
+  },
+  "excluded_claims": [
+    "PRESENT implies implemented",
+    "ACTIVE implies authorized",
+    "QUALIFIED_WITHIN_SCOPE implies universal competence",
+    "learning policy grants durable-write or external-effect authority",
+    "HC Brain identity/cognitive-organ architecture is installed"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE4_CI"
+}
