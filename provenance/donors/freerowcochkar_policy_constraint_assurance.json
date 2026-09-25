@@ -1,0 +1,25 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/freerowcochkar",
+  "donor_head": "9ea4eaefe5229ca90d7ae6099dbf30d9e13b64b2",
+  "inspected_source_blobs": {
+    "src/freerowcochkar/constraints.py": "23303923d903e7a0e2238e5bc8fccdeeba136913",
+    "src/freerowcochkar/analyzer.py": "119271d0dea0a55176917ecab14e937f00df39d9",
+    "src/freerowcochkar/models.py": "77d8a126ca09df5d37aab7396457892ff19862df",
+    "src/freerowcochkar/rules.py": "593b6dfc3f445025203126d494fb5562ce9c7495"
+  },
+  "adaptation": {
+    "target": "packages/vera_assurance/src/vera_assurance/policy_constraints.py",
+    "mechanism": "direct prohibition plus separately permitted delegated route to the same normalized effect",
+    "scope": "PAIRWISE_DELEGATION_LAUNDERING_ONLY",
+    "identity_transfer": false,
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "general multi-hop path search",
+    "three-or-more-transition Stage-2 composition",
+    "policy truth or authority promotion",
+    "independent review"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_CI"
+}\n
