@@ -1,0 +1,75 @@
+{
+  "schema": "VERA_MONO_PORTFOLIO_INTAKE_V2",
+  "status": "SOURCE_OBSERVED_INTEGRATION_CANDIDATE",
+  "observed_date": "2026-09-25",
+  "prepared_against": "fix/windows-byte-stability-current-main-20260925@e1f408be6299d0644260f6a57011c7ce65157d57",
+  "prior_harvest": "provenance/plans/vera-pr200/VERA_PORTFOLIO_HARVEST_V1.json",
+  "inventory": {
+    "accessible_repository_count": 68,
+    "public_repository_count": 50,
+    "private_repository_count": 18,
+    "prior_harvest_repository_count": 65,
+    "new_external_donor_frontier": ["fuckup", "sql-connectome", "axle"],
+    "target_self_excluded_from_donors": "vera-mono",
+    "prior_subject_not_observed_currently": "identify-ai"
+  },
+  "privacy_rule": "Only aggregate private counts are recorded; private repository names are not published by this intake.",
+  "subjects": [
+    {
+      "repository": "thebrazenbeard/fuckup",
+      "ref": "e999607481ba706523209ce129955a5e3d2d6ef7",
+      "disposition": "MIGRATE_CORRECTIVE_LEARNING_METHOD",
+      "target": "vera_core.corrective_learning",
+      "reason": "Adds a staged error-to-prevention learning loop without duplicating Vera's existing failure detector."
+    },
+    {
+      "repository": "thebrazenbeard/sql-connectome",
+      "ref": "66ed8e00ab04fcb6080c7a1362304601d00edafe",
+      "disposition": "CANDIDATE_GENERIC_SEMANTIC_TRANSFER_CORE",
+      "target": "UNBOUND_PENDING_DOMAIN_NEUTRAL_EXTRACTION",
+      "reason": "Graph-shaped semantic IR, capability planning, graded fidelity and unknown-preserving interpretation fill a general transfer gap; SQL-specific semantics must not be copied wholesale."
+    },
+    {
+      "repository": "thebrazenbeard/axle",
+      "ref": "4b2d25d525fe845c4cad83838762e8890e864606",
+      "disposition": "NO_IMPLEMENTATION_TO_MIGRATE_YET",
+      "target": null,
+      "reason": "Current main is a bootstrap/product shell; future embodiment mechanics require exact implementation evidence."
+    },
+    {
+      "repository": "thebrazenbeard/ccb-core",
+      "ref": "f96b73f1a9d78cb23675e05ef9c14e38ce37a122",
+      "prior_disposition": "NO_IMPLEMENTATION_TO_MIGRATE_EMPTY_REPO",
+      "disposition": "REASSESS_COORDINATION_DELTA",
+      "reason": "The prior empty-repo observation is stale; current main contains durable routing, admission, deduplication, telemetry and dead-letter mechanics. Import only deltas not already owned by vera_coordination."
+    },
+    {
+      "repository": "thebrazenbeard/WorkBridgeMCP",
+      "ref": "8707a2e1eaf7de5ce2316567b5e6f1e805c0537b",
+      "prior_disposition": "KEEP_EXTERNAL_PROVIDER_STUB_LEVEL",
+      "disposition": "KEEP_EXTERNAL_PROVIDER_REFRESHED",
+      "reason": "Current main now contains substantial workstation/MCP implementation. Host execution remains external; reusable capability/identity verification requirements may inform Vera adapters."
+    },
+    {
+      "repository": "thebrazenbeard/meso-crct",
+      "ref": "6ca7873bf066178aa2a21cd9244f500a3ab1c845",
+      "draft_candidate_ref": "8316eb3c3a82705e227cb0c275877fae039ab75a",
+      "prior_disposition": "NO_IMPLEMENTATION_TO_MIGRATE",
+      "disposition": "DRAFT_SALIENCE_CONTROL_RESEARCH_CANDIDATE",
+      "reason": "A general salience/valuation control plane would fill a Vera gap, but the substantive V2 implementation remains on a draft stacked branch and is not canonical donor runtime."
+    },
+    {
+      "repository": "thebrazenbeard/unbound-sol",
+      "ref": "d4284dd1f044e506bb85554856c00497d6790d44",
+      "disposition": "SIBLING_FIREWALL_REFERENCE_MECHANISMS",
+      "reason": "Learning-ledger and continuity methodology may inform design; Sol identity, state, preferences and authority do not transfer."
+    }
+  ],
+  "integration_order": [
+    "RESTORE_CROSS_PLATFORM_REPOSITORY_INTEGRITY",
+    "CORRECTIVE_LEARNING",
+    "GENERAL_SEMANTIC_TRANSFER",
+    "SALIENCE_VALUATION_AFTER_DRAFT_REVIEW"
+  ],
+  "claim_ceiling": "SOURCE_CURRENTNESS_AND_BOUNDED_INTEGRATION_PLAN_NOT_AGI_NOT_RUNTIME_QUALIFICATION"
+}
