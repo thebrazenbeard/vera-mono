@@ -233,9 +233,11 @@ from .reasoning_cascade import (
 from .semantic_transfer import (
     AppliedSemanticRewrite,
     SemanticCapabilityProfile,
+    SemanticTransferCatalog,
     SemanticTransferPlan,
     SemanticTransferRule,
     TransferFidelity,
+    plan_catalog_semantic_transfer,
     plan_semantic_transfer,
 )
 from .registry import CAPABILITIES, LocalCapability, capability, validate_registry
@@ -293,6 +295,31 @@ from .source_verification_adapter import (
     QualifiedSourceVerificationAdapter,
     SourceVerificationAssessment,
 )
+from .portfolio_system_model import (
+    PortfolioFactDisposition,
+    PortfolioSystemFact,
+    PortfolioSystemModel,
+)
+from .prequential_evaluation import (
+    PrequentialCase,
+    PrequentialStep,
+    PrequentialTrace,
+    evaluate_prequential,
+)
+from .repair_case import (
+    EffectState as RepairEffectState,
+    IncidentState,
+    RepairAttemptState,
+    RepairCase,
+    RepairTransitionError,
+)
+from .simulation_boundary import (
+    SimulationEffectClass,
+    SimulationMutation,
+    SimulationReceipt,
+    SimulationState,
+)
+from .task_wake_scheduler import TaskWake, TaskWakeScheduler
 from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
@@ -520,6 +547,26 @@ __all__ = [
     "TaskState",
     "VeraStateDirectory",
     "VeraStatePaths",
+    "SemanticTransferCatalog",
+    "plan_catalog_semantic_transfer",
+    "PortfolioFactDisposition",
+    "PortfolioSystemFact",
+    "PortfolioSystemModel",
+    "PrequentialCase",
+    "PrequentialStep",
+    "PrequentialTrace",
+    "evaluate_prequential",
+    "IncidentState",
+    "RepairAttemptState",
+    "RepairEffectState",
+    "RepairCase",
+    "RepairTransitionError",
+    "SimulationEffectClass",
+    "SimulationMutation",
+    "SimulationReceipt",
+    "SimulationState",
+    "TaskWake",
+    "TaskWakeScheduler",
     "capability",
     "validate_registry",
 ]
