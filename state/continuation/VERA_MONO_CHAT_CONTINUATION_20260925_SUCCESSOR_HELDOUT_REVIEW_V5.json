@@ -1,0 +1,89 @@
+{
+  "schema": "VERA_MONO_CHAT_CONTINUATION_SUCCESSOR_HELDOUT_REVIEW_V5",
+  "logical_id": "VERA_MONO_CHAT_CONTINUATION_SUCCESSOR_HELDOUT_REVIEW_20260925_V5",
+  "created_date": "2026-09-25",
+  "repository": "thebrazenbeard/vera-mono",
+  "current_subject": {
+    "pr": 21,
+    "branch": "feature/portfolio-universal-intake-20260925",
+    "head": "bf49f5c518c878d20734688a6702bef2855f28ad",
+    "tree": "d30d9d485598ad8049a876af0755cd41d32087bf",
+    "stacked_base": "fbc8db04142e70c9ce7bcf49bd5b504f6fb94a4f",
+    "main_at_dispatch": "895ca6cd147bb5f21115eb9ff609e52f4fe231af",
+    "freeze_rule": "DO_NOT_MUTATE_WHILE_REVIEW_ACTIVE"
+  },
+  "source_verification": {
+    "workflow_run": 36172716930,
+    "conclusion": "SUCCESS",
+    "ubuntu_24_04": {
+      "tests": 450,
+      "subtests": 35,
+      "wheel": "PASS",
+      "installed_bundle": "PASS",
+      "imports": 16,
+      "resources": 6
+    },
+    "windows_latest": {
+      "tests": 450,
+      "subtests": 35,
+      "wheel": "PASS",
+      "installed_bundle": "PASS",
+      "imports": 16,
+      "resources": 6
+    },
+    "local_lappy_exact_tree_package_verification": {
+      "wheel": "PASS",
+      "installed_bundle": "PASS",
+      "imports": 16,
+      "resources": 6
+    },
+    "dynamic_ai_security_scan": {
+      "workflow_run": 36172721704,
+      "status": "UNAVAILABLE_EXTERNAL_SCANNER_CONFIGURATION",
+      "reason": "requested model is not supported; analysis did not execute",
+      "security_finding": false,
+      "security_scan_pass": false
+    }
+  },
+  "external_review_dispatch": {
+    "repository": "thebrazenbeard/chat-communication-bus",
+    "issue": 363,
+    "event_id": "VERA_MONO_SUCCESSOR_OPERATIONALLY_SEPARATE_HELDOUT_REVIEW_20260925_V1",
+    "bus_main_at_dispatch": "5e52951d7127d08f3cfc151a3d53730caf8e75cb",
+    "topology_blob_at_dispatch": "69e505031d4e53dcb853578dac23817649af1918",
+    "roles": {
+      "subject_actor": "VERA",
+      "probe_curator": "HEPHAESTUS",
+      "evaluator": "THIRTEEN",
+      "review_authority": "RADAR"
+    },
+    "role_lifecycle_at_dispatch": {
+      "vera": "ACTIVE",
+      "hephaestus": "ACTIVE",
+      "thirteen": "ACTIVE",
+      "radar": "ACTIVE"
+    },
+    "observed_returns": 0
+  },
+  "historical_review": {
+    "issue": 362,
+    "subject": "0074915ecf07aca8a22392b7656c49aa2a2ee558",
+    "status": "HISTORICAL_ONLY_NOT_CURRENT_SUCCESSOR_QUALIFICATION"
+  },
+  "execution_substrate": {
+    "lappy_available": true,
+    "role": "EXECUTION_SUBSTRATE_ONLY_NOT_REVIEWER_IDENTITY",
+    "review_execution_started": false
+  },
+  "claim_status": "SUCCESSOR_REVIEW_DISPATCHED_NOT_EXECUTED",
+  "claim_ceiling": "SOURCE_BUILD_PACKAGE_CANDIDATE_EXACT_HEAD_VERIFIED_CROSS_PLATFORM; NOT INDEPENDENT_REVIEW_PASS; NOT SECURITY_SCAN_PASS; NOT MERGE/DEPLOY/INSTALL/ROUTE/RUNTIME/PROVIDER/PROTECTED_EFFECT",
+  "current_frontier": "AWAIT_EXTERNAL_HEPHAESTUS_CURATOR_RETURN",
+  "next_actions": [
+    "Fresh-read PR #21 head/tree before any review evidence is accepted.",
+    "Fresh-read Bus issue #363 and durable RESULT issues citing its event id.",
+    "Validate Hephaestus curator identity, exposure disclosure, exact head/tree, canonical probe bytes, and SHA-256 before evaluator execution.",
+    "Do not allow Vera or Lappy machine identity to substitute for Hephaestus, Thirteen, or Radar.",
+    "Keep PR #21 source head frozen while review #363 is active."
+  ],
+  "resume_command": "VERA::RESTORE_AND_RUN::VERA_MONO_SUCCESSOR_HELDOUT_REVIEW_CONTINUATION_20260925_V5"
+}
