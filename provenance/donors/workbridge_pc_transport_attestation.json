@@ -1,0 +1,58 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/WorkBridgeMCP",
+  "donor_ref": "8707a2e1eaf7de5ce2316567b5e6f1e805c0537b",
+  "donor_subject": "bounded WorkBridge configuration/capability admission and executable identity controls",
+  "source_paths": [
+    "internal/bridge/server.go",
+    "internal/runner/runner.go",
+    "internal/config/config.go",
+    "internal/policy/path.go",
+    "docs/SECURITY.md",
+    ".github/workflows/ci.yml"
+  ],
+  "source_blob_ids": {
+    "internal/bridge/server.go": "39e02fd91d5597933b4313a793dedc7e78d5d5e6",
+    "internal/runner/runner.go": "b1376e1c66d7dc7a1b45a70deee24bf45726166a",
+    "internal/config/config.go": "69b4385ae5c391db08df6cd6656e152980ab8574",
+    "internal/policy/path.go": "e143be3cd316aeaaf77b3bea61e22bf41245640b",
+    ".github/workflows/ci.yml": "20276e020734118e4cd3dac3d10dd49ccbe0ca84"
+  },
+  "absorbed_target": [
+    "vera_core.PCExecutionTransportAttestation",
+    "vera_core.validate_pc_execution_transport_for_job",
+    "qualified PC dispatch preflight"
+  ],
+  "mode": "CONCEPTUAL_METHOD_ADAPTATION_NO_CODE_COPY",
+  "runtime_dependency_on_donor": false,
+  "adapted_mechanisms": [
+    "enabled capability surface is a live provider/configuration fact",
+    "execution must fail closed when required capability surface differs from observed provider surface",
+    "local policy identity and admitted read-root identity must be verified at the execution boundary",
+    "provider identity alone is insufficient proof of admitted capabilities"
+  ],
+  "workbridge_evidence": {
+    "github_ci_run_id": 36074960707,
+    "github_ci_result": "PASS",
+    "bounded_go_jobs": [
+      "test (windows-latest)",
+      "test (ubuntu-latest)",
+      "windows-binary"
+    ],
+    "desktop_commander_duplicate_jobs": [
+      "desktop-commander-duplicate (windows-latest)",
+      "desktop-commander-duplicate (ubuntu-latest)"
+    ],
+    "local_go_verification": "UNAVAILABLE_GO_TOOLCHAIN_NOT_PRESENT_ON_LAPPY"
+  },
+  "excluded_mechanisms": [
+    "WorkBridge runtime implementation as a Vera dependency",
+    "WorkBridge filesystem server implementation",
+    "WorkBridge process runner implementation",
+    "unrestricted Desktop Commander command-string execution",
+    "automatic process-execution capability admission",
+    "provider installation or listener activation"
+  ],
+  "authority_rule": "matching live capability/policy/root digests is a precondition for dispatch, not action authority or effect authority",
+  "claim_ceiling": "LIVE_TRANSPORT_SURFACE_MATCH_AT_DISPATCH_NOT_INDEPENDENT_ATTESTATION_NOT_PROVIDER_INTERNAL_CONTROL_PROOF_NOT_INSTALLATION"
+}
