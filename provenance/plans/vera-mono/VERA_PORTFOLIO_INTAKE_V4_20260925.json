@@ -1,0 +1,222 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V4_20260925",
+  "status": "CURRENT_PORTFOLIO_SCREEN_AND_ADMISSION_LEDGER",
+  "observed_date": "2026-09-25",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "source_head_before_ledger": "bf49f5c518c878d20734688a6702bef2855f28ad",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V3_20260925.json",
+  "scope": {
+    "repository_count": 71,
+    "public_repository_count": 53,
+    "private_repository_count": 18,
+    "archived_repository_count": 2,
+    "screening_basis": [
+      "repository metadata and default-branch orientation/README surface inspected for all 71 repositories",
+      "exact default-branch heads compared against V3 for all 71 repositories",
+      "implementation surfaces inspected for changed/new public candidates where admission classification could change",
+      "private repositories were screened as inputs but their contents are not republished into this public repository"
+    ],
+    "claim_limit": "This is a portfolio screening and source-admission record, not proof that every file in every repository received a line-by-line audit."
+  },
+  "integrated_cut": {
+    "commit": "bf49f5c518c878d20734688a6702bef2855f28ad",
+    "method": "NON_FORCE_FAST_FORWARD_MAIN",
+    "preflight_base": "895ca6cd147bb5f21115eb9ff609e52f4fe231af",
+    "ahead_commits": 41,
+    "behind_commits": 0,
+    "verification": {
+      "github_actions_workflow": "monorepo-tests",
+      "workflow_run_id": 36172716930,
+      "conclusion": "success",
+      "main_readback_matched": true
+    },
+    "newly_present_mechanisms": [
+      "provider-neutral exact-byte deterministic intake with provenance receipts (vera_ingest)",
+      "persistent corrective-learning lifecycle",
+      "domain-neutral semantic-transfer fidelity planning",
+      "bounded pre-action salience control",
+      "route-sensitive coordination retry guard",
+      "journal-derived coordination command health",
+      "live PC transport surface attestation"
+    ]
+  },
+  "v3_currentness_refresh": {
+    "unchanged_repository_heads": 61,
+    "moved_or_new_repository_heads": 10,
+    "moved_or_new": [
+      {
+        "repository": "thebrazenbeard/axle",
+        "head": "395673bd658322e1844dd60027f2f80f358ecfba",
+        "disposition": "SCREENED_NO_CORE_INGEST_DOMAIN_SPECIFIC",
+        "note": "Local-first vehicle/voice/effect-broker implementation is useful domain evidence, but its transferable authority firewall is already represented by Vera Mono effect boundaries."
+      },
+      {
+        "repository": "thebrazenbeard/freerowcochkar",
+        "head": "9ea4eaefe5229ca90d7ae6099dbf30d9e13b64b2",
+        "disposition": "CANDIDATE_ASSURANCE_ADAPTER",
+        "note": "Current V1 has deterministic policy/code findings and a typed constraint graph with pairwise permission/prohibition and delegation-laundering paths. Do not claim three-plus-transition composition until that mechanism is actually implemented and qualified."
+      },
+      {
+        "repository": "thebrazenbeard/lgcm",
+        "head": "bdce91014809f32c19213edb9790da8122abe3cc",
+        "disposition": "RESEARCH_CANDIDATE_DEFER",
+        "note": "Continual-learning architecture is promising but remains early/pre-implementation research; no runtime admission is justified yet."
+      },
+      {
+        "repository": "thebrazenbeard/meso-crct",
+        "head": "060d0feeb9dc9eb23801082bd8f1c4a7cb06184d",
+        "disposition": "EXISTING_ADAPTATION_CURRENT_FUTURE_INCREMENTAL_CANDIDATE",
+        "note": "Vera Mono already adapts bounded salience control. Newer association-memory, replay, allocation-health, and review/quarantine mechanisms should be evaluated individually rather than wholesale-imported."
+      },
+      {
+        "repository": "thebrazenbeard/mosaic",
+        "head": "02004c90b8532b12f56342ad602cd5dfd6c77072",
+        "disposition": "RESEARCH_ONLY_DEFER",
+        "note": "Specialist-partition/residency architecture remains a research seed without a canonical implementation or training recipe."
+      },
+      {
+        "repository": "thebrazenbeard/pro-run",
+        "head": "0abf6045d8e195557cebe9a37b86f2a1eaa9bbbe",
+        "disposition": "CANDIDATE_DURABLE_WAKE_SCHEDULER",
+        "note": "Durable event wakeups, interval scheduling, daemon execution, leases, and run resumption are useful. Mutation-ledger/reconciliation semantics substantially overlap existing Vera Mono gates and should not be duplicated."
+      },
+      {
+        "repository": "thebrazenbeard/RepairTracker",
+        "head": "03e6b8ab8c3c6ccd3d4e270d8d0f2f0b690c82e2",
+        "disposition": "CANDIDATE_REPAIR_GRAPH_AND_SYSTEM_MODEL",
+        "note": "Repair graph, evidence-bound system discovery, and repair-history learning are useful candidates; current project remains early V0, so adaptation should be bounded and test-first."
+      },
+      {
+        "repository": "thebrazenbeard/rezon",
+        "head": "26f95de570c50754f857f40555adb0b407c1372e",
+        "disposition": "NO_REIMPORT_SHARED_SOURCE_ALREADY_MATCHES",
+        "note": "The inspected donor src/rezon files have matching Git blob identities in Vera Mono for the shared files; Vera Mono additionally owns its local cascade extension. A moved donor repository head alone is not evidence of a source gap."
+      },
+      {
+        "repository": "thebrazenbeard/sql-connectome",
+        "head": "3bd833d3f44048915fe5149728da173c9178751c",
+        "disposition": "CANDIDATE_SEMANTIC_CATALOG_PROVENANCE_BINDING",
+        "note": "The newer catalog-provenance binding can strengthen Vera Mono semantic-transfer receipts without importing SQL execution/runtime machinery."
+      },
+      {
+        "repository": "thebrazenbeard/vera-habitat",
+        "head": "6ae63ffa05c37711f34328ebd6a9500fe66a08e9",
+        "disposition": "CANDIDATE_OPTIONAL_SIMULATION_SUBSTRATE_NO_AUTO_BIND",
+        "note": "Deterministic simulation state and receipts are reusable if Vera gains a local virtual environment. Preserve SIMULATED_EFFECT != EXTERNAL_EFFECT and do not auto-bind habitat state to identity or memory authority."
+      }
+    ]
+  },
+  "public_repository_dispositions": {
+    "ALREADY_ABSORBED_OR_ADAPTED": [
+      "Attune",
+      "ccb-core",
+      "fuckup",
+      "ingest",
+      "intranel",
+      "meso-crct",
+      "project-lantern",
+      "rezon",
+      "roots",
+      "vera",
+      "WorkBridgeMCP"
+    ],
+    "CANDIDATE_BOUNDED_ADAPTATION": [
+      "freerowcochkar",
+      "pro-run",
+      "RepairTracker",
+      "sql-connectome",
+      "vera-habitat"
+    ],
+    "EXTERNAL_OR_INDEPENDENCE_BOUNDARY": [
+      "driftguard",
+      "masamune",
+      "project-achilles",
+      "voss"
+    ],
+    "SCREENED_OVERLAP_OR_NO_NEW_CORE_GAP": [
+      "bt2",
+      "build-team-2.0",
+      "deepmemorystorage",
+      "discovery",
+      "hc-brain",
+      "project-runner",
+      "semanticatlas",
+      "temporal",
+      "transcendence",
+      "unbound-sol",
+      "vera-control-plane",
+      "vera-mesh",
+      "wip"
+    ],
+    "RESEARCH_OR_PREIMPLEMENTATION_DEFER": [
+      "abil",
+      "god-brain",
+      "lgcm",
+      "mosaic",
+      "noema",
+      "spm",
+      "unvtrslr",
+      "world-zero"
+    ],
+    "DOMAIN_OR_CONTENT_SPECIFIC_NO_CORE_INGEST": [
+      "axle",
+      "conations",
+      "empathy",
+      "hephaestus",
+      "on-theo",
+      "personification",
+      "testament",
+      "vera-R9A0",
+      "vera-synology",
+      "vera_model_training"
+    ]
+  },
+  "private_repository_handling": {
+    "repository_count": 18,
+    "disposition": "SCREENED_NOT_REPUBLISHED",
+    "reason": "vera-mono is public; portfolio access is not authorization to republish private repository content. Private-specific implementation details remain outside this public ledger unless separately authorized or already deliberately absorbed."
+  },
+  "next_bounded_frontiers": [
+    {
+      "subject": "FREE_ROW_ASSURANCE_ADAPTER",
+      "donor": "thebrazenbeard/freerowcochkar",
+      "target": "packages/vera_assurance",
+      "acceptance": "evidence-bound constraint findings; no false Stage-2/multi-hop claim; tests prove protected-effect policy examples fail closed"
+    },
+    {
+      "subject": "SEMANTIC_CATALOG_PROVENANCE",
+      "donor": "thebrazenbeard/sql-connectome",
+      "target": "packages/vera_core/src/vera_core/semantic_transfer.py",
+      "acceptance": "semantic-transfer results bind the exact admitted catalog/provenance cut without importing SQL execution authority"
+    },
+    {
+      "subject": "DURABLE_WAKE_SCHEDULER",
+      "donor": "thebrazenbeard/pro-run",
+      "target": "vera_core/vera_coordination",
+      "acceptance": "durable wake/schedule/resume semantics compose with existing task/effect recovery instead of creating a second authority ledger"
+    },
+    {
+      "subject": "REPAIR_GRAPH_SYSTEM_MODEL",
+      "donor": "thebrazenbeard/RepairTracker",
+      "target": "new bounded Vera Mono repair package or vera_core extension",
+      "acceptance": "observations, inference, repair attempts, effects, verification, and learned system-model updates remain distinct and provenance-bound"
+    },
+    {
+      "subject": "OPTIONAL_SIMULATION_SUBSTRATE",
+      "donor": "thebrazenbeard/vera-habitat",
+      "target": "optional local package",
+      "acceptance": "simulation is deterministic and receipt-bearing; simulated effects cannot mint external-effect authority"
+    }
+  ],
+  "invariants": [
+    "repository_presence_does_not_imply_admission",
+    "donor_head_movement_does_not_imply_runtime_gap",
+    "source_admission_does_not_imply_installation",
+    "installation_does_not_imply_current_route",
+    "current_route_does_not_imply_runtime_consumption",
+    "runtime_consumption_does_not_imply_behavioral_qualification",
+    "internal_assurance_does_not_imply_independent_review",
+    "private_repository_access_does_not_imply_publication_authority"
+  ],
+  "claim_ceiling": "ALL_71_REPOSITORIES_SCREENED_AT_REPOSITORY_ORIENTATION_LEVEL; SELECTED_CHANGED_PUBLIC_IMPLEMENTATION_SURFACES_INSPECTED; VERIFIED_SOURCE_INTEGRATION_AT_BF49F5C; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME_CONSUMPTION; NOT BEHAVIORAL_QUALIFICATION; NOT INDEPENDENT_REVIEW"
+}
