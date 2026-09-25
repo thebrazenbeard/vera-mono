@@ -1,6 +1,6 @@
 {
   "schema": "VERA_PORTFOLIO_INTAKE_V5_20260925",
-  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE2_PENDING_FINAL_CI_AFTER_HOSTILE_HARDENING",
+  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE2_PUBLIC_INVENTORY_CLOSED_PENDING_FINAL_CI",
   "observed_date": "2026-09-25",
   "owner_repository": "thebrazenbeard/vera-mono",
   "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V4_20260925.json",
@@ -146,5 +146,28 @@
     ],
     "hardening_red_commit": "dd2adc560f7c9b073c201817e09f6985bab9815f",
     "hardening_fix_commit": "633b4395dd2ad50cfb533be8b88940d5fdc5eb26"
+  },
+  "public_inventory_closure": {
+    "public_repository_count": 53,
+    "v4_categorized_public_names": 51,
+    "v4_unclassified_public_names": [
+      "bugops",
+      "vera-mono"
+    ],
+    "resolution": [
+      {
+        "repository": "thebrazenbeard/bugops",
+        "head": "07b8bc90fcb4beb82b1d26b394c730f29c2c425a",
+        "inspected_blob": "REPORTING_STANDARD.md@de3355e46f81f29afed37a346e50acfd3415498f",
+        "disposition": "SCREENED_OVERLAP_NO_DUPLICATE_CORE_OWNER",
+        "reason": "Evidence classification, correction lifecycle, regression-before-closure, and effect/readback discipline are already represented by Vera Mono corrective-learning, repair lifecycle, task/source/effect verification, and assurance surfaces."
+      },
+      {
+        "repository": "thebrazenbeard/vera-mono",
+        "disposition": "SELF_TARGET_NOT_DONOR",
+        "reason": "Canonical target repository; not a sibling donor."
+      }
+    ],
+    "classified_public_repository_count_after_resolution": 53
   }
 }
