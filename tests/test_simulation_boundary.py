@@ -47,3 +47,18 @@ def test_simulation_boundary_rejects_external_effect_and_tracks_revisions():
                 patch={"x": 3},
             )
         )
+
+
+def test_simulation_mutation_request_is_immutable_after_construction():
+    mutation = SimulationMutation(
+        mutation_id="immutable-1",
+        effect_class=SimulationEffectClass.SIMULATION_ONLY,
+        subject_id="vera",
+        patch={"x": 1},
+    )
+    original = mutation.request_digest()
+
+    with pytest.raises(TypeError):
+        mutation.patch["x"] = 9
+
+    assert mutation.request_digest() == original
