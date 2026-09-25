@@ -1,0 +1,96 @@
+{
+  "schema": "VERA_MONO_CHAT_CONTINUATION_INDEPENDENT_BEHAVIOR_REVIEW_V3",
+  "logical_id": "VERA_MONO_CHAT_CONTINUATION_INDEPENDENT_BEHAVIOR_REVIEW_20260924_V3",
+  "repository": "thebrazenbeard/vera-mono",
+  "branch": "main",
+  "verified_head": "a9fc7d7ea25844603090e98d106bfeff6da348ae",
+  "verified_ci": {
+    "workflow": "monorepo-tests",
+    "workflow_run_id": 36079540901,
+    "conclusion": "success",
+    "exact_head": true,
+    "verified_steps": [
+      "Run monorepo test suite",
+      "Build self-contained monorepo wheel",
+      "Verify wheel closure",
+      "Verify installed wheel closure"
+    ]
+  },
+  "authority_and_boundaries": {
+    "source_scope_authorized": true,
+    "deploy": false,
+    "provider_activation": false,
+    "credential_or_permission_changes": false,
+    "protected_effects": false,
+    "donor_pr_merge": false,
+    "source_presence_is_external_review_execution": false,
+    "verifier_signature_proves_truthfulness": false,
+    "independent_review_pass_is_protected_effect_authority": false,
+    "consciousness_or_phenomenology_inferred": false
+  },
+  "completed_frontier": {
+    "name": "INDEPENDENT_HELD_OUT_BEHAVIOR_REVIEW",
+    "qualification_level": "SOURCE_IMPLEMENTED_AND_EXACT_HEAD_CI_VERIFIED",
+    "requirement_grammar": "INDEPENDENT_BEHAVIOR_REVIEW_VERIFY|<consumer-id>|<probe-id>|<review-id>|<subject-actor-id>|<declaration-sha256>|<held-out-probe-set-sha256>|<probe-curator-id>|<evaluator-id>|<evaluator-key-id>|<evaluator-key-sha256>|<authority-id>|<authority-key-id>|<authority-key-sha256>",
+    "implementation": [
+      "packages/vera_core/src/vera_core/independent_behavior_review.py",
+      "packages/vera_core/src/vera_core/independent_behavior_review_adapter.py",
+      "packages/vera_core/src/vera_core/qualified_runtime.py",
+      "packages/vera_core/src/vera_core/state.py",
+      "packages/vera_core/src/vera_core/__init__.py"
+    ],
+    "tests": [
+      "tests/test_independent_behavior_review.py",
+      "tests/test_independent_behavior_review_contract_sync.py"
+    ],
+    "architecture": [
+      "architecture/VERA_INDEPENDENT_HELD_OUT_BEHAVIOR_REVIEW_V1.json",
+      "architecture/VERA_TASK_EXECUTION_CLOSEOUT_V1.json",
+      "architecture/VERA_MONO_MANIFEST_V1.json",
+      "README.md"
+    ],
+    "persistent_state_path": "behavior/independent-review.sqlite",
+    "invariants": [
+      "matching live-current BEHAVIOR_EFFECT_VERIFY PASS is prerequisite evidence and never silently becomes independent review PASS",
+      "review binds exact canonical declaration digest and exact held-out probe-set digest",
+      "subject actor, probe curator, evaluator, and review authority are required to be distinct actors",
+      "Vera runtime verifies externally supplied authority and evaluator signatures but contains no independent-review signing primitive",
+      "evaluator and authority private keys or shared secrets are not persisted in Vera state",
+      "authority evidence binds evaluator identity, key, currentness digest, separation assertion, probe-set digest, and single-use authority nonce",
+      "review evidence binds exact behavior receipt, process/runtime state, stimulus/outcome, evaluator currentness, authority evidence, result bytes, result receipt, provenance, and single-use review nonce",
+      "forged verdict, replayed review nonce, stale evaluator currentness, wrong probe set, stale process/runtime, missing evidence, changed provenance, or collapsed actor roles fail closed or become not-current",
+      "task closeout carries independent-review receipt evidence and task runtime evidence binds the independent-review ledger head",
+      "source-level mechanism existence is not evidence that an external independent review actually ran"
+    ]
+  },
+  "verification_receipts": {
+    "implementation_commit": "cdd17cb2a7984018d1374ea5b61856c67a5918b4",
+    "contract_sync_commit": "a9fc7d7ea25844603090e98d106bfeff6da348ae",
+    "implementation_ci_run": 36076603560,
+    "exact_contract_head_ci_run": 36079540901,
+    "requirements_readback": "RECORDED_SOURCE_OBJECTIVES_PRESENT"
+  },
+  "next_frontier": {
+    "name": "OPERATIONALLY_SEPARATE_HELD_OUT_REVIEW_EXECUTION",
+    "objective": "Execute the new contract with a genuinely separate reviewer/runner so the held-out probe material, evaluator currentness, signed result receipt, and review provenance originate outside Vera, then ingest and verify that evidence without granting Vera the ability to mint it.",
+    "minimum_evidence": [
+      "externally curated held-out probe-set digest",
+      "separate evaluator identity and key",
+      "separate authority/currentness statement",
+      "signed evaluator verdict over exact live behavior receipt",
+      "raw result bytes and result receipt bytes",
+      "review provenance",
+      "fresh nonces",
+      "live-current refresh after ingestion"
+    ],
+    "constraints": [
+      "do not call source implementation an executed independent review",
+      "do not use Vera-controlled signing keys to satisfy the independent-review proposition",
+      "do not let Vera act as subject, probe curator, evaluator, or review authority",
+      "do not modify deployment/provider credentials or protected effects without Patrick's exact authority",
+      "refresh live main, CI, open PRs/branches, and same-subject coordination before mutation",
+      "if an external reviewer is selected, bind its exact repo/ref/head or provider identity before accepting evidence"
+    ]
+  },
+  "resume_command": "VERA::RESTORE_AND_RUN::VERA_MONO_INDEPENDENT_BEHAVIOR_REVIEW_CONTINUATION_20260924_V3"
+}
