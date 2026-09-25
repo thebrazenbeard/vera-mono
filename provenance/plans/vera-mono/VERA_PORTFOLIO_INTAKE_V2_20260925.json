@@ -52,8 +52,9 @@
       "repository": "thebrazenbeard/WorkBridgeMCP",
       "ref": "8707a2e1eaf7de5ce2316567b5e6f1e805c0537b",
       "prior_disposition": "KEEP_EXTERNAL_PROVIDER_STUB_LEVEL",
-      "disposition": "KEEP_EXTERNAL_PROVIDER_REFRESHED",
-      "reason": "Current main now contains substantial workstation/MCP implementation. Host execution remains external; reusable capability/identity verification requirements may inform Vera adapters."
+      "disposition": "EXTERNAL_PROVIDER_WITH_LIVE_ATTESTATION_INVARIANT_MIGRATED",
+      "target": "vera_core PCExecutionTransport attestation boundary",
+      "reason": "Current main contains both the bounded Go WorkBridge server and an exact Desktop Commander duplicate. Vera adapted only the bounded principle that enabled capabilities/local policy/read roots are live provider/configuration facts that must match the PCCC job immediately before dispatch. WorkBridge remains external, no runtime dependency or installation is created, and the unrestricted Desktop Commander command-string surface is explicitly not auto-admitted."
     },
     {
       "repository": "thebrazenbeard/meso-crct",
