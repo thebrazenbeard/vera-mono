@@ -1,0 +1,19 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/fuckup",
+  "donor_ref": "e999607481ba706523209ce129955a5e3d2d6ef7",
+  "donor_subject": "PROTOCOL.md",
+  "absorbed_target": "packages/vera_core/src/vera_core/corrective_learning.py",
+  "mode": "CONCEPTUAL_METHOD_ADAPTATION_NO_CODE_COPY",
+  "source_paths": ["PROTOCOL.md"],
+  "source_file_count": 1,
+  "exact_blob_parity_verified": false,
+  "runtime_dependency_on_donor": false,
+  "adapted_method": {
+    "source_sequence": ["FLAG", "UNDERSTAND", "CALIBRATE", "KNOW", "UNLEARN", "PREVENT"],
+    "vera_binding": "append-only digest-chained SQLite corrective-learning ledger",
+    "prevention_rule": "PREVENT requires explicit guardrail and verification references",
+    "authority_rule": "correction evidence does not itself grant protected-effect authority"
+  },
+  "claim_ceiling": "METHOD_ADAPTED_AND_LOCALLY_TESTED_NOT_AGI_NOT_AUTONOMOUS_SELF_MODIFICATION"
+}
