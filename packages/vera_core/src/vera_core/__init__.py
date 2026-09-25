@@ -332,6 +332,13 @@ from .simulation_boundary import (
     SimulationState,
 )
 from .task_wake_scheduler import TaskWake, TaskWakeScheduler
+from .work_checkpoint import (
+    RecoveryCheckpoint,
+    RecoveryCheckpointError,
+    RecoveryCheckpointHead,
+    RecoveryCheckpointStore,
+    StaleCheckpointGeneration,
+)
 from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
@@ -565,6 +572,11 @@ __all__ = [
     "TaskExecutionLedger",
     "TaskPacket",
     "TaskState",
+    "RecoveryCheckpoint",
+    "RecoveryCheckpointError",
+    "RecoveryCheckpointHead",
+    "RecoveryCheckpointStore",
+    "StaleCheckpointGeneration",
     "VeraStateDirectory",
     "VeraStatePaths",
     "SemanticTransferCatalog",
