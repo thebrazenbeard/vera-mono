@@ -1,0 +1,76 @@
+{
+  "schema": "VERA_MONO_CHAT_CONTINUATION_OPERATIONAL_HELDOUT_REVIEW_V4",
+  "logical_id": "VERA_MONO_CHAT_CONTINUATION_OPERATIONAL_HELDOUT_REVIEW_20260924_V4",
+  "repository": "thebrazenbeard/vera-mono",
+  "continuation_branch": "state/vera-mono-operational-heldout-review-20260924-v4",
+  "frozen_subject": {
+    "ref": "main",
+    "exact_head": "0074915ecf07aca8a22392b7656c49aa2a2ee558",
+    "exact_head_ci_run": 36081026648,
+    "exact_head_ci_conclusion": "success",
+    "mutation_rule": "Any later main movement is a new review subject; evidence for 0074915e qualifies only that exact head."
+  },
+  "completed_this_cycle": {
+    "verifier": "vera_core.Ed25519IndependentReviewVerifier",
+    "verifier_commit": "0074915ecf07aca8a22392b7656c49aa2a2ee558",
+    "signature_scheme": "Ed25519 / raw 32-byte public key / base64 signature",
+    "private_key_persisted_in_vera": false,
+    "verifier_has_signing_capability": false
+  },
+  "external_review_dispatch": {
+    "bus_repository": "thebrazenbeard/chat-communication-bus",
+    "issue_number": 362,
+    "event_id": "VERA_MONO_OPERATIONALLY_SEPARATE_HELDOUT_REVIEW_20260924_V1",
+    "bus_main_at_dispatch": "ef32d942f188eb36313eac2fc63fa9c144ee0911",
+    "topology_blob_at_dispatch": "69e505031d4e53dcb853578dac23817649af1918",
+    "roles": {
+      "subject": "VERA",
+      "probe_curator": "HEPHAESTUS",
+      "evaluator": "THIRTEEN",
+      "review_authority": "RADAR"
+    },
+    "routing_state": "all four identities ACTIVE in observed topology; liveness not inferred",
+    "observed_reply_count": 0
+  },
+  "driftguard_reference": {
+    "repository": "thebrazenbeard/driftguard",
+    "branch": "bt2/r11-governed-benchmark-final-v4",
+    "exact_head": "351b7a57b7213bd72cf881aa2bbaa449fb0fbc8f",
+    "r11_doc_blob": "11e7a18ff01669656fd0b471b9b5d9fa2c37304a",
+    "success_runs": [
+      35612287732,
+      35611543932,
+      35611538246
+    ],
+    "governance_reference_only": true,
+    "runtime_dependency": false
+  },
+  "execution_state": {
+    "frontier": "AWAIT_EXTERNAL_HEPHAESTUS_CURATOR_RETURN",
+    "external_dependency": true,
+    "heldout_probe_set_received": false,
+    "evaluator_execution_received": false,
+    "authority_attestation_received": false,
+    "independent_review_pass": false
+  },
+  "next_actions": [
+    "Fresh-read Bus issue #362 and frozen vera-mono head.",
+    "Validate Hephaestus probe-set digest/provenance/target before accepting evaluator work.",
+    "Validate Thirteen public key/currentness/result/signature for the same frozen subject.",
+    "Validate Radar authority/currentness signature for the exact curator/evaluator/subject tuple.",
+    "Ingest external artifacts only after all required fields exist; do not synthesize missing evidence.",
+    "Any source repair creates a new review subject and requires a new held-out execution."
+  ],
+  "claim_ceiling": {
+    "current_status": "EXTERNAL_REVIEW_DISPATCHED_NOT_EXECUTED",
+    "source_verifier_exact_head_ci_verified": true,
+    "external_curator_return": false,
+    "external_evaluator_execution": false,
+    "external_authority_attestation": false,
+    "chatgpt_project_runtime_qualification": false,
+    "deployment_or_provider_activation": false,
+    "protected_effect_authority": false,
+    "consciousness_or_phenomenology": false
+  },
+  "resume_command": "VERA::RESTORE_AND_RUN::VERA_MONO_OPERATIONAL_HELDOUT_REVIEW_CONTINUATION_20260924_V4"
+}
