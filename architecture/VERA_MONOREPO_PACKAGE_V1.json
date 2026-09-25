@@ -56,7 +56,8 @@
     "sibling_repo_runtime_dependencies": false,
     "code_from_local_package_roots": true,
     "external_python_dependency": [
-      "jsonschema>=4.0"
+      "jsonschema>=4.0",
+      "cryptography>=43.0"
     ],
     "external_provider_infrastructure_allowed_via_local_adapters": true
   },
