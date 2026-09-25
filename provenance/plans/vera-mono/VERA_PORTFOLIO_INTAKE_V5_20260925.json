@@ -1,6 +1,6 @@
 {
   "schema": "VERA_PORTFOLIO_INTAKE_V5_20260925",
-  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE2_PUBLIC_INVENTORY_CLOSED_PENDING_FINAL_CI",
+  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE2_SOURCE_AND_PACKAGE_SURFACES_CLOSED_PENDING_FINAL_CI",
   "observed_date": "2026-09-25",
   "owner_repository": "thebrazenbeard/vera-mono",
   "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V4_20260925.json",
@@ -113,7 +113,8 @@
       "2275c39d4431156ecb2d4ad79b62d88369456541",
       "7bb868fb8f241c055005939f2f2a73a43e6dd5ac",
       "5a2d0ecd41cb29aeddc4e16d51153e63bf610dcc",
-      "dd2adc560f7c9b073c201817e09f6985bab9815f"
+      "dd2adc560f7c9b073c201817e09f6985bab9815f",
+      "6f2421921ea55adf8c89825ee886f757c075b363"
     ],
     "note": "Each red cut failed at the intended missing public/module boundary before the corresponding implementation was added."
   },
@@ -169,5 +170,11 @@
       }
     ],
     "classified_public_repository_count_after_resolution": 53
+  },
+  "package_surface_closure": {
+    "red_commit": "6f2421921ea55adf8c89825ee886f757c075b363",
+    "core_export_commit": "f7a2ae47c3ab14d586b95bebe24c4ffee0af2438",
+    "memory_export_commit": "d547ddbf7b4b514708c9739412088e85c38fda1b",
+    "purpose": "Make admitted wave-2 primitives available through the existing broad vera_core and vera_memory package composition surfaces without binding them into QualifiedVeraRuntime."
   }
 }
