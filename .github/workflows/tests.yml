@@ -41,6 +41,12 @@ jobs:
           for p in paths]; print(*rows,sep='\n');
           sys.exit(0 if all(r.endswith(': eol: lf') for r in rows) else 1)"
 
+      - name: Verify checkout remains clean under line-ending policy
+        run: >-
+          python -c "import subprocess,sys;
+          out=subprocess.check_output(['git','status','--porcelain'],text=True);
+          print(out,end=''); sys.exit(1 if out.strip() else 0)"
+
       - name: Install test dependencies
         run: python -m pip install --upgrade pip pytest jsonschema cryptography
 
