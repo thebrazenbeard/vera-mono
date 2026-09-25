@@ -5,6 +5,12 @@ another separate evaluator remains the stronger falsification boundary.
 """
 
 from .drift import DriftFinding, DriftPolicy, DriftReport, Snapshot, compare_snapshots
+from .mechanism_admission import (
+    MechanismAdmissionError,
+    MechanismEvidencePacket,
+    assert_mechanism_admissible,
+    mechanism_admission_defects,
+)
 from .policy_constraints import (
     PolicyConstraintFinding,
     PolicyConstraintReport,
@@ -29,6 +35,10 @@ __all__ = [
     "EffectFenceError",
     "EffectReceipt",
     "EffectState",
+    "MechanismAdmissionError",
+    "MechanismEvidencePacket",
+    "assert_mechanism_admissible",
+    "mechanism_admission_defects",
     "PolicyConstraintFinding",
     "PolicyConstraintReport",
     "Snapshot",
