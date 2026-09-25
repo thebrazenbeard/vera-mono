@@ -227,6 +227,14 @@ from .reasoning_cascade import (
     LayerSpec,
     ReasoningRequest,
 )
+from .semantic_transfer import (
+    AppliedSemanticRewrite,
+    SemanticCapabilityProfile,
+    SemanticTransferPlan,
+    SemanticTransferRule,
+    TransferFidelity,
+    plan_semantic_transfer,
+)
 from .registry import CAPABILITIES, LocalCapability, capability, validate_registry
 from .task_execution import (
     CLOSEOUT_STATES,
@@ -458,6 +466,12 @@ __all__ = [
     "OutboundEffectResult",
     "NativeVeraLifecycle",
     "ReasoningRequest",
+    "AppliedSemanticRewrite",
+    "SemanticCapabilityProfile",
+    "SemanticTransferPlan",
+    "SemanticTransferRule",
+    "TransferFidelity",
+    "plan_semantic_transfer",
     "ROUTE_VERIFICATION_STATUSES",
     "ROUTE_VERIFY_PREFIX",
     "RUNTIME_CONSUME_VERIFY_PREFIX",
