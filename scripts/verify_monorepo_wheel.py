@@ -12,6 +12,8 @@ REQUIRED_FILES = {
     "vera_core/__init__.py",
     "vera_core/__main__.py",
     "vera_core/cli.py",
+    "ingest/__init__.py",
+    "ingest/resources/schemas/ingest-record-v1.schema.json",
     "rezon/__init__.py",
     "portfolio_runtime/__init__.py",
     "protocol/__init__.py",

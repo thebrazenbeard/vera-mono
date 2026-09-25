@@ -1,0 +1,141 @@
+{
+  "schema": "VERA_MONO_DONOR_ADMISSION_V1",
+  "donor_repository": "thebrazenbeard/ingest",
+  "donor_head": "4e98996391498517976625af90cd938233fbd7d6",
+  "admission_mode": "EXACT_SOURCE_BYTES_LOCAL_PACKAGE",
+  "local_package": "packages/vera_ingest/src/ingest",
+  "source_files": [
+    {
+      "local_path": "src/ingest/__init__.py",
+      "donor_path": "src/ingest/__init__.py",
+      "git_blob": "6073ebc3cd0b41bbb96dd8af6606194f8052d43e",
+      "sha256": "f71c76050ebef175b79aaa0ac79d5a404427615414a6195f81aed9f173d0e24e",
+      "size": 496
+    },
+    {
+      "local_path": "src/ingest/adapters/__init__.py",
+      "donor_path": "src/ingest/adapters/__init__.py",
+      "git_blob": "e8d11a764baac7ded4cb5f89b6d15de648c08891",
+      "sha256": "a2c861d740d7532f01059c59e36d43f6b93ad898b7ff999fb51e8423a8c5c475",
+      "size": 371
+    },
+    {
+      "local_path": "src/ingest/adapters/base.py",
+      "donor_path": "src/ingest/adapters/base.py",
+      "git_blob": "35dd652e226dcfbe43cdb826fd2eefe05d008341",
+      "sha256": "10aa4af626faf44ef1afa81d908c0c9bc6d320a016b0c68c4254115c4e79c2db",
+      "size": 502
+    },
+    {
+      "local_path": "src/ingest/adapters/file.py",
+      "donor_path": "src/ingest/adapters/file.py",
+      "git_blob": "08b6fef131c7fa58cb54c40e4fb8e3440cb11edb",
+      "sha256": "1dc7b5135d3422c6b1d5a94e50187f0f618ba30508df7e1d65321d0e315d9ba8",
+      "size": 2853
+    },
+    {
+      "local_path": "src/ingest/adapters/github.py",
+      "donor_path": "src/ingest/adapters/github.py",
+      "git_blob": "0a4b8be3ee8114682d43930602c19389e2472dcb",
+      "sha256": "6205ef600077e08885b788f7b58f137c25057cffb69060acbc1dad6b5212cd4e",
+      "size": 5786
+    },
+    {
+      "local_path": "src/ingest/adapters/http.py",
+      "donor_path": "src/ingest/adapters/http.py",
+      "git_blob": "d15460bfd8dba09775909352346b84d40a6c19ed",
+      "sha256": "cda1f0df1711edfd416a90e8540d99aa687f234922932955445954a09e5c5d87",
+      "size": 8935
+    },
+    {
+      "local_path": "src/ingest/adapters/message.py",
+      "donor_path": "src/ingest/adapters/message.py",
+      "git_blob": "ab309c7bc3232f9e951a6e12fd223db6d76be6d1",
+      "sha256": "dac19455f409c054494f96073e3adc6b6bc4f68bf4cf4fed7363dcb07eb9ca8e",
+      "size": 1488
+    },
+    {
+      "local_path": "src/ingest/adapters/text.py",
+      "donor_path": "src/ingest/adapters/text.py",
+      "git_blob": "7a3203fb16f1d4a78503d40cf20c9b5524d1b66a",
+      "sha256": "7d1692845ad834334d1265e0ea4051ca67f1256f076d91b79775ef3fafc0eb8d",
+      "size": 1276
+    },
+    {
+      "local_path": "src/ingest/canonical.py",
+      "donor_path": "src/ingest/canonical.py",
+      "git_blob": "da33bca782fbb8453a9a7bef36d9f9154ced2d3f",
+      "sha256": "bf06b1ac9dd03422def5fe689f6061c05414ab201ee0a79f255f6d291e0d1c19",
+      "size": 547
+    },
+    {
+      "local_path": "src/ingest/cli.py",
+      "donor_path": "src/ingest/cli.py",
+      "git_blob": "e39b2a5bf74d01abbc1ef60e085e3da33dfb05a1",
+      "sha256": "5ada18d1ba0f7cad792dcc9f1563bcdc1b5565f76f99355e0b3a03e978723678",
+      "size": 6931
+    },
+    {
+      "local_path": "src/ingest/model.py",
+      "donor_path": "src/ingest/model.py",
+      "git_blob": "44b59a6584fb60ade0a7974607bc65cccf95d09d",
+      "sha256": "c52b70e032df3b6b94c4221ef7c6cf2094e70e17684fe56ba3541bb8404ef6ef",
+      "size": 6665
+    },
+    {
+      "local_path": "src/ingest/normalization.py",
+      "donor_path": "src/ingest/normalization.py",
+      "git_blob": "469034b8666742f9ecef225bb11e33ab582424a4",
+      "sha256": "92fe36594e898ef24fe5b9d0aed80b367a24154010ab3c791d5873b4f4ccc9a0",
+      "size": 2463
+    },
+    {
+      "local_path": "src/ingest/pipeline.py",
+      "donor_path": "src/ingest/pipeline.py",
+      "git_blob": "6c222bad94592946885485f0bb88655706c743bb",
+      "sha256": "24f9b92a9351d3d816744fd557638206bab76d6950af909a396e29a09aebbd3e",
+      "size": 16296
+    },
+    {
+      "local_path": "src/ingest/policy.py",
+      "donor_path": "src/ingest/policy.py",
+      "git_blob": "03266bcf239b0aa8ede62370ea0221b07ac89573",
+      "sha256": "a864452548218e0dcfb416262fa850840a14306ec8f2af27412d0faadd2a24d2",
+      "size": 1626
+    },
+    {
+      "local_path": "src/ingest/storage.py",
+      "donor_path": "src/ingest/storage.py",
+      "git_blob": "5fe08590c2ae48fa5584da58d645386cea22a8f9",
+      "sha256": "2c0815585349292d02d1d59ebc527dd6a53250e2969e201ec78dc1d901071ab1",
+      "size": 3217
+    },
+    {
+      "local_path": "src/ingest/resources/schemas/ingest-record-v1.schema.json",
+      "donor_path": "schemas/ingest-record-v1.schema.json",
+      "git_blob": "b90f55ab1db44fdd216ced86a5fa45bd49c8a53a",
+      "sha256": "9a5df4b5a332a4fe0aa4e8393b6647c9d1d2140253c9234d7d5d68cf3664d9be",
+      "size": 1842
+    },
+    {
+      "local_path": "src/ingest/resources/schemas/ingest-stage-receipt-v1.schema.json",
+      "donor_path": "schemas/ingest-stage-receipt-v1.schema.json",
+      "git_blob": "6224512c5def32a09ddba5100218a76f7cd8ca45",
+      "sha256": "7fe76b6f0976519485fdccf516ec5eed3a6e8438779c00ed9285773e6b330006",
+      "size": 970
+    }
+  ],
+  "adaptations": [
+    "registered donor source as local vera-mono package root",
+    "bound default state ownership under VeraStateDirectory.intake",
+    "did not register donor CLI as a root distribution script",
+    "preserved intake-not-truth/currentness/authority/memory-admission boundary"
+  ],
+  "runtime_dependency_on_donor_repository": false,
+  "claim_ceiling": "SOURCE_AND_LOCAL_PACKAGE_ADMISSION_ONLY_NOT_EXTERNAL_SOURCE_CURRENTNESS_NOT_PROVIDER_EFFECT_NOT_MEMORY_ADMISSION",
+  "packaged_schema_resources": [
+    "src/ingest/resources/schemas/ingest-record-v1.schema.json",
+    "src/ingest/resources/schemas/ingest-stage-receipt-v1.schema.json"
+  ],
+  "byte_identity_rule": "GIT_BLOB_AND_SHA256_OF_COMMITTED_DONOR_BYTES; WORKTREE_LINE_ENDING_REPRESENTATION_IS_NOT_IDENTITY"
+}

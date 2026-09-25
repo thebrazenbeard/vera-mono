@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "INGEST_STAGE_RECEIPT_V1",
+  "type": "object",
+  "required": ["schema", "receipt_id", "ingest_id", "stage", "stage_version", "issued_at", "outcome", "input_artifact_ids", "output_artifact_ids", "details", "receipt_digest"],
+  "properties": {
+    "schema": {"const": "INGEST_STAGE_RECEIPT_V1"},
+    "receipt_id": {"type": "string", "minLength": 1},
+    "ingest_id": {"type": ["string", "null"]},
+    "stage": {"type": "string", "minLength": 1},
+    "stage_version": {"type": "string", "minLength": 1},
+    "issued_at": {"type": "string", "minLength": 1},
+    "outcome": {"type": "string", "minLength": 1},
+    "input_artifact_ids": {"type": "array", "items": {"type": "string"}},
+    "output_artifact_ids": {"type": "array", "items": {"type": "string"}},
+    "details": {"type": "object"},
+    "receipt_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

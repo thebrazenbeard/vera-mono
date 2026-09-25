@@ -17,6 +17,14 @@
       "status": "ACTIVE_BOOTSTRAP"
     },
     {
+      "id": "vera_ingest",
+      "path": "packages/vera_ingest",
+      "role": "provider_neutral_provenance_bound_intake",
+      "status": "ABSORBED_EXACT_SOURCE_PLUS_MONOREPO_STATE_BINDING",
+      "donor": "thebrazenbeard/ingest@4e98996391498517976625af90cd938233fbd7d6",
+      "donor_runtime_dependency": false
+    },
+    {
       "id": "vera_identity",
       "path": "packages/vera_identity",
       "role": "identity_bootstrap_and_schema_resources",
@@ -172,6 +180,7 @@
   "self_contained_runtime_scope": {
     "local_code_packages": [
       "vera_core",
+      "vera_ingest",
       "rezon",
       "vera_runtime",
       "vera_identity",
@@ -598,7 +607,7 @@
     "contract": "architecture/VERA_MONOREPO_PACKAGE_V1.json",
     "root_distribution": "vera-mono",
     "root_pyproject": "pyproject.toml",
-    "package_root_count": 14,
+    "package_root_count": 15,
     "self_contained_local_packages": true,
     "runtime_resources_packaged": true,
     "ci_build": true,
@@ -708,5 +717,17 @@
     "source_presence_is_external_review_execution": false,
     "independent_review_pass_is_deployment": false,
     "independent_review_pass_is_protected_effect_authority": false
+  },
+  "intake_boundary": {
+    "schema": "VERA_MONO_INGEST_BOUNDARY_V1",
+    "contract": "architecture/VERA_INGEST_BOUNDARY_V1.json",
+    "package": "ingest",
+    "state_owner": "vera_core.VeraStateDirectory",
+    "state_path": "intake/",
+    "intake_is_truth": false,
+    "intake_is_currentness": false,
+    "intake_is_authority": false,
+    "intake_is_memory_admission": false,
+    "external_repository_code_required_at_runtime": false
   }
 }

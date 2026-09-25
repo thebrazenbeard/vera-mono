@@ -1,0 +1,53 @@
+{
+  "schema": "VERA_MONO_INGEST_BOUNDARY_V1",
+  "status": "SOURCE_ADAPTED_LOCAL_NOT_AUTOMATICALLY_CONSUMED",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "local_package": "packages/vera_ingest/src/ingest",
+  "donor": {
+    "repository": "thebrazenbeard/ingest",
+    "head": "4e98996391498517976625af90cd938233fbd7d6",
+    "admission": "EXACT_SOURCE_BYTES"
+  },
+  "state": {
+    "owner": "vera_core.VeraStateDirectory",
+    "root": "intake/",
+    "store": "ingest.FileSystemStore",
+    "ingestor": "ingest.Ingestor"
+  },
+  "preserve": [
+    "SOURCE_LOCATOR != SOURCE_AUTHORSHIP",
+    "RETRIEVAL != ADMISSION",
+    "INGESTION_TIME != EVENT_TIME",
+    "RAW_BYTES != NORMALIZED_DERIVATIVE",
+    "CONTENT_IDENTITY != SOURCE_IDENTITY",
+    "SIMILARITY != IDENTITY",
+    "RECEIPT != TRUTH",
+    "MUTABLE_REF != IMMUTABLE_PROVENANCE",
+    "SOURCE_IMPLEMENTATION != INSTALLED_RUNTIME"
+  ],
+  "sources": [
+    "inline_text_or_bytes",
+    "bounded_local_file",
+    "bounded_http_https",
+    "github_file_exact_commit_resolution",
+    "message_event_envelope"
+  ],
+  "security": {
+    "acquired_code_execution": false,
+    "input_byte_ceiling_required": true,
+    "private_network_denied_by_default": true,
+    "http_disabled_by_default": true,
+    "symlink_or_junction_follow_default": false,
+    "archive_auto_extraction": false
+  },
+  "non_promotions": {
+    "intake_to_truth": false,
+    "intake_to_currentness": false,
+    "intake_to_authority": false,
+    "intake_to_memory_admission": false,
+    "intake_to_runtime_activation": false,
+    "intake_to_effect_permission": false
+  },
+  "runtime_dependency_on_donor_repository": false,
+  "claim_ceiling": "LOCAL_PROVIDER_NEUTRAL_INTAKE_MECHANISM_SOURCE; NOT AUTOMATIC_RUNTIME_CONSUMPTION; NOT TRUTH; NOT CURRENTNESS; NOT MEMORY; NOT AUTHORITY; NOT EFFECT"
+}
