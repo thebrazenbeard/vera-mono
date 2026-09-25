@@ -4,32 +4,63 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   pytest:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - name: Check out exact workflow subject
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
+
+      - name: Verify governed text line-ending policy
+        run: >-
+          python -c "import subprocess,sys;
+          paths=['packages/vera_control/src/vera_control/local_profile.py',
+          'packages/vera_runtime/src/runtime_cohesion/local_bindings.py',
+          'packages/vera_core/src/vera_core/source_transport.py'];
+          rows=[subprocess.check_output(['git','check-attr','eol','--',p],text=True).strip()
+          for p in paths]; print(*rows,sep='\n');
+          sys.exit(0 if all(r.endswith(': eol: lf') for r in rows) else 1)"
+
       - name: Install test dependencies
         run: python -m pip install --upgrade pip pytest jsonschema cryptography
+
       - name: Run monorepo test suite
         run: python -m pytest -q
+
       - name: Build self-contained monorepo wheel
         run: |
-          rm -rf dist .wheel-install
+          python -c "import shutil; shutil.rmtree('dist', ignore_errors=True); shutil.rmtree('.wheel-install', ignore_errors=True)"
           python -m pip wheel . --no-deps -w dist
+
       - name: Verify wheel closure
-        run: python scripts/verify_monorepo_wheel.py dist/*.whl
+        run: >-
+          python -c "from pathlib import Path; import subprocess,sys;
+          wheels=list(Path('dist').glob('*.whl'));
+          assert len(wheels)==1, wheels;
+          subprocess.run([sys.executable,'scripts/verify_monorepo_wheel.py',str(wheels[0])],check=True)"
+
       - name: Verify installed wheel closure
         run: |
-          python -m pip install --no-deps --target .wheel-install dist/*.whl
-          PYTHONPATH="$PWD/.wheel-install" python scripts/verify_installed_monorepo.py
-          PYTHONPATH="$PWD/.wheel-install" python -m vera_core --help
+          python -c "from pathlib import Path; import subprocess,sys; wheels=list(Path('dist').glob('*.whl')); assert len(wheels)==1, wheels; subprocess.run([sys.executable,'-m','pip','install','--no-deps','--target','.wheel-install',str(wheels[0])],check=True)"
+          python -c "import sys,runpy; sys.path.insert(0,'.wheel-install'); runpy.run_path('scripts/verify_installed_monorepo.py',run_name='__main__')"
+          python -c "import sys; sys.path.insert(0,'.wheel-install'); from vera_core.cli import main; main(['--help'])"
