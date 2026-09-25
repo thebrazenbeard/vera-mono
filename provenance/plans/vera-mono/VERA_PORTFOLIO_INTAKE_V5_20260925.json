@@ -1,0 +1,139 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V5_20260925",
+  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE2_PENDING_FINAL_CI",
+  "observed_date": "2026-09-25",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V4_20260925.json",
+  "current_inventory": {
+    "repository_count": 71,
+    "public_repository_count": 53,
+    "private_repository_count": 18,
+    "archived_repository_count": 2,
+    "repository_enumeration_refreshed_this_wave": true,
+    "private_publication_rule": "Private repositories remain screening inputs only; no private source is republished into public vera-mono without separate authority."
+  },
+  "main_before_wave2": "c6e10ba7b13e8f0dca7c4165bed9f3290b6152c6",
+  "wave2_subject_head_before_ledger": "79b17f0ca05c248555b75e4c5301951297290271",
+  "adaptations": [
+    {
+      "donor": "thebrazenbeard/sql-connectome",
+      "donor_head": "3bd833d3f44048915fe5149728da173c9178751c",
+      "target": "packages/vera_core/src/vera_core/semantic_transfer.py",
+      "mechanism": "immutable semantic profile/rule catalog with canonical digest bound into semantic-transfer results",
+      "excludes": [
+        "SQL execution authority",
+        "dialect equivalence claims",
+        "automatic plugin admission"
+      ]
+    },
+    {
+      "donor": "thebrazenbeard/pro-run",
+      "donor_head": "2ed253c1b78af1cc9bd163e346d20f2fd86348f5",
+      "target": "packages/vera_core/src/vera_core/task_wake_scheduler.py",
+      "mechanism": "durable interval task wakes with occurrence-level deduplication and restart continuity",
+      "excludes": [
+        "tool/effect authority",
+        "second task/effect ledger",
+        "continuous execution without a host process"
+      ]
+    },
+    {
+      "donor": "thebrazenbeard/RepairTracker",
+      "donor_head": "03e6b8ab8c3c6ccd3d4e270d8d0f2f0b690c82e2",
+      "targets": [
+        "packages/vera_core/src/vera_core/portfolio_system_model.py",
+        "packages/vera_core/src/vera_core/repair_case.py"
+      ],
+      "mechanisms": [
+        "deterministic provenance-bearing discovered-system facts with an authorization firewall",
+        "separate incident, repair-attempt, and effect lifecycle state machines"
+      ],
+      "excludes": [
+        "discovery-minted authority",
+        "READY=>effect occurred",
+        "effect observed=>repair qualified"
+      ]
+    },
+    {
+      "donor": "thebrazenbeard/lgcm",
+      "donor_head": "bdce91014809f32c19213edb9790da8122abe3cc",
+      "target": "packages/vera_core/src/vera_core/prequential_evaluation.py",
+      "mechanism": "predict/score before current-case update with evaluator-only context withheld from learner callbacks",
+      "correction": "V4 README-based RESEARCH_CANDIDATE_DEFER classification was too coarse. Direct source inspection found executable src/ and tests; V5 admits only the general evaluation boundary, not the numeric world model.",
+      "excludes": [
+        "LGCM world-model installation",
+        "general continual-learning qualification"
+      ]
+    },
+    {
+      "donor": "thebrazenbeard/meso-crct",
+      "donor_head": "060d0feeb9dc9eb23801082bd8f1c4a7cb06184d",
+      "target": "packages/vera_memory/src/vera_memory/learned_influence.py",
+      "mechanism": "exact learned-revision review binding, quarantine/staleness handling, and per-cue replay prevention",
+      "excludes": [
+        "reward/motivational ontology",
+        "autobiographical-memory equivalence",
+        "review=>truth or effect authority"
+      ]
+    },
+    {
+      "donor": "thebrazenbeard/vera-habitat",
+      "donor_head": "6ae63ffa05c37711f34328ebd6a9500fe66a08e9",
+      "target": "packages/vera_core/src/vera_core/simulation_boundary.py",
+      "mechanism": "revisioned local simulation mutations with idempotent receipts and explicit external-effect rejection",
+      "excludes": [
+        "simulation=>external world state",
+        "simulation=>identity/memory authority",
+        "external-effect authority"
+      ]
+    }
+  ],
+  "predecessor_frontier_status": {
+    "FREE_ROW_ASSURANCE_ADAPTER": "INTEGRATED_ON_MAIN_AT_C6E10BA7",
+    "SEMANTIC_CATALOG_PROVENANCE": "IMPLEMENTED_ON_WAVE2",
+    "DURABLE_WAKE_SCHEDULER": "IMPLEMENTED_ON_WAVE2",
+    "REPAIR_GRAPH_SYSTEM_MODEL": "PARTIALLY_ADAPTED_AS_SYSTEM_MODEL_AND_REPAIR_LIFECYCLE",
+    "OPTIONAL_SIMULATION_SUBSTRATE": "IMPLEMENTED_AS_BOUNDARY_PRIMITIVE_ON_WAVE2"
+  },
+  "tests_added": [
+    "tests/test_semantic_transfer_catalog.py",
+    "tests/test_task_wake_scheduler.py",
+    "tests/test_portfolio_system_model.py",
+    "tests/test_prequential_evaluation.py",
+    "tests/test_repair_case.py",
+    "tests/test_learned_influence_gate.py",
+    "tests/test_simulation_boundary.py"
+  ],
+  "tdd_evidence": {
+    "observed_red_commits": [
+      "58ecf36fc4d8bad132f4a6957611f25977f928c3",
+      "e63b3c80c9116fdccb1175bd9b49a3d6a890b3f1",
+      "e948eac1b647d69910588e602e950b6b94ee3043",
+      "9f453d2ed0c80946850846511ab1e05ac229bc6f",
+      "2275c39d4431156ecb2d4ad79b62d88369456541",
+      "7bb868fb8f241c055005939f2f2a73a43e6dd5ac",
+      "5a2d0ecd41cb29aeddc4e16d51153e63bf610dcc"
+    ],
+    "note": "Each red cut failed at the intended missing public/module boundary before the corresponding implementation was added."
+  },
+  "invariants": [
+    "repository_presence_does_not_imply_admission",
+    "source_admission_does_not_imply_installation",
+    "installation_does_not_imply_current_route",
+    "route_does_not_imply_runtime_consumption",
+    "runtime_consumption_does_not_imply_behavioral_qualification",
+    "simulation_effect_does_not_imply_external_effect",
+    "discovery_does_not_mint_authority",
+    "learned_revision_does_not_imply_truth",
+    "repair_ready_does_not_imply_effect_occurred",
+    "internal_assurance_does_not_imply_independent_review"
+  ],
+  "remaining_deferred_classes": [
+    "domain/content-specific repositories with no demonstrated Vera core gap",
+    "independent-review/security repositories whose value depends on remaining external",
+    "research seeds without a sufficiently bounded executable mechanism",
+    "overlapping mechanisms already owned locally where re-import would create duplicate authority/state owners",
+    "private-specific implementation details not authorized for public republication"
+  ],
+  "claim_ceiling": "ALL_71_REPOSITORIES_ENUMERATED; V4 HIGH-VALUE BOUNDED FRONTIER IMPLEMENTED ON WAVE2; FINAL CROSS-PLATFORM CI/WHEEL CLOSURE STILL REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME_CONSUMPTION; NOT BEHAVIORAL_QUALIFICATION; NOT INDEPENDENT_REVIEW"
+}
