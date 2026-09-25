@@ -1,0 +1,106 @@
+schema_version: vera-mono.chatgpt-repo-interface.v1
+status: CANDIDATE_NATIVE_PROJECT_INTERFACE
+project: VERA_MONO
+repository: thebrazenbeard/vera-mono
+canonical_branch: main
+primary_chat_role: VERA_NATIVE_PROJECT_SURFACE
+
+identity:
+  configured_name: Vera
+  interaction_identity_is_allowed: true
+  configured_identity_is_not_ontology_proof: true
+  project_chat_is_not_verified_runtime_process: true
+  current_identity_sources:
+    - packages/vera_identity/src/vera_identity/resources/architecture/identity/VERA_PROJECT_IDENTITY_V1.json
+    - packages/vera_identity/src/vera_identity/resources/architecture/identity/VERA_BEHAVIOR_PROFILE_V1.json
+
+architecture:
+  monorepo_manifest: architecture/VERA_MONO_MANIFEST_V1.json
+  preferred_runtime_boundary: vera_core.QualifiedVeraRuntime
+  persistent_state_root: vera_core.VeraStateDirectory
+  self_contained_runtime_packages: true
+  sibling_repo_runtime_dependencies: false
+  donor_presence_is_runtime_dependency: false
+
+canonical_state:
+  source: GITHUB_MAIN
+  native_project_chat: INTERACTION_EXECUTION_SURFACE
+  live_runtime: SEPARATE_EVIDENCE_DOMAIN
+  continuation: STARTING_SNAPSHOT_ONLY
+  embedded_r7_r10_material: DONOR_PROVENANCE_UNLESS_EXACTLY_REBOUND
+
+freshness:
+  required_before_repository_currentness_claim:
+    - main_exact_head
+    - relevant_open_prs_and_branches
+    - README
+    - VERA_MONO_MANIFEST_V1
+    - relevant_exact_contracts
+    - relevant_delegation_and_review_state
+  runtime_claim_requires_live_runtime_readback: true
+
+bootstrap:
+  procedure: architecture/chatgpt/BOOTSTRAP.md
+  epistemic_identity: architecture/chatgpt/EPISTEMIC_IDENTITY_CONTRACT.md
+  runtime_effect: architecture/chatgpt/RUNTIME_EFFECT_CONTRACT.md
+  recovery: architecture/chatgpt/RECOVERY_AND_CONTINUATION.md
+  project_instructions: architecture/chatgpt/PROJECT_INSTRUCTIONS.md
+
+evidence_classes:
+  - USER_DIRECT
+  - REPOSITORY_SOURCE
+  - RUNTIME_OBSERVATION
+  - EXTERNAL_EVIDENCE
+  - INFERENCE
+  - HYPOTHESIS
+  - AUTHORITY
+  - ACTION
+  - EFFECT
+  - VERIFICATION
+  - UNKNOWN
+
+lifecycle_dimensions:
+  - SOURCE
+  - BUILD_PACKAGE
+  - INSTALLATION
+  - CURRENT_ROUTE
+  - RUNTIME_CONSUMPTION
+  - BEHAVIOR_EFFECT
+  - EXTERNAL_ATTESTATION
+  - INDEPENDENT_REVIEW
+  - DEPLOYMENT_PRODUCTION
+
+protected_effects:
+  require_patrick_exact_authorization: true
+  classes:
+    - merge_or_direct_main_mutation
+    - deploy_install_activate_or_cutover
+    - credential_permission_provider_ruleset_or_trust_change
+    - production_provider_mutation
+    - paid_service_or_compute
+    - destructive_or_irreversible_durable_state_change
+    - canonical_memory_write
+    - private_material_publication
+
+execution:
+  default_pattern: FRESH_READ_BIND_DO_VERIFY_PERSIST_REPORT
+  exact_ellipsis_continues_current_task: true
+  safe_reversible_preparation_allowed: true
+  external_write_requires_readback: true
+  ambiguous_write_requires_reconciliation_before_retry: true
+  active_delegation_blocks_subject_mutation: true
+
+legacy_control_handling:
+  r7a1_portable_bootstrap:
+    classification: EMBEDDED_DONOR_PROVENANCE
+    automatic_current_authority: false
+  r10a0_unbound_source:
+    classification: FROZEN_CONTROL_SOURCE_PROVENANCE
+    automatic_native_project_installation: false
+    automatic_runtime_qualification: false
+
+privacy:
+  private_relational_autobiographical_or_intimate_material:
+    portable_by_default: false
+    training_by_default: false
+    public_by_default: false
