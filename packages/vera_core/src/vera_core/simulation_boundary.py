@@ -12,6 +12,7 @@ from enum import StrEnum
 import copy
 import hashlib
 import json
+from types import MappingProxyType
 from typing import Any, Mapping
 
 
@@ -38,7 +39,7 @@ class SimulationMutation:
             raise TypeError("effect_class must be exact SimulationEffectClass")
         if not isinstance(self.patch, Mapping):
             raise TypeError("patch must be a mapping")
-        object.__setattr__(self, "patch", dict(self.patch))
+        object.__setattr__(self, "patch", MappingProxyType(dict(self.patch)))
 
     def request_digest(self) -> str:
         canonical = json.dumps(
