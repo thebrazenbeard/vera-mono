@@ -78,6 +78,11 @@ from .corrective_learning import (
     CorrectiveLearningLedger,
     CorrectiveStage,
 )
+from .durable_dispatch_gate import (
+    DispatchAdmission,
+    DispatchFenceError,
+    DurableDispatchGate,
+)
 from .effect_recovery import (
     EffectRecoveryAuthorityError,
     EffectReconciliationProof,
@@ -381,6 +386,9 @@ __all__ = [
     "AuthorityTrustState",
     "OutboundTrustError",
     "OutboundTrustRegistry",
+    "DispatchAdmission",
+    "DispatchFenceError",
+    "DurableDispatchGate",
     "EffectRecoveryAuthorityError",
     "EffectReconciliationProof",
     "EffectReconciliationVerifier",
