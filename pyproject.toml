@@ -7,7 +7,7 @@ name = "vera-mono"
 version = "0.1.0"
 requires-python = ">=3.12"
 description = "Self-contained Vera monorepo"
-dependencies = ["jsonschema>=4.0"]
+dependencies = ["jsonschema>=4.0", "cryptography>=43.0"]
 
 [project.scripts]
 vera-mono = "vera_core.cli:main"

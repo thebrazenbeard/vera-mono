@@ -19,7 +19,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip pytest jsonschema
+        run: python -m pip install --upgrade pip pytest jsonschema cryptography
       - name: Run monorepo test suite
         run: python -m pytest -q
       - name: Build self-contained monorepo wheel

@@ -188,6 +188,55 @@ class IndependentReviewSignatureVerifier(Protocol):
     def verify(self, subject: bytes, signature: str) -> bool: ...
 
 
+class Ed25519IndependentReviewVerifier:
+    """Public-key-only verifier for externally signed review evidence."""
+
+    def __init__(
+        self,
+        *,
+        actor_id: str,
+        key_id: str,
+        public_key: bytes,
+    ):
+        self.actor_id = _text(actor_id, "actor_id")
+        self.key_id = _text(key_id, "key_id")
+        if type(public_key) is not bytes or len(public_key) != 32:
+            raise IndependentBehaviorReviewError(
+                "Ed25519 public_key must be exactly 32 raw bytes"
+            )
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+            Ed25519PublicKey,
+        )
+        self._public_key_bytes = public_key
+        self._public_key = Ed25519PublicKey.from_public_bytes(public_key)
+        self.key_digest = sha256_hex(public_key)
+
+    @property
+    def public_key_bytes(self) -> bytes:
+        return self._public_key_bytes
+
+    def verify(self, subject: bytes, signature: str) -> bool:
+        if type(subject) is not bytes or not subject:
+            return False
+        if type(signature) is not str or not signature:
+            return False
+        try:
+            signature_bytes = base64.b64decode(
+                signature.encode("ascii"),
+                validate=True,
+            )
+        except (UnicodeEncodeError, ValueError):
+            return False
+        if len(signature_bytes) != 64:
+            return False
+        from cryptography.exceptions import InvalidSignature
+        try:
+            self._public_key.verify(signature_bytes, subject)
+        except (InvalidSignature, ValueError):
+            return False
+        return True
+
+
 @dataclass(frozen=True, slots=True)
 class IndependentBehaviorReviewObservation:
     consumer_id: str

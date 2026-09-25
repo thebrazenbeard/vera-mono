@@ -8,6 +8,7 @@ import pytest
 
 from vera_core import (
     BehaviorEffectObservation,
+    Ed25519IndependentReviewVerifier,
     IndependentBehaviorReviewError,
     IndependentBehaviorReviewRequirement,
     IndependentBehaviorReviewSubject,
@@ -362,3 +363,53 @@ def test_requirement_rejects_collapsed_review_roles():
     )
     with pytest.raises(IndependentBehaviorReviewError, match="distinct subject"):
         IndependentBehaviorReviewRequirement.parse(raw)
+
+
+def test_ed25519_public_key_verifier_accepts_external_signature_only():
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    private_key = Ed25519PrivateKey.generate()
+    public_bytes = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    verifier = Ed25519IndependentReviewVerifier(
+        actor_id="external-reviewer",
+        key_id="ed25519-key-v1",
+        public_key=public_bytes,
+    )
+    subject = b"externally authored independent-review subject"
+    signature = base64.b64encode(private_key.sign(subject)).decode("ascii")
+
+    assert verifier.key_digest == digest(public_bytes)
+    assert verifier.public_key_bytes == public_bytes
+    assert verifier.verify(subject, signature) is True
+    assert verifier.verify(subject + b"-tampered", signature) is False
+    assert not hasattr(verifier, "sign")
+
+
+def test_ed25519_verifier_rejects_invalid_key_and_signature_encoding():
+    with pytest.raises(
+        IndependentBehaviorReviewError,
+        match="exactly 32 raw bytes",
+    ):
+        Ed25519IndependentReviewVerifier(
+            actor_id="external-reviewer",
+            key_id="ed25519-key-v1",
+            public_key=b"too-short",
+        )
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    public_bytes = Ed25519PrivateKey.generate().public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    verifier = Ed25519IndependentReviewVerifier(
+        actor_id="external-reviewer",
+        key_id="ed25519-key-v1",
+        public_key=public_bytes,
+    )
+    assert verifier.verify(b"subject", "not-base64%%%") is False

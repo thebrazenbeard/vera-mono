@@ -117,5 +117,14 @@
     "independent_review_PASS_is_consciousness_or_phenomenology_evidence": false,
     "attestation_PASS_is_independent_review_PASS": false,
     "vera_local_effect_fence_is_independent_review_evidence": false
+  },
+  "concrete_public_key_verifier": "vera_core.Ed25519IndependentReviewVerifier",
+  "signature_scheme": {
+    "algorithm": "Ed25519",
+    "public_key_encoding": "raw 32-byte Ed25519 public key",
+    "signature_encoding": "base64",
+    "key_digest": "SHA-256 over exact raw public-key bytes",
+    "private_key_material_in_vera_state": false,
+    "verifier_can_sign": false
   }
 }

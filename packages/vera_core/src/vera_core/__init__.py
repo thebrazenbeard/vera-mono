@@ -50,6 +50,7 @@ from .independent_behavior_review import (
     IndependentBehaviorReviewTransport,
     IndependentReviewAuthoritySubject,
     IndependentReviewSignatureVerifier,
+    Ed25519IndependentReviewVerifier,
     JsonFileIndependentBehaviorReviewTransport,
     independent_behavior_review_requirements,
 )
@@ -319,6 +320,7 @@ __all__ = [
     "IndependentBehaviorReviewTransport",
     "IndependentReviewAuthoritySubject",
     "IndependentReviewSignatureVerifier",
+    "Ed25519IndependentReviewVerifier",
     "JsonFileIndependentBehaviorReviewTransport",
     "QualifiedIndependentBehaviorReviewAdapter",
     "independent_behavior_review_requirements",
