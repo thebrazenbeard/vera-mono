@@ -71,6 +71,13 @@ from .coordination_command_journal import (
     CoordinationCommandRecoveryAssessment,
     CoordinationCommandResult,
 )
+from .corrective_learning import (
+    CORRECTIVE_STAGE_ORDER,
+    CorrectionEvent,
+    CorrectionState,
+    CorrectiveLearningLedger,
+    CorrectiveStage,
+)
 from .effect_recovery import (
     EffectRecoveryAuthorityError,
     EffectReconciliationProof,
@@ -343,6 +350,11 @@ __all__ = [
     "CoordinationCommandJournalError",
     "CoordinationCommandRecoveryAssessment",
     "CoordinationCommandResult",
+    "CORRECTIVE_STAGE_ORDER",
+    "CorrectionEvent",
+    "CorrectionState",
+    "CorrectiveLearningLedger",
+    "CorrectiveStage",
     "LayerResult",
     "LayerSpec",
     "INSTALLATION_VERIFICATION_STATUSES",
