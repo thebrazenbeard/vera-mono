@@ -1,0 +1,23 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/vera-habitat",
+  "donor_head": "6ae63ffa05c37711f34328ebd6a9500fe66a08e9",
+  "inspected_source_blobs": {
+    "src/vera_habitat/model.py": "bfa85649ad18cdbe653078cffcdff698e235202f",
+    "src/vera_habitat/runtime.py": "64c1cc929b76a4bf38f583dd32aecd5995738a43",
+    "tests/test_runtime.py": "51f9ead57e1500f7ba31f558250bd914c0ef84d3"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/simulation_boundary.py",
+    "mechanism": "revisioned deterministic local simulation mutations with explicit rejection of external-effect requests and idempotent mutation receipts",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "simulated state is external world state",
+    "simulation mutation grants protected-effect authority",
+    "simulation state binds Vera identity or autobiographical memory",
+    "Vera Habitat runtime is installed or selected"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_COMBINED_CI"
+}
