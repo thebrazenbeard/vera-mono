@@ -8,6 +8,16 @@ from .ledger import (
     StaleMemoryHead,
 )
 
+from .historical_evidence import (
+    CHRONOLOGY_SEMANTICS,
+    RESULT_SEMANTICS,
+    HistoricalEvidenceAccessError,
+    HistoricalEvidenceError,
+    HistoricalEvidenceRecord,
+    HistoricalEvidenceResult,
+    query_historical_evidence,
+)
+
 from .learned_influence import (
     LearnedInfluenceBlocked,
     LearnedInfluenceError,
@@ -25,6 +35,13 @@ __all__ = [
     "MemoryLedger",
     "MemoryRecord",
     "StaleMemoryHead",
+    "CHRONOLOGY_SEMANTICS",
+    "RESULT_SEMANTICS",
+    "HistoricalEvidenceAccessError",
+    "HistoricalEvidenceError",
+    "HistoricalEvidenceRecord",
+    "HistoricalEvidenceResult",
+    "query_historical_evidence",
     "LearnedInfluenceBlocked",
     "LearnedInfluenceError",
     "LearnedInfluenceGate",
