@@ -566,6 +566,61 @@ class CoordinationCommandJournal:
             ).fetchall()
         return tuple(self.read_binding(str(row[0])) for row in rows)
 
+    def health_projection(self) -> dict[str, Any]:
+        """Derive coordination health signals from verified journal evidence."""
+        projection_digest = self.verify_integrity()
+        bindings = self.bindings()
+        results = {
+            binding.command_id: self.read_result(binding.command_id)
+            for binding in bindings
+        }
+        recorded = tuple(
+            result for result in results.values() if result is not None
+        )
+        result_class_counts: dict[str, int] = {}
+        for result in recorded:
+            result_class_counts[result.result_class] = (
+                result_class_counts.get(result.result_class, 0) + 1
+            )
+        unresolved = sorted(
+            command_id
+            for command_id, result in results.items()
+            if result is None
+        )
+        return {
+            "schema": "VERA_MONO_COORDINATION_COMMAND_HEALTH_V1",
+            "projection_digest": projection_digest,
+            "binding_count": len(bindings),
+            "result_count": len(recorded),
+            "unresolved_command_count": len(unresolved),
+            "unresolved_command_ids": unresolved,
+            "confirmed_write_count": sum(
+                result.database_write_confirmed for result in recorded
+            ),
+            "unconfirmed_result_count": sum(
+                not result.database_write_confirmed for result in recorded
+            ),
+            "result_class_counts": {
+                key: result_class_counts[key]
+                for key in sorted(result_class_counts)
+            },
+            "health_effect": "NONE",
+            "limitations": [
+                (
+                    "Derived journal health is diagnostic evidence only; "
+                    "it does not establish provider, route, or runtime health."
+                ),
+                (
+                    "An unresolved command binding identifies missing result "
+                    "evidence, not by itself a failed or retryable command."
+                ),
+                (
+                    "A confirmed database write does not prove target "
+                    "consumption, external effect, or behavioral success."
+                ),
+            ],
+        }
+
     def context(self) -> dict[str, Any]:
         projection_digest = self.verify_integrity()
         bindings = self.bindings()
@@ -580,6 +635,7 @@ class CoordinationCommandJournal:
             "result_count": sum(
                 result is not None for result in results.values()
             ),
+            "health": self.health_projection(),
             "commands": [
                 {
                     "command_id": binding.command_id,
