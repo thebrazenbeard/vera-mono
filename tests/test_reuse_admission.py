@@ -14,8 +14,8 @@ def test_reusable_candidate_requires_independent_exact_consumers_and_clean_revie
         candidate_id="shared-cas",
         state=ReuseCandidateState.EXPERIMENTING,
         consumers=(
-            ReuseConsumer("repo-a", "main@" + "a" * 40),
-            ReuseConsumer("repo-b", "main@" + "b" * 40),
+            ReuseConsumer("repo-a", "main@" + "a" * 40, independence_ref="lineage:a"),
+            ReuseConsumer("repo-b", "main@" + "b" * 40, independence_ref="lineage:b"),
         ),
         promotion_evidence=("receipt:a", "receipt:b"),
         rollback_ref="rollback:shared-cas-v1",
