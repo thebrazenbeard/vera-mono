@@ -1,0 +1,22 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/RepairTracker",
+  "donor_head": "03e6b8ab8c3c6ccd3d4e270d8d0f2f0b690c82e2",
+  "inspected_source_blobs": {
+    "src/repairtracker/model.py": "d30c22761e0305e0c8ed9c890967584152f83ee3",
+    "src/repairtracker/case.py": "4e082e3c5df3eaa84da37464e6bb113ea706f705",
+    "src/repairtracker/storage.py": "ffb51dce3f11bfcb83e7f5bfcf35b4f6bc3329d0"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/repair_case.py",
+    "mechanism": "separate incident, repair-attempt, and effect lifecycle state machines with explicit transition tables",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "READY means an external effect occurred",
+    "OBSERVED_APPLIED means the repair is qualified",
+    "repair-state transitions grant protected-effect authority",
+    "RepairTracker deployment/runtime is installed"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_COMBINED_CI"
+}
