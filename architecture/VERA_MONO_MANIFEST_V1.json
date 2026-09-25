@@ -327,7 +327,8 @@
       "task-bound live-current route verification",
       "task-bound live runtime-consumption verification",
       "task-bound live behavior/effect verification from exact host/external evidence",
-      "task-bound declaration/provider-bound external behavior attestation"
+      "task-bound declaration/provider-bound external behavior attestation",
+      "task-bound independent held-out behavior review with externally current evaluator authority and signed provenance"
     ],
     "trusted_authority_verifiers_persisted": false,
     "trusted_authority_verifiers_injected_by_host": true,
@@ -437,7 +438,8 @@
       "route_verification_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
       "runtime_consumption_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
       "behavior_effect_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
-      "behavior_attestation_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS"
+      "behavior_attestation_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
+      "independent_behavior_review_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS"
     },
     "claim_ceiling_required": true,
     "independent_surface_closeout": true,
@@ -684,5 +686,27 @@
     "local_effect_fence_is_external_effect_proof": false,
     "attestation_pass_is_independent_review": false,
     "attestation_pass_is_protected_effect_authority": false
+  },
+  "independent_behavior_review": {
+    "schema": "VERA_MONO_INDEPENDENT_HELD_OUT_BEHAVIOR_REVIEW_V1",
+    "contract": "architecture/VERA_INDEPENDENT_HELD_OUT_BEHAVIOR_REVIEW_V1.json",
+    "store": "vera_core.IndependentBehaviorReviewStore",
+    "adapter": "vera_core.QualifiedIndependentBehaviorReviewAdapter",
+    "transport_protocol": "vera_core.IndependentBehaviorReviewTransport",
+    "concrete_json_transport": "vera_core.JsonFileIndependentBehaviorReviewTransport",
+    "verifier_protocol": "vera_core.IndependentReviewSignatureVerifier",
+    "state_path": "behavior/independent-review.sqlite",
+    "requirement_grammar": "INDEPENDENT_BEHAVIOR_REVIEW_VERIFY|<consumer-id>|<probe-id>|<review-id>|<subject-actor-id>|<declaration-sha256>|<held-out-probe-set-sha256>|<probe-curator-id>|<evaluator-id>|<evaluator-key-id>|<evaluator-key-sha256>|<authority-id>|<authority-key-id>|<authority-key-sha256>",
+    "exact_held_out_probe_set_binding": true,
+    "distinct_subject_curator_evaluator_authority_roles": true,
+    "externally_current_evaluator_authority_required": true,
+    "evaluator_and_authority_signing_keys_persisted": false,
+    "matching_behavior_effect_live_current_PASS_required": true,
+    "result_and_result_receipt_bound": true,
+    "review_provenance_bound": true,
+    "nonce_replay_protection": true,
+    "source_presence_is_external_review_execution": false,
+    "independent_review_pass_is_deployment": false,
+    "independent_review_pass_is_protected_effect_authority": false
   }
 }

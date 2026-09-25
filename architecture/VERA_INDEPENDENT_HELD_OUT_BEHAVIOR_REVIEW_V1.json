@@ -1,0 +1,121 @@
+{
+  "schema": "VERA_MONO_INDEPENDENT_HELD_OUT_BEHAVIOR_REVIEW_V1",
+  "purpose": "Require independently produced, held-out, externally current behavior-review evidence above an exact live behavior/effect receipt without allowing Vera to mint or self-promote the independent verdict.",
+  "requirement_grammar": {
+    "syntax": "INDEPENDENT_BEHAVIOR_REVIEW_VERIFY|<consumer-id>|<probe-id>|<review-id>|<subject-actor-id>|<declaration-sha256>|<held-out-probe-set-sha256>|<probe-curator-id>|<evaluator-id>|<evaluator-key-id>|<evaluator-key-sha256>|<authority-id>|<authority-key-id>|<authority-key-sha256>"
+  },
+  "statuses": [
+    "PASS",
+    "FAIL",
+    "UNAVAILABLE"
+  ],
+  "owner": "vera_core.IndependentBehaviorReviewStore",
+  "adapter": "vera_core.QualifiedIndependentBehaviorReviewAdapter",
+  "transport_protocol": "vera_core.IndependentBehaviorReviewTransport",
+  "verifier_protocol": "vera_core.IndependentReviewSignatureVerifier",
+  "concrete_read_only_transport": "vera_core.JsonFileIndependentBehaviorReviewTransport",
+  "state_path": "<vera-state-root>/behavior/independent-review.sqlite",
+  "prerequisites": {
+    "matching_behavior_effect_live_current_PASS": true,
+    "exact_declaration_digest": true,
+    "held_out_probe_set_digest": true,
+    "evaluator_authority_must_be_current": true,
+    "operational_separation_must_be_attested": true,
+    "read_only_external_evidence": true
+  },
+  "role_separation": {
+    "required_distinct_roles": [
+      "subject_actor_id",
+      "probe_curator_id",
+      "evaluator_id",
+      "authority_id"
+    ],
+    "vera_may_choose_both_held_out_probe_and_verdict": false,
+    "evaluator_private_key_or_secret_persisted_in_vera_state": false,
+    "authority_private_key_or_secret_persisted_in_vera_state": false,
+    "runtime_contains_signing_capability": false
+  },
+  "authority_binding": [
+    "review id",
+    "subject actor id",
+    "held-out probe-set digest",
+    "probe curator id",
+    "evaluator id",
+    "evaluator key id and digest",
+    "authority id",
+    "authority key id and digest",
+    "evaluator currentness digest",
+    "operational-separation assertion",
+    "currentness assertion",
+    "single-use authority nonce"
+  ],
+  "review_binding": [
+    "consumer id",
+    "probe id",
+    "review id",
+    "canonical behavior declaration digest",
+    "held-out probe-set digest",
+    "probe curator id",
+    "exact behavior/effect receipt digest",
+    "process instance id",
+    "runtime-state digest",
+    "stimulus digest",
+    "outcome digest",
+    "evaluator id/key/currentness",
+    "authority subject digest",
+    "exact raw authority evidence digest",
+    "single-use review nonce",
+    "verdict",
+    "raw result digest",
+    "result receipt digest",
+    "canonical review provenance digest"
+  ],
+  "replay_protection": {
+    "uniqueness_scope": "evaluator_id + evaluator_key_id + review_nonce",
+    "replay": "FAIL_CLOSED"
+  },
+  "currentness": {
+    "stored_PASS_is_historical_without_live_refresh": true,
+    "changed_behavior_receipt": "NOT_CURRENT",
+    "stale_process_or_runtime": "NOT_CURRENT",
+    "stale_or_noncurrent_evaluator_authority": "FAIL_OR_NOT_CURRENT",
+    "changed_probe_set": "FAIL_OR_NOT_CURRENT",
+    "changed_raw_authority_or_review_evidence": "NOT_CURRENT",
+    "missing_transport": "NOT_CURRENT"
+  },
+  "hostile_cases": {
+    "forged_verdict": "FAIL",
+    "replayed_review_nonce": "DENY",
+    "stale_evaluator_currentness": "FAIL_OR_NOT_CURRENT",
+    "wrong_held_out_probe_set": "FAIL",
+    "stale_process_or_runtime": "NOT_CURRENT",
+    "missing_external_evidence": "UNAVAILABLE",
+    "changed_review_provenance": "NOT_CURRENT",
+    "collapsed_subject_curator_evaluator_authority_roles": "DENY"
+  },
+  "runtime_methods": [
+    "QualifiedVeraRuntime.assess_independent_behavior_review",
+    "QualifiedVeraRuntime.verify_task_independent_behavior_review",
+    "QualifiedVeraRuntime.recover_independent_behavior_reviews"
+  ],
+  "closeout": {
+    "required_surface": "behavior/effect",
+    "accepted_surface_states": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "live_current_PASS_required": true,
+    "evidence_ref": "task-independent-behavior-review:<consumer-id>:<probe-id>:<review-id>:<receipt-digest>",
+    "runtime_evidence_head": "independent behavior review head"
+  },
+  "boundaries": {
+    "source_presence_is_external_review_execution": false,
+    "external_signature_proves_truthfulness": false,
+    "independent_review_PASS_is_deployment": false,
+    "independent_review_PASS_is_provider_activation": false,
+    "independent_review_PASS_is_protected_effect_authority": false,
+    "independent_review_PASS_is_consciousness_or_phenomenology_evidence": false,
+    "attestation_PASS_is_independent_review_PASS": false,
+    "vera_local_effect_fence_is_independent_review_evidence": false
+  }
+}
