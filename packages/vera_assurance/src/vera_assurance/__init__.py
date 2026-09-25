@@ -5,7 +5,12 @@ another separate evaluator remains the stronger falsification boundary.
 """
 
 from .drift import DriftFinding, DriftPolicy, DriftReport, Snapshot, compare_snapshots
-from .policy_constraints import (\n    PolicyConstraintFinding,\n    PolicyConstraintReport,\n    audit_policy_constraints,\n)\nfrom .effect_fence import (
+from .policy_constraints import (
+    PolicyConstraintFinding,
+    PolicyConstraintReport,
+    audit_policy_constraints,
+)
+from .effect_fence import (
     AtomicCurrentnessStore,
     CurrentnessSnapshot,
     EffectFence,
@@ -24,6 +29,9 @@ __all__ = [
     "EffectFenceError",
     "EffectReceipt",
     "EffectState",
+    "PolicyConstraintFinding",
+    "PolicyConstraintReport",
     "Snapshot",
+    "audit_policy_constraints",
     "compare_snapshots",
 ]
