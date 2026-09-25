@@ -33,6 +33,17 @@ from .behavior_attestation_adapter import (
     BehaviorAttestationAssessment,
     QualifiedBehaviorAttestationAdapter,
 )
+from .independent_behavior_review import (
+    IndependentBehaviorReviewError,
+    IndependentBehaviorReviewReceipt,
+    IndependentBehaviorReviewStore,
+    IndependentBehaviorReviewTransport,
+    independent_behavior_review_requirements,
+)
+from .independent_behavior_review_adapter import (
+    IndependentBehaviorReviewAssessment,
+    QualifiedIndependentBehaviorReviewAdapter,
+)
 from .coordination_command_journal import CoordinationCommandJournal
 from .effect_recovery import (
     EffectReconciliationVerifier,
@@ -179,6 +190,10 @@ class QualifiedVeraRuntime:
     behavior_attestation_transports: Mapping[
         tuple[str, str], BehaviorAttestationTransport
     ]
+    independent_behavior_reviews: IndependentBehaviorReviewStore
+    independent_behavior_review_transports: Mapping[
+        tuple[str, str], IndependentBehaviorReviewTransport
+    ]
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
 
@@ -216,6 +231,9 @@ class QualifiedVeraRuntime:
         ] | None = None,
         behavior_attestation_transports: Mapping[
             tuple[str, str], BehaviorAttestationTransport
+        ] | None = None,
+        independent_behavior_review_transports: Mapping[
+            tuple[str, str], IndependentBehaviorReviewTransport
         ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
@@ -258,6 +276,10 @@ class QualifiedVeraRuntime:
         behavior_effect_verifications.verify_chain()
         behavior_attestations = state.behavior_attestation_store()
         behavior_attestations.verify_chain()
+        independent_behavior_reviews = (
+            state.independent_behavior_review_store()
+        )
+        independent_behavior_reviews.verify_chain()
         coordination_commands = state.coordination_command_journal()
         tasks = state.task_execution_ledger()
 
@@ -501,6 +523,35 @@ class QualifiedVeraRuntime:
                     "behavior/effect transport for the same consumer"
                 )
 
+        review_transports = dict(
+            independent_behavior_review_transports or {}
+        )
+        for scope, transport in review_transports.items():
+            if (
+                not isinstance(scope, tuple)
+                or len(scope) != 2
+                or not all(type(item) is str and item for item in scope)
+            ):
+                raise TypeError(
+                    "independent review transport keys must be "
+                    "(consumer_id, review_id)"
+                )
+            if not isinstance(transport, IndependentBehaviorReviewTransport):
+                raise TypeError(
+                    f"independent review transport for {scope!r} "
+                    "does not satisfy IndependentBehaviorReviewTransport"
+                )
+            if (transport.consumer_id, transport.review_id) != scope:
+                raise ValueError(
+                    "independent review transport identity mismatch for "
+                    f"{scope!r}"
+                )
+            if scope[0] not in behavior_transports:
+                raise ValueError(
+                    "independent review transport requires a matching live "
+                    "behavior/effect transport for the same consumer"
+                )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -559,6 +610,8 @@ class QualifiedVeraRuntime:
             behavior_effect_transports=behavior_transports,
             behavior_attestations=behavior_attestations,
             behavior_attestation_transports=attestation_transports,
+            independent_behavior_reviews=independent_behavior_reviews,
+            independent_behavior_review_transports=review_transports,
             coordination_commands=coordination_commands,
             tasks=tasks,
         )
@@ -604,6 +657,9 @@ class QualifiedVeraRuntime:
         behavior_attestation_head = (
             self.behavior_attestations.verify_chain()
         )
+        independent_behavior_review_head = (
+            self.independent_behavior_reviews.verify_chain()
+        )
         body = {
             "schema": "VERA_MONO_TASK_RUNTIME_EVIDENCE_V1",
             "project_id": self.lifecycle.project_id,
@@ -630,6 +686,9 @@ class QualifiedVeraRuntime:
             ),
             "behavior_attestation_verification_head_digest": (
                 behavior_attestation_head
+            ),
+            "independent_behavior_review_head_digest": (
+                independent_behavior_review_head
             ),
         }
         return sha256_hex(canonical_json_bytes(body))
@@ -1341,6 +1400,41 @@ class QualifiedVeraRuntime:
         self,
     ) -> tuple[BehaviorAttestationAssessment, ...]:
         return self.behavior_attestation_adapter().recover()
+
+    def independent_behavior_review_adapter(
+        self,
+    ) -> QualifiedIndependentBehaviorReviewAdapter:
+        return QualifiedIndependentBehaviorReviewAdapter(
+            runtime=self,
+            transports=self.independent_behavior_review_transports,
+        )
+
+    def assess_independent_behavior_review(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> IndependentBehaviorReviewAssessment:
+        return self.independent_behavior_review_adapter().assess(
+            task_id, consumer_id, probe_id, review_id
+        )
+
+    def verify_task_independent_behavior_review(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> IndependentBehaviorReviewReceipt:
+        return self.independent_behavior_review_adapter().verify(
+            task_id, consumer_id, probe_id, review_id
+        )
+
+    def recover_independent_behavior_reviews(
+        self,
+    ) -> tuple[IndependentBehaviorReviewAssessment, ...]:
+        return self.independent_behavior_review_adapter().recover()
 
     def assess_task_dependencies(
         self,
@@ -2112,6 +2206,60 @@ class QualifiedVeraRuntime:
                         )
                     )
 
+        independent_review_requirements_for_task = (
+            independent_behavior_review_requirements(
+                state.packet.evidence_requirements
+            )
+        )
+        independent_review_assessments: tuple[
+            IndependentBehaviorReviewAssessment, ...
+        ] = ()
+        if independent_review_requirements_for_task:
+            if "behavior/effect" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "INDEPENDENT_BEHAVIOR_REVIEW_VERIFY evidence requires "
+                    "the behavior/effect closeout surface"
+                )
+            elif surfaces.get("behavior/effect") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required independent review cannot close a "
+                    "behavior/effect surface that is not verified-current "
+                    "or changed-and-verified"
+                )
+            try:
+                independent_review_assessments = (
+                    self.independent_behavior_review_adapter().assess_task(
+                        task_id
+                    )
+                )
+            except IndependentBehaviorReviewError as exc:
+                reasons.append(
+                    "independent behavior review contract is invalid: "
+                    + str(exc)
+                )
+            else:
+                not_current_reviews = tuple(
+                    assessment
+                    for assessment in independent_review_assessments
+                    if not assessment.passed
+                )
+                if not_current_reviews:
+                    reasons.append(
+                        "required independent behavior reviews are not "
+                        "verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.consumer_id}/{item.probe_id}/"
+                                f"{item.review_id}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current_reviews
+                        )
+                    )
+
         active_delegation_ids = tuple(
             delegation.delegation_id
             for delegation in state.active_delegations
@@ -2266,6 +2414,22 @@ class QualifiedVeraRuntime:
                     "digest: "
                     + ", ".join(missing_behavior_attestation_evidence)
                 )
+            independent_review_assessments = (
+                self.independent_behavior_review_adapter().assess_task(
+                    task_id
+                )
+            )
+            missing_independent_review_evidence = tuple(
+                f"{item.consumer_id}/{item.probe_id}/{item.review_id}"
+                for item in independent_review_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_independent_review_evidence:
+                raise TaskExecutionError(
+                    "verified independent behavior review lacks durable "
+                    "evidence digest: "
+                    + ", ".join(missing_independent_review_evidence)
+                )
             binding_digests = {
                 dependency.dependency_id: dependency.event_digest
                 for dependency in state.dependencies
@@ -2352,6 +2516,18 @@ class QualifiedVeraRuntime:
                 if item.passed
                 and item.latest_receipt_digest is not None
             )
+            independent_review_evidence_refs = tuple(
+                (
+                    "task-independent-behavior-review:"
+                    f"{item.consumer_id}:"
+                    f"{item.probe_id}:"
+                    f"{item.review_id}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in independent_review_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
             merged_evidence = tuple(
                 dict.fromkeys(
                     (
@@ -2364,6 +2540,7 @@ class QualifiedVeraRuntime:
                         *runtime_consumption_evidence_refs,
                         *behavior_effect_evidence_refs,
                         *behavior_attestation_evidence_refs,
+                        *independent_review_evidence_refs,
                     )
                 )
             )
@@ -3016,6 +3193,36 @@ class QualifiedVeraRuntime:
                 "reason": assessment.reason,
             }
             for assessment in self.recover_behavior_attestations()
+        ]
+        context["independent_behavior_reviews"] = (
+            self.independent_behavior_reviews.context()
+        )
+        context["independent_behavior_review_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "consumer_id": assessment.consumer_id,
+                "probe_id": assessment.probe_id,
+                "review_id": assessment.review_id,
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": assessment.latest_receipt_digest,
+                "transport_available": assessment.transport_available,
+                "behavior_effect_current": assessment.behavior_effect_current,
+                "current_authority_current": (
+                    assessment.current_authority_current
+                ),
+                "current_operationally_separate": (
+                    assessment.current_operationally_separate
+                ),
+                "current_signatures_valid": (
+                    assessment.current_signatures_valid
+                ),
+                "current_matches_receipt": (
+                    assessment.current_matches_receipt
+                ),
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_independent_behavior_reviews()
         ]
         context["coordination"] = {
             "schema": "VERA_MONO_COORDINATION_RUNTIME_CONTEXT_V1",

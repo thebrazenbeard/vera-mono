@@ -11,6 +11,7 @@ from vera_recovery import NativeRecoveryCheckpointStore
 
 from .behavior_effect_verification import BehaviorEffectVerificationStore
 from .behavior_attestation import BehaviorAttestationStore
+from .independent_behavior_review import IndependentBehaviorReviewStore
 from .coordination_command_journal import CoordinationCommandJournal
 from .lifecycle import LifecycleReconstruction, NativeVeraLifecycle
 from .lifecycle_journal import LifecycleJournal
@@ -47,6 +48,7 @@ class VeraStatePaths:
     runtime_consumption_verifications: Path
     behavior_effect_verifications: Path
     behavior_attestations: Path
+    independent_behavior_reviews: Path
     coordination: Path
     coordination_commands: Path
     tasks: Path
@@ -116,6 +118,9 @@ class VeraStateDirectory:
             ),
             behavior_attestations=(
                 candidate / "behavior" / "attestation.sqlite"
+            ),
+            independent_behavior_reviews=(
+                candidate / "behavior" / "independent-review.sqlite"
             ),
             coordination=candidate / "coordination" / "events.sqlite",
             coordination_commands=(
@@ -233,6 +238,13 @@ class VeraStateDirectory:
             self.paths.behavior_attestations
         )
 
+    def independent_behavior_review_store(
+        self,
+    ) -> IndependentBehaviorReviewStore:
+        return IndependentBehaviorReviewStore(
+            self.paths.independent_behavior_reviews
+        )
+
     def coordination_repository(self) -> SQLiteCoordinationRepository:
         return SQLiteCoordinationRepository(self.paths.coordination)
 
@@ -293,6 +305,9 @@ class VeraStateDirectory:
         )
         context["behavior_attestations"] = (
             self.behavior_attestation_store().context()
+        )
+        context["independent_behavior_reviews"] = (
+            self.independent_behavior_review_store().context()
         )
         context["coordination"] = self.coordination_repository().context()
         context["coordination_commands"] = (
