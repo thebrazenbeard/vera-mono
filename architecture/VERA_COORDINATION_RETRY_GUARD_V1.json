@@ -1,0 +1,41 @@
+{
+  "schema": "VERA_COORDINATION_RETRY_GUARD_V1",
+  "status": "SOURCE_INTEGRATION_CANDIDATE",
+  "owner": "coordination_bus.retry_guard",
+  "purpose": "Suppress accidental immediate retries of one exact coordination post while preserving distinct routes and later legitimate repeats.",
+  "key_binding": [
+    "actor_workstream",
+    "thread_key",
+    "source_branch",
+    "target_branch",
+    "event_type",
+    "status",
+    "objective",
+    "summary",
+    "active_issue",
+    "requested_perspective",
+    "supersedes_event_id",
+    "acknowledges_event_id",
+    "payload",
+    "reference_data"
+  ],
+  "default_window_ms": 500,
+  "time_model": "CALLER_SUPPLIED_MONOTONIC_MILLISECONDS_WITH_REGRESSION_REJECTION",
+  "write_boundary": "RETRY_RESERVATION_AND_COORDINATION_POST_SERIALIZED_UNDER_ONE_PROCESS_LOCAL_LOCK",
+  "failure_rule": "NO_CONFIRMED_DATABASE_WRITE_ROLLS_BACK_EXACT_RESERVATION",
+  "distinct_route_rule": "TARGET_OR_OTHER_CANONICAL_DRAFT_CHANGE_PRODUCES_DISTINCT_RETRY_KEY",
+  "repeat_rule": "THE_SAME_EXACT_DRAFT_MAY_BE_ADMITTED_AGAIN_AFTER_THE_RETRY_WINDOW",
+  "hard_non_equivalences": [
+    "RETRY_SUPPRESSION != EXACTLY_ONCE_DELIVERY",
+    "PROCESS_LOCAL_DEDUPE != DURABLE_RESTART_DEDUPE",
+    "WRITE_CONFIRMED != TARGET_CONSUMED",
+    "RETRY_KEY != EVENT_ID",
+    "SAME_PAYLOAD != SAME_COORDINATION_EVENT",
+    "SUPPRESSION != AUTHORIZATION"
+  ],
+  "authorization_effect": "NONE",
+  "memory_admission_effect": "NONE",
+  "runtime_dependency_on_ccb_core": false,
+  "donor_ref": "thebrazenbeard/ccb-core@42e4409dff3baee4acb63b48c9f64c7367a4fd22",
+  "claim_ceiling": "SOURCE_MECHANISM_ONLY_NOT_RUNTIME_INSTALLATION_NOT_PROVIDER_DELIVERY_QUALIFICATION"
+}
