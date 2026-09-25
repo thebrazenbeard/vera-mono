@@ -6,3 +6,9 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 *.toml text eol=lf
+
+# Preserve exact byte-copy donor blobs whose terminal newline is intentionally mixed.
+packages/portfolio_runtime/src/portfolio_runtime/skeletonkey/evidence.py -text -eol
+packages/portfolio_runtime/src/portfolio_runtime/skeletonkey/replay.py -text -eol
+packages/portfolio_runtime/src/portfolio_runtime/skeletonkey/sequence.py -text -eol
+packages/portfolio_runtime/src/portfolio_runtime/skeletonkey/timing.py -text -eol
