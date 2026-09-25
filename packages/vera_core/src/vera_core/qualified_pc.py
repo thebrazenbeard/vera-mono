@@ -12,6 +12,9 @@ from pc_connection.journal import (
 from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
 from vera_assurance import EffectFenceError, EffectState
 
+from .execution_adapters import (
+    validate_pc_execution_transport_for_job,
+)
 from .pc_execution_binding import (
     PCExecutionBinding,
     PCExecutionBindingStore,
@@ -394,10 +397,10 @@ class QualifiedPCExecutionAdapter:
             raise ValueError(
                 "qualified PC execution requires a host-injected PC execution transport"
             )
-        if transport.host_id != prepared.job.host_id:
-            raise ValueError(
-                "PC execution transport host identity does not match job host"
-            )
+        validate_pc_execution_transport_for_job(
+            transport,
+            prepared.job,
+        )
         return self.execute(
             prepared,
             authority_proof=authority_proof,

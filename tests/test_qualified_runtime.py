@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from types import SimpleNamespace
 import sqlite3
 
 import pytest
@@ -35,6 +36,14 @@ class StubPCTransport:
     def __init__(self, host_id):
         self.host_id = host_id
         self.calls = []
+
+    def attest(self):
+        return SimpleNamespace(
+            host_id=self.host_id,
+            capability_digest="3" * 64,
+            local_policy_digest="2" * 64,
+            read_roots_digest="1" * 64,
+        )
 
     def execute(self, job, authorization):
         self.calls.append((job.envelope_id, authorization.envelope_id))
@@ -1134,3 +1143,108 @@ def test_native_coordination_write_survives_runtime_restart(tmp_path):
     context = restarted.resume_context()
     assert context["coordination"]["persistent_native"] is True
     assert state.resume_context()["coordination"]["event_sequence"] == 1
+
+
+class LegacyPCTransportWithoutAttestation:
+    def __init__(self, host_id):
+        self.host_id = host_id
+        self.calls = []
+
+    def execute(self, job, authorization):
+        self.calls.append((job.envelope_id, authorization.envelope_id))
+        return {"transport": "legacy", "operation": job.operation_id}
+
+
+class DirectMismatchPCTransport(StubPCTransport):
+    def attest(self):
+        return SimpleNamespace(
+            host_id=self.host_id,
+            capability_digest="9" * 64,
+            local_policy_digest="2" * 64,
+            read_roots_digest="1" * 64,
+        )
+
+
+def _trusted_pc_runtime_parts(tmp_path, transport):
+    state = accepted_state(tmp_path)
+    bound_job = pc_job()
+    bound_authorization = pc_authorization(bound_job)
+    verifier = HmacPCJobAuthority(
+        bound_authorization.issuer_id,
+        b"c" * 32,
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=verifier.authority_id,
+        role="PC",
+        key_id=verifier.key_id,
+        key_digest=verifier.key_digest,
+        expected_registry_generation=0,
+    )
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        pc_authority_verifier=verifier,
+        pc_execution_transport=transport,
+        clock=lambda: datetime(
+            2026,
+            8,
+            1,
+            20,
+            5,
+            tzinfo=timezone.utc,
+        ),
+    )
+    prepared = runtime.prepare_pc_job(
+        job=bound_job,
+        authorization=bound_authorization,
+    )
+    proof = verifier.issue(
+        job=bound_job,
+        authorization=bound_authorization,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+    return state, bound_job, runtime, prepared, proof
+
+
+def test_direct_runtime_pc_execution_rejects_capability_mismatch_before_effect(tmp_path):
+    bound_job = pc_job()
+    transport = DirectMismatchPCTransport(bound_job.host_id)
+    state, _, runtime, prepared, proof = _trusted_pc_runtime_parts(
+        tmp_path,
+        transport,
+    )
+
+    with pytest.raises(ValueError, match="capability digest"):
+        runtime.execute_pc_job(prepared, authority_proof=proof)
+
+    assert transport.calls == []
+    with pytest.raises(KeyError):
+        runtime.fence.read(f"pc:{prepared.job.envelope_id}")
+    assert state.pc_execution_binding_store().all() == ()
+
+
+def test_runtime_composition_rejects_legacy_pc_transport_without_attestation(tmp_path):
+    state = accepted_state(tmp_path)
+    bound_job = pc_job()
+    bound_authorization = pc_authorization(bound_job)
+    verifier = HmacPCJobAuthority(
+        bound_authorization.issuer_id,
+        b"c" * 32,
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=verifier.authority_id,
+        role="PC",
+        key_id=verifier.key_id,
+        key_digest=verifier.key_digest,
+        expected_registry_generation=0,
+    )
+
+    with pytest.raises(TypeError, match="PCExecutionTransport"):
+        QualifiedVeraRuntime.from_state_directory(
+            state,
+            pc_authority_verifier=verifier,
+            pc_execution_transport=LegacyPCTransportWithoutAttestation(
+                bound_job.host_id
+            ),
+        )

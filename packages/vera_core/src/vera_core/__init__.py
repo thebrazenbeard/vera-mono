@@ -88,9 +88,12 @@ from .effect_recovery import (
 )
 from .execution_adapters import (
     PCExecutionTransport,
+    PCExecutionTransportAttestation,
     ProviderExecutionTransport,
     SourceMutationTransport,
     SourceMutationTransportResult,
+    validate_pc_execution_transport_attestation,
+    validate_pc_execution_transport_for_job,
 )
 from .github_api_client import (
     GitHubAPIError,
@@ -401,6 +404,9 @@ __all__ = [
     "ProviderAuthorityEnvelope",
     "ProviderAuthorityVerifier",
     "PCExecutionTransport",
+    "PCExecutionTransportAttestation",
+    "validate_pc_execution_transport_attestation",
+    "validate_pc_execution_transport_for_job",
     "ProviderExecutionTransport",
     "SourceMutationTransport",
     "SourceMutationTransportResult",
