@@ -25,9 +25,9 @@
     {
       "repository": "thebrazenbeard/sql-connectome",
       "ref": "66ed8e00ab04fcb6080c7a1362304601d00edafe",
-      "disposition": "CANDIDATE_GENERIC_SEMANTIC_TRANSFER_CORE",
-      "target": "UNBOUND_PENDING_DOMAIN_NEUTRAL_EXTRACTION",
-      "reason": "Graph-shaped semantic IR, capability planning, graded fidelity and unknown-preserving interpretation fill a general transfer gap; SQL-specific semantics must not be copied wholesale."
+      "disposition": "MIGRATED_GENERIC_SEMANTIC_TRANSFER_CORE",
+      "target": "vera_core.semantic_transfer",
+      "reason": "Capability planning, graded fidelity and unresolved-capability preservation were adapted into a domain-neutral Vera-owned planner. SQL dialect, parser, database-execution and SQL-specific semantics remain excluded."
     },
     {
       "repository": "thebrazenbeard/axle",
