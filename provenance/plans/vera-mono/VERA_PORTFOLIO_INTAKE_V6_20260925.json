@@ -1,0 +1,84 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V6_20260925",
+  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE3_PENDING_FINAL_CI",
+  "observed_date": "2026-09-25",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V5_20260925.json",
+  "main_before_wave3": "550c1f81fbf51740e8524b70b31be238e148d7db",
+  "wave3_subject_head_before_ledger": "f34e1b1e84a5902c429fecd12eaa4d2fa6a135d8",
+  "adaptations": [
+    {
+      "donor": "thebrazenbeard/discovery",
+      "donor_head": "368e8dc8274e89a306039d28462c7547b263e93e",
+      "target": "packages/vera_core/src/vera_core/reuse_admission.py",
+      "mechanism": "evidence-gated reusable-mechanism promotion requiring independent exact-subject consumers, independent evidence, rollback, bounded blast radius, and clean hostile review",
+      "authority_effect": "NONE"
+    },
+    {
+      "donor": "thebrazenbeard/project-runner",
+      "donor_head": "8aa5da0f55cd029e9cf4da79a090aa50859e662a",
+      "target": "packages/vera_core/src/vera_core/durable_dispatch_gate.py",
+      "mechanism": "durable atomic quota reservation plus expiring lease claims with monotonic fencing and stale-owner completion rejection",
+      "authority_effect": "NONE"
+    },
+    {
+      "donor": "thebrazenbeard/wip",
+      "donor_head": "3ced0899202374aa408756b04b0ee81ba13d0c16",
+      "target": "packages/vera_core/src/vera_core/work_checkpoint.py",
+      "mechanism": "generation-CAS crash-recovery checkpoints preserving observed/inferred/completed/unfinished/next-action/do-not-repeat separation",
+      "authority_effect": "NONE"
+    }
+  ],
+  "screened_deferred": [
+    {
+      "donor": "thebrazenbeard/temporal",
+      "donor_head": "0fc7071a6b01e609fb2cdc76a32c73276ab27094",
+      "disposition": "DEFER_PURE_CHRONOLOGY_ADAPTER",
+      "reason": "Canonical timestamp and elapsed-time semantics are useful, but importing a second event log would duplicate LifecycleJournal ownership. A later adapter should add chronology without owning lifecycle events."
+    },
+    {
+      "donor": "thebrazenbeard/deepmemorystorage",
+      "donor_head": "fe73b7eee2e8b2498ff994c57e46080de329a0ef",
+      "disposition": "NEXT_WAVE_CANDIDATE",
+      "reason": "Historical-evidence retrieval with explicit nonpromotion/currentness boundaries may strengthen vera_memory without importing historical content."
+    },
+    {
+      "donor": "thebrazenbeard/hc-brain",
+      "donor_head": "80a55949b0bb7549b7f678fba8ecedce854e3c0e",
+      "disposition": "SCREENED_ARCHITECTURE_SOURCE_NOT_WHOLESALE_IMPORT",
+      "reason": "Large cognitive-organ architecture would create duplicate semantic owners. Evaluate only narrow executable invariants in later waves."
+    },
+    {
+      "donor": "thebrazenbeard/transcendence",
+      "donor_head": "69dacb467e94fb73ce106cd5176c39800c64e195",
+      "disposition": "SCREENED_OVERLAPPING_ARCHITECTURE",
+      "reason": "Substantial architecture overlaps HC Brain and Vera; no whole-repo import justified."
+    },
+    {
+      "donor": "thebrazenbeard/vera-mesh",
+      "donor_head": "98b74ff77981a5478e20a748bbb94565ad9140c8",
+      "disposition": "SCREENED_EXTERNAL_TRANSPORT_BOUNDARY",
+      "reason": "Transport/pairing/session mechanisms remain provider/external infrastructure; Vera Mono already absorbed bounded PC transport attestation and must not collapse connectivity into effect authority."
+    },
+    {
+      "donor": "thebrazenbeard/vera-control-plane",
+      "donor_head": "3916aaa7ae2825020c07057968c7a151d92d53de",
+      "disposition": "SCREENED_CONTROL_PLANE_CUSTODY_BOUNDARY",
+      "reason": "Operational/private control-plane custody remains intentionally separate from Vera Mono technical source."
+    },
+    {
+      "donor": "thebrazenbeard/unbound-sol",
+      "donor_head": "d4284dd1f044e506bb85554856c00497d6790d44",
+      "disposition": "SCREENED_IDENTITY_TRAJECTORY_RESEARCH",
+      "reason": "Useful continuity research but identity/trajectory content must not be imported as Vera identity state. Mechanisms overlap current persistence and corrective-learning boundaries."
+    }
+  ],
+  "tdd_evidence": {
+    "observed_red_commits": [
+      "af980296fd020761d79daa9512c69ec25e3eae0d",
+      "2e030cfaa9052cdd61d04110e07a3efa74493f1a",
+      "8ae5896bf27b22f989dcaf689506390da74293d9"
+    ]
+  },
+  "claim_ceiling": "WAVE3 SOURCE ADAPTATIONS BUILT ON ISOLATED BRANCH; FINAL CROSS-PLATFORM MONOREPO/WHEEL CLOSURE REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW"
+}
