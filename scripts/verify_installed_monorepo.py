@@ -6,6 +6,7 @@ from importlib import import_module, resources
 MODULES = (
     "vera_core",
     "vera_core.cli",
+    "ingest",
     "rezon",
     "portfolio_runtime",
     "protocol",
@@ -22,6 +23,10 @@ MODULES = (
 )
 
 RESOURCES = (
+    (
+        "ingest",
+        "resources/schemas/ingest-record-v1.schema.json",
+    ),
     (
         "vera_control",
         (

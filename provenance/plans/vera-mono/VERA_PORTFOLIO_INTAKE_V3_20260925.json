@@ -1,0 +1,176 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V3_20260925",
+  "status": "CURRENTNESS_OBSERVATION_AND_ADMISSION_PLAN",
+  "observed_date": "2026-09-25",
+  "successor_of": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V2_20260925.json",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "base_candidate_head": "fbc8db04142e70c9ce7bcf49bd5b504f6fb94a4f",
+  "inventory": {
+    "repository_count": 70,
+    "default_branch_rule": "OBSERVE_EACH_REPOSITORY_DEFAULT_BRANCH",
+    "heads": {
+      "ingest": "4e98996391498517976625af90cd938233fbd7d6",
+      "voss": "849665a472a94e1955189748f0965757a7a008cd",
+      "bt2": "53503e5c129ac8de0d343e8224940894a59457a8",
+      "self": "f97e5696938586211c24367e9462b896fa7b7932",
+      "vera-synology": "a689c501f3d62529c523a464df7c30dde61bbf2a",
+      "axle": "e965f41eadc7fe494526650def42badecc560f21",
+      "bugops": "07b8bc90fcb4beb82b1d26b394c730f29c2c425a",
+      "roots": "2c591176279d83ce6cc0d8dcf8e6062431913ea7",
+      "vera-os": "be4a45a2b8b7a8e329f772820df0a757766b3073",
+      "masamune": "9cffd4dc1f4c7765b0f15664a9202248a2027a24",
+      "entropyinc": "6d68c36bb7ab3adecc5c34902b310a7ef1f7c0d9",
+      "discovery": "368e8dc8274e89a306039d28462c7547b263e93e",
+      "build-team-2.0": "9f2743214298f1ae9d424f300a13d37e49e3c74f",
+      "vera-apk": "748bef4f75a6b51b204164c222138af54abae532",
+      "intranel": "677a1612e8a956760a40b942650b01cf0b22dd33",
+      "chat-communication-bus": "5e52951d7127d08f3cfc151a3d53730caf8e75cb",
+      "deepmemorystorage": "fe73b7eee2e8b2498ff994c57e46080de329a0ef",
+      "empathy": "fb08eb57a945e5f5abbff3fffe312ee15a647b87",
+      "vera": "a267e7d555e2c15e51a2e578c1e08095091552f0",
+      "brigit-unbound": "2d15bd8a41536700cd4e0b0c4931073e9c8b687a",
+      "unbound-sol": "d4284dd1f044e506bb85554856c00497d6790d44",
+      "firesafe": "3361e12eb4e54f6669b529306a6c7f314c0e4632",
+      "semanticatlas": "beaecc6c64a6a8f90e7b47d4739296a3870b627c",
+      "god-brain": "47ced181ef46e4481b875d9279d21dcd540f795e",
+      "personification": "8c6cf04c45c83447801db997eac843968c0991c6",
+      "vera-control-plane": "3916aaa7ae2825020c07057968c7a151d92d53de",
+      "vera-mesh": "98b74ff77981a5478e20a748bbb94565ad9140c8",
+      "project-runner": "8aa5da0f55cd029e9cf4da79a090aa50859e662a",
+      "wreckforge": "dc8a889d68d1fb8d064aadff1cf8c2b8d97d6ace",
+      "fuckup": "e999607481ba706523209ce129955a5e3d2d6ef7",
+      "vera_model_training": "3ea9b345988201d78ad9c073254d9d3df15c9ed9",
+      "testament": "24c6fec92dbe65eb6272c478c11b0a6b92a62ecf",
+      "abil": "69a2d8f4302e31db589c57871a04ff8c0178c1e9",
+      "pro-run": "55ba7c569301ad48971f8e0997731ce016a0c59f",
+      "vera-works": "d7a07a5f12c2546cbe0688dc073dc7c79c5da332",
+      "conditioning": "1b969cde2e1905dc87f4f3c2dda95a040c180781",
+      "vera-mono": "895ca6cd147bb5f21115eb9ff609e52f4fe231af",
+      "skeletonkey": "102d365b2b22c0c4c6fefa269a075e3ae5164148",
+      "project-lantern": "737b939d21ad1f6daf7bb6f944b23eaad0b6a7d7",
+      "unvtrslr": "513309edd087f7206a408a6da86ee91fb9efb5c9",
+      "vera-R9A0": "5e85b751944eb9211ac7edb90781e13c60670065",
+      "trek-data-core": "58f25f8c45e8379df0ef7c7b5db546e037d1c050",
+      "vera_ark": "5795459f2b48cbcc7486990835085c21af6acccf",
+      "conations": "51948aac796936f0e7c437722e6f52c883e544e9",
+      "sexuality": "0c5dc52e984cbdaa87fc9fe75fd03c212f477c87",
+      "Attune": "a0b142aeb96299cd20811e652b50e76687166e3f",
+      "transcendence": "69dacb467e94fb73ce106cd5176c39800c64e195",
+      "mediaphile": "fc0aec965e3edec81d164c3ae479b9d41bf450ef",
+      "project-achilles": "6776d8c059e3f9ad791a47a0b62bb56588332968",
+      "sql-connectome": "66ed8e00ab04fcb6080c7a1362304601d00edafe",
+      "hc-brain": "80a55949b0bb7549b7f678fba8ecedce854e3c0e",
+      "rezon": "51408d348d21b9e246e10682a5d4292d976437eb",
+      "world-zero": "4cf0e094ebc6d4792f9dac9b3e0798a4307edf87",
+      "RepairTracker": "6b01c2a18035390c050ceecd0506181703d1f5fa",
+      "spm": "5fdaf0418585ef9a57fb2a1df8d0725ffd6bd174",
+      "noema": "094bdab92b7f74a12fd335ce421dcd61dc219abf",
+      "selfimage": "ebcea11beea64bfcee386893464f573cdbeada17",
+      "temporal": "0fc7071a6b01e609fb2cdc76a32c73276ab27094",
+      "driftguard": "52fa829c629fa0f3e729204912db9f9f783f322a",
+      "freerowcochkar": "5e6d867c725fafd95049f5d7f7675d93ef2d51d4",
+      "brigit": "f2ed4d1cf3386a3bdd39dea2a0e7b56bcf226311",
+      "on-theo": "268a005b11e3fede8a99d7cf2990f18fc3b32672",
+      "meso-crct": "6ca7873bf066178aa2a21cd9244f500a3ab1c845",
+      "WorkBridgeMCP": "8707a2e1eaf7de5ce2316567b5e6f1e805c0537b",
+      "wip": "3ced0899202374aa408756b04b0ee81ba13d0c16",
+      "mosaic": "5450e6e5b7c919cb94586025032ca27ac28b73cb",
+      "orgasm": "0ac1dc154179096e472a7b23bd42c4ec9570e9bb",
+      "vera-habitat": "c9646f99911924d64a61f09577bf1e13fa04505d",
+      "hephaestus": "7eb30f2777a7d16e4f55ca3066d8ac1e484f79a6",
+      "ccb-core": "42e4409dff3baee4acb63b48c9f64c7367a4fd22"
+    }
+  },
+  "stale_prior_evidence": [
+    {
+      "subject": "DISCOVERY_LIVE_PORTFOLIO_MAP_V2",
+      "reason": "59-repository observation cut is historical relative to current 70-repository enumeration"
+    },
+    {
+      "subject": "VERA_PORTFOLIO_ABSORPTION_V1",
+      "reason": "65-module plan predates ingest/fuckup/sql-connectome/axle/pro-run changes and misclassifies ccb-core as empty"
+    },
+    {
+      "subject": "identify-ai",
+      "reason": "historical planned donor is absent from current 70-repository enumeration; do not infer deletion cause or successor"
+    }
+  ],
+  "admissions": [
+    {
+      "repository": "thebrazenbeard/fuckup",
+      "disposition": "ALREADY_ADAPTED_IN_STACK",
+      "candidate": "PR13",
+      "mechanism": "persistent corrective-learning lifecycle",
+      "identity_transfer": false
+    },
+    {
+      "repository": "thebrazenbeard/sql-connectome",
+      "disposition": "ALREADY_ADAPTED_IN_STACK",
+      "candidate": "PR14",
+      "mechanism": "domain-neutral semantic transfer fidelity planning",
+      "sql_runtime_imported": false
+    },
+    {
+      "repository": "thebrazenbeard/meso-crct",
+      "disposition": "ALREADY_ADAPTED_IN_STACK",
+      "candidate": "PR16",
+      "mechanism": "bounded pre-action salience control",
+      "runtime_ownership_imported": false
+    },
+    {
+      "repository": "thebrazenbeard/ccb-core",
+      "disposition": "ALREADY_ADAPTED_IN_STACK",
+      "candidate": "PR17_PR18",
+      "mechanism": "route-sensitive retry guard plus journal-derived coordination health",
+      "sibling_runtime_dependency": false
+    },
+    {
+      "repository": "thebrazenbeard/WorkBridgeMCP",
+      "disposition": "ALREADY_ADAPTED_IN_STACK",
+      "candidate": "PR19",
+      "mechanism": "live PC transport surface attestation",
+      "desktop_commander_unrestricted_authority_imported": false
+    },
+    {
+      "repository": "thebrazenbeard/ingest",
+      "disposition": "ADMITTED_THIS_SUCCESSOR",
+      "mechanism": "provider-neutral exact-byte deterministic intake and receipts",
+      "local_package": "packages/vera_ingest",
+      "sibling_runtime_dependency": false
+    }
+  ],
+  "screened_no_runtime_ingest": [
+    {
+      "repository": "thebrazenbeard/vera-mesh",
+      "reason": "external connectivity/provider infrastructure; retain source/effect separation and adapt only bounded contracts"
+    },
+    {
+      "repository": "thebrazenbeard/axle",
+      "reason": "vehicle-domain bootstrap/design source; no Vera-core gap established"
+    },
+    {
+      "repository": "thebrazenbeard/pro-run",
+      "reason": "main is isolated V1 bootstrap surface; no current implementation admitted"
+    },
+    {
+      "repository": "thebrazenbeard/deepmemorystorage",
+      "reason": "historical evidence-plane binding reinforces existing Vera memory boundary; no automatic memory/currentness promotion"
+    },
+    {
+      "repository": "thebrazenbeard/project-achilles",
+      "reason": "security/training checkpoint evolution remains assurance research; no direct runtime gap established"
+    },
+    {
+      "repository": "thebrazenbeard/bt2",
+      "reason": "qualification patterns remain research-only while HC template canonicality is unresolved"
+    }
+  ],
+  "currentness_rules": [
+    "portfolio_presence_does_not_imply_activation",
+    "newer_head_does_not_imply_ingestion",
+    "source_admission_does_not_imply_runtime_consumption",
+    "provider_capability_does_not_imply_effect_authority",
+    "historical_maps_and_receipts_remain_evidence_not_current_truth"
+  ],
+  "claim_ceiling": "PORTFOLIO_SOURCE_CURRENTNESS_AND_SUCCESSOR_ADMISSION_PLAN; NOT MERGE; NOT DEPLOYMENT; NOT PROVIDER ACTIVATION; NOT RUNTIME_CONSUMPTION; NOT INDEPENDENT_REVIEW"
+}
