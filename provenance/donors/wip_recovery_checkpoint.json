@@ -1,0 +1,23 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/wip",
+  "donor_head": "3ced0899202374aa408756b04b0ee81ba13d0c16",
+  "inspected_source_blobs": {
+    "schemas/checkpoint.schema.json": "b3020617fc9ea2255cebeccf47ce6ae5a30d1bd1",
+    "tools/wip.py": "10b7e2446909a2444528af4ca020f6d31e3f12cb",
+    "tests/test_wip.py": "88f4b164bab2a2fb29abd91b834e5fc6c74fe9fe"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/work_checkpoint.py",
+    "mechanism": "durable generation-CAS recovery checkpoints separating observed, inferred, completed, unfinished, next action, and do-not-repeat state",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "checkpoint state is current external reality",
+    "resume checkpoint grants authority to repeat protected effects",
+    "WIP operation journal replaces Vera Mono effect recovery",
+    "conversation continuity proves uninterrupted runtime continuity"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE3_CI"
+}
