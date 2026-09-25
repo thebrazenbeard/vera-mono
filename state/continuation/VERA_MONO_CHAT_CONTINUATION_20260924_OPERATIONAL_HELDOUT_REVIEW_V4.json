@@ -30,7 +30,9 @@
       "review_authority": "RADAR"
     },
     "routing_state": "all four identities ACTIVE in observed topology; liveness not inferred",
-    "observed_reply_count": 0
+    "observed_reply_count": 0,
+    "blocker_comment_id": 5825120615,
+    "blocker_classification": "LAPPY_EXTERNAL_RUNNER_UNAVAILABLE_OFFLINE"
   },
   "driftguard_reference": {
     "repository": "thebrazenbeard/driftguard",
@@ -46,14 +48,23 @@
     "runtime_dependency": false
   },
   "execution_state": {
-    "frontier": "AWAIT_EXTERNAL_HEPHAESTUS_CURATOR_RETURN",
+    "frontier": "AWAIT_EXTERNAL_HEPHAESTUS_CURATOR_RETURN_AND_LAPPY_ONLINE",
     "external_dependency": true,
     "heldout_probe_set_received": false,
     "evaluator_execution_received": false,
     "authority_attestation_received": false,
-    "independent_review_pass": false
+    "independent_review_pass": false,
+    "external_runner": {
+      "connector": "Remote Desktop Commander",
+      "device_name": "Lappy",
+      "device_id": "937d921e-ecc8-4dc7-bc71-dee5f06ab653",
+      "status": "OFFLINE",
+      "ping_result": "NO_CONNECTED_DEVICE",
+      "machine_side_execution": false
+    }
   },
   "next_actions": [
+    "Confirm Lappy is online before attempting any machine-side evaluator execution.",
     "Fresh-read Bus issue #362 and frozen vera-mono head.",
     "Validate Hephaestus probe-set digest/provenance/target before accepting evaluator work.",
     "Validate Thirteen public key/currentness/result/signature for the same frozen subject.",
@@ -62,7 +73,7 @@
     "Any source repair creates a new review subject and requires a new held-out execution."
   ],
   "claim_ceiling": {
-    "current_status": "EXTERNAL_REVIEW_DISPATCHED_NOT_EXECUTED",
+    "current_status": "EXTERNAL_REVIEW_DISPATCHED_RUNNER_OFFLINE_NOT_EXECUTED",
     "source_verifier_exact_head_ci_verified": true,
     "external_curator_return": false,
     "external_evaluator_execution": false,

@@ -38,7 +38,19 @@ Reference only, not a vera-mono runtime dependency:
 
 ## Current frontier
 
-`AWAIT_EXTERNAL_HEPHAESTUS_CURATOR_RETURN`
+`AWAIT_EXTERNAL_HEPHAESTUS_CURATOR_RETURN_AND_LAPPY_ONLINE`
+
+Remote execution substrate readback:
+- installed supported connector: Remote Desktop Commander
+- device: `Lappy`
+- device id: `937d921e-ecc8-4dc7-bc71-dee5f06ab653`
+- status: `OFFLINE`
+- direct ping: `NO_CONNECTED_DEVICE`
+- machine-side held-out execution/signing: **NOT RUN**
+
+Bus blocker receipt: issue #362 comment `5825120615`.
+
+Lappy availability is only an execution-substrate condition. It does not satisfy or replace Hephaestus, Thirteen, or Radar role identity.
 
 No independent-review PASS is claimed.
 
@@ -52,7 +64,7 @@ A later source change creates a new subject. Do not repair `main` toward a revea
 
 ## Claim ceiling
 
-Current status: `EXTERNAL_REVIEW_DISPATCHED_NOT_EXECUTED`.
+Current status: `EXTERNAL_REVIEW_DISPATCHED_RUNNER_OFFLINE_NOT_EXECUTED`.
 
 No claim is made for ChatGPT Project install/current route/runtime consumption, deployment/provider activation, protected-effect authority, evaluator infallibility, prior holdout nonaccess/trusted time, consciousness, phenomenology, identity continuity, desire, or consent.
 
