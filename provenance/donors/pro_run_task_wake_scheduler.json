@@ -1,0 +1,23 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/pro-run",
+  "donor_head": "2ed253c1b78af1cc9bd163e346d20f2fd86348f5",
+  "inspected_source_blobs": {
+    "src/prorun/scheduler.py": "cbb39f331f96c291ee2429ef9d7252cb81ccff77",
+    "src/prorun/store.py": "ffe06032b94b812c4876d71c42842c913275a149",
+    "tests/test_scheduler.py": "394aef7a4ae74aa6f7e1c68d6b947226a31a9538"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/task_wake_scheduler.py",
+    "mechanism": "durable interval wake scheduling with occurrence-level deduplication and restart continuity",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "continuous execution when no host process is running",
+    "tool/effect execution authority",
+    "replacement of Vera Mono task or effect ledgers",
+    "automatic task opening from a wake"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_COMBINED_CI"
+}
