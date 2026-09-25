@@ -1,6 +1,6 @@
 {
   "schema": "VERA_PORTFOLIO_INTAKE_V5_20260925",
-  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE2_PENDING_FINAL_CI",
+  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE2_PENDING_FINAL_CI_AFTER_HOSTILE_HARDENING",
   "observed_date": "2026-09-25",
   "owner_repository": "thebrazenbeard/vera-mono",
   "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V4_20260925.json",
@@ -112,7 +112,8 @@
       "9f453d2ed0c80946850846511ab1e05ac229bc6f",
       "2275c39d4431156ecb2d4ad79b62d88369456541",
       "7bb868fb8f241c055005939f2f2a73a43e6dd5ac",
-      "5a2d0ecd41cb29aeddc4e16d51153e63bf610dcc"
+      "5a2d0ecd41cb29aeddc4e16d51153e63bf610dcc",
+      "dd2adc560f7c9b073c201817e09f6985bab9815f"
     ],
     "note": "Each red cut failed at the intended missing public/module boundary before the corresponding implementation was added."
   },
@@ -135,5 +136,15 @@
     "overlapping mechanisms already owned locally where re-import would create duplicate authority/state owners",
     "private-specific implementation details not authorized for public republication"
   ],
-  "claim_ceiling": "ALL_71_REPOSITORIES_ENUMERATED; V4 HIGH-VALUE BOUNDED FRONTIER IMPLEMENTED ON WAVE2; FINAL CROSS-PLATFORM CI/WHEEL CLOSURE STILL REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME_CONSUMPTION; NOT BEHAVIORAL_QUALIFICATION; NOT INDEPENDENT_REVIEW"
+  "claim_ceiling": "ALL_71_REPOSITORIES_ENUMERATED; V4 HIGH-VALUE BOUNDED FRONTIER IMPLEMENTED ON WAVE2; FINAL CROSS-PLATFORM CI/WHEEL CLOSURE STILL REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME_CONSUMPTION; NOT BEHAVIORAL_QUALIFICATION; NOT INDEPENDENT_REVIEW",
+  "hostile_review": {
+    "objection": "Source-level donor adaptation can become dead utility code, and nominally frozen evidence objects can still hide mutable payloads.",
+    "disposition": "PARTIALLY_ACCEPTED",
+    "response": [
+      "No automatic QualifiedVeraRuntime binding is added because source admission must not silently become runtime consumption.",
+      "SimulationMutation patch payloads were hardened to immutable MappingProxyType snapshots after a dedicated failing test proved the mutability defect."
+    ],
+    "hardening_red_commit": "dd2adc560f7c9b073c201817e09f6985bab9815f",
+    "hardening_fix_commit": "633b4395dd2ad50cfb533be8b88940d5fdc5eb26"
+  }
 }
