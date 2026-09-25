@@ -5,7 +5,7 @@ another separate evaluator remains the stronger falsification boundary.
 """
 
 from .drift import DriftFinding, DriftPolicy, DriftReport, Snapshot, compare_snapshots
-from .effect_fence import (
+from .policy_constraints import (\n    PolicyConstraintFinding,\n    PolicyConstraintReport,\n    audit_policy_constraints,\n)\nfrom .effect_fence import (
     AtomicCurrentnessStore,
     CurrentnessSnapshot,
     EffectFence,
