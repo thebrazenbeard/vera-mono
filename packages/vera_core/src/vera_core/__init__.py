@@ -191,6 +191,13 @@ from .provider_execution_binding import (
     ProviderExecutionRecoveryAssessment,
 )
 from .qualified_runtime import QualifiedVeraRuntime
+from .reuse_admission import (
+    HostileReview,
+    ReuseCandidate,
+    ReuseCandidateState,
+    ReuseConsumer,
+    ReusePromotionError,
+)
 from .route_verification import (
     ROUTE_VERIFICATION_STATUSES,
     ROUTE_VERIFY_PREFIX,
@@ -505,6 +512,11 @@ __all__ = [
     "SemanticTransferRule",
     "TransferFidelity",
     "plan_semantic_transfer",
+    "HostileReview",
+    "ReuseCandidate",
+    "ReuseCandidateState",
+    "ReuseConsumer",
+    "ReusePromotionError",
     "ROUTE_VERIFICATION_STATUSES",
     "ROUTE_VERIFY_PREFIX",
     "RUNTIME_CONSUME_VERIFY_PREFIX",
