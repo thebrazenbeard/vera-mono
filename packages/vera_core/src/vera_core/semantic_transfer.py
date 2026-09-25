@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
+import hashlib
+import json
 from typing import Iterable, Sequence
 
 
@@ -65,6 +67,74 @@ class SemanticTransferRule:
 
 
 @dataclass(frozen=True, slots=True)
+class SemanticTransferCatalog:
+    """Immutable admitted semantic-transfer profiles and rewrite rules."""
+
+    catalog_id: str
+    profiles: tuple[SemanticCapabilityProfile, ...]
+    rules: tuple[SemanticTransferRule, ...] = ()
+
+    def __post_init__(self) -> None:
+        if type(self.catalog_id) is not str or not self.catalog_id:
+            raise ValueError("catalog_id must be a non-empty exact string")
+        object.__setattr__(self, "profiles", tuple(self.profiles))
+        object.__setattr__(self, "rules", tuple(self.rules))
+        profile_ids = [profile.profile_id for profile in self.profiles]
+        if len(profile_ids) != len(set(profile_ids)):
+            raise ValueError("catalog profile_id values must be unique")
+
+    def profile(self, profile_id: str) -> SemanticCapabilityProfile:
+        for profile in self.profiles:
+            if profile.profile_id == profile_id:
+                return profile
+        raise KeyError(f"UNKNOWN_SEMANTIC_PROFILE:{profile_id}")
+
+    def manifest(self) -> dict[str, object]:
+        profiles = [
+            {
+                "profile_id": profile.profile_id,
+                "capabilities": sorted(profile.capabilities),
+                "notes": list(profile.notes),
+            }
+            for profile in sorted(self.profiles, key=lambda item: item.profile_id)
+        ]
+        rules = [
+            {
+                "name": rule.name,
+                "source_capability": rule.source_capability,
+                "target_capabilities": sorted(rule.target_capabilities),
+                "target_profiles": sorted(rule.target_profiles),
+                "fidelity": rule.fidelity.value,
+                "description": rule.description,
+            }
+            for rule in sorted(
+                self.rules,
+                key=lambda item: (
+                    item.source_capability,
+                    item.fidelity.severity,
+                    item.name,
+                ),
+            )
+        ]
+        return {
+            "schema": "VERA_SEMANTIC_TRANSFER_CATALOG_V1",
+            "catalog_id": self.catalog_id,
+            "profiles": profiles,
+            "rules": rules,
+        }
+
+    @property
+    def digest(self) -> str:
+        canonical = json.dumps(
+            self.manifest(),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
 class AppliedSemanticRewrite:
     source_capability: str
     rule_name: str
@@ -84,6 +154,8 @@ class SemanticTransferPlan:
     fidelity: TransferFidelity
     semantic_equivalence: str = "NOT_ESTABLISHED"
     authorization_effect: str = "NONE"
+    catalog_id: str | None = None
+    catalog_digest: str | None = None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -105,6 +177,8 @@ class SemanticTransferPlan:
             "fidelity": self.fidelity.value,
             "semantic_equivalence": self.semantic_equivalence,
             "authorization_effect": self.authorization_effect,
+            "catalog_id": self.catalog_id,
+            "catalog_digest": self.catalog_digest,
         }
 
 
@@ -186,4 +260,25 @@ def plan_semantic_transfer(
         unresolved_capabilities=frozenset(unresolved),
         rewrites=tuple(rewrites),
         fidelity=fidelity,
+    )
+
+
+def plan_catalog_semantic_transfer(
+    catalog: SemanticTransferCatalog,
+    source_profile_id: str,
+    target_profile_id: str,
+    required_capabilities: Iterable[str],
+) -> SemanticTransferPlan:
+    """Plan a transfer and bind the result to the exact admitted catalog."""
+
+    plan = plan_semantic_transfer(
+        catalog.profile(source_profile_id),
+        catalog.profile(target_profile_id),
+        required_capabilities,
+        rules=catalog.rules,
+    )
+    return replace(
+        plan,
+        catalog_id=catalog.catalog_id,
+        catalog_digest=catalog.digest,
     )
