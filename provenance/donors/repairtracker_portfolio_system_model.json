@@ -1,0 +1,23 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/RepairTracker",
+  "donor_head": "03e6b8ab8c3c6ccd3d4e270d8d0f2f0b690c82e2",
+  "inspected_source_blobs": {
+    "src/repairtracker/system_model.py": "24f9cfa67276719178f222229a56ea989051ffd8",
+    "src/repairtracker/model.py": "d30c22761e0305e0c8ed9c890967584152f83ee3",
+    "tests/test_discovery.py": "b7fca069240fc682c849e0d3d62aaf17d79bbd17"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/portfolio_system_model.py",
+    "mechanism": "deterministic provenance-bearing discovered-system facts with explicit fact dispositions and a hard discovery/authorization firewall",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "discovered source grants capability or permission",
+    "system-model inference is truth",
+    "RepairTracker repair lifecycle is installed",
+    "external provider state is current without observation"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_COMBINED_CI"
+}
