@@ -1,6 +1,6 @@
 {
   "schema": "VERA_PORTFOLIO_INTAKE_V6_20260925",
-  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE3_HOSTILE_HARDENED_PENDING_FINAL_CI",
+  "status": "INTEGRATED_ON_MAIN_AND_VERIFIED",
   "observed_date": "2026-09-25",
   "owner_repository": "thebrazenbeard/vera-mono",
   "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V5_20260925.json",
@@ -81,12 +81,34 @@
       "5766743fa50085b3ff637a9fd7d348f9a8ad41d9"
     ]
   },
-  "claim_ceiling": "WAVE3 SOURCE ADAPTATIONS BUILT ON ISOLATED BRANCH; FINAL CROSS-PLATFORM MONOREPO/WHEEL CLOSURE REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW",
+  "claim_ceiling": "WAVE3 SOURCE ADAPTATIONS INTEGRATED ON MAIN AT 4592DB48; DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE VERIFIED; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW",
   "hostile_review": {
     "objection": "Different repository names do not by themselves prove materially independent reuse consumers; forks or tightly coupled derivatives could satisfy the original gate.",
     "disposition": "ACCEPTED",
     "hardening": "ReuseConsumer now carries an explicit independence_ref, and PROVEN_REUSABLE requires non-empty distinct independence evidence for every consumer.",
     "red_commit": "5766743fa50085b3ff637a9fd7d348f9a8ad41d9",
     "fix_commit": "e25f14da0bb915556fb1aba5ec475633ac61f2d2"
+  },
+  "integrated_main_head": "4592db489f18b7f073df42c40aa0cb6fd4e7ff6f",
+  "verification": {
+    "dependency_review": {
+      "run_id": 36199026080,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36199026108,
+      "conclusion": "success",
+      "platforms": [
+        "ubuntu-24.04",
+        "windows-latest"
+      ],
+      "includes": [
+        "monorepo tests",
+        "wheel build",
+        "wheel closure",
+        "installed wheel closure"
+      ]
+    },
+    "observed_main_head_matches_candidate": true
   }
 }
