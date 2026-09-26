@@ -63,6 +63,22 @@ class HistoricalEvidenceRecord:
                 raise TypeError("content must be a mapping when supplied")
             object.__setattr__(self, "content", MappingProxyType(dict(self.content)))
 
+    @property
+    def recorded_at_status(self) -> str:
+        return (
+            "SOURCE_RECORDED"
+            if self.recorded_at is not None
+            else "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"
+        )
+
+    @property
+    def effective_from_status(self) -> str:
+        return (
+            "SOURCE_RECORDED"
+            if self.effective_from is not None
+            else "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class HistoricalEvidenceResult:
@@ -86,7 +102,7 @@ def query_historical_evidence(
     records: tuple[HistoricalEvidenceRecord, ...],
     *,
     authorized_privacy_scopes: tuple[str, ...],
-    retrieved_at: str,
+    retrieved_at: str | None = None,
 ) -> HistoricalEvidenceResult:
     """Return only caller-authorized historical evidence.
 
