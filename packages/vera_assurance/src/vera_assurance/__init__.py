@@ -22,6 +22,13 @@ from .policy_constraints import (
     PolicyConstraintReport,
     audit_policy_constraints,
 )
+from .evaluation_commitment import (
+    CommittedComparison,
+    ComparisonConditions,
+    PredictionCommitment,
+    commit_prediction,
+    compare_committed_predictions,
+)
 from .effect_fence import (
     AtomicCurrentnessStore,
     CurrentnessSnapshot,
@@ -33,6 +40,11 @@ from .effect_fence import (
 
 __all__ = [
     "AtomicCurrentnessStore",
+    "CommittedComparison",
+    "ComparisonConditions",
+    "PredictionCommitment",
+    "commit_prediction",
+    "compare_committed_predictions",
     "CurrentnessSnapshot",
     "DriftFinding",
     "DriftPolicy",
