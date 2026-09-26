@@ -11,6 +11,12 @@ from .mechanism_admission import (
     assert_mechanism_admissible,
     mechanism_admission_defects,
 )
+from .resource_envelope import (
+    FixedResourceEnvelope,
+    ResourceEnvelopeReport,
+    ResourceUsage,
+    adjudicate_resource_envelope,
+)
 from .policy_constraints import (
     PolicyConstraintFinding,
     PolicyConstraintReport,
@@ -39,6 +45,10 @@ __all__ = [
     "MechanismEvidencePacket",
     "assert_mechanism_admissible",
     "mechanism_admission_defects",
+    "FixedResourceEnvelope",
+    "ResourceEnvelopeReport",
+    "ResourceUsage",
+    "adjudicate_resource_envelope",
     "PolicyConstraintFinding",
     "PolicyConstraintReport",
     "Snapshot",
