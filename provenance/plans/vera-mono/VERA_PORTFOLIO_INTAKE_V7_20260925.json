@@ -1,0 +1,85 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V7_20260925",
+  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE4_PENDING_FINAL_MERGE_HEAD_CI",
+  "observed_date": "2026-09-25",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V6_20260925.json",
+  "main_before_wave4": "3b71e5ccdb567095528a1c9233698e9312595393",
+  "wave4_subject_head_before_ledger": "6e3830d055996e89367fc17c8963108cbce5b5e0",
+  "adaptations": [
+    {
+      "donor": "thebrazenbeard/deepmemorystorage",
+      "donor_head": "fe73b7eee2e8b2498ff994c57e46080de329a0ef",
+      "target": "packages/vera_memory/src/vera_memory/historical_evidence.py",
+      "mechanism": "fail-closed privacy-filtered historical evidence retrieval preserving event/record/effective/retrieval chronology separation and explicit nonpromotion semantics",
+      "authority_effect": "NONE"
+    },
+    {
+      "donor": "thebrazenbeard/hc-brain",
+      "donor_head": "80a55949b0bb7549b7f678fba8ecedce854e3c0e",
+      "target": "packages/vera_core/src/vera_core/capability_state.py",
+      "mechanism": "orthogonal presence, activation, maturity, health, implementation, and learning-policy axes with authorization kept external",
+      "authority_effect": "NONE"
+    },
+    {
+      "donor": "thebrazenbeard/world-zero",
+      "donor_head": "4cf0e094ebc6d4792f9dac9b3e0798a4307edf87",
+      "target": "packages/vera_assurance/src/vera_assurance/mechanism_admission.py",
+      "mechanism": "falsification-first mechanism admission requiring clarity, identifiability or hard-invariant basis, preregistered kill test, holdout/invariant value, ablation value, structural-rival analysis, proportionate complexity, numerical integrity, and no unresolved negative transfer",
+      "authority_effect": "NONE"
+    },
+    {
+      "donor": "thebrazenbeard/temporal",
+      "donor_head": "0fc7071a6b01e609fb2cdc76a32c73276ab27094",
+      "target": "packages/vera_core/src/vera_core/chronology.py",
+      "mechanism": "timezone-aware timestamp parsing, canonical UTC representation, and signed elapsed arithmetic without importing a second event store",
+      "authority_effect": "NONE"
+    }
+  ],
+  "hostile_hardening": {
+    "deep_memory_chronology_unknowns": {
+      "red_commit": "651a2603f25072170149588c67b41da853112d00",
+      "fix_commit": "b390defbe1c9d59fbe8d31f98dff2de644f72118",
+      "defect": "Null record/effective times were not accompanied by explicit unknown-source status; missing privacy authorization could be masked by a required retrieval-time argument.",
+      "correction": "HistoricalEvidenceRecord now exposes explicit SOURCE_RECORDED or UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW statuses, and privacy authorization fails closed before retrieval-time validation."
+    }
+  },
+  "branch_reconciliation": {
+    "main_only_commit": "3b71e5ccdb567095528a1c9233698e9312595393",
+    "reconciled_file": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V6_20260925.json",
+    "reconciliation_commit": "6e3830d055996e89367fc17c8963108cbce5b5e0",
+    "purpose": "Preserve verified Wave 3 ledger state before constructing a two-parent Wave 4 merge subject for exact-head CI."
+  },
+  "tdd_evidence": {
+    "observed_red_commits": [
+      "f4a356ee9404f03599dad9bc92d10e1dc1cf355c",
+      "6a2fa1fdd01464b74dc72a89e77293d7debb84bc",
+      "98908767a618e402b8b56815e80c350f1f67a8b7",
+      "74749e1e966fe83615fd923baeeb9933ed71d1d1",
+      "651a2603f25072170149588c67b41da853112d00"
+    ]
+  },
+  "screened_no_wholesale_import": [
+    {
+      "repository": "thebrazenbeard/semanticatlas",
+      "head": "beaecc6c64a6a8f90e7b47d4739296a3870b627c",
+      "reason": "Research/bootstrap corpus contains substantial historical/identity material; source-vs-inference distinctions are already represented and content is not a generic runtime dependency."
+    },
+    {
+      "repository": "thebrazenbeard/spm",
+      "head": "5fdaf0418585ef9a57fb2a1df8d0725ffd6bd174",
+      "reason": "Research-foundation stage with no implemented SPM model; useful falsification posture is already represented by mechanism admission."
+    },
+    {
+      "repository": "thebrazenbeard/abil",
+      "head": "69a2d8f4302e31db589c57871a04ff8c0178c1e9",
+      "reason": "Industrial brownfield product architecture remains domain-specific/research and does not justify a Vera core owner."
+    },
+    {
+      "repository": "thebrazenbeard/god-brain",
+      "head": "47ced181ef46e4481b875d9279d21dcd540f795e",
+      "reason": "Experimental cognitive architecture substantially overlaps HC Brain and Vera boundaries; no wholesale import is justified."
+    }
+  ],
+  "claim_ceiling": "WAVE4 SOURCE ADAPTATIONS BUILT AND RECONCILED WITH VERIFIED WAVE3 LEDGER; TWO-PARENT MERGE SUBJECT AND FINAL CROSS-PLATFORM CI/WHEEL CLOSURE STILL REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW"
+}
