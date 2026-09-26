@@ -4,6 +4,7 @@ from vera_assurance.evaluation_commitment import (
     ComparisonConditions,
     commit_prediction,
     compare_committed_predictions,
+    verify_prediction_commitment,
 )
 
 
@@ -64,3 +65,17 @@ def test_prediction_commitment_is_canonical_and_cross_step_comparison_fails():
                 representation_version="rep",
             ),
         )
+
+
+def test_prediction_ticket_preserves_immutable_verifiable_snapshot():
+    ticket = commit_prediction(
+        candidate_id="candidate-a",
+        step=3,
+        prediction={"mean": [0.25], "variance": [0.5]},
+    )
+
+    assert verify_prediction_commitment(ticket) is True
+    assert ticket.prediction["mean"] == (0.25,)
+
+    with pytest.raises(TypeError):
+        ticket.prediction["mean"] = (9.0,)
