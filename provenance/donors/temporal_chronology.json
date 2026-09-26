@@ -1,0 +1,22 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/temporal",
+  "donor_head": "0fc7071a6b01e609fb2cdc76a32c73276ab27094",
+  "inspected_source_blobs": {
+    "temporal.py": "f47895bb142a1d48f2981726ef10680974f0b9df",
+    "tests/test_temporal.py": "6c5a35d3ccc64e3315f5825762eb787be7fb17cd"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/chronology.py",
+    "mechanism": "timezone-aware timestamp parsing, canonical UTC representation, and signed elapsed-time arithmetic without event-store ownership",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "chronology establishes event meaning or truth",
+    "chronology owns lifecycle or memory state",
+    "timestamp order resolves semantic conflicts",
+    "Temporal event storage is imported"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE4_CI"
+}
