@@ -1,0 +1,46 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V8_20260925",
+  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE5_PENDING_FINAL_CI",
+  "observed_date": "2026-09-25",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V7_20260925.json",
+  "main_before_wave5": "f4ecab502795af3f795f90a6b9921f5e4ed946d6",
+  "wave5_subject_head_before_ledger": "7045fc7270edcf24818e9b8cc1888c54ca64b12b",
+  "donor": "thebrazenbeard/noema",
+  "donor_head": "697d1fac6f9fea158994888a861e651ac8fac282",
+  "adaptations": [
+    {
+      "target": "packages/vera_assurance/src/vera_assurance/resource_envelope.py",
+      "mechanism": "pure fail-closed fixed-resource-envelope adjudication where unmeasured resource usage remains UNMEASURED and invalid rather than becoming zero",
+      "authority_effect": "NONE",
+      "platform_instrumentation_imported": false
+    },
+    {
+      "target": "packages/vera_assurance/src/vera_assurance/evaluation_commitment.py",
+      "mechanism": "immutable canonical pre-outcome prediction snapshots with verifiable SHA-256 commitments and same-step comparison bound to explicit information/opportunity/resource/representation conditions",
+      "authority_effect": "NONE"
+    }
+  ],
+  "tdd_evidence": {
+    "observed_red_commits": [
+      "f78971badb670535d7a57daf74277debb30d07e3",
+      "792fb3d7827df026ff9b8d067481663719d6beb8",
+      "470a4bc855acd0703d7501f799b5eac54aa55b87"
+    ]
+  },
+  "hostile_review": {
+    "objection": "An opaque prediction digest does not preserve the committed prediction for later scoring or verification.",
+    "disposition": "ACCEPTED",
+    "fix_commit": "4c9ef08fc0399af87359189b4c253615759ac2be",
+    "correction": "Prediction tickets now preserve recursively immutable prediction snapshots and expose explicit commitment verification."
+  },
+  "excluded_scope": [
+    "Noema learner candidates or world-model state",
+    "training or experiment execution authority",
+    "empirical Gate-1 claims",
+    "process-specific memory/CPU instrumentation ownership",
+    "deployment/provider activation",
+    "protected-system effects"
+  ],
+  "claim_ceiling": "NOEMA BOUNDED ASSURANCE ADAPTATIONS BUILT ON ISOLATED BRANCH; FINAL CROSS-PLATFORM MONOREPO/WHEEL CLOSURE REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL OR EMPIRICAL QUALIFICATION; NOT INDEPENDENT REVIEW"
+}

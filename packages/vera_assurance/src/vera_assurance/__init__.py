@@ -11,10 +11,24 @@ from .mechanism_admission import (
     assert_mechanism_admissible,
     mechanism_admission_defects,
 )
+from .resource_envelope import (
+    FixedResourceEnvelope,
+    ResourceEnvelopeReport,
+    ResourceUsage,
+    adjudicate_resource_envelope,
+)
 from .policy_constraints import (
     PolicyConstraintFinding,
     PolicyConstraintReport,
     audit_policy_constraints,
+)
+from .evaluation_commitment import (
+    CommittedComparison,
+    ComparisonConditions,
+    PredictionCommitment,
+    commit_prediction,
+    compare_committed_predictions,
+    verify_prediction_commitment,
 )
 from .effect_fence import (
     AtomicCurrentnessStore,
@@ -27,6 +41,12 @@ from .effect_fence import (
 
 __all__ = [
     "AtomicCurrentnessStore",
+    "CommittedComparison",
+    "ComparisonConditions",
+    "PredictionCommitment",
+    "commit_prediction",
+    "compare_committed_predictions",
+    "verify_prediction_commitment",
     "CurrentnessSnapshot",
     "DriftFinding",
     "DriftPolicy",
@@ -39,6 +59,10 @@ __all__ = [
     "MechanismEvidencePacket",
     "assert_mechanism_admissible",
     "mechanism_admission_defects",
+    "FixedResourceEnvelope",
+    "ResourceEnvelopeReport",
+    "ResourceUsage",
+    "adjudicate_resource_envelope",
     "PolicyConstraintFinding",
     "PolicyConstraintReport",
     "Snapshot",

@@ -1,0 +1,30 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/noema",
+  "donor_head": "697d1fac6f9fea158994888a861e651ac8fac282",
+  "inspected_source_blobs": {
+    "src/noema/boundary.py": "a187a972f149257187f4d0c6835bfd8b21880a11",
+    "src/noema/comparator.py": "90b16f0c7a2238660d3792777772b128a84ab099",
+    "tests/test_accounting_comparator.py": "5cff66e8c134728bfe4c53a7106acbaf0d613eb8"
+  },
+  "adaptation": {
+    "target": "packages/vera_assurance/src/vera_assurance/evaluation_commitment.py",
+    "mechanism": "canonical immutable pre-outcome prediction snapshots with verifiable SHA-256 commitments plus same-step comparisons bound to explicit information, opportunity, resource, and representation conditions",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "commitment proves prediction quality",
+    "comparison conditions establish experimental equivalence",
+    "comparison performs outcome scoring",
+    "Noema learner state or training authority is imported"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE5_CI",
+  "hostile_hardening": {
+    "objection": "An opaque prediction digest is insufficient for later scoring or verification if the committed prediction snapshot is not preserved.",
+    "disposition": "ACCEPTED",
+    "red_commit": "470a4bc855acd0703d7501f799b5eac54aa55b87",
+    "fix_commit": "4c9ef08fc0399af87359189b4c253615759ac2be",
+    "correction": "PredictionCommitment now carries a recursively immutable prediction snapshot and verify_prediction_commitment recomputes the canonical digest; comparison requires valid commitments."
+  }
+}
