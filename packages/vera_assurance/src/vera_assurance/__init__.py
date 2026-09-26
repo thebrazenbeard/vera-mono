@@ -28,6 +28,7 @@ from .evaluation_commitment import (
     PredictionCommitment,
     commit_prediction,
     compare_committed_predictions,
+    verify_prediction_commitment,
 )
 from .effect_fence import (
     AtomicCurrentnessStore,
@@ -45,6 +46,7 @@ __all__ = [
     "PredictionCommitment",
     "commit_prediction",
     "compare_committed_predictions",
+    "verify_prediction_commitment",
     "CurrentnessSnapshot",
     "DriftFinding",
     "DriftPolicy",
