@@ -1,6 +1,6 @@
 {
   "schema": "VERA_PORTFOLIO_INTAKE_V7_20260925",
-  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE4_PENDING_FINAL_MERGE_HEAD_CI",
+  "status": "INTEGRATED_ON_MAIN_AND_VERIFIED",
   "observed_date": "2026-09-25",
   "owner_repository": "thebrazenbeard/vera-mono",
   "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V6_20260925.json",
@@ -81,5 +81,27 @@
       "reason": "Experimental cognitive architecture substantially overlaps HC Brain and Vera boundaries; no wholesale import is justified."
     }
   ],
-  "claim_ceiling": "WAVE4 SOURCE ADAPTATIONS BUILT AND RECONCILED WITH VERIFIED WAVE3 LEDGER; TWO-PARENT MERGE SUBJECT AND FINAL CROSS-PLATFORM CI/WHEEL CLOSURE STILL REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW"
+  "claim_ceiling": "WAVE4 SOURCE ADAPTATIONS INTEGRATED ON MAIN AT 7BE1B638; DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE VERIFIED; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW",
+  "integrated_main_head": "7be1b638269d9c7295f8e670e4f8130f7ece6356",
+  "verification": {
+    "dependency_review": {
+      "run_id": 36204417484,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36204417515,
+      "conclusion": "success",
+      "platforms": [
+        "ubuntu-24.04",
+        "windows-latest"
+      ],
+      "includes": [
+        "monorepo tests",
+        "wheel build",
+        "wheel closure",
+        "installed wheel closure"
+      ]
+    },
+    "observed_main_head_matches_candidate": true
+  }
 }
