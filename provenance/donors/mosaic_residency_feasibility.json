@@ -1,0 +1,25 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/mosaic",
+  "donor_head": "3a442e94b4f5b8fa365e2206c40405df6961e18d",
+  "inspected_source_blobs": {
+    "runtime/residency.py": "e58282f983fe6d596a2868c691a5bc486ab93e81",
+    "tests/test_residency.py": "48ff1b86ebe4185fe52129aa1404a516e87f1396"
+  },
+  "adaptation": {
+    "target": "packages/vera_assurance/src/vera_assurance/residency_feasibility.py",
+    "mechanism": "deterministic analytical resident-memory feasibility for a logical specialist pool larger than an active hardware ceiling, with exact input digest and per-step modeled resident bytes",
+    "hardware_measurement_performed": false,
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "actual accelerator unload or swap occurred",
+    "modeled bytes equal measured VRAM",
+    "swap latency or stability was measured",
+    "Mosaic P0/P1 passed",
+    "specialist handoff proves identity continuity",
+    "Mosaic model weights or runtime are installed"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE6_CI"
+}
