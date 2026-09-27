@@ -68,4 +68,19 @@ __all__ = [
     "Snapshot",
     "audit_policy_constraints",
     "compare_snapshots",
+    "ResidencyEnvelope",
+    "ResidencyFeasibilityError",
+    "ResidencyFeasibilityReport",
+    "ResidencyStep",
+    "SpecialistResidency",
+    "evaluate_residency_sequence",
 ]
+
+from .residency_feasibility import (
+    ResidencyEnvelope,
+    ResidencyFeasibilityError,
+    ResidencyFeasibilityReport,
+    ResidencyStep,
+    SpecialistResidency,
+    evaluate_residency_sequence,
+)
