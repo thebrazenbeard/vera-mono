@@ -1,6 +1,6 @@
 {
   "schema": "VERA_PORTFOLIO_INTAKE_V10_20260927",
-  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE7_PENDING_FINAL_CI",
+  "status": "INTEGRATED_ON_MAIN_AND_VERIFIED",
   "observed_date": "2026-09-27",
   "owner_repository": "thebrazenbeard/vera-mono",
   "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V9_20260927.json",
@@ -85,5 +85,27 @@
     "head": "d9ea72798ac892ac75f858177b6ed0c5a6b4c37c",
     "classification_correction": "SPM is no longer research-only: current main contains executable benchmark, opaque-state runtime, intervention, causal-evidence, and memory-specialist code. The next bounded candidate is nuisance-matched causal-specificity evidence; do not import model weights, trained adapters, or training/runtime activation wholesale."
   },
-  "claim_ceiling": "FUCKUP BOUNDED ASSURANCE ADAPTATIONS BUILT ON ISOLATED BRANCH; FINAL CROSS-PLATFORM MONOREPO/WHEEL CLOSURE REQUIRED BEFORE MAIN PROMOTION; EFFECTIVENESS IS OBSERVATIONAL NOT CAUSAL PROOF; AMBIGUITY SUPPORT SCORES ARE INPUTS NOT CALIBRATED TRUTH; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW"
+  "claim_ceiling": "FUCKUP BOUNDED ASSURANCE ADAPTATIONS INTEGRATED ON MAIN AT 71955F78; DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE VERIFIED; EFFECTIVENESS IS OBSERVATIONAL NOT CAUSAL PROOF; AMBIGUITY SUPPORT SCORES ARE INPUTS NOT CALIBRATED TRUTH; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW",
+  "integrated_main_head": "71955f785e9132acbabf8dab85842a24cb9847f2",
+  "verification": {
+    "dependency_review": {
+      "run_id": 36354572846,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36354572836,
+      "conclusion": "success",
+      "platforms": [
+        "ubuntu-24.04",
+        "windows-latest"
+      ],
+      "includes": [
+        "monorepo tests",
+        "wheel build",
+        "wheel closure",
+        "installed wheel closure"
+      ]
+    },
+    "observed_main_head_matches_candidate": true
+  }
 }
