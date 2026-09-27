@@ -123,6 +123,15 @@ def assess_causal_ambiguity(
         if len(ranked) == 1
         else round(float(top.support) - float(ranked[1].support), 12)
     )
+    if not top.evidence_refs:
+        return CausalAmbiguityAssessment(
+            ranked=ranked,
+            ambiguous=True,
+            reason="top hypothesis has no supporting evidence",
+            decision_margin=margin,
+            missing_evidence=missing_evidence,
+        )
+
     if float(top.support) < float(minimum_support):
         return CausalAmbiguityAssessment(
             ranked=ranked,
