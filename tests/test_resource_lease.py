@@ -100,3 +100,13 @@ def test_resource_leases_narrow_capabilities_detect_overlap_and_fence_stale_hold
     )
     assert reader.fencing_token == 42
     assert peer_reader.fencing_token == 43
+
+
+def test_resource_claim_rejects_noncanonical_logical_hierarchy_aliases():
+    for key in (
+        "repo:thebrazenbeard/vera-mono/../other",
+        "repo:thebrazenbeard//vera-mono",
+        "repo:thebrazenbeard/vera-mono/",
+    ):
+        with pytest.raises(ValueError, match="canonical"):
+            ResourceClaim(key, ClaimMode.READ)
