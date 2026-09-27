@@ -11,7 +11,7 @@ effect authority.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from threading import RLock
 from typing import Callable, Iterable
@@ -84,8 +84,14 @@ class ResourceLease:
     claims: tuple[ResourceClaim, ...]
     fencing_token: int
     expires_at_ns: int
-    protected_effect_authority: str = "NONE"
-    persistence: str = "LIVE_ONLY"
+    protected_effect_authority: str = field(
+        default="NONE",
+        init=False,
+    )
+    persistence: str = field(
+        default="LIVE_ONLY",
+        init=False,
+    )
 
 
 class ResourceLeaseRegistry:
