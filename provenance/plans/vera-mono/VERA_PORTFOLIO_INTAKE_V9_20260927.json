@@ -1,6 +1,6 @@
 {
   "schema": "VERA_PORTFOLIO_INTAKE_V9_20260927",
-  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE6_PENDING_FINAL_CI",
+  "status": "INTEGRATED_ON_MAIN_AND_VERIFIED",
   "observed_date": "2026-09-27",
   "owner_repository": "thebrazenbeard/vera-mono",
   "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V8_20260925.json",
@@ -78,5 +78,27 @@
     }
   ],
   "private_boundary": "18 private repositories remain screening inputs only. No private-specific source/content is republished into public vera-mono without separate exact publication authority.",
-  "claim_ceiling": "MOSAIC BOUNDED SOURCE ADAPTATIONS BUILT ON ISOLATED BRANCH; FINAL CROSS-PLATFORM MONOREPO/WHEEL CLOSURE REQUIRED BEFORE MAIN PROMOTION; ANALYTICAL RESIDENCY IS NOT HARDWARE MEASUREMENT; STATE HANDOFF IS NOT IDENTITY CONTINUITY; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW"
+  "claim_ceiling": "MOSAIC BOUNDED SOURCE ADAPTATIONS INTEGRATED ON MAIN AT 85AB1D01; DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE VERIFIED; ANALYTICAL RESIDENCY IS NOT HARDWARE MEASUREMENT; STATE HANDOFF IS NOT IDENTITY CONTINUITY; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW",
+  "integrated_main_head": "85ab1d016ce040c3ffd19bb67753d38bde73ab0e",
+  "verification": {
+    "dependency_review": {
+      "run_id": 36353060684,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36353060722,
+      "conclusion": "success",
+      "platforms": [
+        "ubuntu-24.04",
+        "windows-latest"
+      ],
+      "includes": [
+        "monorepo tests",
+        "wheel build",
+        "wheel closure",
+        "installed wheel closure"
+      ]
+    },
+    "observed_main_head_matches_candidate": true
+  }
 }
