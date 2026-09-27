@@ -76,6 +76,12 @@ def build_state_handoff(
     if any(type(item) is not StateRevision for item in revisions):
         raise TypeError("revisions must contain exact StateRevision values")
 
+    families = {item.family for item in revisions}
+    if len(families) != 1:
+        raise StateHandoffError(
+            "state handoff must contain a single family"
+        )
+
     revision_numbers = [item.revision for item in revisions]
     if len(revision_numbers) != len(set(revision_numbers)):
         raise StateHandoffError("revisions must be unique")
