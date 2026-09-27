@@ -160,6 +160,31 @@
       "masamune",
       "project-achilles",
       "voss"
+    ],
+    "deep_screened_existing_candidates": [
+      {
+        "repository": "meso-crct",
+        "head": "060d0feeb9dc9eb23801082bd8f1c4a7cb06184d",
+        "inspected_blobs": {
+          "src/meso_crct/allocation_guard.py": "df4f0af27b24fec0def93cf032af26dba992b824",
+          "src/meso_crct/review.py": "7f07a096a4664928d0662964c953856fb7c4774c",
+          "src/meso_crct/review_evidence.py": "dbf5f89fb9fb0bde367a2a60f343cf90d558c027",
+          "src/meso_crct/recall_resolution.py": "78d6d305cc7af2174f88bc66ec3fd8eddc580693"
+        },
+        "disposition": "DEFER_NO_NEW_GENERIC_OWNER",
+        "reason": "Allocation guard changes target selection and therefore needs empirical behavioral qualification; association quarantine/release is coupled to MESO-specific association-memory revision semantics; recall resolution is affective/action arbitration. Importing these would create competing behavioral or memory ownership rather than a bounded generic assurance primitive."
+      },
+      {
+        "repository": "vera-synology",
+        "head": "d13cdefbf817aeba60c673fa4a517575c311da2c",
+        "inspected_blobs": {
+          "payload/bin/veramesh_start_readiness.py": "6ace7b304ee090d27596b5766286dc966dbb5b3b",
+          "payload/bin/veramesh_state.py": "7fe4c8f22d90d77f0da02945208c82d1d123b03d",
+          "payload/bin/veramesh_lifecycle.py": "10efaedfa63088b5fe9c3bf829ead14d10277b23"
+        },
+        "disposition": "KEEP_EXTERNAL_PLATFORM_RUNTIME",
+        "reason": "Strong fail-closed readiness/lifecycle mechanics are bound to Synology/VeraMesh packaging, sockets, system service control, and installation incarnations. Vera Mono already owns host-neutral lifecycle/currentness/effect boundaries; copying this platform runtime would duplicate ownership and blur source versus deployment."
+      }
     ]
   },
   "claim_ceiling": "ALL 53 PUBLIC DEFAULT-BRANCH HEADS WERE OBSERVED DURING THIS RUN AND CLASSIFIED AT REPOSITORY/SELECTED-IMPLEMENTATION LEVEL; 18 PRIVATE REPOSITORIES REMAIN SCREENING-ONLY AND ARE NOT REPUBLISHED; SPM BOUNDED ASSURANCE ADAPTATION IS BUILT ON AN ISOLATED BRANCH BUT FINAL CROSS-PLATFORM MONOREPO/WHEEL CLOSURE IS REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL OR CAUSAL QUALIFICATION; NOT INDEPENDENT REVIEW"
