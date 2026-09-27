@@ -5,6 +5,7 @@ from vera_core.resource_lease import (
     ClaimMode,
     ResourceClaim,
     ResourceCollision,
+    ResourceLease,
     ResourceLeaseExpired,
     ResourceLeaseRegistry,
     StaleResourceFence,
@@ -110,3 +111,27 @@ def test_resource_claim_rejects_noncanonical_logical_hierarchy_aliases():
     ):
         with pytest.raises(ValueError, match="canonical"):
             ResourceClaim(key, ClaimMode.READ)
+
+
+def test_resource_lease_authority_ceiling_is_not_caller_forgeable():
+    with pytest.raises(TypeError):
+        ResourceLease(
+            lease_id="fake",
+            task_id="task",
+            capabilities=frozenset(),
+            claims=(),
+            fencing_token=1,
+            expires_at_ns=10,
+            protected_effect_authority="GRANTED",
+        )
+
+    with pytest.raises(TypeError):
+        ResourceLease(
+            lease_id="fake",
+            task_id="task",
+            capabilities=frozenset(),
+            claims=(),
+            fencing_token=1,
+            expires_at_ns=10,
+            persistence="DURABLE",
+        )
