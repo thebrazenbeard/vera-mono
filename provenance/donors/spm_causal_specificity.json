@@ -1,0 +1,25 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/spm",
+  "donor_head": "d9ea72798ac892ac75f858177b6ed0c5a6b4c37c",
+  "inspected_source_blobs": {
+    "src/spm_bench/causal_evidence.py": "67b18f6a8a722c431e9f0ab4883a8426f720ab88",
+    "tests/test_causal_evidence.py": "77199d2b9b0b20e20b699aabbbae27fcf7be8bcd"
+  },
+  "adaptation": {
+    "target": "packages/vera_assurance/src/vera_assurance/causal_specificity.py",
+    "mechanism": "nuisance-matched directional causal-specificity receipt with PASS/FAIL/UNKNOWN verdicts, deterministic digest, and fail-closed UNKNOWN on required control mismatch",
+    "hardening": "all supplied numeric evidence and nuisance-relative differences must be finite; nuisance-relative differences must be non-negative",
+    "authorization_effect": "NONE",
+    "causal_truth_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "the receipt performs the underlying intervention experiment",
+    "PASS proves unique causal truth",
+    "PASS authorizes model, memory, provider, or protected effects",
+    "SPM model weights, LoRA adapters, training data, or memory-specialist runtime are imported",
+    "current SPM qualification transfers to Vera Mono runtime"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE8_CI"
+}
