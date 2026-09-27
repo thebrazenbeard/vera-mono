@@ -11,10 +11,11 @@ effect authority.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import StrEnum
 from threading import RLock
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Iterator
 
 
 class ResourceLeaseError(RuntimeError):
@@ -30,6 +31,10 @@ class ResourceCollision(ResourceLeaseError):
 
 
 class ResourceLeaseNotFound(ResourceLeaseError):
+    pass
+
+
+class ResourceLeaseBusy(ResourceLeaseError):
     pass
 
 
@@ -116,6 +121,7 @@ class ResourceLeaseRegistry:
         self._fence_allocator = fence_allocator
         self._last_fence = 0
         self._leases: dict[str, ResourceLease] = {}
+        self._inflight: dict[str, int] = {}
         self._lock = RLock()
 
     @property
@@ -214,11 +220,17 @@ class ResourceLeaseRegistry:
     ) -> ResourceLease:
         now_ns = self._require_nonnegative_int(now_ns, "now_ns")
         with self._lock:
-            lease = self._require_lease_locked(
+            lease = self._lookup_fenced_locked(
                 lease_id,
                 fencing_token,
-                now_ns,
             )
+            if self._inflight.get(lease_id, 0) > 0:
+                raise ResourceLeaseBusy(
+                    f"resource lease has in-flight operations: {lease_id}"
+                )
+            if now_ns >= lease.expires_at_ns:
+                del self._leases[lease_id]
+                raise ResourceLeaseExpired(lease_id)
             del self._leases[lease_id]
             return lease
 
@@ -239,27 +251,58 @@ class ResourceLeaseRegistry:
                 "resource_key and resource_mode must be supplied together"
             )
         with self._lock:
-            lease = self._require_lease_locked(
+            return self._authorize_locked(
                 lease_id,
                 fencing_token,
-                now_ns,
+                capability,
+                resource_key=resource_key,
+                resource_mode=resource_mode,
+                now_ns=now_ns,
             )
-            if capability not in lease.capabilities:
-                raise CapabilityDenied(
-                    f"lease lacks capability: {capability}"
-                )
-            if resource_key is not None:
-                probe = ResourceClaim(resource_key, resource_mode)
-                if not any(
-                    self._claim_covers(claim, probe)
-                    for claim in lease.claims
-                ):
-                    raise CapabilityDenied(
-                        "lease lacks "
-                        f"{resource_mode.value} claim covering resource: "
-                        f"{resource_key}"
-                    )
-            return lease
+
+    @contextmanager
+    def hold(
+        self,
+        lease_id: str,
+        fencing_token: int,
+        capability: str,
+        *,
+        resource_key: str | None = None,
+        resource_mode: ClaimMode | None = None,
+        now_ns: int,
+    ) -> Iterator[ResourceLease]:
+        """Pin a lease for one in-flight operation.
+
+        The hold prevents close and expiry reaping from releasing the lease's
+        claims until the operation exits the context. It does not serialize
+        operations within the same lease and does not grant effect authority.
+        """
+
+        capability = self._require_text(capability, "capability")
+        now_ns = self._require_nonnegative_int(now_ns, "now_ns")
+        if (resource_key is None) != (resource_mode is None):
+            raise ValueError(
+                "resource_key and resource_mode must be supplied together"
+            )
+        with self._lock:
+            lease = self._authorize_locked(
+                lease_id,
+                fencing_token,
+                capability,
+                resource_key=resource_key,
+                resource_mode=resource_mode,
+                now_ns=now_ns,
+            )
+            self._inflight[lease_id] = self._inflight.get(lease_id, 0) + 1
+        try:
+            yield lease
+        finally:
+            with self._lock:
+                remaining = self._inflight.get(lease_id, 1) - 1
+                if remaining <= 0:
+                    self._inflight.pop(lease_id, None)
+                else:
+                    self._inflight[lease_id] = remaining
 
     def snapshot(self, *, now_ns: int) -> tuple[ResourceLease, ...]:
         now_ns = self._require_nonnegative_int(now_ns, "now_ns")
@@ -290,11 +333,10 @@ class ResourceLeaseRegistry:
         self._last_fence = candidate
         return candidate
 
-    def _require_lease_locked(
+    def _lookup_fenced_locked(
         self,
         lease_id: str,
         fencing_token: int,
-        now_ns: int,
     ) -> ResourceLease:
         lease_id = self._require_text(lease_id, "lease_id")
         if (
@@ -312,9 +354,51 @@ class ResourceLeaseRegistry:
             raise StaleResourceFence(
                 f"expected fence {lease.fencing_token}, got {fencing_token}"
             )
+        return lease
+
+    def _require_lease_locked(
+        self,
+        lease_id: str,
+        fencing_token: int,
+        now_ns: int,
+    ) -> ResourceLease:
+        lease = self._lookup_fenced_locked(lease_id, fencing_token)
         if now_ns >= lease.expires_at_ns:
-            del self._leases[lease_id]
+            if self._inflight.get(lease_id, 0) == 0:
+                del self._leases[lease_id]
             raise ResourceLeaseExpired(lease_id)
+        return lease
+
+    def _authorize_locked(
+        self,
+        lease_id: str,
+        fencing_token: int,
+        capability: str,
+        *,
+        resource_key: str | None,
+        resource_mode: ClaimMode | None,
+        now_ns: int,
+    ) -> ResourceLease:
+        lease = self._require_lease_locked(
+            lease_id,
+            fencing_token,
+            now_ns,
+        )
+        if capability not in lease.capabilities:
+            raise CapabilityDenied(
+                f"lease lacks capability: {capability}"
+            )
+        if resource_key is not None:
+            probe = ResourceClaim(resource_key, resource_mode)
+            if not any(
+                self._claim_covers(claim, probe)
+                for claim in lease.claims
+            ):
+                raise CapabilityDenied(
+                    "lease lacks "
+                    f"{resource_mode.value} claim covering resource: "
+                    f"{resource_key}"
+                )
         return lease
 
     def _reap_expired_locked(
@@ -324,7 +408,10 @@ class ResourceLeaseRegistry:
         expired = tuple(
             lease
             for lease in self._leases.values()
-            if now_ns >= lease.expires_at_ns
+            if (
+                now_ns >= lease.expires_at_ns
+                and self._inflight.get(lease.lease_id, 0) == 0
+            )
         )
         for lease in expired:
             self._leases.pop(lease.lease_id, None)
