@@ -1,0 +1,30 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/vera-mesh",
+  "donor_head": "98b74ff77981a5478e20a748bbb94565ad9140c8",
+  "inspected_source_blobs": {
+    "reference/veraport_agent/veraport_agent/core.py": "6543b006d4413ff89350aeaf077f0ff9b7a560da",
+    "reference/veraport_agent/tests/test_veraport.py": "525d99ebdbe7bdce9f988f96fe62a0b4ec2fe434"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/resource_lease.py",
+    "mechanism": "live-only capability-narrowed resource leases with canonical logical hierarchical claims, read/write collision detection, expiry, and monotonic fencing",
+    "persistence": "LIVE_ONLY",
+    "protected_effect_authority": "NONE",
+    "transport_authentication_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "hardening": [
+    "uses exact integer nanosecond time supplied by caller rather than float wall-clock policy",
+    "resource keys are logical caller-canonicalized namespaced hierarchies, not filesystem paths",
+    "noncanonical aliases with empty, dot, dot-dot, repeated, or trailing hierarchy segments fail closed"
+  ],
+  "excluded_claims": [
+    "resource lease is durable task ownership",
+    "resource lease grants repository/provider/protected-effect authority",
+    "resource claim canonicalizes or validates filesystem paths",
+    "VeraMesh session authentication or transport is installed",
+    "VeraPort lane runtime is copied wholesale"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE9_CI"
+}
