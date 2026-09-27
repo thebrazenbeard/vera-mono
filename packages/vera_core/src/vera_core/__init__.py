@@ -353,6 +353,12 @@ from .work_checkpoint import (
     RecoveryCheckpointStore,
     StaleCheckpointGeneration,
 )
+from .state_handoff import (
+    StateHandoff,
+    StateHandoffError,
+    StateRevision,
+    build_state_handoff,
+)
 from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
@@ -598,6 +604,10 @@ __all__ = [
     "RecoveryCheckpointHead",
     "RecoveryCheckpointStore",
     "StaleCheckpointGeneration",
+    "StateHandoff",
+    "StateHandoffError",
+    "StateRevision",
+    "build_state_handoff",
     "VeraStateDirectory",
     "VeraStatePaths",
     "SemanticTransferCatalog",
