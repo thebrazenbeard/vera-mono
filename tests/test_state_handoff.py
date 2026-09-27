@@ -40,3 +40,13 @@ def test_state_handoff_preserves_current_revision_and_supersession_without_ident
                 StateRevision("b", "PROJECT_STATUS", "status", "y", 1),
             )
         )
+
+
+def test_state_handoff_rejects_mixed_families_to_avoid_key_collision():
+    with pytest.raises(StateHandoffError, match="single family"):
+        build_state_handoff(
+            (
+                StateRevision("a", "PROJECT_STATUS", "status", "project", 1),
+                StateRevision("b", "USER_PREFERENCE", "status", "preference", 2),
+            )
+        )
