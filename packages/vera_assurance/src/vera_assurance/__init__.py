@@ -4,6 +4,14 @@ These checks are intentionally not independent review. External DriftGuard or
 another separate evaluator remains the stronger falsification boundary.
 """
 
+from .corrective_effectiveness import (
+    CorrectionEffectivenessState,
+    CorrectionEffectivenessSummary,
+    EffectivenessObservation,
+    EffectivenessPhase,
+    EffectivenessSubject,
+    summarize_correction_effectiveness,
+)
 from .drift import DriftFinding, DriftPolicy, DriftReport, Snapshot, compare_snapshots
 from .mechanism_admission import (
     MechanismAdmissionError,
@@ -41,6 +49,12 @@ from .effect_fence import (
 
 __all__ = [
     "AtomicCurrentnessStore",
+    "CorrectionEffectivenessState",
+    "CorrectionEffectivenessSummary",
+    "EffectivenessObservation",
+    "EffectivenessPhase",
+    "EffectivenessSubject",
+    "summarize_correction_effectiveness",
     "CommittedComparison",
     "ComparisonConditions",
     "PredictionCommitment",
