@@ -15,6 +15,7 @@ import math
 
 
 _EVIDENCE_CLASS = "SEMANTIC_RELATION_SPECIFICITY"
+_POLICY_ID = "VERA_CAUSAL_SPECIFICITY_V1"
 _RELATIVE_TOLERANCE = 0.05
 
 
@@ -77,6 +78,8 @@ class NuisanceMatch:
 @dataclass(frozen=True, slots=True)
 class CausalSpecificityReceipt:
     evidence_class: str
+    policy_id: str
+    nuisance_relative_tolerance: float
     verdict: str
     predicted_direction: str
     relevant_effect: float
@@ -130,6 +133,8 @@ def evaluate_causal_specificity(
     identity = {
         "schema": "VERA_CAUSAL_SPECIFICITY_RECEIPT_V1",
         "evidence_class": _EVIDENCE_CLASS,
+        "policy_id": _POLICY_ID,
+        "nuisance_relative_tolerance": _RELATIVE_TOLERANCE,
         "verdict": verdict,
         "predicted_direction": predicted_direction,
         "relevant_effect": relevant,
@@ -163,6 +168,8 @@ def evaluate_causal_specificity(
 
     return CausalSpecificityReceipt(
         evidence_class=_EVIDENCE_CLASS,
+        policy_id=_POLICY_ID,
+        nuisance_relative_tolerance=_RELATIVE_TOLERANCE,
         verdict=verdict,
         predicted_direction=predicted_direction,
         relevant_effect=relevant,
