@@ -4,6 +4,11 @@ These checks are intentionally not independent review. External DriftGuard or
 another separate evaluator remains the stronger falsification boundary.
 """
 
+from .causal_specificity import (
+    CausalSpecificityReceipt,
+    NuisanceMatch,
+    evaluate_causal_specificity,
+)
 from .causal_ambiguity import (
     AmbiguityRoute,
     CausalAmbiguityAssessment,
@@ -55,6 +60,9 @@ from .effect_fence import (
 )
 
 __all__ = [
+    "CausalSpecificityReceipt",
+    "NuisanceMatch",
+    "evaluate_causal_specificity",
     "AmbiguityRoute",
     "CausalAmbiguityAssessment",
     "CausalHypothesis",
