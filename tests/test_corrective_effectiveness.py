@@ -59,3 +59,27 @@ def test_effectiveness_requires_bound_baseline_and_active_evidence_and_regressio
         )
     )
     assert regressed.state is CorrectionEffectivenessState.REGRESSION_OBSERVED
+
+
+def test_effectiveness_cannot_report_improvement_without_exact_subject_binding():
+    observations = tuple(
+        [
+            EffectivenessObservation(
+                phase=EffectivenessPhase.BASELINE,
+                failure_occurred=True,
+            )
+            for _ in range(5)
+        ]
+        + [
+            EffectivenessObservation(
+                phase=EffectivenessPhase.ACTIVE,
+                failure_occurred=False,
+                correction_triggered=True,
+            )
+            for _ in range(5)
+        ]
+    )
+
+    import pytest
+    with pytest.raises(ValueError, match="exact subject"):
+        summarize_correction_effectiveness(observations)
