@@ -1,6 +1,6 @@
 {
   "schema": "VERA_PORTFOLIO_INTAKE_V12_20260927",
-  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE9_PENDING_FINAL_CI",
+  "status": "INTEGRATED_ON_MAIN_AND_VERIFIED",
   "observed_date": "2026-09-27",
   "owner_repository": "thebrazenbeard/vera-mono",
   "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V11_20260927.json",
@@ -107,10 +107,11 @@
   "portfolio_saturation_claim": {
     "basis": "V11 observed all 53 public default-branch heads; V12 deep-screened the remaining plausible generic infrastructure/architecture sources after prior donor adaptations.",
     "result": "NO_ADDITIONAL PUBLIC OR PRIVATELY SCREENED NONDUPLICATIVE GENERIC SOURCE ADMISSION IDENTIFIED AT OBSERVED HEADS AFTER WAVE9; PRIVATE-TO-PUBLIC PUBLICATION REMAINS UNAUTHORIZED",
-    "limits": "This is repository/orientation plus selected implementation screening, not a line-by-line proof that no future or obscure file could ever become useful. Donor head movement or new evidence reopens currentness."
+    "limits": "This is repository/orientation plus selected implementation screening, not a line-by-line proof that no future or obscure file could ever become useful. Donor head movement or new evidence reopens currentness.",
+    "verified_at_candidate_head": "e3cd93b499037d177c8bf0f329558d45b479330d"
   },
   "private_boundary": "18 private repositories remain screening inputs only. No private repository names, source, or derived publication are added to public vera-mono without separate exact publication authority.",
-  "claim_ceiling": "ALL 71 OWNED REPOSITORIES WERE FRESHLY SCREENED IN THIS RUN: ALL 53 PUBLIC DEFAULT-BRANCH HEADS WERE OBSERVED AND PUBLICLY CLASSIFIED AT REPOSITORY/SELECTED-IMPLEMENTATION LEVEL; ALL 18 PRIVATE REPOSITORIES WERE FRESHLY SCREENED BUT ONLY AGGREGATE DISPOSITION IS PERSISTED PUBLICLY; VERAMESH LIVE RESOURCE-LEASE ADAPTATION AND PORTFOLIO SATURATION CLOSEOUT ARE BUILT ON AN ISOLATED BRANCH; FINAL EXACT-HEAD DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE REQUIRED BEFORE MAIN PROMOTION; LIVE LEASES ARE NOT DURABLE TASK OWNERSHIP OR PROTECTED-EFFECT AUTHORITY; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW",
+  "claim_ceiling": "ALL 71 OWNED REPOSITORIES WERE FRESHLY SCREENED IN THIS RUN: ALL 53 PUBLIC DEFAULT-BRANCH HEADS WERE OBSERVED AND PUBLICLY CLASSIFIED AT REPOSITORY/SELECTED-IMPLEMENTATION LEVEL; ALL 18 PRIVATE REPOSITORIES WERE FRESHLY SCREENED BUT ONLY AGGREGATE DISPOSITION IS PERSISTED PUBLICLY; VERAMESH LIVE RESOURCE-LEASE ADAPTATION IS INTEGRATED ON MAIN AT E3CD93B4 WITH DEPENDENCY REVIEW, CODE-SCANNING AI FINDINGS, AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE VERIFIED; NO ADDITIONAL CURRENT NONDUPLICATIVE GENERIC SOURCE ADMISSION WAS IDENTIFIED AT THE OBSERVED PORTFOLIO HEADS; LIVE LEASES ARE NOT DURABLE TASK OWNERSHIP OR PROTECTED-EFFECT AUTHORITY; SOURCE INTEGRATION IS NOT INSTALLATION, DEPLOYMENT, RUNTIME CONSUMPTION, BEHAVIORAL QUALIFICATION, OR INDEPENDENT REVIEW",
   "private_currentness_screen": {
     "observed_private_repository_count": 18,
     "screening_basis": "Fresh default-branch head plus README/root-orientation screening for all private repositories during this run; selected implementation inspected only where needed to determine whether a generic Vera mechanism existed.",
@@ -126,5 +127,40 @@
     ],
     "publication_authority": "NOT_GRANTED_BY_THIS_SCREEN",
     "currentness_note": "Private donor head movement or a separate exact publication authority can reopen this result."
+  },
+  "integrated_main_head": "e3cd93b499037d177c8bf0f329558d45b479330d",
+  "verification": {
+    "candidate_head": "e3cd93b499037d177c8bf0f329558d45b479330d",
+    "dependency_review": {
+      "run_id": 36357788003,
+      "conclusion": "success"
+    },
+    "code_scanning_ai_findings": {
+      "run_id": 36357789201,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36357788005,
+      "conclusion": "success",
+      "ubuntu_24_04": {
+        "tests": "492 passed, 1 warning, 35 subtests passed",
+        "wheel_build": "success",
+        "wheel_closure": "success",
+        "installed_wheel_closure": "success"
+      },
+      "windows_latest": {
+        "tests": "492 passed, 1 warning, 35 subtests passed",
+        "wheel_build": "success",
+        "wheel_closure": "success",
+        "installed_wheel_closure": "success"
+      }
+    },
+    "promotion": {
+      "method": "NON_FORCE_FAST_FORWARD_MAIN",
+      "previous_main": "fda30a8fba2d18422cddfc83560bfbb286ef57f0",
+      "candidate_ahead_by": 14,
+      "candidate_behind_by": 0,
+      "readback_main_matches_candidate": true
+    }
   }
 }
