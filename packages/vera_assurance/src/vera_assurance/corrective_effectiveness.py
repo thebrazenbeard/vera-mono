@@ -112,7 +112,9 @@ def _bound_subject(
             "cannot mix bound and unbound effectiveness observations"
         )
     if not any(bound):
-        return None
+        raise ValueError(
+            "correction effectiveness requires exact subject binding"
+        )
 
     subjects = tuple(
         item.subject for item in observations if item.subject is not None
