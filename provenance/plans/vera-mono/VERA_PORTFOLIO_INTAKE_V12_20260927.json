@@ -106,9 +106,25 @@
   ],
   "portfolio_saturation_claim": {
     "basis": "V11 observed all 53 public default-branch heads; V12 deep-screened the remaining plausible generic infrastructure/architecture sources after prior donor adaptations.",
-    "result": "NO_ADDITIONAL_PUBLIC_BOUNDED_GENERIC_SOURCE_ADMISSION_IDENTIFIED_AT_OBSERVED_HEADS_AFTER_WAVE9",
+    "result": "NO_ADDITIONAL PUBLIC OR PRIVATELY SCREENED NONDUPLICATIVE GENERIC SOURCE ADMISSION IDENTIFIED AT OBSERVED HEADS AFTER WAVE9; PRIVATE-TO-PUBLIC PUBLICATION REMAINS UNAUTHORIZED",
     "limits": "This is repository/orientation plus selected implementation screening, not a line-by-line proof that no future or obscure file could ever become useful. Donor head movement or new evidence reopens currentness."
   },
   "private_boundary": "18 private repositories remain screening inputs only. No private repository names, source, or derived publication are added to public vera-mono without separate exact publication authority.",
-  "claim_ceiling": "VERAMESH LIVE RESOURCE-LEASE ADAPTATION AND PUBLIC PORTFOLIO SATURATION CLOSEOUT ARE BUILT ON AN ISOLATED BRANCH; FINAL EXACT-HEAD DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE REQUIRED BEFORE MAIN PROMOTION; LIVE LEASES ARE NOT DURABLE TASK OWNERSHIP OR PROTECTED-EFFECT AUTHORITY; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW"
+  "claim_ceiling": "ALL 71 OWNED REPOSITORIES WERE FRESHLY SCREENED IN THIS RUN: ALL 53 PUBLIC DEFAULT-BRANCH HEADS WERE OBSERVED AND PUBLICLY CLASSIFIED AT REPOSITORY/SELECTED-IMPLEMENTATION LEVEL; ALL 18 PRIVATE REPOSITORIES WERE FRESHLY SCREENED BUT ONLY AGGREGATE DISPOSITION IS PERSISTED PUBLICLY; VERAMESH LIVE RESOURCE-LEASE ADAPTATION AND PORTFOLIO SATURATION CLOSEOUT ARE BUILT ON AN ISOLATED BRANCH; FINAL EXACT-HEAD DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE REQUIRED BEFORE MAIN PROMOTION; LIVE LEASES ARE NOT DURABLE TASK OWNERSHIP OR PROTECTED-EFFECT AUTHORITY; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW",
+  "private_currentness_screen": {
+    "observed_private_repository_count": 18,
+    "screening_basis": "Fresh default-branch head plus README/root-orientation screening for all private repositories during this run; selected implementation inspected only where needed to determine whether a generic Vera mechanism existed.",
+    "public_persistence_policy": "AGGREGATE_ONLY_NO_PRIVATE_NAMES_SOURCE_OR_DERIVED_CODE",
+    "new_nonduplicative_public_source_admissions": 0,
+    "disposition_summary": [
+      "distinct identity/persona/continuity material remains separate",
+      "private topology/operational overlays remain private and reusable generic code stays with its public authority where one exists",
+      "archived historical experiments remain provenance rather than current authority",
+      "business/domain/corpus repositories remain domain-specific",
+      "private provenance/validation mechanisms materially overlap existing vera_ingest or other Vera Mono owners",
+      "client/platform/runtime repositories do not become Vera identity, memory, permission, or core runtime owners by repository presence"
+    ],
+    "publication_authority": "NOT_GRANTED_BY_THIS_SCREEN",
+    "currentness_note": "Private donor head movement or a separate exact publication authority can reopen this result."
+  }
 }
