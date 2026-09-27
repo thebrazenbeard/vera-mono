@@ -81,3 +81,17 @@ def test_causal_specificity_rejects_nonfinite_numeric_evidence(field, value):
     kwargs[field] = value
     with pytest.raises(ValueError, match="finite"):
         evaluate_causal_specificity(**kwargs)
+
+
+def test_causal_specificity_receipt_binds_decision_policy():
+    receipt = evaluate_causal_specificity(
+        relevant_effect=0.12,
+        nuisance_effect=0.02,
+        null_effect=0.01,
+        delta_min=0.03,
+        nuisance_match=matched(),
+        predicted_direction="increase",
+    )
+
+    assert receipt.policy_id == "VERA_CAUSAL_SPECIFICITY_V1"
+    assert receipt.nuisance_relative_tolerance == 0.05
