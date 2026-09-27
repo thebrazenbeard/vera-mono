@@ -6,6 +6,7 @@ from vera_core.resource_lease import (
     ResourceClaim,
     ResourceCollision,
     ResourceLease,
+    ResourceLeaseBusy,
     ResourceLeaseExpired,
     ResourceLeaseRegistry,
     StaleResourceFence,
@@ -135,3 +136,60 @@ def test_resource_lease_authority_ceiling_is_not_caller_forgeable():
             expires_at_ns=10,
             persistence="DURABLE",
         )
+
+
+def test_inflight_hold_is_quiescence_barrier_for_close_and_expiry_reap():
+    registry = ResourceLeaseRegistry({"repo.write"})
+    writer = registry.open_lease(
+        lease_id="writer",
+        task_id="task-a",
+        capabilities={"repo.write"},
+        claims=(ResourceClaim("repo:portfolio/root", ClaimMode.WRITE),),
+        ttl_ns=100,
+        now_ns=1_000,
+    )
+
+    with registry.hold(
+        writer.lease_id,
+        writer.fencing_token,
+        "repo.write",
+        resource_key="repo:portfolio/root/file",
+        resource_mode=ClaimMode.WRITE,
+        now_ns=1_050,
+    ):
+        with pytest.raises(ResourceLeaseBusy, match="in-flight"):
+            registry.close(
+                writer.lease_id,
+                writer.fencing_token,
+                now_ns=1_050,
+            )
+
+        with pytest.raises(ResourceCollision):
+            registry.open_lease(
+                lease_id="conflict",
+                task_id="task-b",
+                capabilities={"repo.write"},
+                claims=(
+                    ResourceClaim(
+                        "repo:portfolio/root/other",
+                        ClaimMode.WRITE,
+                    ),
+                ),
+                ttl_ns=100,
+                now_ns=1_200,
+            )
+
+    replacement = registry.open_lease(
+        lease_id="replacement",
+        task_id="task-b",
+        capabilities={"repo.write"},
+        claims=(
+            ResourceClaim(
+                "repo:portfolio/root/other",
+                ClaimMode.WRITE,
+            ),
+        ),
+        ttl_ns=100,
+        now_ns=1_200,
+    )
+    assert replacement.fencing_token > writer.fencing_token
