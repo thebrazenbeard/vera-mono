@@ -61,6 +61,17 @@ class ResourceClaim:
             raise ValueError(
                 "resource claim key must contain non-empty namespace and value"
             )
+        segments = value.split("/")
+        if (
+            self.key != self.key.strip()
+            or namespace != namespace.strip()
+            or value != value.strip()
+            or value.endswith("/")
+            or any(segment in {"", ".", ".."} for segment in segments)
+        ):
+            raise ValueError(
+                "resource claim key must use a canonical logical hierarchy"
+            )
         if type(self.mode) is not ClaimMode:
             raise TypeError("resource claim mode must be exact ClaimMode")
 
@@ -366,7 +377,7 @@ class ResourceLeaseRegistry:
     @staticmethod
     def _parts(key: str) -> tuple[str, str]:
         namespace, value = key.split(":", 1)
-        return namespace, value.rstrip("/")
+        return namespace, value
 
     @staticmethod
     def _require_text(value: str, label: str) -> str:
