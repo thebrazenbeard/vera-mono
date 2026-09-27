@@ -42,3 +42,20 @@ def test_causal_ambiguity_blocks_close_competitors_and_routes_missing_evidence()
     assert separated.ambiguous is False
     assert separated.top.hypothesis_id == "h1"
     assert route_causal_ambiguity(separated) is AmbiguityRoute.PROCEED_TO_CORRECTION
+
+
+def test_high_support_without_evidence_remains_ambiguous():
+    unsupported = assess_causal_ambiguity(
+        (
+            CausalHypothesis(
+                hypothesis_id="h-no-evidence",
+                proposition="unsupported cause",
+                support=0.95,
+                evidence_refs=(),
+            ),
+        )
+    )
+
+    assert unsupported.ambiguous is True
+    assert unsupported.reason == "top hypothesis has no supporting evidence"
+    assert route_causal_ambiguity(unsupported) is AmbiguityRoute.COLLECT_EVIDENCE
