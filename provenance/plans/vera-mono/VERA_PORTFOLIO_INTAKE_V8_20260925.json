@@ -1,6 +1,6 @@
 {
   "schema": "VERA_PORTFOLIO_INTAKE_V8_20260925",
-  "status": "PORTFOLIO_BOUNDED_ADAPTATION_WAVE5_PENDING_FINAL_CI",
+  "status": "INTEGRATED_ON_MAIN_AND_VERIFIED",
   "observed_date": "2026-09-25",
   "owner_repository": "thebrazenbeard/vera-mono",
   "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V7_20260925.json",
@@ -42,5 +42,27 @@
     "deployment/provider activation",
     "protected-system effects"
   ],
-  "claim_ceiling": "NOEMA BOUNDED ASSURANCE ADAPTATIONS BUILT ON ISOLATED BRANCH; FINAL CROSS-PLATFORM MONOREPO/WHEEL CLOSURE REQUIRED BEFORE MAIN PROMOTION; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL OR EMPIRICAL QUALIFICATION; NOT INDEPENDENT REVIEW"
+  "claim_ceiling": "NOEMA BOUNDED ASSURANCE ADAPTATIONS INTEGRATED ON MAIN AT CA07E976; DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE VERIFIED; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL OR EMPIRICAL QUALIFICATION; NOT INDEPENDENT REVIEW",
+  "integrated_main_head": "ca07e976d95774c459a847b18b03c38bfab01857",
+  "verification": {
+    "dependency_review": {
+      "run_id": 36205108742,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36205108740,
+      "conclusion": "success",
+      "platforms": [
+        "ubuntu-24.04",
+        "windows-latest"
+      ],
+      "includes": [
+        "monorepo tests",
+        "wheel build",
+        "wheel closure",
+        "installed wheel closure"
+      ]
+    },
+    "observed_main_head_matches_candidate": true
+  }
 }
