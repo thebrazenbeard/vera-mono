@@ -783,3 +783,14 @@ __all__.extend([
     "RegimeReturnThresholds",
     "qualify_regime_return",
 ])
+
+
+from .agi_regime_return_promotion import (
+    QualifiedRegimeReturnPromotionAdapter,
+    RegimeReturnPromotionAssessment,
+)
+
+__all__.extend([
+    "QualifiedRegimeReturnPromotionAdapter",
+    "RegimeReturnPromotionAssessment",
+])
