@@ -127,6 +127,7 @@
     "research_goal_grants_deployment_authority": false
   },
   "next_required_engineering": [
+    "portfolio-wide donor capability matrix bound to exact donor heads",
     "machine-readable evaluation packet schema",
     "dimension-specific evaluator adapters",
     "cross-domain held-out suite registry",
@@ -135,5 +136,47 @@
     "calibration scoring harness",
     "cross-environment transfer harness",
     "aggregate qualification state that cannot exceed weakest required dimension"
-  ]
+  ],
+  "portfolio_intake": {
+    "observed_owned_repository_count": 70,
+    "intake_policy": "WHOLE_PORTFOLIO_CENSUS_THEN_SELECTIVE_ABSORPTION",
+    "donor_categories": {
+      "highest_priority_cognitive_research": [
+        "thebrazenbeard/rezon",
+        "thebrazenbeard/noema",
+        "thebrazenbeard/hc-brain",
+        "thebrazenbeard/god-brain",
+        "thebrazenbeard/deepmemorystorage",
+        "thebrazenbeard/semanticatlas",
+        "thebrazenbeard/discovery",
+        "thebrazenbeard/driftguard",
+        "thebrazenbeard/project-runner"
+      ],
+      "already_partially_or_substantially_absorbed": [
+        "thebrazenbeard/project-lantern",
+        "thebrazenbeard/roots",
+        "thebrazenbeard/Attune",
+        "thebrazenbeard/intranel",
+        "thebrazenbeard/vera-works",
+        "thebrazenbeard/meso-crct",
+        "thebrazenbeard/sql-connectome",
+        "thebrazenbeard/ingest",
+        "thebrazenbeard/ccb-core",
+        "thebrazenbeard/WorkBridgeMCP",
+        "thebrazenbeard/vera-mesh"
+      ],
+      "training_and_evaluation_support": [
+        "thebrazenbeard/vera_model_training"
+      ]
+    },
+    "absorption_rule": "COPY_OR_ADAPT_MECHANISMS_INTO_VERA_MONO_WITH_EXACT_PROVENANCE; DO_NOT_CREATE_SIBLING_RUNTIME_DEPENDENCIES",
+    "rejection_rule": "DO_NOT_ABSORB_PROJECT_IDENTITY_OR_DOMAIN_SPECIFIC_CONTENT_WHEN_ONLY_THE_GENERAL_MECHANISM_IS_USEFUL",
+    "mandatory_comparison": [
+      "mechanism already exists in vera-mono",
+      "donor is materially stronger than current mechanism",
+      "donor semantics match Vera authority and evidence boundaries",
+      "donor can be independently tested after absorption",
+      "donor introduces no undeclared runtime dependency"
+    ]
+  }
 }
