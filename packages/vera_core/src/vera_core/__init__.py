@@ -734,14 +734,18 @@ __all__.append("AGIPacketReviewBinding")
 
 from .agi_compositional_transfer import (
     AffinePrimitiveLearner,
-    CompositionalTransferQualification,
+    CompositionalTransferMetrics,
+    CompositionalTransferQualificationResult,
+    CompositionalTransferThresholds,
     PrimitiveProgramMemorizer,
     qualify_compositional_transfer,
 )
 
 __all__.extend([
     "AffinePrimitiveLearner",
-    "CompositionalTransferQualification",
+    "CompositionalTransferMetrics",
+    "CompositionalTransferQualificationResult",
+    "CompositionalTransferThresholds",
     "PrimitiveProgramMemorizer",
     "qualify_compositional_transfer",
 ])
