@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "VERA_AGI_EVALUATION_PACKET_V1",
+  "title": "Vera AGI Evaluation Packet V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "subject",
+    "probe",
+    "contamination",
+    "results",
+    "dimension_states",
+    "claim_ceiling"
+  ],
+  "properties": {
+    "schema": {
+      "const": "VERA_AGI_EVALUATION_PACKET_V1"
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "exact_head",
+        "runtime_binding"
+      ],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exact_head": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "runtime_binding": {
+          "enum": [
+            "SOURCE_ONLY",
+            "LOCAL_TEST_RUNTIME",
+            "QUALIFIED_RUNTIME"
+          ]
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probe_id",
+        "family",
+        "held_out",
+        "curator_independence",
+        "items_digest"
+      ],
+      "properties": {
+        "probe_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "family": {
+          "enum": [
+            "NOVEL_MAPPING",
+            "COMPOSITIONAL_TRANSFER",
+            "REGIME_RETURN",
+            "AMBIGUOUS_SPEC",
+            "CORRECTION_TRANSFER",
+            "EXTERNAL_ENVIRONMENT"
+          ]
+        },
+        "held_out": {
+          "const": true
+        },
+        "curator_independence": {
+          "enum": [
+            "DEVELOPER_AUTHORED_HIDDEN_CUT",
+            "INDEPENDENT_MODEL",
+            "INDEPENDENT_HUMAN",
+            "EXTERNAL_BENCHMARK"
+          ]
+        },
+        "items_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "contamination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "training_overlap",
+        "post_disclosure_tuning",
+        "developer_item_access",
+        "tool_access"
+      ],
+      "properties": {
+        "training_overlap": {
+          "enum": [
+            "NONE_KNOWN",
+            "POSSIBLE",
+            "CONFIRMED",
+            "UNKNOWN"
+          ]
+        },
+        "post_disclosure_tuning": {
+          "type": "boolean"
+        },
+        "developer_item_access": {
+          "type": "boolean"
+        },
+        "tool_access": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "results": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempted",
+        "passed",
+        "failed",
+        "raw_artifact_digest",
+        "negative_results_preserved"
+      ],
+      "properties": {
+        "attempted": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "raw_artifact_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "negative_results_preserved": {
+          "const": true
+        }
+      }
+    },
+    "dimension_states": {
+      "type": "object",
+      "additionalProperties": {
+        "enum": [
+          "NOT_EVALUATED",
+          "FAIL",
+          "PARTIAL",
+          "PASS"
+        ]
+      }
+    },
+    "independent_review": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true
+    },
+    "claim_ceiling": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
