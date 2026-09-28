@@ -85,7 +85,7 @@ def _thresholds() -> NovelMappingThresholds:
     )
 
 
-def test_independent_novel_mapping_can_pass_only_via_measured_adapter():
+def test_novel_mapping_measurement_stays_partial_pending_independent_review():
     learned, baseline = _run_pair()
     result = qualify_novel_mapping(
         learned,
@@ -102,8 +102,8 @@ def test_independent_novel_mapping_can_pass_only_via_measured_adapter():
     assert result.metrics.baseline_delta > 0.5
     assert result.metrics.baseline_ratio > 10.0
     assert result.packet["dimension_states"] == {
-        "NOVEL_TASK_TRANSFER": "PASS",
-        "LEARNING_EFFICIENCY": "PASS",
+        "NOVEL_TASK_TRANSFER": "PARTIAL",
+        "LEARNING_EFFICIENCY": "PARTIAL",
     }
 
     schema = json.loads(
