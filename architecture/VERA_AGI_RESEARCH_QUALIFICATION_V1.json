@@ -1,0 +1,139 @@
+{
+  "schema": "VERA_MONO_AGI_RESEARCH_QUALIFICATION_V1",
+  "status": "RESEARCH_CONTRACT_NOT_AGI_CLAIM",
+  "purpose": "Define a falsifiable, externally reviewable research target for increasingly general intelligence without allowing Vera Mono source, benchmark selection, internal assurance, or isolated task success to self-promote into an AGI claim.",
+  "target_term": "AGI",
+  "definition_policy": {
+    "single_definition_assumed": false,
+    "required_definition_set": [
+      "broad cross-domain competence",
+      "novel-task transfer with limited task-specific adaptation",
+      "continual learning without catastrophic loss of prior capability",
+      "long-horizon planning and correction under uncertainty",
+      "metacognitive calibration and explicit uncertainty tracking",
+      "tool and environment use across heterogeneous interfaces",
+      "robustness to distribution shift and adversarial task framing"
+    ],
+    "claim_requires_explicit_operational_definition": true,
+    "disagreement_between_definitions_is_preserved": true
+  },
+  "qualification_dimensions": [
+    {
+      "id": "CROSS_DOMAIN_BREADTH",
+      "requirement": "Demonstrate competence across materially different domains where success cannot be reduced to one narrow task family."
+    },
+    {
+      "id": "NOVEL_TASK_TRANSFER",
+      "requirement": "Solve held-out tasks whose exact task forms were not used for system-specific training, prompt tuning, or benchmark-specific adaptation."
+    },
+    {
+      "id": "LEARNING_EFFICIENCY",
+      "requirement": "Acquire materially new task competence from bounded experience with measured sample and intervention cost."
+    },
+    {
+      "id": "RETENTION_AND_INTERFERENCE",
+      "requirement": "Show that acquiring new competence does not erase previously qualified competence beyond a declared tolerance."
+    },
+    {
+      "id": "LONG_HORIZON_AGENCY",
+      "requirement": "Maintain and revise multi-step plans across state changes, failures, interruptions, and delayed feedback without silently inventing completion."
+    },
+    {
+      "id": "METACOGNITIVE_CALIBRATION",
+      "requirement": "Track uncertainty, distinguish evidence classes, identify unknowns, and improve decisions when confidence is tested against outcomes."
+    },
+    {
+      "id": "ROBUSTNESS_AND_ANTI_GAMING",
+      "requirement": "Survive adversarial, distribution-shifted, contaminated, shortcut-prone, and specification-ambiguous evaluations without relying on benchmark leakage."
+    },
+    {
+      "id": "EXTERNAL_GENERALIZATION",
+      "requirement": "Demonstrate transferable usefulness in at least one environment not authored, curated, or instrumented by the Vera development loop."
+    }
+  ],
+  "evidence_requirements": {
+    "exact_version_and_runtime_binding": true,
+    "held_out_probe_sets": true,
+    "independent_probe_curator": true,
+    "independent_evaluator": true,
+    "independent_authority_currentness": true,
+    "raw_result_and_receipt_binding": true,
+    "negative_results_preserved": true,
+    "failed_dimensions_block_global_claim": true,
+    "retesting_after_material_system_change": true,
+    "source_presence_is_capability_evidence": false,
+    "internal_self_review_is_independent_evidence": false
+  },
+  "anti_contamination": {
+    "benchmark_specific_tuning_after_probe_disclosure": "DISALLOWED_FOR_THAT_HELD_OUT_CUT",
+    "training_on_exact_test_items": "DISALLOWED",
+    "manual_result_curation_that_hides_failures": "DISALLOWED",
+    "post_hoc_metric_selection": "MUST_BE_DISCLOSED_AND_CANNOT_SOLELY_ESTABLISH_PASS",
+    "benchmark_leakage_or_memorizable_public_items": "MUST_BE_CLASSIFIED",
+    "developer_access_to_hidden_items": "MUST_BE_DISCLOSED",
+    "tool_or_retrieval_access": "MUST_BE_DECLARED_PER_EVALUATION"
+  },
+  "claim_states": [
+    "NOT_EVALUATED",
+    "PARTIALLY_EVALUATED",
+    "FAILS_CURRENT_CONTRACT",
+    "SURVIVES_CURRENT_CONTRACT",
+    "SURVIVES_CURRENT_CONTRACT_INDEPENDENTLY_REVIEWED"
+  ],
+  "promotion_rules": {
+    "default": "NOT_EVALUATED",
+    "isolated_dimension_pass_does_not_imply_global_pass": true,
+    "all_dimensions_required_for_survival": true,
+    "independent_review_required_for_highest_state": true,
+    "material_runtime_change_invalidates_currentness_until_retested": true,
+    "successful_test_suite_is_not_AGI": true,
+    "successful_behavior_probe_is_not_AGI": true,
+    "successful_external_attestation_is_not_AGI": true,
+    "successful_independent_single_probe_review_is_not_AGI": true
+  },
+  "hostile_review": {
+    "required_before_contract_revision": true,
+    "required_topics": [
+      "definition laundering",
+      "benchmark gaming",
+      "data contamination",
+      "narrow-skill aggregation mistaken for generality",
+      "human scaffolding hidden in the evaluation",
+      "tool dependence mistaken for internal capability",
+      "evaluation overfitting",
+      "catastrophic forgetting",
+      "distribution shift",
+      "self-authored success criteria"
+    ],
+    "surviving_objections_must_change_contract_or_remain_unresolved": true
+  },
+  "relationship_to_existing_vera_surfaces": {
+    "source_verification": "PREREQUISITE_OR_SUPPORTING_EVIDENCE_ONLY",
+    "installation_verification": "PREREQUISITE_OR_SUPPORTING_EVIDENCE_ONLY",
+    "route_verification": "PREREQUISITE_OR_SUPPORTING_EVIDENCE_ONLY",
+    "runtime_consumption_verification": "PREREQUISITE_OR_SUPPORTING_EVIDENCE_ONLY",
+    "behavior_effect_verification": "LOWER_LAYER_EVIDENCE_ONLY",
+    "behavior_attestation": "LOWER_LAYER_EVIDENCE_ONLY",
+    "independent_behavior_review": "REQUIRED_BUILDING_BLOCK_BUT_NOT_SUFFICIENT"
+  },
+  "boundaries": {
+    "contract_presence_is_AGI": false,
+    "repository_growth_is_AGI": false,
+    "autonomy_is_consciousness": false,
+    "AGI_is_consciousness": false,
+    "consciousness_is_AGI": false,
+    "AGI_claim_grants_authority": false,
+    "AGI_claim_grants_protected_effect_permission": false,
+    "research_goal_grants_deployment_authority": false
+  },
+  "next_required_engineering": [
+    "machine-readable evaluation packet schema",
+    "dimension-specific evaluator adapters",
+    "cross-domain held-out suite registry",
+    "contamination and provenance ledger",
+    "continual-learning retention harness",
+    "calibration scoring harness",
+    "cross-environment transfer harness",
+    "aggregate qualification state that cannot exceed weakest required dimension"
+  ]
+}
