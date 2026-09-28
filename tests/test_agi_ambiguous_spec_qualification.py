@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import jsonschema
+import pytest
 
 from rezon.cascade import CascadeEngine, LayerResult, LayerSpec
 from vera_core import (
