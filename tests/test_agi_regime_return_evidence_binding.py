@@ -244,16 +244,9 @@ def test_phase_trace_score_tampering_is_rejected():
         ),
         *victim.trace.steps[1:],
     )
-    tampered = RegimeReturnPhaseEvidence(
-        regime_id=victim.regime_id,
-        cases=victim.cases,
-        trace=PrequentialTrace(steps=tampered_steps),
-    )
-
     with pytest.raises(ValueError, match="score"):
-        _qualify(
-            original,
-            (tampered, *intervening[1:]),
-            returned,
-            baseline_returned,
+        RegimeReturnPhaseEvidence(
+            regime_id=victim.regime_id,
+            cases=victim.cases,
+            trace=PrequentialTrace(steps=tampered_steps),
         )
