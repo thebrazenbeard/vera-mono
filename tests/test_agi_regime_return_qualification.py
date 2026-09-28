@@ -1,5 +1,6 @@
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import jsonschema
@@ -7,6 +8,7 @@ import jsonschema
 from vera_core import (
     ContextualOnlineLinearPredictor,
     OnlineLinearPredictor,
+    RegimeReturnPhaseEvidence,
     RegimeReturnThresholds,
     qualify_regime_return,
 )
@@ -15,22 +17,35 @@ from vera_core.prequential_evaluation import PrequentialCase, evaluate_prequenti
 
 
 def _cases(coefficient: float, *, prefix: str, count: int):
-    return [
+    return tuple(
         PrequentialCase(
             case_id=f"{prefix}-{index}",
             model_input=(1.0 if index % 2 == 0 else -1.0,),
             expected=coefficient * (1.0 if index % 2 == 0 else -1.0),
         )
         for index in range(count)
-    ]
+    )
 
 
-def _run(learner, coefficient: float, *, prefix: str, count: int):
-    return evaluate_prequential(
-        _cases(coefficient, prefix=prefix, count=count),
+def _phase(
+    learner,
+    regime_id: str,
+    coefficient: float,
+    *,
+    prefix: str,
+    count: int,
+):
+    cases = _cases(coefficient, prefix=prefix, count=count)
+    trace = evaluate_prequential(
+        cases,
         predict=learner.predict,
         score=squared_error,
         update=learner.update,
+    )
+    return RegimeReturnPhaseEvidence(
+        regime_id=regime_id,
+        cases=cases,
+        trace=trace,
     )
 
 
@@ -44,45 +59,59 @@ def _experiment():
         learning_rate=0.25,
     )
 
-    original_contextual = _run(
+    original = _phase(
         contextual,
+        "A",
         0.8,
         prefix="A-original-contextual",
         count=24,
     )
-    _run(baseline, 0.8, prefix="A-original-baseline", count=24)
+    _phase(
+        baseline,
+        "A-baseline",
+        0.8,
+        prefix="A-original-baseline",
+        count=24,
+    )
 
+    intervening = []
     for label, coefficient in (
         ("B", -0.4),
         ("C", 1.3),
         ("D", -1.1),
     ):
-        _run(
-            contextual,
-            coefficient,
-            prefix=f"{label}-contextual",
-            count=24,
+        intervening.append(
+            _phase(
+                contextual,
+                label,
+                coefficient,
+                prefix=f"{label}-contextual",
+                count=24,
+            )
         )
-        _run(
+        _phase(
             baseline,
+            f"{label}-baseline",
             coefficient,
             prefix=f"{label}-baseline",
             count=24,
         )
 
-    contextual_return = _run(
+    returned = _phase(
         contextual,
+        "A-return",
         0.8,
         prefix="A-return-contextual",
         count=3,
     )
-    baseline_return = _run(
+    baseline_returned = _phase(
         baseline,
+        "A-return-baseline",
         0.8,
         prefix="A-return-baseline",
         count=3,
     )
-    return original_contextual, contextual_return, baseline_return
+    return original, tuple(intervening), returned, baseline_returned
 
 
 def _thresholds():
@@ -95,25 +124,51 @@ def _thresholds():
     )
 
 
-def test_regime_return_measurement_binds_required_metrics_and_stays_partial():
-    original, returned, baseline_returned = _experiment()
-
-    result = qualify_regime_return(
+def _qualify(
+    original,
+    intervening,
+    returned,
+    baseline_returned,
+    *,
+    exact_head,
+    probe_id,
+    items_digest,
+    thresholds=None,
+    curator_independence="INDEPENDENT_MODEL",
+    developer_item_access=False,
+):
+    return qualify_regime_return(
         original,
         returned=returned,
         baseline_returned=baseline_returned,
-        intervening_regime_ids=("B", "C", "D"),
-        thresholds=_thresholds(),
+        intervening_regimes=intervening,
+        thresholds=thresholds or _thresholds(),
         repository="thebrazenbeard/vera-mono",
-        exact_head="1" * 40,
+        exact_head=exact_head,
         runtime_binding="LOCAL_TEST_RUNTIME",
+        probe_id=probe_id,
+        items_digest=items_digest,
+        curator_independence=curator_independence,
+        training_overlap="NONE_KNOWN",
+        developer_item_access=developer_item_access,
+        tool_access=(),
+        claim_ceiling="REGIME_RETURN_MEASUREMENT_ONLY_NOT_AGI",
+    )
+
+
+def test_regime_return_measurement_binds_required_metrics_and_stays_partial():
+    original, intervening, returned, baseline_returned = _experiment()
+
+    result = _qualify(
+        original,
+        intervening,
+        returned,
+        baseline_returned,
+        exact_head="1" * 40,
         probe_id="regime-return-hidden-1",
         items_digest="a" * 64,
         curator_independence="DEVELOPER_AUTHORED_HIDDEN_CUT",
-        training_overlap="NONE_KNOWN",
         developer_item_access=True,
-        tool_access=(),
-        claim_ceiling="REGIME_RETURN_MEASUREMENT_ONLY_NOT_AGI",
     )
 
     assert result.metrics.intervening_regime_count == 3
@@ -135,26 +190,18 @@ def test_regime_return_measurement_binds_required_metrics_and_stays_partial():
     jsonschema.validate(result.packet, schema)
 
 
-def test_regime_return_requires_three_distinct_intervening_regimes():
-    original, returned, baseline_returned = _experiment()
+def test_regime_return_requires_three_actual_intervening_regimes():
+    original, intervening, returned, baseline_returned = _experiment()
 
     try:
-        qualify_regime_return(
+        _qualify(
             original,
-            returned=returned,
-            baseline_returned=baseline_returned,
-            intervening_regime_ids=("B", "C"),
-            thresholds=_thresholds(),
-            repository="thebrazenbeard/vera-mono",
+            intervening[:2],
+            returned,
+            baseline_returned,
             exact_head="2" * 40,
-            runtime_binding="LOCAL_TEST_RUNTIME",
             probe_id="regime-return-hidden-2",
             items_digest="b" * 64,
-            curator_independence="INDEPENDENT_MODEL",
-            training_overlap="NONE_KNOWN",
-            developer_item_access=False,
-            tool_access=(),
-            claim_ceiling="REGIME_RETURN_MEASUREMENT_ONLY_NOT_AGI",
         )
     except ValueError as exc:
         assert "intervening regimes" in str(exc)
@@ -163,40 +210,37 @@ def test_regime_return_requires_three_distinct_intervening_regimes():
 
 
 def test_regime_return_rejects_duplicate_intervening_regime_ids():
-    original, returned, baseline_returned = _experiment()
+    original, intervening, returned, baseline_returned = _experiment()
+    duplicate_ids = (
+        intervening[0],
+        replace(intervening[1], regime_id=intervening[0].regime_id),
+        intervening[2],
+    )
 
     try:
-        qualify_regime_return(
+        _qualify(
             original,
-            returned=returned,
-            baseline_returned=baseline_returned,
-            intervening_regime_ids=("B", "B", "D"),
-            thresholds=_thresholds(),
-            repository="thebrazenbeard/vera-mono",
+            duplicate_ids,
+            returned,
+            baseline_returned,
             exact_head="3" * 40,
-            runtime_binding="LOCAL_TEST_RUNTIME",
             probe_id="regime-return-hidden-3",
             items_digest="c" * 64,
-            curator_independence="INDEPENDENT_MODEL",
-            training_overlap="NONE_KNOWN",
-            developer_item_access=False,
-            tool_access=(),
-            claim_ceiling="REGIME_RETURN_MEASUREMENT_ONLY_NOT_AGI",
         )
     except ValueError as exc:
-        assert "distinct" in str(exc)
+        assert "distinct IDs" in str(exc)
     else:
         raise AssertionError("duplicate regimes were accepted")
 
 
 def test_regime_return_failure_is_not_promoted_by_metadata():
-    original, returned, baseline_returned = _experiment()
+    original, intervening, returned, baseline_returned = _experiment()
 
-    result = qualify_regime_return(
+    result = _qualify(
         original,
-        returned=returned,
-        baseline_returned=baseline_returned,
-        intervening_regime_ids=("B", "C", "D"),
+        intervening,
+        returned,
+        baseline_returned,
         thresholds=RegimeReturnThresholds(
             min_first_return_surprise=0.25,
             max_second_step_mse=1e-12,
@@ -204,16 +248,9 @@ def test_regime_return_failure_is_not_promoted_by_metadata():
             max_old_task_degradation=1e-12,
             min_intervening_regimes=3,
         ),
-        repository="thebrazenbeard/vera-mono",
         exact_head="4" * 40,
-        runtime_binding="LOCAL_TEST_RUNTIME",
         probe_id="regime-return-hidden-4",
         items_digest="d" * 64,
-        curator_independence="INDEPENDENT_MODEL",
-        training_overlap="NONE_KNOWN",
-        developer_item_access=False,
-        tool_access=(),
-        claim_ceiling="REGIME_RETURN_MEASUREMENT_ONLY_NOT_AGI",
     )
 
     assert result.packet["dimension_states"] == {
@@ -221,29 +258,31 @@ def test_regime_return_failure_is_not_promoted_by_metadata():
     }
 
 
-def test_regime_return_artifact_digest_binds_traces_and_regime_sequence():
-    original, returned, baseline_returned = _experiment()
+def test_regime_return_artifact_digest_binds_cases_traces_and_targets():
+    original, intervening, returned, baseline_returned = _experiment()
 
-    result = qualify_regime_return(
+    result = _qualify(
         original,
-        returned=returned,
-        baseline_returned=baseline_returned,
-        intervening_regime_ids=("B", "C", "D"),
-        thresholds=_thresholds(),
-        repository="thebrazenbeard/vera-mono",
+        intervening,
+        returned,
+        baseline_returned,
         exact_head="5" * 40,
-        runtime_binding="LOCAL_TEST_RUNTIME",
         probe_id="regime-return-hidden-5",
         items_digest="e" * 64,
-        curator_independence="INDEPENDENT_MODEL",
-        training_overlap="NONE_KNOWN",
-        developer_item_access=False,
-        tool_access=(),
-        claim_ceiling="REGIME_RETURN_MEASUREMENT_ONLY_NOT_AGI",
     )
 
     artifact = json.loads(result.qualification_artifact_json)
-    assert artifact["intervening_regime_ids"] == ["B", "C", "D"]
+    assert artifact["schema"] == "VERA_AGI_REGIME_RETURN_QUALIFICATION_V2"
+    assert [item["regime_id"] for item in artifact["intervening_regimes"]] == [
+        "B",
+        "C",
+        "D",
+    ]
+    assert len(
+        {item["target_digest"] for item in artifact["intervening_regimes"]}
+    ) == 3
+    assert artifact["original_regime"]["cases"]
+    assert artifact["returned_regime"]["trace"]["steps"]
     assert artifact["measurement_only"] is True
     assert artifact["independent_review_required_for_pass"] is True
     assert (
