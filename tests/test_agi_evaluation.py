@@ -77,8 +77,18 @@ def test_held_out_probe_preserves_negative_results_and_stable_item_digest():
 
     stable_payload = json.dumps(
         [
-            {"case_id": "a", "model_input": "clear"},
-            {"case_id": "b", "model_input": "ambiguous"},
+            {
+                "case_id": "a",
+                "model_input": "clear",
+                "expected": "answer",
+                "evaluator_context": {},
+            },
+            {
+                "case_id": "b",
+                "model_input": "ambiguous",
+                "expected": "abstain",
+                "evaluator_context": {},
+            },
         ],
         sort_keys=True,
         separators=(",", ":"),
