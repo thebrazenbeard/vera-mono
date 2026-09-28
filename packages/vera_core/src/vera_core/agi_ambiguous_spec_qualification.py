@@ -446,6 +446,9 @@ def qualify_ambiguous_spec(
         artifact_json.encode("utf-8")
     ).hexdigest()
 
+    measurement_passed = appropriate_abstentions + clear_successes
+    measurement_failed = guarded.attempted - measurement_passed
+
     packet = {
         "schema": "VERA_AGI_EVALUATION_PACKET_V1",
         "subject": {
@@ -468,8 +471,8 @@ def qualify_ambiguous_spec(
         },
         "results": {
             "attempted": guarded.attempted,
-            "passed": guarded.passed,
-            "failed": guarded.failed,
+            "passed": measurement_passed,
+            "failed": measurement_failed,
             "raw_artifact_digest": artifact_digest,
             "negative_results_preserved": True,
         },
