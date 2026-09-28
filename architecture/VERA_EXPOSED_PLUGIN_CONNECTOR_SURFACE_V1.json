@@ -183,5 +183,8 @@
       "alternative": "Use Lappy Desktop Commander for the authorized local-machine path when relevant and available."
     }
   },
-  "claim_ceiling": "OBSERVED CONNECTOR EXPOSURE INVENTORY ONLY; NOT PROOF OF AUTHORIZATION, CONNECTION HEALTH, INSTALLATION, PROVIDER CURRENTNESS, RUNTIME CONSUMPTION, OR EFFECT"
+  "claim_ceiling": "OBSERVED CONNECTOR EXPOSURE INVENTORY ONLY; NOT PROOF OF AUTHORIZATION, CONNECTION HEALTH, INSTALLATION, PROVIDER CURRENTNESS, RUNTIME CONSUMPTION, OR EFFECT",
+  "observation_basis": "PATRICK_DIRECT_ENUMERATION_IN_CURRENT_CHAT",
+  "durable_main_merge_commit": "cddfcb355b678c5a88a58562edb9082d6258595f",
+  "currentness_note": "This is a dated exposure inventory. Re-check the live connector/tool surface before making a later availability claim; do not silently treat this inventory as eternal runtime state."
 }
