@@ -671,3 +671,22 @@ __all__.extend([
     "ClosedLoopResult",
     "ClosedLoopTask",
 ])
+
+
+from .agi_evaluation import (
+    AGIContaminationDisclosure,
+    HeldOutAttempt,
+    HeldOutCase,
+    HeldOutProbe,
+    HeldOutProbeResult,
+    run_held_out_probe,
+)
+
+__all__.extend([
+    "AGIContaminationDisclosure",
+    "HeldOutAttempt",
+    "HeldOutCase",
+    "HeldOutProbe",
+    "HeldOutProbeResult",
+    "run_held_out_probe",
+])
