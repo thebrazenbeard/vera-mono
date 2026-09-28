@@ -147,6 +147,7 @@ class HeldOutProbeResult:
     passed: int
     failed: int
     items_digest: str
+    raw_artifact_json: str
     raw_artifact_digest: str
     negative_results_preserved: bool
     contamination: AGIContaminationDisclosure
@@ -233,9 +234,9 @@ def run_held_out_probe(
             "tool_access": list(contamination.tool_access),
         },
     }
-    raw_artifact_digest = hashlib.sha256(
-        _canonical_json(raw_artifact)
-    ).hexdigest()
+    raw_artifact_bytes = _canonical_json(raw_artifact)
+    raw_artifact_json = raw_artifact_bytes.decode("utf-8")
+    raw_artifact_digest = hashlib.sha256(raw_artifact_bytes).hexdigest()
 
     attempted = len(attempts)
     return HeldOutProbeResult(
@@ -247,6 +248,7 @@ def run_held_out_probe(
         passed=passed_count,
         failed=attempted - passed_count,
         items_digest=items_digest,
+        raw_artifact_json=raw_artifact_json,
         raw_artifact_digest=raw_artifact_digest,
         negative_results_preserved=True,
         contamination=contamination,
@@ -452,9 +454,9 @@ def run_prequential_held_out_probe(
             "tool_access": list(contamination.tool_access),
         },
     }
-    raw_artifact_digest = hashlib.sha256(
-        _canonical_json(raw_artifact)
-    ).hexdigest()
+    raw_artifact_bytes = _canonical_json(raw_artifact)
+    raw_artifact_json = raw_artifact_bytes.decode("utf-8")
+    raw_artifact_digest = hashlib.sha256(raw_artifact_bytes).hexdigest()
 
     attempted = len(attempts)
     return HeldOutProbeResult(
@@ -466,6 +468,7 @@ def run_prequential_held_out_probe(
         passed=passed_count,
         failed=attempted - passed_count,
         items_digest=items_digest,
+        raw_artifact_json=raw_artifact_json,
         raw_artifact_digest=raw_artifact_digest,
         negative_results_preserved=True,
         contamination=contamination,
