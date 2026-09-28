@@ -9,11 +9,11 @@ from vera_core import (
     HeldOutCase,
     HeldOutProbe,
     NovelMappingThresholds,
-    OnlineLinearPredictor,
     qualify_novel_mapping,
     run_held_out_probe,
     run_prequential_held_out_probe,
 )
+from vera_core.adaptive_linear import OnlineLinearPredictor
 
 
 def _probe(curator: str = "INDEPENDENT_MODEL") -> HeldOutProbe:
