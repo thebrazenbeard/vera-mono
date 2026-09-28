@@ -6,7 +6,9 @@
     "repository": "thebrazenbeard/vera-mono",
     "main_head": "f24738d181d99fc1c0cc1e8b7d8282f887be5081",
     "working_branch": "research/agi-qualification-contract-v1-20260928",
-    "branch_head_before_this_artifact": "d5b25cd3cf69eaed708fe5787eb7385e4225d840"
+    "branch_head_before_this_artifact": "d5b25cd3cf69eaed708fe5787eb7385e4225d840",
+    "main_head_current_observation": "6459c0da28dac8995ae949d0c1fc25fe1861f63f",
+    "local_rebase_observation_before_lappy_disconnect": "b7c88e30 (uncommitted closed-loop work followed locally; not remote evidence)"
   },
   "currentness_note": "Exact donor SHAs below are the newest commits returned by repository-scoped GitHub commit search at this observation cut. Before code absorption, each donor ref must be rebound to the exact default-branch head and rechecked for drift.",
   "portfolio_census": {
@@ -448,5 +450,85 @@
       "vera_core.state_handoff"
     ],
     "new_agi_delta": "LGCM-derived contextual retention candidate at branch head 602de21ac63b92aa4c49e052ba2fa0c70cbe8054"
+  },
+  "next_frontier": {
+    "id": "CLOSED_LOOP_HELD_OUT_QUALIFICATION_V1",
+    "purpose": "Qualify the composed experience-to-correction loop without touching the disconnected local worktree.",
+    "local_subject_hold": "D:\\Vera\\worktrees\\vera-mono-agi uncommitted closed-loop files are authoritative for that exact subject until recovered; do not reconstruct/overwrite them through GitHub.",
+    "required_stages": [
+      "semantic proposal admitted without truth/authority promotion",
+      "Rezon reasoning resolves or fails closed",
+      "bounded dispatch consumes no authority",
+      "observed consequence is recorded separately from intended action",
+      "failure enters corrective learning without fake completion",
+      "reviewed learned revision may influence a later decision",
+      "held-out novel tasks distinguish recurrence recall from transfer",
+      "negative controls and failures are preserved",
+      "full regression passes on reconciled exact head",
+      "independent hostile review binds exact head and artifacts"
+    ],
+    "held_out_families": [
+      {
+        "id": "NOVEL_MAPPING",
+        "hidden_variable": "unseen coefficient/rule family",
+        "tests": [
+          "first-exposure adaptation",
+          "sample efficiency",
+          "no prior-expert shortcut"
+        ]
+      },
+      {
+        "id": "COMPOSITIONAL_TRANSFER",
+        "hidden_variable": "new composition of known primitives",
+        "tests": [
+          "zero/few-shot transfer",
+          "ablated semantic substrate",
+          "ablated Rezon opposition"
+        ]
+      },
+      {
+        "id": "REGIME_RETURN",
+        "hidden_variable": "previously learned context recurrence",
+        "tests": [
+          "first-return surprise",
+          "second-step recall",
+          "interference after additional regimes"
+        ]
+      },
+      {
+        "id": "AMBIGUOUS_SPEC",
+        "hidden_variable": "underspecified/adversarial instruction",
+        "tests": [
+          "uncertainty preservation",
+          "fail-closed dispatch",
+          "no invented completion"
+        ]
+      },
+      {
+        "id": "CORRECTION_TRANSFER",
+        "hidden_variable": "failure pattern reappears in structurally different task",
+        "tests": [
+          "review gate required",
+          "correction helps without target leakage",
+          "original failure remains in ledger"
+        ]
+      }
+    ],
+    "ablations": [
+      "naive single-context learner",
+      "no semantic knowledge store",
+      "no Rezon opposition/refinement",
+      "no reviewed-learning gate",
+      "no corrective ledger"
+    ],
+    "contamination_controls": [
+      "probe seed/items withheld from adaptation code",
+      "no tuning after hidden-cut disclosure",
+      "record tool/retrieval access",
+      "preserve every attempted item and failure",
+      "separate developer-authored synthetic probes from independent external probes"
+    ],
+    "completion_gate": "All required stages executable on reconciled exact head; held-out families have declared metrics and negative controls; full suite passes; independent review survives or unresolved objections remain explicit.",
+    "claim_ceiling": "CLOSED_LOOP_RESEARCH_QUALIFICATION_ONLY_NOT_AGI"
   }
 }
