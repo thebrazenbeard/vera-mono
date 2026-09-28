@@ -113,3 +113,23 @@ def test_evaluation_packet_rejects_non_exact_head_and_invalid_state():
         assert "dimension state" in str(exc)
     else:
         raise AssertionError("invalid dimension state was accepted")
+
+
+
+def test_generic_packet_builder_cannot_self_award_dimension_pass():
+    try:
+        build_agi_evaluation_packet(
+            _result(),
+            repository="thebrazenbeard/vera-mono",
+            exact_head="9" * 40,
+            runtime_binding="LOCAL_TEST_RUNTIME",
+            dimension_states={
+                "NOVEL_TASK_TRANSFER": "PASS",
+                "LEARNING_EFFICIENCY": "PASS",
+            },
+            claim_ceiling="RESEARCH_ONLY",
+        )
+    except ValueError as exc:
+        assert "cannot self-award PASS" in str(exc)
+    else:
+        raise AssertionError("generic held-out packet self-awarded PASS")
