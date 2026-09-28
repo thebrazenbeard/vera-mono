@@ -681,6 +681,7 @@ from .agi_evaluation import (
     HeldOutProbeResult,
     build_agi_evaluation_packet,
     run_held_out_probe,
+    run_prequential_held_out_probe,
 )
 
 __all__.extend([
@@ -691,6 +692,7 @@ __all__.extend([
     "HeldOutProbeResult",
     "build_agi_evaluation_packet",
     "run_held_out_probe",
+    "run_prequential_held_out_probe",
 ])
 
 
