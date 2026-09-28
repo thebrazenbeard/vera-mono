@@ -49,6 +49,13 @@ from .agi_novel_mapping_promotion import (
     NovelMappingPromotionAssessment,
     QualifiedNovelMappingPromotionAdapter,
 )
+from .agi_compositional_transfer import (
+    CompositionalTransferQualificationResult,
+)
+from .agi_compositional_promotion import (
+    CompositionalTransferPromotionAssessment,
+    QualifiedCompositionalTransferPromotionAdapter,
+)
 from .agi_runtime_aggregate import (
     AGIPacketReviewBinding,
     QualifiedAGIRuntimeAggregateAdapter,
@@ -1461,6 +1468,30 @@ class QualifiedVeraRuntime:
         review_id: str,
     ) -> NovelMappingPromotionAssessment:
         return QualifiedNovelMappingPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def compositional_transfer_promotion_adapter(
+        self,
+    ) -> QualifiedCompositionalTransferPromotionAdapter:
+        return QualifiedCompositionalTransferPromotionAdapter(runtime=self)
+
+    def promote_compositional_transfer_qualification(
+        self,
+        measurement: CompositionalTransferQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> CompositionalTransferPromotionAssessment:
+        return QualifiedCompositionalTransferPromotionAdapter(
             runtime=self
         ).promote(
             measurement,
