@@ -768,6 +768,7 @@ from .adaptive_linear import (
 )
 from .agi_regime_return import (
     RegimeReturnMetrics,
+    RegimeReturnPhaseEvidence,
     RegimeReturnQualificationResult,
     RegimeReturnThresholds,
     qualify_regime_return,
@@ -777,6 +778,7 @@ __all__.extend([
     "ContextualOnlineLinearPredictor",
     "OnlineLinearPredictor",
     "RegimeReturnMetrics",
+    "RegimeReturnPhaseEvidence",
     "RegimeReturnQualificationResult",
     "RegimeReturnThresholds",
     "qualify_regime_return",
