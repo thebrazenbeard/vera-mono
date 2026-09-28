@@ -29,5 +29,22 @@
     "VeraMesh session authentication or transport is installed",
     "VeraPort lane runtime is copied wholesale"
   ],
-  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE9_EXACT_HEAD_CI"
+  "claim_ceiling": "SOURCE_ADAPTATION_INTEGRATED_ON_MAIN_AT_E3CD93B4_WITH_EXACT_HEAD_DEPENDENCY_REVIEW_CODE_SCANNING_AND_CROSS_PLATFORM_MONOREPO_WHEEL_CLOSURE_VERIFIED; LIVE_ONLY; NO_PROTECTED_EFFECT_AUTHORITY; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME_CONSUMPTION; NOT BEHAVIORAL_QUALIFICATION; NOT_INDEPENDENT_REVIEW",
+  "verification": {
+    "candidate_head": "e3cd93b499037d177c8bf0f329558d45b479330d",
+    "dependency_review": {
+      "run_id": 36357788003,
+      "conclusion": "success"
+    },
+    "code_scanning_ai_findings": {
+      "run_id": 36357789201,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36357788005,
+      "conclusion": "success",
+      "ubuntu_24_04": "492 passed, 1 warning, 35 subtests passed; wheel build/closure/installed closure success",
+      "windows_latest": "492 passed, 1 warning, 35 subtests passed; wheel build/closure/installed closure success"
+    }
+  }
 }
