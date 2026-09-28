@@ -49,6 +49,10 @@ from .agi_novel_mapping_promotion import (
     NovelMappingPromotionAssessment,
     QualifiedNovelMappingPromotionAdapter,
 )
+from .agi_runtime_aggregate import (
+    AGIPacketReviewBinding,
+    QualifiedAGIRuntimeAggregateAdapter,
+)
 from .coordination_command_journal import CoordinationCommandJournal
 from .effect_recovery import (
     EffectReconciliationVerifier,
@@ -1464,6 +1468,23 @@ class QualifiedVeraRuntime:
             consumer_id=consumer_id,
             probe_id=probe_id,
             review_id=review_id,
+        )
+
+    def aggregate_agi_qualification(
+        self,
+        packets: Sequence[Mapping[str, Any]],
+        *,
+        subject_head: str,
+        review_bindings: Sequence[AGIPacketReviewBinding],
+        claim_ceiling: str,
+    ) -> dict[str, object]:
+        return QualifiedAGIRuntimeAggregateAdapter(
+            runtime=self
+        ).aggregate(
+            packets,
+            subject_head=subject_head,
+            review_bindings=review_bindings,
+            claim_ceiling=claim_ceiling,
         )
 
     def assess_task_dependencies(
