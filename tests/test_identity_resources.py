@@ -17,3 +17,11 @@ def test_resource_loader_rejects_escape():
         pass
     else:
         raise AssertionError("resource loader accepted path traversal")
+
+
+def test_governed_identity_snapshot_is_local_and_bounded():
+    payload = load_json_resource("architecture/identity/VERA_IDENTITY_SYSTEM_SNAPSHOT_V1.json")
+    assert payload["schema"] == "VERA_IDENTITY_SYSTEM_SNAPSHOT_V1"
+    assert payload["identity"]["referent"] == "Vera"
+    assert payload["memory_privacy"]["autobiographical_default"] == "DENY_UNLESS_CURRENTLY_ADMITTED"
+    assert "phenomenological" in payload["claim_ceiling"].lower()
