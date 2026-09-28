@@ -692,3 +692,14 @@ __all__.extend([
     "build_agi_evaluation_packet",
     "run_held_out_probe",
 ])
+
+
+from .agi_qualification import (
+    REQUIRED_AGI_DIMENSIONS,
+    aggregate_agi_qualification,
+)
+
+__all__.extend([
+    "REQUIRED_AGI_DIMENSIONS",
+    "aggregate_agi_qualification",
+])
