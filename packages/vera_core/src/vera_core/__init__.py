@@ -809,3 +809,18 @@ __all__.extend([
     "StructuredAmbiguityGuard",
     "StructuredAmbiguitySpec",
 ])
+
+
+from .agi_ambiguous_spec_qualification import (
+    AmbiguousSpecMetrics,
+    AmbiguousSpecQualificationResult,
+    AmbiguousSpecThresholds,
+    qualify_ambiguous_spec,
+)
+
+__all__.extend([
+    "AmbiguousSpecMetrics",
+    "AmbiguousSpecQualificationResult",
+    "AmbiguousSpecThresholds",
+    "qualify_ambiguous_spec",
+])
