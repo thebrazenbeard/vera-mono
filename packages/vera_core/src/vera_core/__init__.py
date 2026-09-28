@@ -720,3 +720,8 @@ __all__.extend([
     "NovelMappingThresholds",
     "qualify_novel_mapping",
 ])
+
+
+from .agi_novel_mapping_promotion import NovelMappingPromotionAssessment
+
+__all__.append("NovelMappingPromotionAssessment")
