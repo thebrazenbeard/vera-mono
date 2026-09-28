@@ -198,10 +198,32 @@
   "next_actions": [
     "Reconcile the 70-versus-71 portfolio census discrepancy.",
     "Bind every portfolio repository to exact default-branch head in an automated census.",
-    "Search vera-mono for existing equivalents before importing donor mechanisms.",
-    "Inspect executable Rezon and Noema source/tests, not only design documents.",
-    "Implement the smallest missing high-value mechanism with provenance and adversarial tests.",
-    "Run internal hostile review and an independently executed reviewer before promotion."
+    "Search vera-mono for existing learning/transfer/retention equivalents before importing donor mechanisms.",
+    "Design a minimal learn-transfer-retain-adapt experiment interface using Noema as a donor, without creating a sibling runtime dependency.",
+    "Use Rezon opposition/independence semantics to attack that experiment and its conclusions.",
+    "Run held-out transfer and retention probes; preserve failures and contamination disclosures.",
+    "Obtain another independent review channel before any qualification promotion."
   ],
-  "claim_ceiling": "PORTFOLIO_DONOR_RESEARCH_INTAKE_ONLY_NOT_AGI_NOT_RUNTIME_ADOPTION"
+  "claim_ceiling": "PORTFOLIO_DONOR_RESEARCH_INTAKE_ONLY_NOT_AGI_NOT_RUNTIME_ADOPTION",
+  "independent_hostile_review": {
+    "reviewer": "local qwen3.5-4b-local via Lappy loopback service",
+    "independence_limits": [
+      "Same user-controlled workstation; independence is model/process-level, not institutional.",
+      "Reviewer received a compact proposal summary, not repository source.",
+      "Response transport truncated long generations; only observed objections are recorded."
+    ],
+    "observed_objections": [
+      "The program can optimize governance/evaluation complexity without advancing the underlying learning mechanism.",
+      "Rezon opposition can become an adversarial loop unless coupled to a constructive learning/update path.",
+      "Combining heterogeneous architectures risks mechanism noise without a coherent update semantics."
+    ],
+    "disposition": "PARTIALLY_ACCEPTED_AND_PLAN_REVISED"
+  },
+  "priority_revision": {
+    "previous": "Rezon-first implementation candidate",
+    "revised": "First prove a measurable learn-transfer-retain-adapt loop; use Rezon as verifier/opposition around that loop.",
+    "first_deep_donor": "thebrazenbeard/noema",
+    "noema_observation": "Current main exposes I0/I1 deterministic source with 103/103 frozen tests, but explicitly reports no E0 learning/experiment execution. That gap is scientifically more important than adding another orchestration layer.",
+    "guardrail": "Do not claim Noema learning capability from I1 source verification."
+  }
 }
