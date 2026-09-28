@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "VERA_AGI_AGGREGATE_QUALIFICATION_V1",
+  "title": "Vera AGI Aggregate Qualification V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "subject_head",
+    "required_dimensions",
+    "dimension_states",
+    "aggregate_state",
+    "independent_review_state",
+    "claim_ceiling"
+  ],
+  "properties": {
+    "schema": {
+      "const": "VERA_AGI_AGGREGATE_QUALIFICATION_V1"
+    },
+    "subject_head": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "required_dimensions": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "dimension_states": {
+      "type": "object",
+      "additionalProperties": {
+        "enum": [
+          "NOT_EVALUATED",
+          "FAIL",
+          "PARTIAL",
+          "PASS"
+        ]
+      }
+    },
+    "aggregate_state": {
+      "enum": [
+        "NOT_EVALUATED",
+        "PARTIALLY_EVALUATED",
+        "FAILS_CURRENT_CONTRACT",
+        "SURVIVES_CURRENT_CONTRACT",
+        "SURVIVES_CURRENT_CONTRACT_INDEPENDENTLY_REVIEWED"
+      ]
+    },
+    "independent_review_state": {
+      "enum": [
+        "NOT_REVIEWED",
+        "REVIEWED_WITH_UNRESOLVED_OBJECTION",
+        "SURVIVES_INDEPENDENT_REVIEW"
+      ]
+    },
+    "claim_ceiling": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "aggregate_state": {
+            "const": "SURVIVES_CURRENT_CONTRACT"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "independent_review_state": {
+            "enum": [
+              "NOT_REVIEWED",
+              "REVIEWED_WITH_UNRESOLVED_OBJECTION",
+              "SURVIVES_INDEPENDENT_REVIEW"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "aggregate_state": {
+            "const": "SURVIVES_CURRENT_CONTRACT_INDEPENDENTLY_REVIEWED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "independent_review_state": {
+            "const": "SURVIVES_INDEPENDENT_REVIEW"
+          }
+        }
+      }
+    }
+  ]
+}
