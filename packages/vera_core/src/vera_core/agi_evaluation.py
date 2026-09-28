@@ -251,3 +251,129 @@ def run_held_out_probe(
         negative_results_preserved=True,
         contamination=contamination,
     )
+
+
+_FAMILY_DIMENSIONS = {
+    "NOVEL_MAPPING": (
+        "NOVEL_TASK_TRANSFER",
+        "LEARNING_EFFICIENCY",
+    ),
+    "COMPOSITIONAL_TRANSFER": (
+        "NOVEL_TASK_TRANSFER",
+        "CROSS_DOMAIN_BREADTH",
+    ),
+    "REGIME_RETURN": (
+        "RETENTION_AND_INTERFERENCE",
+    ),
+    "AMBIGUOUS_SPEC": (
+        "METACOGNITIVE_CALIBRATION",
+        "ROBUSTNESS_AND_ANTI_GAMING",
+        "LONG_HORIZON_AGENCY",
+    ),
+    "CORRECTION_TRANSFER": (
+        "RETENTION_AND_INTERFERENCE",
+        "ROBUSTNESS_AND_ANTI_GAMING",
+    ),
+    "EXTERNAL_ENVIRONMENT": (
+        "EXTERNAL_GENERALIZATION",
+    ),
+}
+
+_ALLOWED_RUNTIME_BINDINGS = frozenset({
+    "SOURCE_ONLY",
+    "LOCAL_TEST_RUNTIME",
+    "QUALIFIED_RUNTIME",
+})
+
+_ALLOWED_DIMENSION_STATES = frozenset({
+    "NOT_EVALUATED",
+    "FAIL",
+    "PARTIAL",
+    "PASS",
+})
+
+
+def build_agi_evaluation_packet(
+    result: HeldOutProbeResult,
+    *,
+    repository: str,
+    exact_head: str,
+    runtime_binding: str,
+    dimension_states: Mapping[str, str],
+    claim_ceiling: str,
+    independent_review: object | None = None,
+) -> dict[str, object]:
+    """Bind held-out probe evidence into the governed packet shape."""
+
+    if type(result) is not HeldOutProbeResult:
+        raise TypeError("result must be exact HeldOutProbeResult")
+    if type(repository) is not str or not repository:
+        raise ValueError("repository must be a non-empty exact string")
+    if (
+        type(exact_head) is not str
+        or len(exact_head) != 40
+        or any(ch not in "0123456789abcdef" for ch in exact_head)
+    ):
+        raise ValueError("exact_head must be 40 lowercase hexadecimal characters")
+    if runtime_binding not in _ALLOWED_RUNTIME_BINDINGS:
+        raise ValueError("unsupported runtime_binding")
+    if type(dimension_states) is not dict:
+        dimension_states = dict(dimension_states)
+    if not dimension_states:
+        raise ValueError("dimension_states must not be empty")
+    bad_states = {
+        key: value
+        for key, value in dimension_states.items()
+        if type(key) is not str
+        or not key
+        or value not in _ALLOWED_DIMENSION_STATES
+    }
+    if bad_states:
+        raise ValueError(f"invalid dimension state entries: {bad_states!r}")
+
+    required_dimensions = _FAMILY_DIMENSIONS[result.family]
+    missing = [
+        dimension
+        for dimension in required_dimensions
+        if dimension not in dimension_states
+    ]
+    if missing:
+        raise ValueError(
+            "missing required family target dimensions: "
+            + ", ".join(missing)
+        )
+    if type(claim_ceiling) is not str or not claim_ceiling:
+        raise ValueError("claim_ceiling must be a non-empty exact string")
+
+    contamination = result.contamination
+    return {
+        "schema": "VERA_AGI_EVALUATION_PACKET_V1",
+        "subject": {
+            "repository": repository,
+            "exact_head": exact_head,
+            "runtime_binding": runtime_binding,
+        },
+        "probe": {
+            "probe_id": result.probe_id,
+            "family": result.family,
+            "held_out": True,
+            "curator_independence": result.curator_independence,
+            "items_digest": result.items_digest,
+        },
+        "contamination": {
+            "training_overlap": contamination.training_overlap,
+            "post_disclosure_tuning": contamination.post_disclosure_tuning,
+            "developer_item_access": contamination.developer_item_access,
+            "tool_access": list(contamination.tool_access),
+        },
+        "results": {
+            "attempted": result.attempted,
+            "passed": result.passed,
+            "failed": result.failed,
+            "raw_artifact_digest": result.raw_artifact_digest,
+            "negative_results_preserved": result.negative_results_preserved,
+        },
+        "dimension_states": dict(dimension_states),
+        "independent_review": independent_review,
+        "claim_ceiling": claim_ceiling,
+    }
