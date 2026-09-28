@@ -1,9 +1,13 @@
 """Bound REGIME_RETURN measurement for retention/interference research.
 
-The measurement consumes prequential traces only. It preserves first-return
-surprise, second-step recovery, baseline advantage, and degradation relative
-to the original regime. Successful measurement remains PARTIAL pending live
-independent review.
+The measurement consumes case-bound prequential phase evidence. It preserves
+first-return surprise, second-step recovery, baseline advantage, and
+degradation relative to the original regime. Successful measurement remains
+PARTIAL pending live independent review.
+
+The three-plus intervening-regime control is evidence-bearing: callers must
+provide the actual cases and traces for every intervening phase. Relabeling
+one target function under multiple regime IDs does not satisfy the control.
 """
 from __future__ import annotations
 
@@ -11,9 +15,12 @@ from dataclasses import asdict, dataclass
 import hashlib
 import json
 import math
-from typing import Iterable
+from typing import Any, Iterable
 
-from .prequential_evaluation import PrequentialTrace
+from .prequential_evaluation import (
+    PrequentialCase,
+    PrequentialTrace,
+)
 
 
 _RUNTIME_BINDINGS = frozenset({
@@ -80,6 +87,104 @@ def _trace_dict(trace: PrequentialTrace) -> dict[str, object]:
     }
 
 
+def _case_dict(case: PrequentialCase) -> dict[str, object]:
+    if type(case) is not PrequentialCase:
+        raise TypeError("cases must contain exact PrequentialCase values")
+    return {
+        "case_id": case.case_id,
+        "model_input": case.model_input,
+        "expected": case.expected,
+        "evaluator_context": dict(case.evaluator_context),
+    }
+
+
+def _target_digest(cases: tuple[PrequentialCase, ...]) -> str:
+    # Ignore case IDs and repetition count; bind the actual input->target
+    # relation represented by the phase.
+    pairs = sorted(
+        {
+            _canonical_json(
+                {
+                    "model_input": case.model_input,
+                    "expected": case.expected,
+                }
+            )
+            for case in cases
+        }
+    )
+    return hashlib.sha256(
+        _canonical_json(pairs).encode("utf-8")
+    ).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class RegimeReturnPhaseEvidence:
+    regime_id: str
+    cases: tuple[PrequentialCase, ...]
+    trace: PrequentialTrace
+
+    def __post_init__(self) -> None:
+        if type(self.regime_id) is not str or not self.regime_id:
+            raise ValueError("regime_id must be a non-empty exact string")
+        object.__setattr__(self, "cases", tuple(self.cases))
+        if not self.cases:
+            raise ValueError("phase cases must not be empty")
+        if any(type(case) is not PrequentialCase for case in self.cases):
+            raise TypeError(
+                "phase cases must contain exact PrequentialCase values"
+            )
+        if type(self.trace) is not PrequentialTrace:
+            raise TypeError("phase trace must be exact PrequentialTrace")
+        if self.trace.evaluation_order != "PREDICT_SCORE_THEN_UPDATE":
+            raise ValueError("REGIME_RETURN requires prequential evaluation")
+        if self.trace.authorization_effect != "NONE":
+            raise ValueError("REGIME_RETURN phase authorization effect must be NONE")
+        if len(self.cases) != len(self.trace.steps):
+            raise ValueError("phase cases and trace steps must align exactly")
+
+        for index, (case, step) in enumerate(
+            zip(self.cases, self.trace.steps, strict=True)
+        ):
+            if step.case_id != case.case_id:
+                raise ValueError(
+                    "phase case IDs and trace case IDs must align exactly"
+                )
+            prediction = _finite(
+                step.prediction,
+                f"phase[{index}].prediction",
+            )
+            expected = _finite(
+                case.expected,
+                f"phase[{index}].expected",
+            )
+            score = _finite(
+                step.score,
+                f"phase[{index}].score",
+            )
+            expected_score = (prediction - expected) ** 2
+            if not math.isclose(
+                score,
+                expected_score,
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            ):
+                raise ValueError(
+                    "phase trace score does not match bound case evidence"
+                )
+
+    @property
+    def target_digest(self) -> str:
+        return _target_digest(self.cases)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "regime_id": self.regime_id,
+            "target_digest": self.target_digest,
+            "cases": [_case_dict(case) for case in self.cases],
+            "trace": _trace_dict(self.trace),
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class RegimeReturnThresholds:
     min_first_return_surprise: float
@@ -127,11 +232,11 @@ class RegimeReturnQualificationResult:
 
 
 def qualify_regime_return(
-    original: PrequentialTrace,
+    original: RegimeReturnPhaseEvidence,
     *,
-    returned: PrequentialTrace,
-    baseline_returned: PrequentialTrace,
-    intervening_regime_ids: Iterable[str],
+    intervening_regimes: Iterable[RegimeReturnPhaseEvidence],
+    returned: RegimeReturnPhaseEvidence,
+    baseline_returned: RegimeReturnPhaseEvidence,
     thresholds: RegimeReturnThresholds,
     repository: str,
     exact_head: str,
@@ -144,33 +249,60 @@ def qualify_regime_return(
     tool_access: Iterable[str],
     claim_ceiling: str,
 ) -> RegimeReturnQualificationResult:
-    if type(original) is not PrequentialTrace:
-        raise TypeError("original must be exact PrequentialTrace")
-    if type(returned) is not PrequentialTrace:
-        raise TypeError("returned must be exact PrequentialTrace")
-    if type(baseline_returned) is not PrequentialTrace:
-        raise TypeError("baseline_returned must be exact PrequentialTrace")
+    if type(original) is not RegimeReturnPhaseEvidence:
+        raise TypeError(
+            "original must be exact RegimeReturnPhaseEvidence"
+        )
+    if type(returned) is not RegimeReturnPhaseEvidence:
+        raise TypeError(
+            "returned must be exact RegimeReturnPhaseEvidence"
+        )
+    if type(baseline_returned) is not RegimeReturnPhaseEvidence:
+        raise TypeError(
+            "baseline_returned must be exact RegimeReturnPhaseEvidence"
+        )
     if type(thresholds) is not RegimeReturnThresholds:
         raise TypeError("thresholds must be exact RegimeReturnThresholds")
-    if len(original.steps) < 4:
-        raise ValueError("original trace requires at least four scored steps")
-    if len(returned.steps) < 2 or len(baseline_returned.steps) < 2:
-        raise ValueError("return traces require at least two scored steps")
-    for trace in (original, returned, baseline_returned):
-        if trace.evaluation_order != "PREDICT_SCORE_THEN_UPDATE":
-            raise ValueError("REGIME_RETURN requires prequential evaluation")
+    if len(original.trace.steps) < 4:
+        raise ValueError("original phase requires at least four scored steps")
+    if (
+        len(returned.trace.steps) < 2
+        or len(baseline_returned.trace.steps) < 2
+    ):
+        raise ValueError("return phases require at least two scored steps")
 
-    regime_ids = tuple(intervening_regime_ids)
-    if any(type(item) is not str or not item for item in regime_ids):
-        raise ValueError(
-            "intervening regimes must be non-empty exact strings"
+    phases = tuple(intervening_regimes)
+    if any(type(item) is not RegimeReturnPhaseEvidence for item in phases):
+        raise TypeError(
+            "intervening_regimes must contain exact "
+            "RegimeReturnPhaseEvidence values"
         )
-    if len(regime_ids) < thresholds.min_intervening_regimes:
+    if len(phases) < thresholds.min_intervening_regimes:
         raise ValueError(
             "REGIME_RETURN requires at least three intervening regimes"
         )
+
+    regime_ids = tuple(phase.regime_id for phase in phases)
     if len(set(regime_ids)) != len(regime_ids):
-        raise ValueError("intervening regimes must be distinct")
+        raise ValueError("intervening regimes must have distinct IDs")
+
+    target_digests = tuple(phase.target_digest for phase in phases)
+    if len(set(target_digests)) != len(target_digests):
+        raise ValueError(
+            "intervening regimes must have distinct target functions"
+        )
+    if original.target_digest in target_digests:
+        raise ValueError(
+            "intervening regime target must differ from original target"
+        )
+    if returned.target_digest != original.target_digest:
+        raise ValueError(
+            "return target function must match original target function"
+        )
+    if baseline_returned.target_digest != original.target_digest:
+        raise ValueError(
+            "baseline return target function must match original target function"
+        )
 
     if type(repository) is not str or not repository:
         raise ValueError("repository must be a non-empty exact string")
@@ -194,21 +326,27 @@ def qualify_regime_return(
     if type(claim_ceiling) is not str or not claim_ceiling:
         raise ValueError("claim_ceiling must be a non-empty exact string")
 
-    first_return = _finite(returned.steps[0].score, "first_return_surprise")
-    second_step = _finite(returned.steps[1].score, "second_step_mse")
+    first_return = _finite(
+        returned.trace.steps[0].score,
+        "first_return_surprise",
+    )
+    second_step = _finite(
+        returned.trace.steps[1].score,
+        "second_step_mse",
+    )
     baseline_second = _finite(
-        baseline_returned.steps[1].score,
+        baseline_returned.trace.steps[1].score,
         "baseline_second_step_mse",
     )
     original_late = sum(
         _finite(step.score, "original_late_score")
-        for step in original.steps[-4:]
+        for step in original.trace.steps[-4:]
     ) / 4.0
     baseline_advantage = baseline_second - second_step
     degradation = max(0.0, second_step - original_late)
 
     metrics = RegimeReturnMetrics(
-        intervening_regime_count=len(regime_ids),
+        intervening_regime_count=len(phases),
         first_return_surprise=first_return,
         second_step_mse=second_step,
         baseline_second_step_mse=baseline_second,
@@ -227,15 +365,15 @@ def qualify_regime_return(
     dimension_state = "PARTIAL" if metrics_pass else "FAIL"
 
     artifact = {
-        "schema": "VERA_AGI_REGIME_RETURN_QUALIFICATION_V1",
+        "schema": "VERA_AGI_REGIME_RETURN_QUALIFICATION_V2",
         "probe_id": probe_id,
         "items_digest": items_digest,
-        "intervening_regime_ids": list(regime_ids),
+        "original_regime": original.as_dict(),
+        "intervening_regimes": [phase.as_dict() for phase in phases],
+        "returned_regime": returned.as_dict(),
+        "baseline_returned_regime": baseline_returned.as_dict(),
         "thresholds": asdict(thresholds),
         "metrics": asdict(metrics),
-        "original_trace": _trace_dict(original),
-        "returned_trace": _trace_dict(returned),
-        "baseline_returned_trace": _trace_dict(baseline_returned),
         "curator_independence": curator_independence,
         "contamination": {
             "training_overlap": training_overlap,
@@ -256,7 +394,7 @@ def qualify_regime_return(
 
     passed = sum(
         1
-        for step in returned.steps
+        for step in returned.trace.steps
         if _finite(step.score, "returned_score")
         <= thresholds.max_second_step_mse
     )
@@ -281,9 +419,9 @@ def qualify_regime_return(
             "tool_access": list(tools),
         },
         "results": {
-            "attempted": len(returned.steps),
+            "attempted": len(returned.trace.steps),
             "passed": passed,
-            "failed": len(returned.steps) - passed,
+            "failed": len(returned.trace.steps) - passed,
             "raw_artifact_digest": artifact_digest,
             "negative_results_preserved": True,
         },
