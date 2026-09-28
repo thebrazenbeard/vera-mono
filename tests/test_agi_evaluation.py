@@ -172,3 +172,38 @@ def test_prequential_held_out_scores_before_revealing_answer_to_update():
     assert result.attempted == 2
     assert result.failed == 1
     assert result.negative_results_preserved is True
+
+
+
+def test_held_out_result_retains_exact_raw_artifact_bound_by_digest():
+    result = run_held_out_probe(
+        HeldOutProbe(
+            probe_id="raw-preservation",
+            family="AMBIGUOUS_SPEC",
+            curator_independence="INDEPENDENT_MODEL",
+            cases=(
+                HeldOutCase(
+                    case_id="fail",
+                    model_input="ambiguous",
+                    expected="abstain",
+                ),
+            ),
+        ),
+        subject=lambda value: "answer",
+        score=lambda prediction, expected: prediction == expected,
+        contamination=AGIContaminationDisclosure(
+            training_overlap="UNKNOWN",
+            post_disclosure_tuning=False,
+            developer_item_access=False,
+            tool_access=(),
+        ),
+    )
+
+    raw = json.loads(result.raw_artifact_json)
+    assert raw["attempts"][0]["case_id"] == "fail"
+    assert raw["attempts"][0]["expected"] == "abstain"
+    assert raw["attempts"][0]["passed"] is False
+    assert (
+        hashlib.sha256(result.raw_artifact_json.encode("utf-8")).hexdigest()
+        == result.raw_artifact_digest
+    )
