@@ -56,6 +56,11 @@ from .agi_compositional_promotion import (
     CompositionalTransferPromotionAssessment,
     QualifiedCompositionalTransferPromotionAdapter,
 )
+from .agi_regime_return import RegimeReturnQualificationResult
+from .agi_regime_return_promotion import (
+    QualifiedRegimeReturnPromotionAdapter,
+    RegimeReturnPromotionAssessment,
+)
 from .agi_runtime_aggregate import (
     AGIPacketReviewBinding,
     QualifiedAGIRuntimeAggregateAdapter,
@@ -1492,6 +1497,30 @@ class QualifiedVeraRuntime:
         review_id: str,
     ) -> CompositionalTransferPromotionAssessment:
         return QualifiedCompositionalTransferPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def regime_return_promotion_adapter(
+        self,
+    ) -> QualifiedRegimeReturnPromotionAdapter:
+        return QualifiedRegimeReturnPromotionAdapter(runtime=self)
+
+    def promote_regime_return_qualification(
+        self,
+        measurement: RegimeReturnQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> RegimeReturnPromotionAssessment:
+        return QualifiedRegimeReturnPromotionAdapter(
             runtime=self
         ).promote(
             measurement,
