@@ -332,6 +332,12 @@ def build_agi_evaluation_packet(
     }
     if bad_states:
         raise ValueError(f"invalid dimension state entries: {bad_states!r}")
+    if any(state == "PASS" for state in dimension_states.values()):
+        raise ValueError(
+            "generic held-out evaluation cannot self-award PASS; "
+            "use a dimension-specific qualification adapter with explicit "
+            "metrics and evidence"
+        )
 
     required_dimensions = _FAMILY_DIMENSIONS[result.family]
     missing = [
