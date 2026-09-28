@@ -58,7 +58,7 @@ def test_compositional_qualifier_requires_success_and_ablation_delta():
     assert result.ablation_delta == 1.0
     assert result.dimension_states == {
         "NOVEL_TASK_TRANSFER": "PASS",
-        "CROSS_DOMAIN_BREADTH": "PASS",
+        "CROSS_DOMAIN_BREADTH": "PARTIAL",
     }
     assert result.claim_ceiling == (
         "COMPOSITIONAL_TRANSFER_DIMENSION_EVIDENCE_ONLY_NOT_AGI"
