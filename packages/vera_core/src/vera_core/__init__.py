@@ -749,3 +749,14 @@ __all__.extend([
     "PrimitiveProgramMemorizer",
     "qualify_compositional_transfer",
 ])
+
+
+from .agi_compositional_promotion import (
+    CompositionalTransferPromotionAssessment,
+    QualifiedCompositionalTransferPromotionAdapter,
+)
+
+__all__.extend([
+    "CompositionalTransferPromotionAssessment",
+    "QualifiedCompositionalTransferPromotionAdapter",
+])
