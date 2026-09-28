@@ -1456,7 +1456,9 @@ class QualifiedVeraRuntime:
         probe_id: str,
         review_id: str,
     ) -> NovelMappingPromotionAssessment:
-        return self.novel_mapping_promotion_adapter().promote(
+        return QualifiedNovelMappingPromotionAdapter(
+            runtime=self
+        ).promote(
             measurement,
             task_id=task_id,
             consumer_id=consumer_id,
