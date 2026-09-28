@@ -44,6 +44,11 @@ from .independent_behavior_review_adapter import (
     IndependentBehaviorReviewAssessment,
     QualifiedIndependentBehaviorReviewAdapter,
 )
+from .agi_novel_mapping import NovelMappingQualificationResult
+from .agi_novel_mapping_promotion import (
+    NovelMappingPromotionAssessment,
+    QualifiedNovelMappingPromotionAdapter,
+)
 from .coordination_command_journal import CoordinationCommandJournal
 from .effect_recovery import (
     EffectReconciliationVerifier,
@@ -1436,6 +1441,28 @@ class QualifiedVeraRuntime:
         self,
     ) -> tuple[IndependentBehaviorReviewAssessment, ...]:
         return self.independent_behavior_review_adapter().recover()
+
+    def novel_mapping_promotion_adapter(
+        self,
+    ) -> QualifiedNovelMappingPromotionAdapter:
+        return QualifiedNovelMappingPromotionAdapter(runtime=self)
+
+    def promote_novel_mapping_qualification(
+        self,
+        measurement: NovelMappingQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> NovelMappingPromotionAssessment:
+        return self.novel_mapping_promotion_adapter().promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
 
     def assess_task_dependencies(
         self,
