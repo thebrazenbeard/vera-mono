@@ -730,3 +730,18 @@ __all__.append("NovelMappingPromotionAssessment")
 from .agi_runtime_aggregate import AGIPacketReviewBinding
 
 __all__.append("AGIPacketReviewBinding")
+
+
+from .agi_compositional_transfer import (
+    AffinePrimitiveLearner,
+    CompositionalTransferQualification,
+    PrimitiveProgramMemorizer,
+    qualify_compositional_transfer,
+)
+
+__all__.extend([
+    "AffinePrimitiveLearner",
+    "CompositionalTransferQualification",
+    "PrimitiveProgramMemorizer",
+    "qualify_compositional_transfer",
+])
