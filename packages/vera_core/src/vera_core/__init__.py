@@ -705,3 +705,18 @@ __all__.extend([
     "REQUIRED_AGI_DIMENSIONS",
     "aggregate_agi_qualification",
 ])
+
+
+from .agi_novel_mapping import (
+    NovelMappingMetrics,
+    NovelMappingQualificationResult,
+    NovelMappingThresholds,
+    qualify_novel_mapping,
+)
+
+__all__.extend([
+    "NovelMappingMetrics",
+    "NovelMappingQualificationResult",
+    "NovelMappingThresholds",
+    "qualify_novel_mapping",
+])
