@@ -138,12 +138,27 @@ def _mse_curve(raw: dict[str, Any]) -> tuple[float, ...]:
     return tuple(curve)
 
 
-def _state(*, metrics_pass: bool, independent: bool) -> str:
+def _measurement_state(*, metrics_pass: bool) -> str:
     if not metrics_pass:
         return "FAIL"
-    if independent:
-        return "PASS"
     return "PARTIAL"
+
+
+def _require_canonical_zero_baseline(raw: dict[str, Any]) -> None:
+    attempts = raw.get("attempts")
+    if type(attempts) is not list or not attempts:
+        raise ValueError("baseline raw artifact has no attempts")
+    for index, attempt in enumerate(attempts):
+        if type(attempt) is not dict:
+            raise TypeError("baseline attempt must be an object")
+        prediction = _finite_number(
+            attempt.get("prediction"),
+            field=f"baseline[{index}].prediction",
+        )
+        if prediction != 0.0:
+            raise ValueError(
+                "NOVEL_MAPPING baseline must use the canonical zero predictor"
+            )
 
 
 def qualify_novel_mapping(
@@ -195,6 +210,7 @@ def qualify_novel_mapping(
         raise ValueError("held-out cut is shorter than late_window")
 
     learner_curve = _mse_curve(learned_raw)
+    _require_canonical_zero_baseline(baseline_raw)
     baseline_curve = _mse_curve(baseline_raw)
     if len(learner_curve) != len(baseline_curve):
         raise ValueError("learner and baseline attempt counts differ")
@@ -225,15 +241,6 @@ def qualify_novel_mapping(
     )
 
     disclosure = learned.contamination
-    independent = (
-        learned.curator_independence in _INDEPENDENT_CURATORS
-        and disclosure.training_overlap == "NONE_KNOWN"
-        and disclosure.post_disclosure_tuning is False
-        and disclosure.developer_item_access is False
-        and disclosure.tool_access == ()
-        and learned.negative_results_preserved is True
-        and baseline.negative_results_preserved is True
-    )
 
     transfer_metrics_pass = (
         late_mse <= thresholds.max_late_mse
@@ -246,13 +253,11 @@ def qualify_novel_mapping(
         and samples_to_threshold <= thresholds.max_samples_to_threshold
     )
     dimension_states = {
-        "NOVEL_TASK_TRANSFER": _state(
+        "NOVEL_TASK_TRANSFER": _measurement_state(
             metrics_pass=transfer_metrics_pass,
-            independent=independent,
         ),
-        "LEARNING_EFFICIENCY": _state(
+        "LEARNING_EFFICIENCY": _measurement_state(
             metrics_pass=efficiency_metrics_pass,
-            independent=independent,
         ),
     }
 
@@ -273,7 +278,8 @@ def qualify_novel_mapping(
         "baseline_raw_artifact_digest": baseline.raw_artifact_digest,
         "learner_raw_artifact": learned_raw,
         "baseline_raw_artifact": baseline_raw,
-        "independent_evidence_gate": independent,
+        "measurement_only": True,
+        "independent_review_required_for_pass": True,
         "dimension_states": dimension_states,
     }
     artifact_json = _canonical_json(artifact)
