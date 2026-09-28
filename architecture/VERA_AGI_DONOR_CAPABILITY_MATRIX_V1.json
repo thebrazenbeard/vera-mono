@@ -184,6 +184,163 @@
       ],
       "disposition": "TRAINING_AND_EVAL_SUPPORT",
       "caution": "Proxy training is not native model-weight training or native capability proof."
+    },
+    {
+      "repo": "thebrazenbeard/Attune",
+      "observed_commit": "46461057e4d9ea25ec91a051fc17020e1113329a",
+      "mechanisms": [
+        "relationship influence firewall",
+        "continuity and preference/boundary contracts",
+        "memory-evidence reconciliation",
+        "mutuality/initiative design"
+      ],
+      "agi_dimensions": [
+        "LONG_HORIZON_AGENCY",
+        "RETENTION_AND_INTERFERENCE",
+        "METACOGNITIVE_CALIBRATION"
+      ],
+      "disposition": "CONTINUITY_AND_RELATIONSHIP_STATE_MECHANISM_DONOR",
+      "caution": "Product/persona/relationship semantics do not transfer as Vera identity or current preference."
+    },
+    {
+      "repo": "thebrazenbeard/ingest",
+      "observed_commit": "64623422834229ed8665ed66308fd69ab55b9da0",
+      "mechanisms": [
+        "provider-neutral heterogeneous intake",
+        "exact raw preservation",
+        "deterministic normalization",
+        "provenance-bound receipts",
+        "content-addressed storage"
+      ],
+      "agi_dimensions": [
+        "EXTERNAL_GENERALIZATION",
+        "ROBUSTNESS_AND_ANTI_GAMING"
+      ],
+      "disposition": "UNIVERSAL_INPUT_BOUNDARY_DONOR",
+      "caution": "Intake receipts establish observation and processing, not truth or semantic authority."
+    },
+    {
+      "repo": "thebrazenbeard/unvtrslr",
+      "observed_commit": "33edef682181e1bea6b36c5afc588d261f0c1289",
+      "mechanisms": [
+        "semantic bootstrap without shared symbols",
+        "grounded correspondence learning",
+        "signalhood hypothesis testing",
+        "compositional semantic transfer",
+        "partner/cross-task transfer controls",
+        "experiment-integrity audits"
+      ],
+      "agi_dimensions": [
+        "NOVEL_TASK_TRANSFER",
+        "EXTERNAL_GENERALIZATION",
+        "LEARNING_EFFICIENCY",
+        "ROBUSTNESS_AND_ANTI_GAMING"
+      ],
+      "disposition": "GROUNDING_AND_SEMANTIC_BOOTSTRAP_DONOR",
+      "caution": "Operational correspondence is not automatically universal semantics; preserve scoped certificates and null/no-equivalent outcomes."
+    },
+    {
+      "repo": "thebrazenbeard/fuckup",
+      "observed_commit": "a87dea38a58c4cff75bc7d123d87f63a5e110895",
+      "mechanisms": [
+        "failure capture and root-cause calibration",
+        "versioned supersession/unlearning",
+        "prevention qualification",
+        "effectiveness/recurrence attribution",
+        "reversible injector/readback"
+      ],
+      "agi_dimensions": [
+        "RETENTION_AND_INTERFERENCE",
+        "METACOGNITIVE_CALIBRATION",
+        "ROBUSTNESS_AND_ANTI_GAMING"
+      ],
+      "disposition": "CORRECTIVE_LEARNING_AND_UNLEARNING_DONOR",
+      "caution": "Prevention status is evidence-bounded; correction history must remain append-only rather than destructive forgetting."
+    },
+    {
+      "repo": "thebrazenbeard/mosaic",
+      "observed_commit": "3a442e94b4f5b8fa365e2206c40405df6961e18d",
+      "mechanisms": [
+        "specialist partition composition",
+        "continuity across specialist swaps",
+        "bounded residency accounting",
+        "state handoff"
+      ],
+      "agi_dimensions": [
+        "CROSS_DOMAIN_BREADTH",
+        "LONG_HORIZON_AGENCY"
+      ],
+      "disposition": "SCALABLE_SPECIALIST_COMPOSITION_DONOR",
+      "caution": "Executable harnesses do not establish trained specialist composition or real accelerator switching."
+    },
+    {
+      "repo": "thebrazenbeard/freerowcochkar",
+      "observed_commit": "9ea4eaefe5229ca90d7ae6099dbf30d9e13b64b2",
+      "mechanisms": [
+        "literalist loophole detection",
+        "typed constraint graph direction",
+        "adversarial path search",
+        "hardening patch plus regression"
+      ],
+      "agi_dimensions": [
+        "ROBUSTNESS_AND_ANTI_GAMING",
+        "METACOGNITIVE_CALIBRATION"
+      ],
+      "disposition": "ADVERSARIAL_BOUNDARY_TEST_DONOR",
+      "caution": "Heuristic findings are candidates for inspection, not proof of exploitability or legality."
+    },
+    {
+      "repo": "thebrazenbeard/meso-crct",
+      "observed_commit": "060d0feeb9dc9eb23801082bd8f1c4a7cb06184d",
+      "mechanisms": [
+        "salience/relevance/motivation separation",
+        "prediction-error teaching signal",
+        "bounded plasticity",
+        "versioned association memory",
+        "epistemic value and allocation control",
+        "authority firewall"
+      ],
+      "agi_dimensions": [
+        "LEARNING_EFFICIENCY",
+        "LONG_HORIZON_AGENCY",
+        "METACOGNITIVE_CALIBRATION",
+        "RETENTION_AND_INTERFERENCE"
+      ],
+      "disposition": "SALIENCE_VALUATION_AND_PLASTICITY_DONOR",
+      "caution": "Internal motivational state does not establish truth, authority, consent, identity, or phenomenology."
+    },
+    {
+      "repo": "thebrazenbeard/conations",
+      "observed_commit": "51948aac796936f0e7c437722e6f52c883e544e9",
+      "mechanisms": [
+        "append-only conation lifecycle history",
+        "revision/contradiction/revocation semantics",
+        "currentness firewall"
+      ],
+      "agi_dimensions": [
+        "LONG_HORIZON_AGENCY",
+        "RETENTION_AND_INTERFERENCE"
+      ],
+      "disposition": "CONATION_HISTORY_AND_CURRENTNESS_DONOR",
+      "caution": "Historical conation evidence is not standing current desire, consent, promise, or authority."
+    },
+    {
+      "repo": "thebrazenbeard/roots",
+      "observed_commit": "2c591176279d83ce6cc0d8dcf8e6062431913ea7",
+      "mechanisms": [
+        "temporally ordered evidence graphs",
+        "lineage reconstruction",
+        "derivation/correction/supersession typing",
+        "gap and contradiction analysis",
+        "provenance receipts"
+      ],
+      "agi_dimensions": [
+        "METACOGNITIVE_CALIBRATION",
+        "RETENTION_AND_INTERFERENCE",
+        "EXTERNAL_GENERALIZATION"
+      ],
+      "disposition": "PROVENANCE_LINEAGE_KNOWLEDGE_DONOR",
+      "caution": "Current source is design/foundation; oldest accessible evidence is not automatically origin, and similarity is not lineage."
     }
   ],
   "external_research_observation": {
@@ -225,5 +382,52 @@
     "first_deep_donor": "thebrazenbeard/noema",
     "noema_observation": "Current main exposes I0/I1 deterministic source with 103/103 frozen tests, but explicitly reports no E0 learning/experiment execution. That gap is scientifically more important than adding another orchestration layer.",
     "guardrail": "Do not claim Noema learning capability from I1 source verification."
+  },
+  "functional_architecture": {
+    "learning_and_adaptation": [
+      "thebrazenbeard/lgcm",
+      "thebrazenbeard/noema",
+      "thebrazenbeard/meso-crct",
+      "thebrazenbeard/fuckup"
+    ],
+    "reasoning_and_falsification": [
+      "thebrazenbeard/rezon",
+      "thebrazenbeard/voss",
+      "thebrazenbeard/freerowcochkar"
+    ],
+    "semantics_and_grounding": [
+      "thebrazenbeard/semanticatlas",
+      "thebrazenbeard/unvtrslr",
+      "thebrazenbeard/spm"
+    ],
+    "provenance_and_evidence": [
+      "thebrazenbeard/ingest",
+      "thebrazenbeard/roots",
+      "thebrazenbeard/deepmemorystorage"
+    ],
+    "durable_execution_and_recovery": [
+      "thebrazenbeard/project-runner",
+      "thebrazenbeard/pro-run",
+      "thebrazenbeard/wip"
+    ],
+    "continuity_and_currentness": [
+      "thebrazenbeard/Attune",
+      "thebrazenbeard/conations",
+      "thebrazenbeard/unbound-sol"
+    ],
+    "scalable_composition": [
+      "thebrazenbeard/mosaic"
+    ],
+    "architecture_hypotheses": [
+      "thebrazenbeard/hc-brain",
+      "thebrazenbeard/god-brain",
+      "thebrazenbeard/bt2",
+      "thebrazenbeard/transcendence"
+    ]
+  },
+  "hostile_review_update": {
+    "objection": "Portfolio maximalism can masquerade as AGI progress if every repository is integrated merely because it contains an interesting mechanism.",
+    "disposition": "ACCEPTED",
+    "response": "Use functional roles, capability deficits, compare-before-absorb, empirical delta tests, and explicit rejection of duplicate or domain-specific mechanisms. Repository count is not a success metric."
   }
 }
