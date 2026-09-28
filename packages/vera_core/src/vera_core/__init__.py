@@ -794,3 +794,18 @@ __all__.extend([
     "QualifiedRegimeReturnPromotionAdapter",
     "RegimeReturnPromotionAssessment",
 ])
+
+
+from .agi_ambiguous_spec import (
+    DecisionCandidate,
+    StructuredAmbiguityDecision,
+    StructuredAmbiguityGuard,
+    StructuredAmbiguitySpec,
+)
+
+__all__.extend([
+    "DecisionCandidate",
+    "StructuredAmbiguityDecision",
+    "StructuredAmbiguityGuard",
+    "StructuredAmbiguitySpec",
+])
