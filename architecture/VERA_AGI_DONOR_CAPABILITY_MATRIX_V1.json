@@ -10,9 +10,11 @@
   },
   "currentness_note": "Exact donor SHAs below are the newest commits returned by repository-scoped GitHub commit search at this observation cut. Before code absorption, each donor ref must be rebound to the exact default-branch head and rechecked for drift.",
   "portfolio_census": {
-    "current_connector_visible_count": 70,
+    "current_connector_visible_count": 71,
+    "active_repositories": 69,
+    "archived_repositories": 2,
     "discovery_2026_09_27_count": 71,
-    "discrepancy_state": "UNRESOLVED_DO_NOT_NORMALIZE",
+    "discrepancy_state": "RESOLVED_CURRENT_ENUMERATION_MATCHES_DISCOVERY",
     "discovery_head": "62b679a4809c7496f87d1075b25b3f7a50abf2ab"
   },
   "intake_rules": [
@@ -429,5 +431,22 @@
     "objection": "Portfolio maximalism can masquerade as AGI progress if every repository is integrated merely because it contains an interesting mechanism.",
     "disposition": "ACCEPTED",
     "response": "Use functional roles, capability deficits, compare-before-absorb, empirical delta tests, and explicit rejection of duplicate or domain-specific mechanisms. Repository count is not a success metric."
+  },
+  "integration_state": {
+    "observation": "Vera Mono already contains multiple provenance-bound donor adaptations; AGI work should compose and qualify them rather than re-import repositories.",
+    "existing_surfaces": [
+      "rezon",
+      "vera_ingest",
+      "portfolio_runtime.roots",
+      "portfolio_runtime.attune",
+      "vera_core.prequential_evaluation",
+      "vera_core.corrective_learning",
+      "vera_memory.learned_influence",
+      "vera_core.durable_dispatch_gate",
+      "vera_core.task_wake_scheduler",
+      "vera_core.semantic_transfer",
+      "vera_core.state_handoff"
+    ],
+    "new_agi_delta": "LGCM-derived contextual retention candidate at branch head 602de21ac63b92aa4c49e052ba2fa0c70cbe8054"
   }
 }
