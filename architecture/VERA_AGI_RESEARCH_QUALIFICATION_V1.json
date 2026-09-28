@@ -127,12 +127,12 @@
     "research_goal_grants_deployment_authority": false
   },
   "next_required_engineering": [
-    "portfolio-wide donor capability matrix bound to exact donor heads",
-    "machine-readable evaluation packet schema",
+    "reconcile disconnected local closed-loop worktree without overwriting uncommitted bytes",
+    "machine-readable held-out evaluation packet schema",
     "dimension-specific evaluator adapters",
     "cross-domain held-out suite registry",
     "contamination and provenance ledger",
-    "continual-learning retention harness",
+    "continual-learning retention plus compositional-transfer harness",
     "calibration scoring harness",
     "cross-environment transfer harness",
     "aggregate qualification state that cannot exceed weakest required dimension"
@@ -178,5 +178,33 @@
       "donor can be independently tested after absorption",
       "donor introduces no undeclared runtime dependency"
     ]
+  },
+  "research_constraints_update": {
+    "date": "2026-09-28",
+    "unvtrslr_controls": [
+      "ground before translating",
+      "signalhood remains a hypothesis",
+      "experiment integrity precedes semantic credit",
+      "novel instances/context changes/role reversal/composition/intervention/cross-task and partner transfer outrank symbol agreement",
+      "private task code is not reusable grounded semantics",
+      "scoped no-equivalent/unidentifiable outcomes are valid"
+    ],
+    "rezon_controls": [
+      "proposition fidelity before correctness",
+      "operator-selection evaluation",
+      "evidence integrity and independence accounting",
+      "semantic adversarial attacks rather than string mutation only",
+      "runtime/effect state separation",
+      "broken reference implementations must be reliably rejected"
+    ],
+    "external_research_observation": {
+      "source": "SciSpace search 2026-09-28",
+      "note": "Recent continual-learning literature reinforces separate measurement of retention, representation stability, hidden-context inference, and compositional reuse; research observations inform test design but do not establish Vera capability.",
+      "examples": [
+        "Learning with Preserving (2025): representation-geometry preservation under continual multitask learning",
+        "Separating the what and how of compositional computation to enable reuse and continual learning (2025): latent-context inference plus reusable components and unseen-task composition",
+        "Online Continual Learning Under Extreme Memory Constraints (ECCV 2020): explicit stability/plasticity evaluation under bounded memory"
+      ]
+    }
   }
 }
