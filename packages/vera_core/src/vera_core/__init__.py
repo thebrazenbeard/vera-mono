@@ -679,6 +679,7 @@ from .agi_evaluation import (
     HeldOutCase,
     HeldOutProbe,
     HeldOutProbeResult,
+    build_agi_evaluation_packet,
     run_held_out_probe,
 )
 
@@ -688,5 +689,6 @@ __all__.extend([
     "HeldOutCase",
     "HeldOutProbe",
     "HeldOutProbeResult",
+    "build_agi_evaluation_packet",
     "run_held_out_probe",
 ])
