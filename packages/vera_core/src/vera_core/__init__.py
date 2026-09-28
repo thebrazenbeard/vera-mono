@@ -657,3 +657,17 @@ __all__ = [
     "capability",
     "validate_registry",
 ]
+
+from .agi_closed_loop import (
+    CALLBACK_OBSERVATION_RECORDED,
+    ClosedLoopFrontier,
+    ClosedLoopResult,
+    ClosedLoopTask,
+)
+
+__all__.extend([
+    "CALLBACK_OBSERVATION_RECORDED",
+    "ClosedLoopFrontier",
+    "ClosedLoopResult",
+    "ClosedLoopTask",
+])
