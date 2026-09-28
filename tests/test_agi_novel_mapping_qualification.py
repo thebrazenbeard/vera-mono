@@ -225,3 +225,75 @@ def test_novel_mapping_rejects_mismatched_hidden_cuts():
         assert "same held-out cut" in str(exc)
     else:
         raise AssertionError("mismatched baseline cut was accepted")
+
+
+
+def test_independence_metadata_alone_cannot_unlock_pass():
+    learned, baseline = _run_pair()
+    result = qualify_novel_mapping(
+        learned,
+        baseline=baseline,
+        thresholds=_thresholds(),
+        repository="thebrazenbeard/vera-mono",
+        exact_head="f" * 40,
+        runtime_binding="LOCAL_TEST_RUNTIME",
+        claim_ceiling="NOVEL_MAPPING_MEASUREMENT_ONLY",
+    )
+
+    assert result.packet["dimension_states"] == {
+        "NOVEL_TASK_TRANSFER": "PARTIAL",
+        "LEARNING_EFFICIENCY": "PARTIAL",
+    }
+
+
+def test_novel_mapping_rejects_caller_manipulated_nonzero_baseline():
+    learned, _ = _run_pair()
+    probe = _probe()
+    manipulated = run_held_out_probe(
+        probe,
+        subject=lambda model_input: 0.79 * model_input[0],
+        score=lambda prediction, expected: abs(
+            prediction - expected
+        ) <= 0.1,
+        contamination=_contamination(),
+    )
+
+    try:
+        qualify_novel_mapping(
+            learned,
+            baseline=manipulated,
+            thresholds=_thresholds(),
+            repository="thebrazenbeard/vera-mono",
+            exact_head="1" * 40,
+            runtime_binding="LOCAL_TEST_RUNTIME",
+            claim_ceiling="RESEARCH_ONLY",
+        )
+    except ValueError as exc:
+        assert "canonical zero predictor" in str(exc)
+    else:
+        raise AssertionError("caller-manipulated baseline was accepted")
+
+
+def test_novel_mapping_measurement_cannot_promote_global_contract():
+    from vera_core import aggregate_agi_qualification
+
+    learned, baseline = _run_pair()
+    result = qualify_novel_mapping(
+        learned,
+        baseline=baseline,
+        thresholds=_thresholds(),
+        repository="thebrazenbeard/vera-mono",
+        exact_head="2" * 40,
+        runtime_binding="LOCAL_TEST_RUNTIME",
+        claim_ceiling="NOVEL_MAPPING_MEASUREMENT_ONLY",
+    )
+    aggregate = aggregate_agi_qualification(
+        [result.packet],
+        subject_head="2" * 40,
+        independent_review_state="NOT_REVIEWED",
+        claim_ceiling="AGGREGATE_RESEARCH_ONLY_NOT_AGI",
+    )
+
+    assert aggregate["aggregate_state"] == "PARTIALLY_EVALUATED"
+    assert aggregate["dimension_states"]["CROSS_DOMAIN_BREADTH"] == "NOT_EVALUATED"
+    assert aggregate["dimension_states"]["EXTERNAL_GENERALIZATION"] == "NOT_EVALUATED"
