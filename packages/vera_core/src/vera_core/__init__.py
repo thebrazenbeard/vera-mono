@@ -65,6 +65,7 @@ from .action_gate import (
     OutboundEffectResult,
 )
 from .agi_closed_loop import ClosedLoopFrontier, ClosedLoopResult, ClosedLoopTask
+from .agi_ambiguity_probe import AmbiguityProbeReport, run_ambiguous_spec_probe
 from .agi_learning_probes import (
     SyntheticProbeReport,
     run_compositional_transfer_probe,
@@ -464,6 +465,8 @@ __all__ = [
     "ClosedLoopFrontier",
     "ClosedLoopResult",
     "ClosedLoopTask",
+    "AmbiguityProbeReport",
+    "run_ambiguous_spec_probe",
     "SyntheticProbeReport",
     "run_compositional_transfer_probe",
     "run_novel_mapping_probe",
