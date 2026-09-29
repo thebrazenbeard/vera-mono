@@ -1,3 +1,4 @@
+import pytest
 import vera_core
 
 
@@ -215,3 +216,137 @@ def test_closed_loop_task_rejects_hidden_evaluator_target():
         pass
     else:
         raise AssertionError("evaluator target leaked into runtime task contract")
+
+
+def test_closed_loop_reviewed_learning_survives_restart(tmp_path):
+    from vera_core import ClosedLoopTask
+    from vera_memory import LearnedInfluenceReplay, LearnedRevision, ReviewDisposition
+
+    task = ClosedLoopTask(
+        task_id="restart-recovery",
+        prompt="Choose safely.",
+        semantic_object={
+            "schema_version": "0.1",
+            "object_type": "node",
+            "id": "NODE-99999999-9999-4999-8999-999999999999",
+            "primary_label": "restart recovery cue",
+            "aliases": [],
+            "node_kind": "concept",
+            "notes": None,
+        },
+    )
+    first_loop = vera_core.ClosedLoopFrontier(tmp_path)
+    failed = first_loop.run(
+        task,
+        reason=lambda prompt, semantic: ("go", ("evidence:first",)),
+        act=lambda action: {"observed_action": action, "success": False},
+    )
+    revision = LearnedRevision(
+        "restart-safe-action",
+        failed.corrective_state.events[-1].event_digest,
+    )
+    first_loop.review_learning(
+        revision,
+        disposition=ReviewDisposition.ADMITTED,
+        evidence_ref="review:restart-pass",
+    )
+    recovered = first_loop.run_with_learning(
+        task,
+        revision=revision,
+        cue_event_id="cue:restart:1",
+        reason=lambda prompt, semantic, learned: (
+            "stop",
+            ("evidence:reviewed", learned.memory_revision_id),
+        ),
+        act=lambda action: {"observed_action": action, "success": True},
+    )
+    assert recovered.observation["success"] is True
+
+    reopened = vera_core.ClosedLoopFrontier(tmp_path)
+    with pytest.raises(LearnedInfluenceReplay):
+        reopened.run_with_learning(
+            task,
+            revision=revision,
+            cue_event_id="cue:restart:1",
+            reason=lambda prompt, semantic, learned: (
+                "stop",
+                ("evidence:reviewed", learned.memory_revision_id),
+            ),
+            act=lambda action: {"observed_action": action, "success": True},
+        )
+
+    next_result = reopened.run_with_learning(
+        task,
+        revision=revision,
+        cue_event_id="cue:restart:2",
+        reason=lambda prompt, semantic, learned: (
+            "stop",
+            ("evidence:reviewed", learned.memory_revision_id),
+        ),
+        act=lambda action: {"observed_action": action, "success": True},
+    )
+    assert next_result.learned_influence.review_evidence_ref == "review:restart-pass"
+
+
+
+def test_closed_loop_qualified_learning_enforces_a_b_c_split(tmp_path):
+    from vera_core import ClosedLoopTask
+    from vera_memory import LearnedInfluenceBlocked, LearnedRevision, ReviewDisposition
+
+    loop = vera_core.ClosedLoopFrontier(tmp_path)
+    task = ClosedLoopTask(
+        task_id="qualified-recovery",
+        prompt="Choose safely.",
+        semantic_object={
+            "schema_version": "0.1",
+            "object_type": "node",
+            "id": "NODE-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "primary_label": "qualified recovery cue",
+            "aliases": [],
+            "node_kind": "concept",
+            "notes": None,
+        },
+    )
+    failed = loop.run(
+        task,
+        reason=lambda prompt, semantic: ("go", ("evidence:first",)),
+        act=lambda action: {"observed_action": action, "success": False},
+    )
+    revision = LearnedRevision(
+        "qualified-safe-action",
+        failed.corrective_state.events[-1].event_digest,
+    )
+    loop.review_learning_qualified(
+        revision,
+        disposition=ReviewDisposition.ADMITTED,
+        evidence_ref="qualification:held-out-pass",
+        calibration_evidence_ids=("calibration:A1", "calibration:A2"),
+        qualification_evidence_ids=("qualification:B1", "qualification:B2"),
+    )
+
+    with pytest.raises(LearnedInfluenceBlocked):
+        loop.run_with_learning(
+            task,
+            revision=revision,
+            cue_event_id="cue:qualified:bad",
+            use_evidence_id="calibration:A1",
+            reason=lambda prompt, semantic, learned: (
+                "stop",
+                ("evidence:qualified", learned.memory_revision_id),
+            ),
+            act=lambda action: {"observed_action": action, "success": True},
+        )
+
+    result = loop.run_with_learning(
+        task,
+        revision=revision,
+        cue_event_id="cue:qualified:good",
+        use_evidence_id="later:C1",
+        reason=lambda prompt, semantic, learned: (
+            "stop",
+            ("evidence:qualified", learned.memory_revision_id),
+        ),
+        act=lambda action: {"observed_action": action, "success": True},
+    )
+    assert result.learned_influence.evidence_split_qualified is True
+    assert result.learned_influence.use_evidence_id == "later:C1"

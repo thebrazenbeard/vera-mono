@@ -1,0 +1,51 @@
+{
+  "admitted_delta": {
+    "calibration_phase": "A",
+    "held_out_qualification_phase": "B",
+    "later_use_phase": "C",
+    "mechanism": "A/B/C evidence-identity separation for qualified learned influence",
+    "required_relation": "A != B != C at exact evidence identity",
+    "restart_durability": true,
+    "sibling_runtime_dependency": false,
+    "single_use_later_evidence": true
+  },
+  "authoritative_main_at_reopen": "093716c37e0bef96b3174ac79575529b0dc0b2b4",
+  "claim_ceiling": "PORTFOLIO_REOPEN_AND_GENERIC_MECHANISM_ADMISSION_AT_EXACT_DONOR_HEAD; NOT DONOR INSTALLATION; NOT INDEPENDENT REVIEW; NOT GENERAL LEARNING; NOT AGI",
+  "hostile_review": {
+    "disposition": "ACCEPTED",
+    "objection": "The evidence split can make a weak learner look rigorous without making it more capable.",
+    "response": "This admission is an integrity/control improvement only. It does not promote any AGI dimension by itself and exists to make later learning evidence less contaminable."
+  },
+  "next_frontier": [
+    "independent held-out learned-component qualification with concealed evidence identities",
+    "persistent calibration/qualification certificates with immutable digests",
+    "structurally shifted non-linear transfer family",
+    "external environment evaluation not authored by Vera development loop"
+  ],
+  "observed_date": "2026-09-29",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V14_20260928.json",
+  "reopened_donor": {
+    "concrete_consumer": "durable learned-influence gate used by ClosedLoopFrontier",
+    "exact_head": "33edef682181e1bea6b36c5afc588d261f0c1289",
+    "prior_disposition": "DEFER_DOMAIN_RESEARCH_NO_NEW_OWNER",
+    "prior_reopen_condition": "Vera admits a learned component whose calibration evidence, held-out qualification evidence, and later-use evidence must be identity-disjoint.",
+    "reopen_condition_state": "SATISFIED",
+    "repository": "thebrazenbeard/unvtrslr"
+  },
+  "result": {
+    "admitted_repository": "thebrazenbeard/unvtrslr",
+    "new_repository_ingestions": 0,
+    "reopened_repository_mechanism_admissions": 1,
+    "source_code_changes_required": true
+  },
+  "schema": "VERA_PORTFOLIO_INTAKE_V15_20260929",
+  "status": "UNVTRSLR_REOPEN_CONDITION_SATISFIED_AND_GENERIC_MECHANISM_ADMITTED",
+  "subject_branch": "research/agi-durable-learning-20260929-v2",
+  "subject_code_head": "0f5821446c8e73561ed17c3c5df9db241ae498ce",
+  "verification": {
+    "durability_focused_result": "12 passed before evidence-split adaptation",
+    "evidence_split_focused_result": "15 passed after adaptation",
+    "full_suite_status": "NOT_CLAIMED_DUE_TO_CONCURRENT_LOCAL_VERIFICATION_CONTENTION"
+  }
+}

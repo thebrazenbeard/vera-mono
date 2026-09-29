@@ -66,3 +66,113 @@ def test_unreviewed_learned_revision_is_blocked_until_explicit_review():
     receipt = gate.consume(revision, cue_event_id="cue-1")
     assert receipt.review_disposition is ReviewDisposition.ADMITTED
     assert receipt.review_evidence_ref == "review:held-out-pass"
+
+
+
+def test_durable_learned_influence_survives_restart_and_preserves_replay(tmp_path):
+    from vera_memory import DurableLearnedInfluenceGate
+
+    path = tmp_path / "learned-influence.db"
+    revision = LearnedRevision("durable-cue", "rev-7")
+
+    first = DurableLearnedInfluenceGate(path)
+    first.review(
+        association_id=revision.association_id,
+        memory_revision_id=revision.memory_revision_id,
+        disposition=ReviewDisposition.ADMITTED,
+        evidence_ref="review:durable-pass",
+    )
+    receipt = first.consume(revision, cue_event_id="cue-1")
+    assert receipt.review_evidence_ref == "review:durable-pass"
+
+    reopened = DurableLearnedInfluenceGate(path)
+    with pytest.raises(LearnedInfluenceReplay):
+        reopened.consume(revision, cue_event_id="cue-1")
+
+    next_receipt = reopened.consume(revision, cue_event_id="cue-2")
+    assert next_receipt.memory_revision_id == "rev-7"
+
+
+def test_durable_quarantine_and_stale_review_survive_restart(tmp_path):
+    from vera_memory import DurableLearnedInfluenceGate
+
+    path = tmp_path / "learned-influence.db"
+    gate = DurableLearnedInfluenceGate(path)
+    gate.review(
+        association_id="durable-cue",
+        memory_revision_id="rev-1",
+        disposition=ReviewDisposition.QUARANTINED,
+        evidence_ref="review:quarantine",
+    )
+
+    reopened = DurableLearnedInfluenceGate(path)
+    with pytest.raises(LearnedInfluenceBlocked):
+        reopened.consume(
+            LearnedRevision("durable-cue", "rev-1"),
+            cue_event_id="cue-1",
+        )
+    with pytest.raises(LearnedInfluenceStale):
+        reopened.consume(
+            LearnedRevision("durable-cue", "rev-2"),
+            cue_event_id="cue-2",
+        )
+
+
+
+def test_qualified_learning_evidence_split_is_identity_disjoint(tmp_path):
+    from vera_memory import DurableLearnedInfluenceGate
+
+    path = tmp_path / "learned-influence.db"
+    gate = DurableLearnedInfluenceGate(path)
+    revision = LearnedRevision("qualified-cue", "rev-q1")
+
+    with pytest.raises(ValueError, match="disjoint"):
+        gate.review_qualified(
+            association_id=revision.association_id,
+            memory_revision_id=revision.memory_revision_id,
+            disposition=ReviewDisposition.ADMITTED,
+            evidence_ref="qualification:certificate",
+            calibration_evidence_ids=("evidence:A", "evidence:shared"),
+            qualification_evidence_ids=("evidence:shared", "evidence:B"),
+        )
+
+
+def test_qualified_learning_requires_fresh_later_use_evidence(tmp_path):
+    from vera_memory import DurableLearnedInfluenceGate
+
+    path = tmp_path / "learned-influence.db"
+    gate = DurableLearnedInfluenceGate(path)
+    revision = LearnedRevision("qualified-cue", "rev-q1")
+    gate.review_qualified(
+        association_id=revision.association_id,
+        memory_revision_id=revision.memory_revision_id,
+        disposition=ReviewDisposition.ADMITTED,
+        evidence_ref="qualification:certificate",
+        calibration_evidence_ids=("evidence:A1", "evidence:A2"),
+        qualification_evidence_ids=("evidence:B1", "evidence:B2"),
+    )
+
+    with pytest.raises(LearnedInfluenceBlocked, match="later-use evidence"):
+        gate.consume(revision, cue_event_id="cue-q1")
+    with pytest.raises(LearnedInfluenceBlocked, match="disjoint"):
+        gate.consume(
+            revision,
+            cue_event_id="cue-q1",
+            use_evidence_id="evidence:A1",
+        )
+
+    receipt = gate.consume(
+        revision,
+        cue_event_id="cue-q1",
+        use_evidence_id="evidence:C1",
+    )
+    assert receipt.evidence_split_qualified is True
+    assert receipt.use_evidence_id == "evidence:C1"
+
+    reopened = DurableLearnedInfluenceGate(path)
+    with pytest.raises(LearnedInfluenceReplay, match="later-use evidence"):
+        reopened.consume(
+            revision,
+            cue_event_id="cue-q2",
+            use_evidence_id="evidence:C1",
+        )

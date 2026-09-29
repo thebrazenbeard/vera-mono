@@ -7,7 +7,7 @@ from typing import Callable
 
 from vera_identity import SemanticAdmissionReceipt, SemanticKnowledgeStore
 from vera_memory import (
-    LearnedInfluenceGate,
+    DurableLearnedInfluenceGate,
     LearnedInfluenceReceipt,
     LearnedRevision,
     ReviewDisposition,
@@ -51,7 +51,9 @@ class ClosedLoopFrontier:
         root.mkdir(parents=True, exist_ok=True)
         self.semantic = SemanticKnowledgeStore(root / "semantic.db")
         self.corrections = CorrectiveLearningLedger(root / "corrections.db")
-        self.learned_influence = LearnedInfluenceGate()
+        self.learned_influence = DurableLearnedInfluenceGate(
+            root / "learned_influence.db"
+        )
 
     def run(
         self,
@@ -119,12 +121,31 @@ class ClosedLoopFrontier:
             evidence_ref=evidence_ref,
         )
 
+    def review_learning_qualified(
+        self,
+        revision: LearnedRevision,
+        *,
+        disposition: ReviewDisposition,
+        evidence_ref: str,
+        calibration_evidence_ids: tuple[str, ...],
+        qualification_evidence_ids: tuple[str, ...],
+    ) -> None:
+        self.learned_influence.review_qualified(
+            association_id=revision.association_id,
+            memory_revision_id=revision.memory_revision_id,
+            disposition=disposition,
+            evidence_ref=evidence_ref,
+            calibration_evidence_ids=calibration_evidence_ids,
+            qualification_evidence_ids=qualification_evidence_ids,
+        )
+
     def run_with_learning(
         self,
         task: ClosedLoopTask,
         *,
         revision: LearnedRevision,
         cue_event_id: str,
+        use_evidence_id: str | None = None,
         reason: Callable[
             [str, dict[str, object], LearnedRevision],
             tuple[str, tuple[str, ...]],
@@ -132,7 +153,9 @@ class ClosedLoopFrontier:
         act: Callable[[str], dict[str, object]],
     ) -> ClosedLoopResult:
         influence = self.learned_influence.consume(
-            revision, cue_event_id=cue_event_id
+            revision,
+            cue_event_id=cue_event_id,
+            use_evidence_id=use_evidence_id,
         )
         receipt = self.semantic.admit(task.semantic_object)
         action, evidence_refs = reason(
