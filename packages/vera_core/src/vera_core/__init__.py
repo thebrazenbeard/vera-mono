@@ -749,3 +749,37 @@ __all__.extend([
     "PrimitiveProgramMemorizer",
     "qualify_compositional_transfer",
 ])
+
+
+from .agi_compositional_promotion import (
+    CompositionalTransferPromotionAssessment,
+    QualifiedCompositionalTransferPromotionAdapter,
+)
+
+__all__.extend([
+    "CompositionalTransferPromotionAssessment",
+    "QualifiedCompositionalTransferPromotionAdapter",
+])
+
+
+from .adaptive_linear import (
+    ContextualOnlineLinearPredictor,
+    OnlineLinearPredictor,
+)
+from .agi_regime_return import (
+    RegimeReturnMetrics,
+    RegimeReturnPhaseEvidence,
+    RegimeReturnQualificationResult,
+    RegimeReturnThresholds,
+    qualify_regime_return,
+)
+
+__all__.extend([
+    "ContextualOnlineLinearPredictor",
+    "OnlineLinearPredictor",
+    "RegimeReturnMetrics",
+    "RegimeReturnPhaseEvidence",
+    "RegimeReturnQualificationResult",
+    "RegimeReturnThresholds",
+    "qualify_regime_return",
+])
