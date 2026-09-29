@@ -657,3 +657,66 @@ __all__ = [
     "capability",
     "validate_registry",
 ]
+
+from .agi_closed_loop import (
+    CALLBACK_OBSERVATION_RECORDED,
+    ClosedLoopFrontier,
+    ClosedLoopResult,
+    ClosedLoopTask,
+)
+
+__all__.extend([
+    "CALLBACK_OBSERVATION_RECORDED",
+    "ClosedLoopFrontier",
+    "ClosedLoopResult",
+    "ClosedLoopTask",
+])
+
+
+from .agi_evaluation import (
+    AGIContaminationDisclosure,
+    HeldOutAttempt,
+    HeldOutCase,
+    HeldOutProbe,
+    HeldOutProbeResult,
+    build_agi_evaluation_packet,
+    run_held_out_probe,
+    run_prequential_held_out_probe,
+)
+
+__all__.extend([
+    "AGIContaminationDisclosure",
+    "HeldOutAttempt",
+    "HeldOutCase",
+    "HeldOutProbe",
+    "HeldOutProbeResult",
+    "build_agi_evaluation_packet",
+    "run_held_out_probe",
+    "run_prequential_held_out_probe",
+])
+
+
+from .agi_qualification import (
+    REQUIRED_AGI_DIMENSIONS,
+    aggregate_agi_qualification,
+)
+
+__all__.extend([
+    "REQUIRED_AGI_DIMENSIONS",
+    "aggregate_agi_qualification",
+])
+
+
+from .agi_novel_mapping import (
+    NovelMappingMetrics,
+    NovelMappingQualificationResult,
+    NovelMappingThresholds,
+    qualify_novel_mapping,
+)
+
+__all__.extend([
+    "NovelMappingMetrics",
+    "NovelMappingQualificationResult",
+    "NovelMappingThresholds",
+    "qualify_novel_mapping",
+])
