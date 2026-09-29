@@ -1,0 +1,55 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V14_20260928",
+  "status": "AGI_CONSUMER_REOPENS_LEARNING_ADMISSION",
+  "observed_date": "2026-09-28",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V13_20260928.json",
+  "portfolio_membership": {
+    "total_owned_repositories": 71,
+    "active_repositories": 69,
+    "archived_repositories": 2,
+    "census_discrepancy": "RESOLVED_CURRENT_GITHUB_ENUMERATION_MATCHES_DISCOVERY_71"
+  },
+  "subject_branch": "research/agi-qualification-contract-v1-20260928",
+  "subject_head_with_learning_candidate": "602de21ac63b92aa4c49e052ba2fa0c70cbe8054",
+  "reopened_donor": {
+    "repository": "thebrazenbeard/lgcm",
+    "exact_head": "0043c60419de9ef0b52363b62aed8c0a52ef63f5",
+    "prior_disposition": "prequential evaluation adapted; no deeper learned-component consumer",
+    "new_consumer": "AGI research qualification requires empirical learn-transfer-retain-adapt behavior",
+    "admitted_delta": "minimal context-bank retention/prior-regime recall mechanism, no sibling runtime dependency"
+  },
+  "existing_absorbed_surfaces": [
+    "rezon heterogeneous reasoning kernel",
+    "vera_ingest provider-neutral intake",
+    "portfolio_runtime Roots/Attune/Lantern and other bounded mechanisms",
+    "prequential evaluation from LGCM",
+    "corrective learning/effectiveness from F.U.C.K.U.P.",
+    "learned influence gating and salience controls from MESO-CRCT",
+    "durable dispatch admission from Project Runner",
+    "task wake scheduling from Pro-Run",
+    "state handoff/residency feasibility from Mosaic",
+    "semantic transfer plus SemanticAtlas schema resources"
+  ],
+  "verification": {
+    "focused_command": "py -m pytest -q tests/test_prequential_evaluation.py tests/test_adaptive_linear.py tests/test_continual_context.py tests/test_learned_influence_gate.py tests/test_corrective_learning.py tests/test_durable_dispatch_gate.py tests/test_task_wake_scheduler.py tests/test_semantic_transfer.py tests/test_semantic_transfer_catalog.py tests/test_state_handoff.py tests/test_residency_feasibility.py",
+    "result": "23 passed",
+    "full_collection_before_new_tests": "496 tests collected",
+    "full_suite_status": "PASS",
+    "full_suite_result": "498 passed, 1 warning, 35 subtests passed in 83.60s",
+    "warning": "pre-existing PytestCollectionWarning for TestVerifier helper class with __init__"
+  },
+  "independent_hostile_review": {
+    "reviewer": "qwen3.5-4b-local via Lappy loopback service",
+    "strongest_objection": "expert preservation demonstrates retention/memorization, not abstract transfer or generalization",
+    "same_case_target_leakage_disposition": "REJECTED: returning case is scored before expected value triggers any switch",
+    "memorization_disposition": "ACCEPTED",
+    "next_falsifier": "withheld novel regimes/tasks and structure; separate first-exposure adaptation from recurrence recall; preserve negative results"
+  },
+  "hostile_self_review": {
+    "objection": "Portfolio maximalism and integration-count metrics can create architecture theater.",
+    "disposition": "ACCEPTED",
+    "correction": "Treat already-absorbed mechanisms as existing substrate; admit only capability deltas with a concrete consumer and falsifiable improvement."
+  },
+  "claim_ceiling": "SOURCE_BRANCH CONTEXT-RETENTION CANDIDATE WITH FOCUSED TEST PASS; NOT GENERAL CONTINUAL LEARNING; NOT TRANSFER; NOT AGI; NOT MERGED; NOT INSTALLED; NOT RUNTIME-CONSUMED"
+}

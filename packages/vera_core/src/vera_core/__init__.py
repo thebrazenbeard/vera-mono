@@ -64,6 +64,22 @@ from .action_gate import (
     OutboundActionError,
     OutboundEffectResult,
 )
+from .agi_closed_loop import ClosedLoopFrontier, ClosedLoopResult, ClosedLoopTask
+from .agi_learning_probes import (
+    SyntheticProbeReport,
+    run_compositional_transfer_probe,
+    run_novel_mapping_probe,
+    run_regime_return_probe,
+)
+from .agi_qualification import (
+    AGIEvaluationPacket,
+    AGIQualificationAssessment,
+    AggregateQualificationState,
+    DimensionState,
+    IndependentReviewState,
+    aggregate_qualification,
+    evaluation_packet_defects,
+)
 from .capability_state import (
     CapabilityActivation,
     CapabilityHealth,
@@ -445,6 +461,21 @@ __all__ = [
     "CapabilityState",
     "CascadeEngine",
     "CascadeOutcome",
+    "ClosedLoopFrontier",
+    "ClosedLoopResult",
+    "ClosedLoopTask",
+    "SyntheticProbeReport",
+    "run_compositional_transfer_probe",
+    "run_novel_mapping_probe",
+    "run_regime_return_probe",
+
+    "AGIEvaluationPacket",
+    "AGIQualificationAssessment",
+    "AggregateQualificationState",
+    "DimensionState",
+    "IndependentReviewState",
+    "aggregate_qualification",
+    "evaluation_packet_defects",
     "CoordinationCommandBinding",
     "CoordinationCommandJournal",
     "CoordinationCommandJournalError",

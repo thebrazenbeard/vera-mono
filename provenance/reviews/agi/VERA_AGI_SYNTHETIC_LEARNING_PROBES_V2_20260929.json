@@ -1,0 +1,196 @@
+{
+  "aggregate": {
+    "aggregate_state": "PARTIALLY_EVALUATED",
+    "claim_ceiling": "CURRENT_CONTRACT_RESEARCH_QUALIFICATION_ONLY_NOT_AGI",
+    "dimension_states": {
+      "CROSS_DOMAIN_BREADTH": "NOT_EVALUATED",
+      "EXTERNAL_GENERALIZATION": "NOT_EVALUATED",
+      "LEARNING_EFFICIENCY": "PARTIAL",
+      "LONG_HORIZON_AGENCY": "NOT_EVALUATED",
+      "METACOGNITIVE_CALIBRATION": "NOT_EVALUATED",
+      "NOVEL_TASK_TRANSFER": "PARTIAL",
+      "RETENTION_AND_INTERFERENCE": "PARTIAL",
+      "ROBUSTNESS_AND_ANTI_GAMING": "NOT_EVALUATED"
+    },
+    "independent_review_state": "REVIEWED_WITH_UNRESOLVED_OBJECTION"
+  },
+  "claim_ceiling": "PARTIAL_DEVELOPER_AUTHORED_LEARNING_EVIDENCE_WITH_LIMITED_MODEL_REVIEW_NOT_AGI",
+  "hostile_review": {
+    "artifact_scope": "exact-head compact summary plus metrics; not full-source ingestion",
+    "findings": [
+      {
+        "disposition": "ACCEPTED",
+        "effect": "keep all three dimensions at PARTIAL and leave cross-domain breadth NOT_EVALUATED",
+        "finding": "single-seed, matched linear toy families do not establish general transfer or robust causal understanding"
+      },
+      {
+        "disposition": "PARTIALLY_ACCEPTED",
+        "effect": "review gate remains because influence authority must not self-promote; autonomous continual learning remains unproven",
+        "finding": "explicit review before learned influence makes the loop fragile/non-autonomous"
+      },
+      {
+        "disposition": "REJECTED_WITH_SOURCE_EVIDENCE",
+        "effect": "current source explicitly prevents one success from auto-promoting FLAG to UNDERSTAND",
+        "finding": "one successful retry was treated as causal understanding"
+      },
+      {
+        "disposition": "PARTIALLY_REJECTED",
+        "effect": "holdouts are unseen compositions and beat the memorizer, but only inside the matched linear structure",
+        "finding": "the composition probe cannot generalize beyond memorized samples"
+      }
+    ],
+    "independence_limits": [
+      "same user-controlled workstation",
+      "model/process-level independence only",
+      "reviewer received a compact summary rather than repository source"
+    ],
+    "model_snapshot": "d61dd146c8fd44c9a49cdb7f59f34e17b61902d8",
+    "provider_runtime": "C:/ProgramData/ProRun/runtime/qwen_http.py loopback 127.0.0.1:18081",
+    "reviewer": "qwen3.5-4b-local",
+    "state": "REVIEWED_WITH_UNRESOLVED_OBJECTION"
+  },
+  "known_limits": [
+    "all current probes are developer-authored and developer-accessed",
+    "no probe is eligible as independent evidence",
+    "linear structure is shared between learner and synthetic generator",
+    "regime recall requires one scored surprise",
+    "learned-influence review state is in-memory at this subject head",
+    "no cross-domain breadth evidence exists",
+    "no long-horizon agency qualification exists",
+    "no metacognitive calibration qualification exists",
+    "no robust adversarial qualification exists",
+    "no external-generalization evidence exists",
+    "no AGI claim is supported"
+  ],
+  "next_frontier": [
+    "replace matched linear synthetic transfer with a structurally shifted held-out family",
+    "add persistent reviewed-learning state across restart",
+    "qualify ambiguous-spec fail-closed calibration",
+    "run an external environment not authored by the Vera development loop"
+  ],
+  "probes": [
+    {
+      "claim_ceiling": "DEVELOPER_AUTHORED_SYNTHETIC_PROBE_ONLY_NOT_AGI",
+      "family": "NOVEL_MAPPING",
+      "metrics": {
+        "candidate_tail_mse": 5.455142599290444e-06,
+        "first_exposure_error": 0.14225119749489804,
+        "first_exposure_scored_before_update": true,
+        "frozen_tail_mse": 0.192705801179936,
+        "mapping_family": "AFFINE_1D_WITH_BIAS",
+        "samples_to_threshold": 10,
+        "threshold": 0.01,
+        "threshold_window": 4
+      },
+      "packet": {
+        "attempted": 4,
+        "curator_independence": "DEVELOPER_AUTHORED_HIDDEN_CUT",
+        "developer_item_access": true,
+        "dimension_states": {
+          "LEARNING_EFFICIENCY": "PARTIAL",
+          "NOVEL_TASK_TRANSFER": "PARTIAL"
+        },
+        "failed": 0,
+        "family": "NOVEL_MAPPING",
+        "held_out": true,
+        "independent_evidence_eligible": false,
+        "negative_results_preserved": true,
+        "packet_id": "synthetic:novel_mapping:20260929",
+        "passed": 4,
+        "post_disclosure_tuning": false,
+        "raw_artifact_digest": "5a7475485a115ba14611d6171d1754b269b13bbc6ab25438ddc36069610c1154",
+        "subject_head": "9f5f409e17d6399dfdb9333dc576d1f1e8a38095",
+        "tool_access": [
+          "vera_core.prequential_evaluation"
+        ],
+        "training_overlap": "NONE_KNOWN"
+      },
+      "seed": 20260929
+    },
+    {
+      "claim_ceiling": "DEVELOPER_AUTHORED_SYNTHETIC_PROBE_ONLY_NOT_AGI",
+      "family": "REGIME_RETURN",
+      "metrics": {
+        "candidate_first_return_error": 3.236749827763912,
+        "candidate_second_return_error": 4.5872054170587964e-07,
+        "context_count": 4,
+        "intervening_regimes": 3,
+        "naive_first_return_error": 3.2378308611608624,
+        "naive_second_return_error": 1.8212798594029853
+      },
+      "packet": {
+        "attempted": 3,
+        "curator_independence": "DEVELOPER_AUTHORED_HIDDEN_CUT",
+        "developer_item_access": true,
+        "dimension_states": {
+          "RETENTION_AND_INTERFERENCE": "PARTIAL"
+        },
+        "failed": 0,
+        "family": "REGIME_RETURN",
+        "held_out": true,
+        "independent_evidence_eligible": false,
+        "negative_results_preserved": true,
+        "packet_id": "synthetic:regime_return:20260929",
+        "passed": 3,
+        "post_disclosure_tuning": false,
+        "raw_artifact_digest": "1ac3647dfd3c32f6a57fde8951c2dae2224fb98a231ead87a7469369f36a61cd",
+        "subject_head": "9f5f409e17d6399dfdb9333dc576d1f1e8a38095",
+        "tool_access": [
+          "vera_core.prequential_evaluation"
+        ],
+        "training_overlap": "NONE_KNOWN"
+      },
+      "seed": 20260929
+    },
+    {
+      "claim_ceiling": "DEVELOPER_AUTHORED_SYNTHETIC_PROBE_ONLY_NOT_AGI",
+      "family": "COMPOSITIONAL_TRANSFER",
+      "metrics": {
+        "all_holdouts_unseen": true,
+        "candidate_mse": 8.041767521262659e-07,
+        "holdout_count": 4,
+        "memorizer_mse": 0.79875
+      },
+      "packet": {
+        "attempted": 3,
+        "curator_independence": "DEVELOPER_AUTHORED_HIDDEN_CUT",
+        "developer_item_access": true,
+        "dimension_states": {
+          "CROSS_DOMAIN_BREADTH": "NOT_EVALUATED",
+          "NOVEL_TASK_TRANSFER": "PARTIAL"
+        },
+        "failed": 0,
+        "family": "COMPOSITIONAL_TRANSFER",
+        "held_out": true,
+        "independent_evidence_eligible": false,
+        "negative_results_preserved": true,
+        "packet_id": "synthetic:compositional_transfer:20260929",
+        "passed": 3,
+        "post_disclosure_tuning": false,
+        "raw_artifact_digest": "481a7bcdb152412a8ad68d67171d9fed0511079f72d35680408f8203b1054ac2",
+        "subject_head": "9f5f409e17d6399dfdb9333dc576d1f1e8a38095",
+        "tool_access": [
+          "vera_core.prequential_evaluation"
+        ],
+        "training_overlap": "NONE_KNOWN"
+      },
+      "seed": 20260929
+    }
+  ],
+  "schema": "VERA_AGI_SYNTHETIC_LEARNING_PROBE_RECEIPT_V2",
+  "subject": {
+    "branch": "research/agi-frontier-current-20260929",
+    "exact_head": "9f5f409e17d6399dfdb9333dc576d1f1e8a38095",
+    "python": "3.12",
+    "repository": "thebrazenbeard/vera-mono",
+    "runtime_binding": "LOCAL_TEST_RUNTIME"
+  },
+  "verification": {
+    "full_pytest": "523 passed, 1 warning, 35 subtests passed",
+    "installed_agi_import": "AGI_FRONTIER_IMPORT_PASS",
+    "installed_bundle": "VERA_MONO_INSTALLED_BUNDLE_PASS imports=16 resources=6",
+    "wheel": "VERA_MONO_WHEEL_PASS",
+    "wheel_files": 310,
+    "wheel_sha256": "cadb4ae084aeaa149d71346a48d23ca5aa3199495243df4417af77b5689e7ce2"
+  }
+}

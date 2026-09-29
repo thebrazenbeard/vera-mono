@@ -1,0 +1,30 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/lgcm",
+  "donor_head": "0043c60419de9ef0b52363b62aed8c0a52ef63f5",
+  "trigger": "AGI research created a concrete learned-component consumer, reopening the prior prequential-only LGCM adaptation.",
+  "inspected_source_blobs": {
+    "src/lgcm/model.py": "428813f4ff4afd8825db6932d0f28850cb13615b",
+    "src/lgcm/context.py": "045a727524d5569de49ba5e7f70bfbaf65e1a2bf",
+    "src/lgcm/evaluation.py": "ec10d3f663ea656d44095ad848abfa54fe5589b4"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/adaptive_linear.py",
+    "mechanism": "minimal context-bank retention and prior-regime recall after mismatch, evaluated through Vera's existing predict-score-update prequential boundary",
+    "donor_runtime_dependency": false,
+    "authority_effect": "NONE"
+  },
+  "controls": {
+    "naive_baseline": "OnlineLinearPredictor demonstrates catastrophic loss after A->B adaptation",
+    "contextual_candidate": "ContextualOnlineLinearPredictor preserves separate learned regimes and recalls the prior regime after one scored surprise",
+    "focused_verification": "23 passed across learning, prequential, learned-influence, corrective-learning, dispatch, wake, semantic-transfer, handoff and residency slices"
+  },
+  "excluded_claims": [
+    "LGCM is installed as a sibling runtime dependency",
+    "continual learning is generally solved",
+    "the scalar regime probe demonstrates cross-domain transfer",
+    "context selection before any evidence of regime change is solved",
+    "source-level tests establish AGI"
+  ],
+  "claim_ceiling": "DETERMINISTIC_SCALAR_CONTEXT_RETENTION_PROBE_PASS_PENDING_FULL_BRANCH_VERIFICATION_AND_INDEPENDENT_REVIEW"
+}

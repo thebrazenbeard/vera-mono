@@ -1,0 +1,155 @@
+{
+  "aggregate": {
+    "aggregate_state": "PARTIALLY_EVALUATED",
+    "claim_ceiling": "CURRENT_CONTRACT_RESEARCH_QUALIFICATION_ONLY_NOT_AGI",
+    "dimension_states": {
+      "CROSS_DOMAIN_BREADTH": "NOT_EVALUATED",
+      "EXTERNAL_GENERALIZATION": "NOT_EVALUATED",
+      "LEARNING_EFFICIENCY": "NOT_EVALUATED",
+      "LONG_HORIZON_AGENCY": "NOT_EVALUATED",
+      "METACOGNITIVE_CALIBRATION": "NOT_EVALUATED",
+      "NOVEL_TASK_TRANSFER": "PARTIAL",
+      "RETENTION_AND_INTERFERENCE": "PARTIAL",
+      "ROBUSTNESS_AND_ANTI_GAMING": "NOT_EVALUATED"
+    },
+    "independent_review_state": "REVIEWED_WITH_UNRESOLVED_OBJECTION"
+  },
+  "claim_ceiling": "PARTIAL_DEVELOPER_AUTHORED_SYNTHETIC_LEARNING_EVIDENCE_NOT_AGI_NOT_INDEPENDENT_QUALIFICATION",
+  "hostile_review": {
+    "independent_model": {
+      "artifact_scope": "compact exact-head summary, not full source ingestion",
+      "material_findings": [
+        {
+          "disposition": "PARTIALLY_ACCEPTED",
+          "finding": "closed-loop correction now avoids false UNDERSTAND promotion but lacks an explicit evidence-driven promotion path"
+        },
+        {
+          "disposition": "REJECTED_WITH_SOURCE_EVIDENCE",
+          "finding": "reviewer claimed blocking unreviewed learning causes target leakage",
+          "reason": "the gate reduces influence and the runtime task no longer carries the evaluator target"
+        },
+        {
+          "disposition": "REJECTED_WITH_RECORDED_METRICS",
+          "finding": "reviewer described the composition probe as failing despite the reported candidate MSE being far below the memorizer baseline"
+        }
+      ],
+      "model_snapshot": "d61dd146c8fd44c9a49cdb7f59f34e17b61902d8",
+      "provider_runtime": "C:/ProgramData/ProRun/runtime/qwen_http.py loopback 127.0.0.1:18081",
+      "reviewer": "qwen3.5-4b-local",
+      "state": "REVIEWED_WITH_UNRESOLVED_OBJECTION"
+    },
+    "internal": {
+      "findings": [
+        "runtime evaluator-target leakage was removed",
+        "successful retry was prevented from self-asserting causal understanding",
+        "evaluation machinery alone is not intelligence"
+      ],
+      "status": "SURVIVING_OBJECTIONS_CHANGED_IMPLEMENTATION"
+    }
+  },
+  "known_limits": [
+    "developer-authored synthetic probes are not independent evidence",
+    "linear composition matches the probe generator and does not establish semantic or cross-domain composition",
+    "regime return requires a scored surprise before context recall",
+    "reviewed learned-influence state is in-memory at this subject head and does not survive restart",
+    "no EXTERNAL_GENERALIZATION evidence exists",
+    "no AGI claim is supported"
+  ],
+  "probes": [
+    {
+      "claim_ceiling": "DEVELOPER_AUTHORED_SYNTHETIC_PROBE_ONLY_NOT_AGI",
+      "family": "REGIME_RETURN",
+      "metrics": {
+        "candidate_first_return_error": 3.236749827763912,
+        "candidate_second_return_error": 4.5872054170587964e-07,
+        "context_count": 4,
+        "intervening_regimes": 3,
+        "naive_first_return_error": 3.2378308611608624,
+        "naive_second_return_error": 1.8212798594029853
+      },
+      "packet": {
+        "attempted": 3,
+        "curator_independence": "DEVELOPER_AUTHORED_HIDDEN_CUT",
+        "developer_item_access": true,
+        "dimension_states": {
+          "RETENTION_AND_INTERFERENCE": "PARTIAL"
+        },
+        "failed": 0,
+        "held_out": true,
+        "independent_evidence_eligible": false,
+        "negative_results_preserved": true,
+        "packet_id": "synthetic:regime_return:20260929",
+        "passed": 3,
+        "post_disclosure_tuning": false,
+        "raw_artifact_digest": "1ac3647dfd3c32f6a57fde8951c2dae2224fb98a231ead87a7469369f36a61cd",
+        "subject_head": "3643cd3742f1fe61e062aef0b368b3ef08a809d4",
+        "tool_access": [
+          "vera_core.prequential_evaluation"
+        ],
+        "training_overlap": "NONE_KNOWN"
+      },
+      "seed": 20260929
+    },
+    {
+      "claim_ceiling": "DEVELOPER_AUTHORED_SYNTHETIC_PROBE_ONLY_NOT_AGI",
+      "family": "COMPOSITIONAL_TRANSFER",
+      "metrics": {
+        "all_holdouts_unseen": true,
+        "candidate_mse": 8.041767521262659e-07,
+        "holdout_count": 4,
+        "memorizer_mse": 0.79875
+      },
+      "packet": {
+        "attempted": 3,
+        "curator_independence": "DEVELOPER_AUTHORED_HIDDEN_CUT",
+        "developer_item_access": true,
+        "dimension_states": {
+          "CROSS_DOMAIN_BREADTH": "NOT_EVALUATED",
+          "NOVEL_TASK_TRANSFER": "PARTIAL"
+        },
+        "failed": 0,
+        "held_out": true,
+        "independent_evidence_eligible": false,
+        "negative_results_preserved": true,
+        "packet_id": "synthetic:compositional_transfer:20260929",
+        "passed": 3,
+        "post_disclosure_tuning": false,
+        "raw_artifact_digest": "481a7bcdb152412a8ad68d67171d9fed0511079f72d35680408f8203b1054ac2",
+        "subject_head": "3643cd3742f1fe61e062aef0b368b3ef08a809d4",
+        "tool_access": [
+          "vera_core.prequential_evaluation"
+        ],
+        "training_overlap": "NONE_KNOWN"
+      },
+      "seed": 20260929
+    }
+  ],
+  "recovered_prototype": {
+    "hardening": [
+      "removed hidden expected_action from runtime task",
+      "failure identity derives from observed failure/action rather than evaluator target",
+      "unreviewed learned revisions are blocked",
+      "single successful retry cannot self-promote correction to UNDERSTAND"
+    ],
+    "recovered_closed_loop_sha256": "6ef5f0e2d1598db29b5259cf5ea9816a0b1a439fc94e7db0248e92ef6c212bb5",
+    "recovered_test_sha256": "25f001cc1c672ee3a89364f9ff615f330d5db36584f2701cb3f51fec040c2a08",
+    "source_head": "b7c88e30b40eba3ed2ac0c459ccda46954f4a66f",
+    "source_worktree": "D:/VERA/worktrees/vera-mono-agi"
+  },
+  "schema": "VERA_AGI_SYNTHETIC_LEARNING_PROBE_RECEIPT_V1",
+  "subject": {
+    "branch": "research/agi-frontier-current-20260929",
+    "exact_head": "3643cd3742f1fe61e062aef0b368b3ef08a809d4",
+    "python": "3.12",
+    "repository": "thebrazenbeard/vera-mono",
+    "runtime_binding": "LOCAL_TEST_RUNTIME"
+  },
+  "verification": {
+    "full_pytest": "521 passed, 1 warning, 35 subtests passed",
+    "installed_agi_import": "AGI_IMPORT_PASS",
+    "installed_bundle": "VERA_MONO_INSTALLED_BUNDLE_PASS imports=16 resources=6",
+    "wheel": "VERA_MONO_WHEEL_PASS",
+    "wheel_files": 310,
+    "wheel_sha256": "ff6ff163ce076b3302f3fb59d7b79665348575e911c8cf357e062945d4f2f5dc"
+  }
+}
