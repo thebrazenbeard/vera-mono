@@ -65,6 +65,10 @@ def test_reviewed_correction_transfers_to_structurally_different_recurrence(tmp_
         revision=revision,
         influence_gate=gate,
         original_case_id="case:original",
+        original_surface={
+            "source": "original-provider",
+            "shape": "original-field-layout",
+        },
     )
     recurrence = CorrectionRecurrence(
         case_id="case:different-recurrence",
@@ -81,6 +85,8 @@ def test_reviewed_correction_transfers_to_structurally_different_recurrence(tmp_
     )
 
     assert recurrence.case_id != guard.original_case_id
+    assert decision.case_distinct is True
+    assert decision.surface_distinct is True
     assert decision.outcome == "PREVENT"
     assert decision.learned_influence is not None
     assert decision.learned_influence.review_evidence_ref == (
