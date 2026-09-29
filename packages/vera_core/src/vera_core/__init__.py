@@ -66,6 +66,21 @@ from .action_gate import (
 )
 from .agi_closed_loop import ClosedLoopFrontier, ClosedLoopResult, ClosedLoopTask
 from .agi_ambiguity_probe import AmbiguityProbeReport, run_ambiguous_spec_probe
+from .agi_long_horizon_probe import LongHorizonProbeReport, run_long_horizon_probe
+from .long_horizon_plan import (
+    DurableLongHorizonCoordinator,
+    LongHorizonPlan,
+    LongHorizonSnapshot,
+    PlanAdmission,
+    PlanBudget,
+    PlanDeferral,
+    PlanReadyFrontier,
+    PlanStep,
+    StepClaim,
+    StepRecord,
+    StepState,
+    plan_digest,
+)
 from .agi_learning_probes import (
     SyntheticProbeReport,
     run_compositional_transfer_probe,
@@ -467,6 +482,20 @@ __all__ = [
     "ClosedLoopTask",
     "AmbiguityProbeReport",
     "run_ambiguous_spec_probe",
+    "LongHorizonProbeReport",
+    "run_long_horizon_probe",
+    "DurableLongHorizonCoordinator",
+    "LongHorizonPlan",
+    "LongHorizonSnapshot",
+    "PlanAdmission",
+    "PlanBudget",
+    "PlanDeferral",
+    "PlanReadyFrontier",
+    "PlanStep",
+    "StepClaim",
+    "StepRecord",
+    "StepState",
+    "plan_digest",
     "SyntheticProbeReport",
     "run_compositional_transfer_probe",
     "run_novel_mapping_probe",
