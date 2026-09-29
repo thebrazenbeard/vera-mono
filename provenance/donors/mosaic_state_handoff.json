@@ -1,0 +1,24 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/mosaic",
+  "donor_head": "3a442e94b4f5b8fa365e2206c40405df6961e18d",
+  "inspected_source_blobs": {
+    "runtime/handoff.py": "ab880ada80dd238751f7aec918cd0cafb5e85ce9",
+    "tests/test_p1_handoff.py": "ebf4851bacfbbab71b7a6ad664ef232123fd91bd"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/state_handoff.py",
+    "mechanism": "compact revision-aware current-state handoff with explicit superseded event IDs and immutable handoff maps",
+    "identity_continuity_effect": "NONE",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "state handoff proves identity or agent continuity",
+    "handoff data proves current external reality",
+    "handoff state grants effect authority",
+    "Mosaic specialist swapping occurred",
+    "deterministic handoff harness establishes Mosaic P1"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE6_CI"
+}

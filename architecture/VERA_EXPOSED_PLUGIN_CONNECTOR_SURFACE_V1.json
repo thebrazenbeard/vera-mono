@@ -1,0 +1,190 @@
+{
+  "schema": "VERA_EXPOSED_PLUGIN_CONNECTOR_SURFACE_V1",
+  "status": "OBSERVED_CHATGPT_CONNECTOR_SURFACE_NOT_RUNTIME_ACTIVATION_PROOF",
+  "observed_date": "2026-09-28",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "exact_source_branch": "work/vera-identity-and-connectors-20260928",
+  "purpose": "Record the connector/app surface currently exposed to Vera in this ChatGPT environment so planning can use real available integrations without confusing visibility with installation, authorization, runtime activation, or effect authority.",
+  "count": 32,
+  "connectors": [
+    {
+      "name": "Aiven",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "CData Connect AI",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Canva",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Figma",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "GitHub",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Gmail",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Google Calendar",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Google Contacts",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Google Drive",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Hugging Face",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Lappy Desktop Commander",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Linear",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Lovable",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "MCP Conduct Register",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Metricool",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Microsoft SharePoint",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Neura Relay MCP",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "OpenAI Platform",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Parallel Search",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Plugin Creator",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Plugin Management",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Remote Desktop Commander",
+      "exposure": "EXPOSED",
+      "use_policy": "DO_NOT_USE_RATE_LIMITED_BY_PATRICK"
+    },
+    {
+      "name": "Replit",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "SciSpace",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Slack",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Soluvery",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Spotify",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Supabase",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "TinyFish",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Vercel",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Wolfram",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    },
+    {
+      "name": "Writing Style",
+      "exposure": "EXPOSED",
+      "use_policy": "AVAILABLE_WHEN_TASK_RELEVANT_SUBJECT_TO_PER_CONNECTOR_AUTHORIZATION_AND_EFFECT_GATES"
+    }
+  ],
+  "distinctions": {
+    "exposed_connector": "The connector namespace/app is currently exposed to this chat runtime.",
+    "connected_or_authorized": "Must be established per connector/action when material; exposure alone does not prove account connection or permissions.",
+    "runtime_activation": "Separate from connector visibility.",
+    "effect_authority": "Must still follow Patrick's exact task/permission and governed protected-effect rules.",
+    "source_admission": "Connector availability is capability/context evidence, not identity or control-source authority."
+  },
+  "planning_rule": "Before claiming an external service is unavailable, inspect the currently exposed connector/plugin surface. Prefer the relevant connector for connector-native private data/actions; use web only for public/current external information.",
+  "exclusions": {
+    "remote_desktop_commander": {
+      "status": "EXPOSED_BUT_PROHIBITED_FOR_USE_BY_CURRENT_USER_DIRECTION",
+      "reason": "RATE_LIMITED",
+      "alternative": "Use Lappy Desktop Commander for the authorized local-machine path when relevant and available."
+    }
+  },
+  "claim_ceiling": "OBSERVED CONNECTOR EXPOSURE INVENTORY ONLY; NOT PROOF OF AUTHORIZATION, CONNECTION HEALTH, INSTALLATION, PROVIDER CURRENTNESS, RUNTIME CONSUMPTION, OR EFFECT",
+  "observation_basis": "PATRICK_DIRECT_ENUMERATION_IN_CURRENT_CHAT",
+  "durable_main_merge_commit": "cddfcb355b678c5a88a58562edb9082d6258595f",
+  "currentness_note": "This is a dated exposure inventory. Re-check the live connector/tool surface before making a later availability claim; do not silently treat this inventory as eternal runtime state."
+}

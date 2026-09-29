@@ -1,0 +1,155 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V13_20260928",
+  "status": "NO_NEW_REPOSITORY_OR_SOURCE_ADMISSION_IDENTIFIED",
+  "observed_date": "2026-09-28",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V12_20260927.json",
+  "exact_base_main": "cb8037e01209917d2ac29d789a03ae8ca02a24ea",
+  "portfolio_membership": {
+    "total_owned_repositories": 71,
+    "public_repositories": 53,
+    "private_repositories": 18,
+    "new_public_repositories_since_v12": [],
+    "removed_public_repositories_since_v12": [],
+    "membership_result": "UNCHANGED"
+  },
+  "public_head_delta_count": 17,
+  "public_head_deltas": {
+    "abil": {
+      "previous_head": "69a2d8f4302e31db589c57871a04ff8c0178c1e9",
+      "current_head": "13b989be46a986c95c75612e332779a75c0f0f1f",
+      "disposition": "NO_ADMISSION_ARCHITECTURE_DOCS_ONLY",
+      "reason": "Control-reconstruction architecture and boundary documentation moved, but no new executable Vera mechanism owner was introduced."
+    },
+    "bt2": {
+      "previous_head": "53503e5c129ac8de0d343e8224940894a59457a8",
+      "current_head": "537d97414711503098ac703cf26ca84d14c650c4",
+      "disposition": "NO_ADMISSION_HANDOFF_ONLY",
+      "reason": "Delta is portfolio hostile-audit continuation/snapshot material, not a reusable runtime mechanism."
+    },
+    "ccb-core": {
+      "previous_head": "42e4409dff3baee4acb63b48c9f64c7367a4fd22",
+      "current_head": "32e10edc216d6d0fae802c85a872d704805827ce",
+      "disposition": "NO_ADMISSION_README_ONLY",
+      "reason": "Current delta is README licensing text; previously adapted retry/health mechanisms remain the relevant donor cut."
+    },
+    "discovery": {
+      "previous_head": "368e8dc8274e89a306039d28462c7547b263e93e",
+      "current_head": "62b679a4809c7496f87d1075b25b3f7a50abf2ab",
+      "disposition": "NO_ADMISSION_PORTABILITY_AND_CENSUS",
+      "reason": "Delta adds checkout-stable exact-hash policy plus portfolio census evidence; Vera Mono already owns cross-platform exact-byte/source verification and portfolio currentness."
+    },
+    "empathy": {
+      "previous_head": "fb08eb57a945e5f5abbff3fffe312ee15a647b87",
+      "current_head": "76ebb492827a79b20b3be76fe9f9f48ab860ef1d",
+      "disposition": "NO_ADMISSION_README_ONLY",
+      "reason": "Current delta is README currentness wording."
+    },
+    "fuckup": {
+      "previous_head": "a3fbc79ef5c7781a2297615d2447a4acb369f0be",
+      "current_head": "a87dea38a58c4cff75bc7d123d87f63a5e110895",
+      "disposition": "NO_ADMISSION_README_ONLY",
+      "reason": "Current delta is README licensing text; bounded corrective mechanisms are already adapted."
+    },
+    "hephaestus": {
+      "previous_head": "7eb30f2777a7d16e4f55ca3066d8ac1e484f79a6",
+      "current_head": "030494fa2cc4c875013a9a4842abe60588c9c709",
+      "disposition": "NO_ADMISSION_LICENSE_AND_BACKLOG",
+      "reason": "Delta is licensing/currentness and backlog maintenance."
+    },
+    "lgcm": {
+      "previous_head": "1ac1f2e2342e5e771942a3f1c1bef90412295827",
+      "current_head": "0043c60419de9ef0b52363b62aed8c0a52ef63f5",
+      "disposition": "NO_ADMISSION_README_ONLY",
+      "reason": "Current delta is README licensing text; prior prequential-evaluation adaptation remains current for Vera."
+    },
+    "on-theo": {
+      "previous_head": "268a005b11e3fede8a99d7cf2990f18fc3b32672",
+      "current_head": "2fdc9614fa4f45eb038772d736b146809e10a7f1",
+      "disposition": "KEEP_DOMAIN_RESEARCH_AND_REGISTRY_INFRASTRUCTURE",
+      "reason": "Large delta is historical/theological research plus domain registry/materialization infrastructure. Generic currentness/source/review controls overlap existing Vera Mono owners and the corpus itself is out of runtime scope."
+    },
+    "pro-run": {
+      "previous_head": "2ed253c1b78af1cc9bd163e346d20f2fd86348f5",
+      "current_head": "6234a29f8a0fa5fa772212146c697588e6dbbf56",
+      "disposition": "NO_ADMISSION_README_ONLY",
+      "reason": "Current delta is README licensing text; task-wake scheduling was already adapted."
+    },
+    "RepairTracker": {
+      "previous_head": "03e6b8ab8c3c6ccd3d4e270d8d0f2f0b690c82e2",
+      "current_head": "cd7c6f27d27a03130d6e793d69634005a130dc3a",
+      "disposition": "NO_ADMISSION_README_ONLY",
+      "reason": "Current delta is README currentness wording."
+    },
+    "rezon": {
+      "previous_head": "ff6d34ca283d977d4f9ce48ec006f37fd06f7d9a",
+      "current_head": "3465fc5c002079ac1c769532a371f2d036bf184d",
+      "disposition": "NO_ADMISSION_README_ONLY",
+      "reason": "Current delta is README status wording; Rezon is already monorepo-local."
+    },
+    "sql-connectome": {
+      "previous_head": "3bd833d3f44048915fe5149728da173c9178751c",
+      "current_head": "ac891a4ba20a518c51233482a5d8be77e30e3a78",
+      "disposition": "DEFER_NO_CURRENT_GENERIC_CONSUMER",
+      "reason": "The 80-commit delta adds stable expression semantic identities, canonical type/coercion evidence, dialect comparison, and source-IR to separately bound-IR provenance. These are strong mechanisms, but the executable implementation is SQL/SQLGlot-specific and Vera Mono's semantic_transfer owner already covers immutable admitted catalogs, graded fidelity, unresolved preservation, and no-equivalence/no-authority ceilings. Generalizing the new overlay/type machinery now would create speculative semantic ownership without a Vera consumer.",
+      "reopen_when": "A Vera-owned semantic graph or learned representation needs stable operation identities, source-vs-bound evidence overlays, or independently tracked fidelity facets."
+    },
+    "unvtrslr": {
+      "previous_head": "513309edd087f7206a408a6da86ee91fb9efb5c9",
+      "current_head": "33edef682181e1bea6b36c5afc588d261f0c1289",
+      "disposition": "DEFER_DOMAIN_RESEARCH_NO_NEW_OWNER",
+      "reason": "The new executable stack adds frozen acoustic units, held-out calibration qualification, operational grounding, explicit non-equivalence, and multilingual qualification. The implementation is acoustic/translation-specific. Its evidence-split principle overlaps Vera mechanism admission, pre-outcome commitment, and held-out review; no current learned Vera component needs a calibration-specific runtime owner.",
+      "reopen_when": "Vera admits a learned component whose calibration evidence, held-out qualification evidence, and later-use evidence must be identity-disjoint."
+    },
+    "vera-R9A0": {
+      "previous_head": "5e85b751944eb9211ac7edb90781e13c60670065",
+      "current_head": "287a85cb5f2f6f553cfbb336cb2e03aa7b1c8d01",
+      "disposition": "KEEP_HISTORICAL_CONTROL_PROVENANCE",
+      "reason": "The delta materializes native-project, memory-epoch, Supabase, and validation artifacts from the older R9 lineage. Vera Mono already owns current identity, memory, task, runtime, route, verification, and control boundaries; predecessor material does not automatically reacquire ownership."
+    },
+    "voss": {
+      "previous_head": "849665a472a94e1955189748f0965757a7a008cd",
+      "current_head": "36a623d3a158e5aef521d42e378bafacd67d3de5",
+      "disposition": "KEEP_INDEPENDENT_REVIEWER",
+      "reason": "Voss now contains a strong cross-project forensic core, rival-hypothesis resolution, provenance chronology, influence firewall, and held-out qualification. Copying its reviewer kernel into Vera would correlate the subject and evaluator implementations and weaken the independent-review boundary. Vera may consume Voss review results as external evidence without treating shared-source review as independent.",
+      "reopen_when": "A non-review mechanism can be isolated without sharing evaluator logic, or independence accounting explicitly treats the resulting correlation."
+    },
+    "world-zero": {
+      "previous_head": "4cf0e094ebc6d4792f9dac9b3e0798a4307edf87",
+      "current_head": "9f4fb033b212e99e034c4f6fa0c3ef7eea7f9f8b",
+      "disposition": "NO_ADMISSION_README_ONLY",
+      "reason": "Current delta is README current-main status; mechanism-admission controls were already adapted."
+    }
+  },
+  "hostile_review": [
+    {
+      "objection": "The SQL Connectome source/bound IR and semantic registry are generic enough that deferral may be excessive conservatism.",
+      "disposition": "PARTIALLY_ACCEPTED",
+      "response": "The principles are generic and valuable, but current Vera has no semantic graph consumer that needs them. Admit only when an exact consumer exists, so the abstraction is shaped by real evidence rather than by donor vocabulary."
+    },
+    {
+      "objection": "Voss is now stronger than Vera's internal review stack, so importing it would improve Vera immediately.",
+      "disposition": "REJECTED_AS_SOURCE_ADMISSION",
+      "response": "That would erase part of the value Voss supplies: implementation independence. Shared reviewer code can improve local assurance but cannot then count as genuinely independent corroboration. Preserve Voss as a separate evaluator."
+    },
+    {
+      "objection": "UNVTRSLR's calibration/holdout/query evidence split should be generalized now because mechanism admission currently asks for a holdout without enforcing identity separation.",
+      "disposition": "PARTIALLY_ACCEPTED",
+      "response": "This is a real possible future gap, but there is no current learned Vera component requiring calibration qualification. Reopen at the first such consumer and implement the evidence split at that concrete boundary."
+    }
+  ],
+  "private_currentness": {
+    "observed_private_repository_count": 18,
+    "post_v12_private_movement_detected": true,
+    "public_persistence_policy": "AGGREGATE_ONLY_NO_PRIVATE_NAMES_SOURCE_OR_DERIVED_CODE",
+    "new_public_source_admission_from_private_material": 0,
+    "note": "Private movement was screened only far enough to determine that no newly observed public Vera source admission is justified; private source/publication remains separately gated."
+  },
+  "result": {
+    "new_repository_ingestions": 0,
+    "new_source_mechanism_ingestions": 0,
+    "source_code_changes_required": false,
+    "durable_action": "RECORD_CURRENTNESS_AND_DEFERRED_REOPEN_CONDITIONS_ONLY"
+  },
+  "claim_ceiling": "PORTFOLIO MEMBERSHIP AND MOVED-PUBLIC-HEAD SCREENING AT THE RECORDED CUT; NO NEW SOURCE ADMISSION; NOT A PROOF THAT FUTURE DONOR MOVEMENT OR A NEW VERA CONSUMER CANNOT REOPEN A DEFERRED MECHANISM; PRIVATE SOURCE REMAINS UNPUBLISHED; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW"
+}

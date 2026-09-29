@@ -1,0 +1,24 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/project-runner",
+  "donor_head": "8aa5da0f55cd029e9cf4da79a090aa50859e662a",
+  "inspected_source_blobs": {
+    "runner/budgets.py": "5eac59c4a5a1f7e11333ae4af31dbd13b1b1f159",
+    "runner/leases.py": "eeb34650b6a2f6e990917a6e6c9075c18800ccab",
+    "runner/durable_dispatch.py": "f110d45a7ef05b6ece54b89e777e5c178950debd",
+    "tests/unit/test_durable_dispatch.py": "f46a040fc4a8b30124cad963987a58b028d7be4d"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/durable_dispatch_gate.py",
+    "mechanism": "atomic durable dispatch quota reservation plus expiring lease claims with monotonic fencing tokens and stale-owner completion rejection",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "dispatch admission executes the work",
+    "lease ownership grants tool or external-effect authority",
+    "expired work quota is automatically restored",
+    "Project Runner task semantics replace Vera Mono task execution"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE3_CI"
+}

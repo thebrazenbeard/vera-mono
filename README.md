@@ -1,3 +1,5 @@
+> **License:** Source-visible, not open source. Original material is proprietary. Commercial use, redistribution, hosted-service use, and commercial derivative products require written permission. See [LICENSE](LICENSE) and [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md). Separately identified third-party components retain their own licenses.
+
 # vera-mono
 
 Self-contained Vera monorepo.
@@ -6,6 +8,7 @@ Vera's implementation lives here. External repositories are research labs, donor
 
 ## Local architecture
 
+- `packages/vera_ingest` - absorbed provider-neutral exact-byte intake, deterministic normalization/identity, provenance, and receipt boundary; intake is not truth/currentness/authority/memory admission.
 - `packages/vera_core` — composition root and local capability registry.
 - `packages/rezon` — absorbed reasoning kernel plus progressive-depth / recursive-delta reasoning.
 - `packages/vera_runtime` — Vera runtime/cohesion code with monorepo-local affective, sexual-drive, and Deep Memory bindings.

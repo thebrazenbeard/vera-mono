@@ -17,9 +17,9 @@ def test_readme_package_counts_match_root_distribution_configuration():
     )
 
     package_find = pyproject["tool"]["setuptools"]["packages"]["find"]
-    assert len(package_find["where"]) == 11
-    assert len(package_find["include"]) == 14
+    assert len(package_find["where"]) == 12
+    assert len(package_find["include"]) == 15
     assert (
-        "searches eleven monorepo source roots and includes fourteen "
+        "searches twelve monorepo source roots and includes fifteen "
         "runtime package namespaces"
     ) in readme

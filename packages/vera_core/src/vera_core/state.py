@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from ingest import FileSystemStore, Ingestor
+
 from coordination_bus import SQLiteCoordinationRepository
 from r8a0.trust import configure_provisioning_root
 from vera_assurance import AtomicCurrentnessStore, EffectFence
@@ -13,6 +15,7 @@ from .behavior_effect_verification import BehaviorEffectVerificationStore
 from .behavior_attestation import BehaviorAttestationStore
 from .independent_behavior_review import IndependentBehaviorReviewStore
 from .coordination_command_journal import CoordinationCommandJournal
+from .corrective_learning import CorrectiveLearningLedger
 from .lifecycle import LifecycleReconstruction, NativeVeraLifecycle
 from .lifecycle_journal import LifecycleJournal
 from .installation_verification import InstallationVerificationStore
@@ -31,6 +34,7 @@ from .task_execution import TaskExecutionLedger
 @dataclass(frozen=True, slots=True)
 class VeraStatePaths:
     root: Path
+    intake: Path
     memory: Path
     recovery: Path
     currentness: Path
@@ -52,6 +56,7 @@ class VeraStatePaths:
     coordination: Path
     coordination_commands: Path
     tasks: Path
+    corrective_learning: Path
     trust: Path
 
 
@@ -82,6 +87,7 @@ class VeraStateDirectory:
             )
         self.paths = VeraStatePaths(
             root=candidate,
+            intake=candidate / "intake",
             memory=candidate / "memory" / "memory.sqlite",
             recovery=candidate / "recovery" / "checkpoints.sqlite",
             currentness=candidate / "control" / "currentness.sqlite",
@@ -127,6 +133,9 @@ class VeraStateDirectory:
                 candidate / "coordination" / "commands.sqlite"
             ),
             tasks=candidate / "tasks" / "tasks.sqlite",
+            corrective_learning=(
+                candidate / "learning" / "corrections.sqlite"
+            ),
             trust=candidate / "recovery" / "trust",
         )
         self.project_id = project_id
@@ -164,6 +173,17 @@ class VeraStateDirectory:
         with lifecycle.action_lock():
             effect_audit.repair_from_fence(effect_fence)
         return lifecycle
+
+    def intake_store(self) -> FileSystemStore:
+        """Open Vera's provider-neutral intake store.
+
+        Durable intake proves observed bytes and transformations only. It does
+        not admit truth, currentness, authority, memory, or effect permission.
+        """
+        return FileSystemStore(self.paths.intake)
+
+    def ingestor(self) -> Ingestor:
+        return Ingestor(self.intake_store())
 
     def effect_fence(self) -> EffectFence:
         return EffectFence(self.paths.effects)
@@ -254,6 +274,9 @@ class VeraStateDirectory:
     def task_execution_ledger(self) -> TaskExecutionLedger:
         return TaskExecutionLedger(self.paths.tasks)
 
+    def corrective_learning_ledger(self) -> CorrectiveLearningLedger:
+        return CorrectiveLearningLedger(self.paths.corrective_learning)
+
     def reconstruct(self) -> LifecycleReconstruction:
         return self.open().reconstruct()
 
@@ -314,4 +337,19 @@ class VeraStateDirectory:
             self.coordination_command_journal().context()
         )
         context["tasks"] = self.task_execution_ledger().context()
+        context["corrective_learning"] = (
+            self.corrective_learning_ledger().context()
+        )
+        context["intake"] = {
+            "schema": "VERA_MONO_INGEST_BOUNDARY_V1",
+            "root": str(self.paths.intake),
+            "record_count": (
+                sum(1 for _ in (self.paths.intake / "records").glob("*.json"))
+                if (self.paths.intake / "records").is_dir()
+                else 0
+            ),
+            "result_semantics": (
+                "OBSERVED_INTAKE_NOT_TRUTH_CURRENTNESS_AUTHORITY_OR_MEMORY_ADMISSION"
+            ),
+        }
         return context

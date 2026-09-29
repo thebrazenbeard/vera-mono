@@ -1,0 +1,22 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/discovery",
+  "donor_head": "368e8dc8274e89a306039d28462c7547b263e93e",
+  "inspected_source_blobs": {
+    "docs/DISCOVERY_PROTOCOL_V1.md": "5d12b24cd2445a01e27917d7997d56e4ff4043ae",
+    "tests/test_discovery_lifecycle_gate.py": "fb3ba8025fd0eca224b3a3385463d7e41c5b3b80"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/reuse_admission.py",
+    "mechanism": "reusable-mechanism promotion requires two materially independent exact-subject consumers, independent promotion evidence, rollback, bounded blast radius, and a clean hostile-review PASS",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "reuse suitability authorizes adoption",
+    "private opaque attestations independently prove reusable promotion",
+    "two similar repositories imply semantic equivalence",
+    "promotion installs or activates the mechanism"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE3_CI"
+}

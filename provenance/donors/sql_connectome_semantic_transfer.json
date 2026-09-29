@@ -1,0 +1,30 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/sql-connectome",
+  "donor_ref": "66ed8e00ab04fcb6080c7a1362304601d00edafe",
+  "donor_subject": "generic semantic capability planning and fidelity concepts",
+  "absorbed_target": "packages/vera_core/src/vera_core/semantic_transfer.py",
+  "mode": "CONCEPTUAL_METHOD_ADAPTATION_NO_CODE_COPY",
+  "source_paths": [
+    "docs/CONNECTOME_MODEL.md",
+    "src/sql_connectome/connectome/model.py",
+    "src/sql_connectome/connectome/planner.py"
+  ],
+  "runtime_dependency_on_donor": false,
+  "adapted_mechanisms": [
+    "capability profiles",
+    "native versus rewritten capability accounting",
+    "graded transfer fidelity",
+    "fail-closed unresolved capability preservation",
+    "semantic equivalence remains NOT_ESTABLISHED"
+  ],
+  "excluded_donor_semantics": [
+    "SQL dialect identities",
+    "SQL parser/transpiler adapters",
+    "database execution",
+    "schema/type binding",
+    "SQLGlot dependency metadata"
+  ],
+  "authority_rule": "semantic transfer planning grants no execution or protected-effect authority",
+  "claim_ceiling": "GENERIC_TRANSFER_MECHANISM_LOCALLY_TESTED_NOT_SEMANTIC_EQUIVALENCE_NOT_AGI"
+}

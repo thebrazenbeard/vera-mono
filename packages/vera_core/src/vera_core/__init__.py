@@ -64,12 +64,38 @@ from .action_gate import (
     OutboundActionError,
     OutboundEffectResult,
 )
+from .capability_state import (
+    CapabilityActivation,
+    CapabilityHealth,
+    CapabilityImplementationStatus,
+    CapabilityLearningPolicy,
+    CapabilityMaturity,
+    CapabilityPresence,
+    CapabilityState,
+)
 from .coordination_command_journal import (
     CoordinationCommandBinding,
     CoordinationCommandJournal,
     CoordinationCommandJournalError,
     CoordinationCommandRecoveryAssessment,
     CoordinationCommandResult,
+)
+from .chronology import (
+    canonical_utc_timestamp,
+    elapsed_seconds,
+    parse_aware_timestamp,
+)
+from .corrective_learning import (
+    CORRECTIVE_STAGE_ORDER,
+    CorrectionEvent,
+    CorrectionState,
+    CorrectiveLearningLedger,
+    CorrectiveStage,
+)
+from .durable_dispatch_gate import (
+    DispatchAdmission,
+    DispatchFenceError,
+    DurableDispatchGate,
 )
 from .effect_recovery import (
     EffectRecoveryAuthorityError,
@@ -81,9 +107,12 @@ from .effect_recovery import (
 )
 from .execution_adapters import (
     PCExecutionTransport,
+    PCExecutionTransportAttestation,
     ProviderExecutionTransport,
     SourceMutationTransport,
     SourceMutationTransportResult,
+    validate_pc_execution_transport_attestation,
+    validate_pc_execution_transport_for_job,
 )
 from .github_api_client import (
     GitHubAPIError,
@@ -181,6 +210,26 @@ from .provider_execution_binding import (
     ProviderExecutionRecoveryAssessment,
 )
 from .qualified_runtime import QualifiedVeraRuntime
+from .reuse_admission import (
+    HostileReview,
+    ReuseCandidate,
+    ReuseCandidateState,
+    ReuseConsumer,
+    ReusePromotionError,
+)
+from .resource_lease import (
+    CapabilityDenied,
+    ClaimMode,
+    ResourceClaim,
+    ResourceCollision,
+    ResourceLease,
+    ResourceLeaseBusy,
+    ResourceLeaseError,
+    ResourceLeaseExpired,
+    ResourceLeaseNotFound,
+    ResourceLeaseRegistry,
+    StaleResourceFence,
+)
 from .route_verification import (
     ROUTE_VERIFICATION_STATUSES,
     ROUTE_VERIFY_PREFIX,
@@ -219,6 +268,16 @@ from .reasoning_cascade import (
     LayerResult,
     LayerSpec,
     ReasoningRequest,
+)
+from .semantic_transfer import (
+    AppliedSemanticRewrite,
+    SemanticCapabilityProfile,
+    SemanticTransferCatalog,
+    SemanticTransferPlan,
+    SemanticTransferRule,
+    TransferFidelity,
+    plan_catalog_semantic_transfer,
+    plan_semantic_transfer,
 )
 from .registry import CAPABILITIES, LocalCapability, capability, validate_registry
 from .task_execution import (
@@ -275,6 +334,44 @@ from .source_verification_adapter import (
     QualifiedSourceVerificationAdapter,
     SourceVerificationAssessment,
 )
+from .portfolio_system_model import (
+    PortfolioFactDisposition,
+    PortfolioSystemFact,
+    PortfolioSystemModel,
+)
+from .prequential_evaluation import (
+    PrequentialCase,
+    PrequentialStep,
+    PrequentialTrace,
+    evaluate_prequential,
+)
+from .repair_case import (
+    EffectState as RepairEffectState,
+    IncidentState,
+    RepairAttemptState,
+    RepairCase,
+    RepairTransitionError,
+)
+from .simulation_boundary import (
+    SimulationEffectClass,
+    SimulationMutation,
+    SimulationReceipt,
+    SimulationState,
+)
+from .task_wake_scheduler import TaskWake, TaskWakeScheduler
+from .work_checkpoint import (
+    RecoveryCheckpoint,
+    RecoveryCheckpointError,
+    RecoveryCheckpointHead,
+    RecoveryCheckpointStore,
+    StaleCheckpointGeneration,
+)
+from .state_handoff import (
+    StateHandoff,
+    StateHandoffError,
+    StateRevision,
+    build_state_handoff,
+)
 from .state import VeraStateDirectory, VeraStatePaths
 
 __all__ = [
@@ -329,6 +426,9 @@ __all__ = [
     "AuthorityTrustState",
     "OutboundTrustError",
     "OutboundTrustRegistry",
+    "DispatchAdmission",
+    "DispatchFenceError",
+    "DurableDispatchGate",
     "EffectRecoveryAuthorityError",
     "EffectReconciliationProof",
     "EffectReconciliationVerifier",
@@ -336,6 +436,13 @@ __all__ = [
     "LifecycleEffectRecovery",
     "reconciliation_subject",
     "CAPABILITIES",
+    "CapabilityActivation",
+    "CapabilityHealth",
+    "CapabilityImplementationStatus",
+    "CapabilityLearningPolicy",
+    "CapabilityMaturity",
+    "CapabilityPresence",
+    "CapabilityState",
     "CascadeEngine",
     "CascadeOutcome",
     "CoordinationCommandBinding",
@@ -343,6 +450,11 @@ __all__ = [
     "CoordinationCommandJournalError",
     "CoordinationCommandRecoveryAssessment",
     "CoordinationCommandResult",
+    "CORRECTIVE_STAGE_ORDER",
+    "CorrectionEvent",
+    "CorrectionState",
+    "CorrectiveLearningLedger",
+    "CorrectiveStage",
     "LayerResult",
     "LayerSpec",
     "INSTALLATION_VERIFICATION_STATUSES",
@@ -381,6 +493,9 @@ __all__ = [
     "ProviderAuthorityEnvelope",
     "ProviderAuthorityVerifier",
     "PCExecutionTransport",
+    "PCExecutionTransportAttestation",
+    "validate_pc_execution_transport_attestation",
+    "validate_pc_execution_transport_for_job",
     "ProviderExecutionTransport",
     "SourceMutationTransport",
     "SourceMutationTransportResult",
@@ -446,6 +561,28 @@ __all__ = [
     "OutboundEffectResult",
     "NativeVeraLifecycle",
     "ReasoningRequest",
+    "AppliedSemanticRewrite",
+    "SemanticCapabilityProfile",
+    "SemanticTransferPlan",
+    "SemanticTransferRule",
+    "TransferFidelity",
+    "plan_semantic_transfer",
+    "CapabilityDenied",
+    "ClaimMode",
+    "ResourceClaim",
+    "ResourceCollision",
+    "ResourceLease",
+    "ResourceLeaseBusy",
+    "ResourceLeaseError",
+    "ResourceLeaseExpired",
+    "ResourceLeaseNotFound",
+    "ResourceLeaseRegistry",
+    "StaleResourceFence",
+    "HostileReview",
+    "ReuseCandidate",
+    "ReuseCandidateState",
+    "ReuseConsumer",
+    "ReusePromotionError",
     "ROUTE_VERIFICATION_STATUSES",
     "ROUTE_VERIFY_PREFIX",
     "RUNTIME_CONSUME_VERIFY_PREFIX",
@@ -486,8 +623,37 @@ __all__ = [
     "TaskExecutionLedger",
     "TaskPacket",
     "TaskState",
+    "RecoveryCheckpoint",
+    "RecoveryCheckpointError",
+    "RecoveryCheckpointHead",
+    "RecoveryCheckpointStore",
+    "StaleCheckpointGeneration",
+    "StateHandoff",
+    "StateHandoffError",
+    "StateRevision",
+    "build_state_handoff",
     "VeraStateDirectory",
     "VeraStatePaths",
+    "SemanticTransferCatalog",
+    "plan_catalog_semantic_transfer",
+    "PortfolioFactDisposition",
+    "PortfolioSystemFact",
+    "PortfolioSystemModel",
+    "PrequentialCase",
+    "PrequentialStep",
+    "PrequentialTrace",
+    "evaluate_prequential",
+    "IncidentState",
+    "RepairAttemptState",
+    "RepairEffectState",
+    "RepairCase",
+    "RepairTransitionError",
+    "SimulationEffectClass",
+    "SimulationMutation",
+    "SimulationReceipt",
+    "SimulationState",
+    "TaskWake",
+    "TaskWakeScheduler",
     "capability",
     "validate_registry",
 ]

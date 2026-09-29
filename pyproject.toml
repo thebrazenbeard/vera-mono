@@ -18,6 +18,7 @@ include-package-data = true
 [tool.setuptools.packages.find]
 where = [
   "packages/vera_core/src",
+  "packages/vera_ingest/src",
   "packages/rezon/src",
   "packages/portfolio_runtime/src",
   "packages/vera_runtime/src",
@@ -31,6 +32,7 @@ where = [
 ]
 include = [
   "vera_core*",
+  "ingest*",
   "rezon*",
   "portfolio_runtime*",
   "protocol*",
@@ -56,6 +58,7 @@ include = [
 [tool.pytest.ini_options]
 pythonpath = [
   "packages/vera_core/src",
+  "packages/vera_ingest/src",
   "packages/rezon/src",
   "packages/portfolio_runtime/src",
   "packages/vera_runtime/src",
