@@ -100,6 +100,25 @@ class LearnedInfluenceGate:
             evidence_ref=evidence_ref,
         )
 
+    def consume_reviewed(
+        self,
+        revision: LearnedRevision,
+        *,
+        cue_event_id: str,
+    ) -> LearnedInfluenceReceipt:
+        """Consume only when an explicit current review exists.
+
+        This stricter path is additive. The ordinary consume method retains
+        its historical default-admission semantics for existing callers.
+        """
+        if type(revision) is not LearnedRevision:
+            raise TypeError("revision must be exact LearnedRevision")
+        if revision.association_id not in self._reviews:
+            raise LearnedInfluenceBlocked(
+                "learned revision requires an explicit current review"
+            )
+        return self.consume(revision, cue_event_id=cue_event_id)
+
     def consume(
         self,
         revision: LearnedRevision,
