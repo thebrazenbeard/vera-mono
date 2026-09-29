@@ -878,3 +878,18 @@ __all__.extend([
     "CorrectionTransferPromotionAssessment",
     "QualifiedCorrectionTransferPromotionAdapter",
 ])
+
+
+from .agi_metacognitive_calibration import (
+    CalibrationAdmission,
+    CalibrationForecast,
+    CalibrationObservation,
+    OnlineConfidenceCalibrator,
+)
+
+__all__.extend([
+    "CalibrationAdmission",
+    "CalibrationForecast",
+    "CalibrationObservation",
+    "OnlineConfidenceCalibrator",
+])
