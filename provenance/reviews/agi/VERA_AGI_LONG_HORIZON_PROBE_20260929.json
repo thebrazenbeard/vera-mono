@@ -1,0 +1,66 @@
+{
+  "claim_ceiling": "DEVELOPER_AUTHORED_DURABLE_MULTI_STEP_CORRECTION_AND_RESTART_EVIDENCE_ONLY; PARTIAL_LONG_HORIZON_AGENCY; NOT_AUTONOMOUS_AGENCY; NOT_INDEPENDENT_QUALIFICATION; NOT_AGI",
+  "hostile_review": {
+    "additional_limits": [
+      "developer-authored scenario and expected structure",
+      "single process restart rather than long wall-clock duration",
+      "no external environment or independent operator",
+      "coordinator schedules state but does not itself perform protected effects",
+      "no open-ended objective generation or self-directed goal selection",
+      "no structural replanning beyond an explicit correction gate",
+      "no evidence of cross-domain long-horizon competence"
+    ],
+    "disposition": "ACCEPTED",
+    "effect": "Keep LONG_HORIZON_AGENCY at PARTIAL only; do not promote to PASS and do not infer autonomy.",
+    "independent_reviewer_attempt": "qwen3.5-4b-local timed out; no independent-review credit claimed",
+    "review_class": "INTERNAL_HOSTILE_REVIEW",
+    "strongest_objection": "A four-step scripted workflow with one restart demonstrates durable workflow mechanics and correction fencing, not autonomous long-duration agency."
+  },
+  "probe": {
+    "curator_independence": "DEVELOPER_AUTHORED_HIDDEN_CUT",
+    "dimension_states": {
+      "LONG_HORIZON_AGENCY": "PARTIAL"
+    },
+    "independent_evidence_eligible": false,
+    "metrics": {
+      "authorization_effect": "NONE",
+      "correction_count": 1,
+      "correction_gate_held": true,
+      "dependency_rejections": 1,
+      "dependency_violations": 0,
+      "duplicate_completed_steps": 0,
+      "goal_completed": true,
+      "objective_preserved": true,
+      "restart_count": 1,
+      "stale_fence_rejected": true,
+      "step_count": 4,
+      "total_attempts": 5
+    },
+    "packet_digest": "9f50bb2440900572209f3effe213fd3871cbee68f924e27286051bd59aaa82c4",
+    "packet_family": "CORRECTION_TRANSFER",
+    "packet_family_note": "CORRECTION_TRANSFER is the existing AGI held-out family used for correction/retry scenarios; LONG_HORIZON is the scenario/report label.",
+    "report_family": "LONG_HORIZON"
+  },
+  "schema": "VERA_AGI_LONG_HORIZON_PROBE_RECEIPT_V1",
+  "subject": {
+    "base_main": "86a6b8e2b6cee598993a4822cbe40227c37d99dc",
+    "branch": "research/agi-long-horizon-v1-20260929",
+    "exact_code_head": "5b62b82f3494749089c74aa983a96c6ff18b47bf",
+    "repository": "thebrazenbeard/vera-mono"
+  },
+  "verification": {
+    "combined_agi_focused_suite": "36 passed",
+    "command_scope": [
+      "tests/test_long_horizon_plan.py",
+      "tests/test_agi_long_horizon_probe.py",
+      "tests/test_agi_qualification.py",
+      "tests/test_agi_ambiguity_probe.py",
+      "tests/test_agi_closed_loop.py",
+      "tests/test_learned_influence_gate.py",
+      "tests/test_task_wake_scheduler.py",
+      "tests/test_work_checkpoint.py",
+      "tests/test_durable_dispatch_gate.py"
+    ],
+    "full_ci": "PENDING_PR"
+  }
+}
