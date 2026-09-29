@@ -824,3 +824,14 @@ __all__.extend([
     "AmbiguousSpecThresholds",
     "qualify_ambiguous_spec",
 ])
+
+
+from .agi_ambiguous_spec_promotion import (
+    AmbiguousSpecPromotionAssessment,
+    QualifiedAmbiguousSpecPromotionAdapter,
+)
+
+__all__.extend([
+    "AmbiguousSpecPromotionAssessment",
+    "QualifiedAmbiguousSpecPromotionAdapter",
+])
