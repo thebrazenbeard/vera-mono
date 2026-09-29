@@ -17,7 +17,7 @@ from .model import (
 )
 from .pipeline import Ingestor
 from .policy import IngestPolicy
-from .storage import FileSystemStore
+from .storage import FileSystemStore, StoreIntegrityError
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -59,6 +59,11 @@ def _parser() -> argparse.ArgumentParser:
 
     inspect = sub.add_parser("inspect", help="read a stored ingest record")
     inspect.add_argument("ingest_id")
+
+    sub.add_parser(
+        "audit-records",
+        help="deep-verify every persisted ingest record graph",
+    )
     return parser
 
 
@@ -79,6 +84,13 @@ def _read_bytes(path: str, max_bytes: int) -> bytes:
 
 
 def _human_result(payload: dict) -> str:
+    if payload.get("schema") == "INGEST_RECORD_AUDIT_V1":
+        return (
+            f"{payload['status']} "
+            f"records={payload['records_checked']} "
+            f"ok={payload['records_ok']} "
+            f"corrupt={payload['records_corrupt']}"
+        )
     if payload.get("schema") == "INGEST_RECORD_V1":
         return f"{payload['status']} {payload['ingest_id']} raw={payload['raw_artifact']['sha256']}"
     ingest_id = payload.get("ingest_id") or "-"
@@ -102,12 +114,44 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     store = FileSystemStore(args.store)
 
+    if args.command == "audit-records":
+        payload = store.audit_records()
+        print(
+            _human_result(payload)
+            if args.human
+            else json.dumps(
+                payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            )
+        )
+        return 0 if payload["status"] == "PASS" else 2
+
     if args.command == "inspect":
         try:
             payload = store.get_record(args.ingest_id)
         except FileNotFoundError:
             payload = {"schema": "INGEST_INSPECT_V1", "status": "NOT_FOUND", "ingest_id": args.ingest_id}
             print(_human_result(payload) if args.human else json.dumps(payload, sort_keys=True, separators=(",", ":")))
+            return 2
+        except StoreIntegrityError as exc:
+            payload = {
+                "schema": "INGEST_INSPECT_V1",
+                "status": "CORRUPT",
+                "ingest_id": args.ingest_id,
+                "error": str(exc),
+            }
+            print(
+                _human_result(payload)
+                if args.human
+                else json.dumps(
+                    payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                )
+            )
             return 2
         print(_human_result(payload) if args.human else json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
         return 0

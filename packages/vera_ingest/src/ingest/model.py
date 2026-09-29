@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -54,6 +55,13 @@ class SourceRef:
 @dataclass(frozen=True, slots=True)
 class Acquisition:
     data: bytes
+    source: SourceRef
+    claimed_media_type: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class StreamingAcquisition:
+    chunks: Iterable[bytes]
     source: SourceRef
     claimed_media_type: str | None = None
 

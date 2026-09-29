@@ -8,7 +8,7 @@ from urllib.parse import urljoin, urlparse, urlunparse
 from urllib.request import Request
 
 from ..canonical import sha256_bytes
-from ..model import Acquisition, SourceRef, UrlSource, now_iso
+from ..model import Acquisition, SourceRef, StreamingAcquisition, UrlSource, now_iso
 from ..policy import IngestPolicy
 from .base import AcquisitionFailed, PolicyRejected
 
@@ -155,6 +155,16 @@ class HttpAdapter:
         return isinstance(source, UrlSource)
 
     @staticmethod
+    def _close_response(response) -> None:
+        close = getattr(response, "close", None)
+        if callable(close):
+            close()
+            return
+        exit_method = getattr(response, "__exit__", None)
+        if callable(exit_method):
+            exit_method(None, None, None)
+
+    @staticmethod
     def _check_url(url: str, policy: IngestPolicy) -> tuple[str, ...] | None:
         parsed = urlparse(url)
         if parsed.scheme not in {"https", "http"}:
@@ -170,46 +180,70 @@ class HttpAdapter:
             raise PolicyRejected("private/loopback/link-local destination denied")
         return addresses
 
-    def acquire(self, source: UrlSource, policy: IngestPolicy) -> Acquisition:
+    def _open_validated_response(
+        self,
+        source: UrlSource,
+        policy: IngestPolicy,
+    ):
         current = source.url
         redirects = 0
         while True:
             resolved_addresses = self._check_url(current, policy)
-            request = Request(current, headers={"User-Agent": "vera-ingest/0.1"})
+            request = Request(
+                current,
+                headers={"User-Agent": "vera-ingest/0.1"},
+            )
             try:
                 if self._uses_pinned_default:
                     if resolved_addresses is None:
-                        resolved_addresses = _resolve_addresses(urlparse(current).hostname or "")
+                        resolved_addresses = _resolve_addresses(
+                            urlparse(current).hostname or ""
+                        )
                     response = self.opener.open(
                         request,
                         timeout=policy.timeout_seconds,
                         resolved_addresses=resolved_addresses,
                     )
                 else:
-                    response = self.opener.open(request, timeout=policy.timeout_seconds)
+                    response = self.opener.open(
+                        request,
+                        timeout=policy.timeout_seconds,
+                    )
             except HTTPError as exc:
-                if exc.code in {301, 302, 303, 307, 308} and exc.headers.get("Location"):
+                if (
+                    exc.code in {301, 302, 303, 307, 308}
+                    and exc.headers.get("Location")
+                ):
                     if redirects >= policy.max_redirects:
-                        raise PolicyRejected("redirect limit exceeded") from exc
-                    current = urljoin(current, exc.headers["Location"])
+                        raise PolicyRejected(
+                            "redirect limit exceeded"
+                        ) from exc
+                    current = urljoin(
+                        current,
+                        exc.headers["Location"],
+                    )
                     redirects += 1
                     continue
-                raise AcquisitionFailed(f"HTTP error {exc.code}") from exc
+                raise AcquisitionFailed(
+                    f"HTTP error {exc.code}"
+                ) from exc
             except URLError as exc:
-                raise AcquisitionFailed(f"HTTP acquisition failed: {exc.reason}") from exc
-            with response:
+                raise AcquisitionFailed(
+                    f"HTTP acquisition failed: {exc.reason}"
+                ) from exc
+
+            try:
                 final_url = response.geturl()
                 self._check_url(final_url, policy)
-                data = response.read(policy.max_bytes + 1)
-                if len(data) > policy.max_bytes:
-                    raise PolicyRejected(f"response exceeds max_bytes={policy.max_bytes}")
                 content_type = response.headers.get("Content-Type")
                 status = getattr(response, "status", None)
-            final_locator, final_url_sha256 = _safe_url_provenance(final_url)
-            _, requested_url_sha256 = _safe_url_provenance(source.url)
-            return Acquisition(
-                data=data,
-                source=SourceRef(
+                final_locator, final_url_sha256 = (
+                    _safe_url_provenance(final_url)
+                )
+                _, requested_url_sha256 = _safe_url_provenance(
+                    source.url
+                )
+                source_ref = SourceRef(
                     scheme=urlparse(final_url).scheme,
                     locator=final_locator,
                     adapter=self.name,
@@ -219,8 +253,90 @@ class HttpAdapter:
                         "url_locator": final_locator,
                         "url_sha256": final_url_sha256,
                     },
-                    claimed_metadata={"requested_url_sha256": requested_url_sha256},
-                    observed_metadata={"status": status, "redirects": redirects},
-                ),
-                claimed_media_type=content_type,
-            )
+                    claimed_metadata={
+                        "requested_url_sha256": requested_url_sha256
+                    },
+                    observed_metadata={
+                        "status": status,
+                        "redirects": redirects,
+                    },
+                )
+            except Exception:
+                self._close_response(response)
+                raise
+            return response, source_ref, content_type
+
+    def acquire_stream(
+        self,
+        source: UrlSource,
+        policy: IngestPolicy,
+    ) -> StreamingAcquisition:
+        response, source_ref, content_type = (
+            self._open_validated_response(source, policy)
+        )
+
+        def chunks():
+            observed_bytes = 0
+            try:
+                while True:
+                    remaining = (
+                        policy.max_bytes + 1 - observed_bytes
+                    )
+                    if remaining <= 0:
+                        raise PolicyRejected(
+                            "response exceeds "
+                            f"max_bytes={policy.max_bytes}"
+                        )
+                    try:
+                        chunk = response.read(
+                            min(64 * 1024, remaining)
+                        )
+                    except (OSError, HTTPException) as exc:
+                        raise AcquisitionFailed(
+                            "HTTP response read failed"
+                        ) from exc
+                    if not chunk:
+                        break
+                    observed_bytes += len(chunk)
+                    if observed_bytes > policy.max_bytes:
+                        raise PolicyRejected(
+                            "response exceeds "
+                            f"max_bytes={policy.max_bytes}"
+                        )
+                    yield chunk
+            finally:
+                self._close_response(response)
+
+        return StreamingAcquisition(
+            chunks=chunks(),
+            source=source_ref,
+            claimed_media_type=content_type,
+        )
+
+    def acquire(
+        self,
+        source: UrlSource,
+        policy: IngestPolicy,
+    ) -> Acquisition:
+        response, source_ref, content_type = (
+            self._open_validated_response(source, policy)
+        )
+        try:
+            try:
+                data = response.read(policy.max_bytes + 1)
+            except (OSError, HTTPException) as exc:
+                raise AcquisitionFailed(
+                    "HTTP response read failed"
+                ) from exc
+            if len(data) > policy.max_bytes:
+                raise PolicyRejected(
+                    f"response exceeds max_bytes={policy.max_bytes}"
+                )
+        finally:
+            self._close_response(response)
+
+        return Acquisition(
+            data=data,
+            source=source_ref,
+            claimed_media_type=content_type,
+        )

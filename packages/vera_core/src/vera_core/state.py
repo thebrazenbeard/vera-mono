@@ -180,6 +180,7 @@ class VeraStateDirectory:
         Durable intake proves observed bytes and transformations only. It does
         not admit truth, currentness, authority, memory, or effect permission.
         """
+        self.paths.intake.parent.mkdir(parents=True, exist_ok=True)
         return FileSystemStore(self.paths.intake)
 
     def ingestor(self) -> Ingestor:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import codecs
 import json
 import unicodedata
 
@@ -17,6 +18,42 @@ def _clean_media_type(media_type: str | None) -> str | None:
     if media_type is None:
         return None
     return media_type.split(";", 1)[0].strip().lower() or None
+
+
+class StreamingMediaSniffer:
+    _ASCII_WHITESPACE = frozenset(b" \t\n\r\v\f")
+
+    def __init__(self) -> None:
+        self._decoder = codecs.getincrementaldecoder("utf-8")("strict")
+        self._utf8_valid = True
+        self._contains_nul = False
+        self._first_non_whitespace: int | None = None
+
+    def feed(self, chunk: bytes) -> None:
+        if self._first_non_whitespace is None:
+            for value in chunk:
+                if value not in self._ASCII_WHITESPACE:
+                    self._first_non_whitespace = value
+                    break
+        if b"\x00" in chunk:
+            self._contains_nul = True
+        if self._utf8_valid:
+            try:
+                self._decoder.decode(chunk, final=False)
+            except UnicodeDecodeError:
+                self._utf8_valid = False
+
+    def finalize(self) -> str | None:
+        if self._utf8_valid:
+            try:
+                self._decoder.decode(b"", final=True)
+            except UnicodeDecodeError:
+                self._utf8_valid = False
+        if not self._utf8_valid or self._contains_nul:
+            return "application/octet-stream"
+        if self._first_non_whitespace in (ord("{"), ord("[")):
+            return None
+        return "text/plain"
 
 
 def sniff_media_type(data: bytes) -> str:

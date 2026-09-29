@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import math
+import os
 import tempfile
 import threading
 import unittest
@@ -144,21 +145,25 @@ class EvidenceIntegrityTests(unittest.TestCase):
                 )
             self.assertEqual(result.status, IngestStatus.QUARANTINED)
 
-    def test_local_file_size_change_during_read_is_rejected(self):
+    def test_local_file_size_change_between_validation_and_open_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "changing.txt"
             path.write_bytes(b"a")
             resolved = path.resolve()
-            original_read_bytes = Path.read_bytes
+            original_open = os.open
+            mutated = False
 
-            def mutate_then_read(target):
-                if target == resolved:
-                    target.write_bytes(b"changed")
-                return original_read_bytes(target)
+            def grow_then_open(target, flags, *args, **kwargs):
+                nonlocal mutated
+                if not mutated and Path(target) == resolved:
+                    resolved.write_bytes(b"changed")
+                    mutated = True
+                return original_open(target, flags, *args, **kwargs)
 
-            with patch.object(Path, "read_bytes", mutate_then_read):
+            with patch("os.open", side_effect=grow_then_open):
                 with self.assertRaises(AcquisitionFailed):
                     FileAdapter().acquire(FileSource(str(path)), IngestPolicy())
+            self.assertTrue(mutated)
 
     def test_github_network_failure_returns_failed_result_instead_of_escaping(self):
         with tempfile.TemporaryDirectory() as tmp:

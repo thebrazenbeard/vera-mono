@@ -7,6 +7,7 @@ from .adapters import FileAdapter, GitHubAdapter, HttpAdapter, MessageAdapter, T
 from .adapters.base import AcquisitionFailed, PolicyRejected
 from .canonical import canonical_digest
 from .model import (
+    Acquisition,
     Derivation,
     EvidenceClass,
     IngestRecord,
@@ -15,9 +16,15 @@ from .model import (
     StageReceipt,
     now_iso,
 )
-from .normalization import NORMALIZER_VERSION, NormalizationError, normalize_bytes, sniff_media_type
+from .normalization import (
+    NORMALIZER_VERSION,
+    NormalizationError,
+    StreamingMediaSniffer,
+    normalize_bytes,
+    sniff_media_type,
+)
 from .policy import IngestPolicy
-from .storage import FileSystemStore, StoreConflict
+from .storage import FileSystemStore, StoreConflict, StoreIntegrityError
 
 
 class Ingestor:
@@ -131,8 +138,11 @@ class Ingestor:
         candidate = record.to_dict()
         try:
             created = self.store.put_record(record.ingest_id, candidate)
-        except StoreConflict:
-            existing = self.store.get_record(record.ingest_id)
+        except StoreConflict as conflict:
+            try:
+                existing = self.store.get_record(record.ingest_id)
+            except StoreIntegrityError as integrity_error:
+                raise conflict from integrity_error
             if self._record_semantics(existing) != self._record_semantics(candidate):
                 raise
             return existing
@@ -148,30 +158,126 @@ class Ingestor:
     def ingest(self, source, policy: IngestPolicy | None = None) -> IngestResult:
         policy = policy or IngestPolicy()
         policy.validate()
-        receipt_ids: list[str] = []
-        warnings: list[str] = []
         try:
             adapter = self._adapter(source)
+            stream_acquire = getattr(adapter, "acquire_stream", None)
+            if callable(stream_acquire):
+                streaming = stream_acquire(source, policy)
+                if streaming is not None:
+                    sniffer = StreamingMediaSniffer()
+
+                    def observed_chunks():
+                        for chunk in streaming.chunks:
+                            sniffer.feed(chunk)
+                            yield chunk
+
+                    raw_artifact, created = self.store.put_blob_stream(
+                        observed_chunks(),
+                        media_type="application/octet-stream",
+                        kind="raw",
+                        max_bytes=policy.max_bytes,
+                    )
+                    sniffed = sniffer.finalize()
+                    materialized = False
+                    raw_bytes = b""
+                    if sniffed is None:
+                        raw_bytes = self.store.read_blob_bytes(raw_artifact)
+                        materialized = True
+                        sniffed = sniff_media_type(raw_bytes)
+
+                    claimed = (
+                        streaming.claimed_media_type.split(";", 1)[0]
+                        .strip()
+                        .lower()
+                        if streaming.claimed_media_type
+                        else None
+                    )
+                    effective_media = claimed or sniffed
+                    claimed_json_mismatch = (
+                        claimed in {"application/json", "text/json"}
+                        and sniffed != "application/json"
+                    )
+                    normalization_needs_bytes = (
+                        effective_media
+                        in {
+                            "application/json",
+                            "text/json",
+                            "application/x-ndjson",
+                            "application/jsonl",
+                        }
+                        or effective_media.startswith("text/")
+                    )
+                    if (
+                        not materialized
+                        and normalization_needs_bytes
+                        and not claimed_json_mismatch
+                    ):
+                        raw_bytes = self.store.read_blob_bytes(raw_artifact)
+
+                    acquisition = Acquisition(
+                        data=raw_bytes,
+                        source=streaming.source,
+                        claimed_media_type=streaming.claimed_media_type,
+                    )
+                    return self._ingest_acquisition(
+                        acquisition,
+                        policy,
+                        pre_persisted_raw=(raw_artifact, created),
+                        precomputed_sniffed=sniffed,
+                        observed_size=raw_artifact.size_bytes,
+                    )
             acquisition = adapter.acquire(source, policy)
         except PolicyRejected as exc:
             return IngestResult(None, IngestStatus.REJECTED, error=str(exc))
         except AcquisitionFailed as exc:
             return IngestResult(None, IngestStatus.FAILED, error=str(exc))
+        except ValueError as exc:
+            return IngestResult(None, IngestStatus.REJECTED, error=str(exc))
+        except StoreIntegrityError as exc:
+            return IngestResult(
+                None,
+                IngestStatus.FAILED,
+                error=f"raw artifact verification failed: {exc}",
+            )
 
+        return self._ingest_acquisition(acquisition, policy)
+
+    def _ingest_acquisition(
+        self,
+        acquisition: Acquisition,
+        policy: IngestPolicy,
+        *,
+        pre_persisted_raw=None,
+        precomputed_sniffed: str | None = None,
+        observed_size: int | None = None,
+    ) -> IngestResult:
+        receipt_ids: list[str] = []
+        warnings: list[str] = []
+        actual_size = (
+            len(acquisition.data)
+            if observed_size is None
+            else observed_size
+        )
         acquire_receipt = self._receipt(
             ingest_id=None,
             stage="acquire",
             outcome="PASS",
-            details={"source": acquisition.source.to_dict(), "size_bytes": len(acquisition.data)},
+            details={
+                "source": acquisition.source.to_dict(),
+                "size_bytes": actual_size,
+            },
         )
         receipt_ids.append(acquire_receipt.receipt_id)
 
-        if len(acquisition.data) > policy.max_bytes:
+        if actual_size > policy.max_bytes:
             receipt = self._receipt(
                 ingest_id=None,
                 stage="bounds",
                 outcome="REJECTED",
-                details={"max_bytes": policy.max_bytes, "observed_bytes": len(acquisition.data)},
+                details={
+                    "max_bytes": policy.max_bytes,
+                    "observed_bytes": actual_size,
+                },
             )
             receipt_ids.append(receipt.receipt_id)
             return IngestResult(
@@ -182,7 +288,11 @@ class Ingestor:
                 error=f"payload exceeds max_bytes={policy.max_bytes}",
             )
 
-        sniffed = sniff_media_type(acquisition.data)
+        sniffed = (
+            sniff_media_type(acquisition.data)
+            if precomputed_sniffed is None
+            else precomputed_sniffed
+        )
         claimed = (
             acquisition.claimed_media_type.split(";", 1)[0].strip().lower()
             if acquisition.claimed_media_type
@@ -191,9 +301,18 @@ class Ingestor:
         if claimed and claimed != sniffed:
             warnings.append(f"media_type_mismatch: claimed={claimed} sniffed={sniffed}")
         raw_media = sniffed
-        raw_artifact, created = self.store.put_blob(
-            acquisition.data, media_type=raw_media, kind="raw"
-        )
+        if pre_persisted_raw is None:
+            raw_artifact, created = self.store.put_blob(
+                acquisition.data,
+                media_type=raw_media,
+                kind="raw",
+            )
+        else:
+            raw_artifact, created = pre_persisted_raw
+            raw_artifact = replace(
+                raw_artifact,
+                media_type=raw_media,
+            )
         raw_receipt = self._receipt(
             ingest_id=None,
             stage="persist_raw",
@@ -410,6 +529,7 @@ class Ingestor:
             derivation_ids=tuple(derivation_ids),
             warnings=tuple(warnings),
         )
+
 
     def ingest_many(self, sources, policy: IngestPolicy | None = None) -> list[IngestResult]:
         return [self.ingest(source, policy=policy) for source in sources]
