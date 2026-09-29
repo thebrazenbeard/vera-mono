@@ -68,6 +68,13 @@ from .agi_ambiguous_spec_promotion import (
     AmbiguousSpecPromotionAssessment,
     QualifiedAmbiguousSpecPromotionAdapter,
 )
+from .agi_correction_transfer_qualification import (
+    CorrectionTransferQualificationResult,
+)
+from .agi_correction_transfer_promotion import (
+    CorrectionTransferPromotionAssessment,
+    QualifiedCorrectionTransferPromotionAdapter,
+)
 from .agi_runtime_aggregate import (
     AGIPacketReviewBinding,
     QualifiedAGIRuntimeAggregateAdapter,
@@ -1552,6 +1559,30 @@ class QualifiedVeraRuntime:
         review_id: str,
     ) -> AmbiguousSpecPromotionAssessment:
         return QualifiedAmbiguousSpecPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def correction_transfer_promotion_adapter(
+        self,
+    ) -> QualifiedCorrectionTransferPromotionAdapter:
+        return QualifiedCorrectionTransferPromotionAdapter(runtime=self)
+
+    def promote_correction_transfer_qualification(
+        self,
+        measurement: CorrectionTransferQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> CorrectionTransferPromotionAssessment:
+        return QualifiedCorrectionTransferPromotionAdapter(
             runtime=self
         ).promote(
             measurement,

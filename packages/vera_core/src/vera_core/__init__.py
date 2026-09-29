@@ -867,3 +867,14 @@ __all__.extend([
     "CorrectionTransferThresholds",
     "qualify_correction_transfer",
 ])
+
+
+from .agi_correction_transfer_promotion import (
+    CorrectionTransferPromotionAssessment,
+    QualifiedCorrectionTransferPromotionAdapter,
+)
+
+__all__.extend([
+    "CorrectionTransferPromotionAssessment",
+    "QualifiedCorrectionTransferPromotionAdapter",
+])
