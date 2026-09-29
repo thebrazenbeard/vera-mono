@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from ingest import FileSystemStore, Ingestor
+
 from coordination_bus import SQLiteCoordinationRepository
 from r8a0.trust import configure_provisioning_root
 from vera_assurance import AtomicCurrentnessStore, EffectFence
@@ -32,6 +34,7 @@ from .task_execution import TaskExecutionLedger
 @dataclass(frozen=True, slots=True)
 class VeraStatePaths:
     root: Path
+    intake: Path
     memory: Path
     recovery: Path
     currentness: Path
@@ -84,6 +87,7 @@ class VeraStateDirectory:
             )
         self.paths = VeraStatePaths(
             root=candidate,
+            intake=candidate / "intake",
             memory=candidate / "memory" / "memory.sqlite",
             recovery=candidate / "recovery" / "checkpoints.sqlite",
             currentness=candidate / "control" / "currentness.sqlite",
@@ -169,6 +173,17 @@ class VeraStateDirectory:
         with lifecycle.action_lock():
             effect_audit.repair_from_fence(effect_fence)
         return lifecycle
+
+    def intake_store(self) -> FileSystemStore:
+        """Open Vera's provider-neutral intake store.
+
+        Durable intake proves observed bytes and transformations only. It does
+        not admit truth, currentness, authority, memory, or effect permission.
+        """
+        return FileSystemStore(self.paths.intake)
+
+    def ingestor(self) -> Ingestor:
+        return Ingestor(self.intake_store())
 
     def effect_fence(self) -> EffectFence:
         return EffectFence(self.paths.effects)
@@ -325,4 +340,16 @@ class VeraStateDirectory:
         context["corrective_learning"] = (
             self.corrective_learning_ledger().context()
         )
+        context["intake"] = {
+            "schema": "VERA_MONO_INGEST_BOUNDARY_V1",
+            "root": str(self.paths.intake),
+            "record_count": (
+                sum(1 for _ in (self.paths.intake / "records").glob("*.json"))
+                if (self.paths.intake / "records").is_dir()
+                else 0
+            ),
+            "result_semantics": (
+                "OBSERVED_INTAKE_NOT_TRUTH_CURRENTNESS_AUTHORITY_OR_MEMORY_ADMISSION"
+            ),
+        }
         return context

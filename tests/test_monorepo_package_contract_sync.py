@@ -22,6 +22,9 @@ def test_monorepo_package_contract_matches_root_distribution_configuration():
     assert project["version"] == contract["distribution"]["version"]
     assert project["requires-python"] == contract["distribution"]["python"]
     assert project["scripts"]["vera-mono"] == "vera_core.cli:main"
+    assert set(project["dependencies"]) == set(
+        contract["self_containment"]["external_python_dependency"]
+    )
 
     configured_patterns = set(
         pyproject["tool"]["setuptools"]["packages"]["find"]["include"]
