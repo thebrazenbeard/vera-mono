@@ -1,0 +1,70 @@
+{
+  "authoritative_vera_main_at_audit": "86a6b8e2b6cee598993a4822cbe40227c37d99dc",
+  "claim_ceiling": "LIVE_PORTFOLIO_CENSUS_AND_SOURCE_LEVEL_ADMISSION_DECISIONS; NOT_SEMIOTICS_IMPLEMENTATION; NOT_WORKBRIDGE_INSTALLATION; NOT_AGI",
+  "hostile_review": {
+    "correction": "Semiotics is admitted only because current Vera lacks contextual competing-reading and supersession semantics; WorkBridge Commander is explicitly not copied because its transport role is already represented by Vera provider boundaries.",
+    "disposition": "ACCEPTED",
+    "objection": "A larger portfolio can incentivize copying mechanisms whose functions are already present under different names."
+  },
+  "new_repositories": [
+    {
+      "canonical_main": "37117a2097f7f2aa35968fc9db24eacf7240826e",
+      "canonicalization_action": "PR_2_MERGED_AFTER_GREEN_CI_AND_EXACT_HEAD_FENCE",
+      "capability_delta": [
+        "source-bound competing interpretations for one sign",
+        "exact required/excluded context predicates",
+        "deterministic specificity ordering without confidence promotion",
+        "append-only interpretation supersession with cycle rejection",
+        "source-bound contradiction/contrast/support/refinement metadata that does not alter truth or ranking"
+      ],
+      "claim_ceiling": "CONTEXTUAL_INTERPRETATION_AND_REVISION_MECHANISM_CANDIDATE_ONLY_NOT_LEARNED_SEMANTICS_NOT_AGI",
+      "disposition": "ADMIT_CAPABILITY_DELTA_DESIGN_REQUIRED_BEFORE_VERA_IMPLEMENTATION",
+      "ingestion_mode": "ADAPT_MECHANISM_NO_RUNTIME_DEPENDENCY_NO_CORPUS_COPY",
+      "repository": "thebrazenbeard/semiotics",
+      "source_frontier_head": "f3b93bb675e6e3ee1386f07c86c9923281945165",
+      "vera_gap": {
+        "semantic_knowledge_store": "immutable schema-valid objects, but no contextual multi-reading selection or supersession graph",
+        "semantic_transfer": "capability/fidelity rewrite planning, not context-dependent interpretation"
+      }
+    },
+    {
+      "canonical_main": "fe347db4a3a555bfc250ee2c61a64aabe9c8e553",
+      "claim_ceiling": "EXTERNAL_PROVIDER_COMPATIBILITY_CANDIDATE_NOT_INSTALLED_NOT_DEPLOYED_NOT_RUNTIME_BOUND_BY_REPOSITORY_PRESENCE",
+      "disposition": "KEEP_EXTERNAL_TRANSPORT_PROVIDER_NO_SOURCE_INGESTION",
+      "integration_boundary": "external WorkBridge Commander transport may satisfy a qualified PC execution provider boundary when live runtime evidence exists",
+      "reason": [
+        "repository owns remote MCP ingress/device attachment/orchestration",
+        "vera-mono already owns provider-neutral PC execution and runtime qualification boundaries",
+        "copying Commander transport into vera-mono would create a duplicate workstation implementation lineage"
+      ],
+      "repository": "thebrazenbeard/workbridgecommander"
+    }
+  ],
+  "next_action": {
+    "long_horizon": "PR_55 remains a separate AGI qualification lane",
+    "semiotics": "architectural design for a Vera-native contextual interpretation layer, followed by test-first adaptation if approved",
+    "workbridgecommander": "retain as external transport/runtime integration surface and verify only when a live binding is needed"
+  },
+  "observed_date": "2026-09-29",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "portfolio_membership": {
+    "active_repositories": 71,
+    "archived_names": [
+      "conditioning",
+      "self"
+    ],
+    "archived_repositories": 2,
+    "new_repository_count": 2,
+    "previous_recorded_total": 71,
+    "total_owned_repositories": 73
+  },
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V15_20260929.json",
+  "result": {
+    "external_provider_only": 1,
+    "immediate_duplicate_runtime_ingestions": 0,
+    "new_repositories_found": 2,
+    "source_ingestion_candidates": 1
+  },
+  "schema": "VERA_PORTFOLIO_INTAKE_V16_20260929",
+  "status": "LIVE_CENSUS_73_TWO_NEW_REPOSITORIES_AUDITED"
+}
