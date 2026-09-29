@@ -124,8 +124,9 @@ class LearnedInfluenceGate:
             disposition = review.disposition
             evidence_ref = review.evidence_ref
         else:
-            disposition = ReviewDisposition.ADMITTED
-            evidence_ref = None
+            raise LearnedInfluenceBlocked(
+                "learned revision requires explicit review before influence"
+            )
 
         key = (
             revision.association_id,
