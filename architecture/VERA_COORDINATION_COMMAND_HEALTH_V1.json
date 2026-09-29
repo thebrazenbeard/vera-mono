@@ -1,0 +1,32 @@
+{
+  "schema": "VERA_COORDINATION_COMMAND_HEALTH_V1",
+  "status": "SOURCE_INTEGRATION_CANDIDATE",
+  "owner": "vera_core.CoordinationCommandJournal.health_projection",
+  "source_of_truth": "INTEGRITY_CHECKED_COORDINATION_COMMAND_JOURNAL",
+  "derived_fields": [
+    "binding_count",
+    "result_count",
+    "unresolved_command_count",
+    "unresolved_command_ids",
+    "confirmed_write_count",
+    "unconfirmed_result_count",
+    "result_class_counts",
+    "projection_digest"
+  ],
+  "persistence_rule": "NO_SEPARATE_TELEMETRY_PERSISTENCE; RECOMPUTE_FROM_JOURNAL",
+  "integrity_rule": "HEALTH_PROJECTION_MUST_FAIL_IF_JOURNAL_INTEGRITY_FAILS",
+  "restart_rule": "REOPENED_JOURNAL_MUST_DERIVE_THE_SAME_HEALTH_FROM_THE_SAME_ROWS",
+  "heartbeat_rule": "NO_AUTONOMOUS_HEARTBEAT_OR_EXTERNAL_SINK_IN_THIS_BINDING",
+  "hard_non_equivalences": [
+    "COMMAND_HEALTH != RUNTIME_HEALTH",
+    "CONFIRMED_WRITE != TARGET_CONSUMPTION",
+    "RESULT_COMPLETE != BEHAVIORAL_SUCCESS",
+    "UNRESOLVED_BINDING != AUTOMATIC_RETRY_AUTHORITY",
+    "HEALTH_COUNTER != CURRENTNESS",
+    "HEALTH_PROJECTION != INDEPENDENT_ATTESTATION"
+  ],
+  "health_effect": "NONE",
+  "authorization_effect": "NONE",
+  "donor_ref": "thebrazenbeard/ccb-core@42e4409dff3baee4acb63b48c9f64c7367a4fd22",
+  "claim_ceiling": "READ_ONLY_DERIVED_DIAGNOSTIC_VIEW"
+}

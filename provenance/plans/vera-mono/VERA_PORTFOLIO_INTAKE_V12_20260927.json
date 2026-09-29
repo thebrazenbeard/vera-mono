@@ -1,0 +1,166 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V12_20260927",
+  "status": "INTEGRATED_ON_MAIN_AND_VERIFIED",
+  "observed_date": "2026-09-27",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V11_20260927.json",
+  "main_before_wave9": "fda30a8fba2d18422cddfc83560bfbb286ef57f0",
+  "wave9_subject_head_before_ledger": "d7ece3139828746d3391c48f206732edef5dbc9c",
+  "donor": "thebrazenbeard/vera-mesh",
+  "donor_head": "98b74ff77981a5478e20a748bbb94565ad9140c8",
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/resource_lease.py",
+    "mechanism": "live-only capability-narrowed resource leases with canonical logical hierarchical claims, read/write collision detection, exact nanosecond expiry, monotonic fencing, and operation holds that preserve claims until quiescence",
+    "persistence": "LIVE_ONLY",
+    "protected_effect_authority": "NONE",
+    "filesystem_canonicalization_effect": "NONE",
+    "transport_authentication_effect": "NONE"
+  },
+  "donor_sources": {
+    "reference/veraport_agent/veraport_agent/core.py": "6543b006d4413ff89350aeaf077f0ff9b7a560da",
+    "reference/veraport_agent/veraport_agent/protocol.py": "484ad415cad79c1c1de4fd4fc40dd14bcb612e8b",
+    "reference/veraport_agent/tests/test_veraport.py": "525d99ebdbe7bdce9f988f96fe62a0b4ec2fe434"
+  },
+  "tdd_evidence": {
+    "observed_red_commits": [
+      "3eaa4c801c4614a0e60ac1893916b92605986395",
+      "75d207938d242e83643e533151f753c99e7663ba",
+      "83b6622edc81ca810e35e0f0554239a3db31d905",
+      "ebb13719f240dd5161704970d630eaf263e2bf73"
+    ],
+    "observed_runs": [
+      {
+        "commit": "3eaa4c801c4614a0e60ac1893916b92605986395",
+        "run_id": 36356896920,
+        "expected_failure": "missing vera_core.resource_lease module"
+      },
+      {
+        "commit": "75d207938d242e83643e533151f753c99e7663ba",
+        "run_id": 36357006109,
+        "expected_failure": "noncanonical logical hierarchy aliases were accepted"
+      },
+      {
+        "commit": "83b6622edc81ca810e35e0f0554239a3db31d905",
+        "run_id": 36357101708,
+        "expected_failure": "protected-effect and persistence claim-ceiling fields were caller forgeable"
+      },
+      {
+        "commit": "ebb13719f240dd5161704970d630eaf263e2bf73",
+        "run_id": 36357289731,
+        "expected_failure": "no ResourceLeaseBusy or in-flight quiescence mechanism existed"
+      }
+    ]
+  },
+  "hostile_review": [
+    {
+      "objection": "Task delegation and task action locking might make another live resource owner redundant.",
+      "disposition": "PARTIALLY_ACCEPTED",
+      "correction": "The adapter is limited to live hierarchical resource collision/fencing across otherwise distinct task subjects; it does not replace durable TaskExecutionLedger ownership."
+    },
+    {
+      "objection": "String-prefix resource claims can be bypassed by path-like aliases if callers assume filesystem normalization.",
+      "disposition": "ACCEPTED",
+      "correction_commit": "ae79b1ee0756c0dd1e4a129092e6d0a1ab7c62c8",
+      "correction": "ResourceClaim now requires already-canonical logical hierarchy keys and rejects empty, dot, dot-dot, repeated, and trailing hierarchy segments."
+    },
+    {
+      "objection": "An exported ResourceLease could be manually constructed with a false protected-effect or persistence label.",
+      "disposition": "ACCEPTED",
+      "correction_commit": "66f57dc4e3e736e50e257d5f449b33522a365c66",
+      "correction": "protected_effect_authority=NONE and persistence=LIVE_ONLY are non-init constants."
+    },
+    {
+      "objection": "Closing or reaping a lease while an operation is in flight can release a collision claim too early.",
+      "disposition": "ACCEPTED",
+      "correction_commit": "185a80b0d849fc5881d62469b8601f755c815cd7",
+      "correction": "ResourceLeaseRegistry.hold pins active operations; close fails busy and expiry reaping preserves held claims until quiescence."
+    }
+  ],
+  "excluded_scope": [
+    "VeraMesh transport/session authentication",
+    "VeraPort workstation execution surface",
+    "durable request-idempotency ledger",
+    "filesystem path canonicalization",
+    "provider/repository/protected-effect authority",
+    "VeraMesh deployment, installation, pairing, tunnel registration, or activation"
+  ],
+  "residual_public_screening": [
+    {
+      "repository": "thebrazenbeard/vera-control-plane",
+      "head": "3916aaa7ae2825020c07057968c7a151d92d53de",
+      "disposition": "KEEP_EXTERNAL_CUSTODY_AND_GOVERNANCE",
+      "reason": "Repository owns operational/control-plane continuity, provider custody, private assets, and governance evidence. Collapsing that custody into vera-mono would convert source presence into current control and blur protected operational boundaries."
+    },
+    {
+      "repository": "thebrazenbeard/unbound-sol",
+      "head": "d4284dd1f044e506bb85554856c00497d6790d44",
+      "disposition": "KEEP_DISTINCT_IDENTITY_CONTINUITY_EXPERIMENT",
+      "reason": "Sol is a separate durable trajectory experiment around a shared model. Importing its identity/state would conflate source mechanisms with a distinct configured identity and continuity claim."
+    },
+    {
+      "repository": "thebrazenbeard/god-brain",
+      "head": "47ced181ef46e4481b875d9279d21dcd540f795e",
+      "disposition": "SCREENED_OVERLAPPING_RESEARCH_ARCHITECTURE",
+      "reason": "The current repository is architecture/portfolio-synthesis research built from HC foundations; its distributed Nooplex frontier is explicitly blocked pending repair/re-review and does not justify a Vera runtime owner."
+    }
+  ],
+  "portfolio_saturation_claim": {
+    "basis": "V11 observed all 53 public default-branch heads; V12 deep-screened the remaining plausible generic infrastructure/architecture sources after prior donor adaptations.",
+    "result": "NO_ADDITIONAL PUBLIC OR PRIVATELY SCREENED NONDUPLICATIVE GENERIC SOURCE ADMISSION IDENTIFIED AT OBSERVED HEADS AFTER WAVE9; PRIVATE-TO-PUBLIC PUBLICATION REMAINS UNAUTHORIZED",
+    "limits": "This is repository/orientation plus selected implementation screening, not a line-by-line proof that no future or obscure file could ever become useful. Donor head movement or new evidence reopens currentness.",
+    "verified_at_candidate_head": "e3cd93b499037d177c8bf0f329558d45b479330d"
+  },
+  "private_boundary": "18 private repositories remain screening inputs only. No private repository names, source, or derived publication are added to public vera-mono without separate exact publication authority.",
+  "claim_ceiling": "ALL 71 OWNED REPOSITORIES WERE FRESHLY SCREENED IN THIS RUN: ALL 53 PUBLIC DEFAULT-BRANCH HEADS WERE OBSERVED AND PUBLICLY CLASSIFIED AT REPOSITORY/SELECTED-IMPLEMENTATION LEVEL; ALL 18 PRIVATE REPOSITORIES WERE FRESHLY SCREENED BUT ONLY AGGREGATE DISPOSITION IS PERSISTED PUBLICLY; VERAMESH LIVE RESOURCE-LEASE ADAPTATION IS INTEGRATED ON MAIN AT E3CD93B4 WITH DEPENDENCY REVIEW, CODE-SCANNING AI FINDINGS, AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE VERIFIED; NO ADDITIONAL CURRENT NONDUPLICATIVE GENERIC SOURCE ADMISSION WAS IDENTIFIED AT THE OBSERVED PORTFOLIO HEADS; LIVE LEASES ARE NOT DURABLE TASK OWNERSHIP OR PROTECTED-EFFECT AUTHORITY; SOURCE INTEGRATION IS NOT INSTALLATION, DEPLOYMENT, RUNTIME CONSUMPTION, BEHAVIORAL QUALIFICATION, OR INDEPENDENT REVIEW",
+  "private_currentness_screen": {
+    "observed_private_repository_count": 18,
+    "screening_basis": "Fresh default-branch head plus README/root-orientation screening for all private repositories during this run; selected implementation inspected only where needed to determine whether a generic Vera mechanism existed.",
+    "public_persistence_policy": "AGGREGATE_ONLY_NO_PRIVATE_NAMES_SOURCE_OR_DERIVED_CODE",
+    "new_nonduplicative_public_source_admissions": 0,
+    "disposition_summary": [
+      "distinct identity/persona/continuity material remains separate",
+      "private topology/operational overlays remain private and reusable generic code stays with its public authority where one exists",
+      "archived historical experiments remain provenance rather than current authority",
+      "business/domain/corpus repositories remain domain-specific",
+      "private provenance/validation mechanisms materially overlap existing vera_ingest or other Vera Mono owners",
+      "client/platform/runtime repositories do not become Vera identity, memory, permission, or core runtime owners by repository presence"
+    ],
+    "publication_authority": "NOT_GRANTED_BY_THIS_SCREEN",
+    "currentness_note": "Private donor head movement or a separate exact publication authority can reopen this result."
+  },
+  "integrated_main_head": "e3cd93b499037d177c8bf0f329558d45b479330d",
+  "verification": {
+    "candidate_head": "e3cd93b499037d177c8bf0f329558d45b479330d",
+    "dependency_review": {
+      "run_id": 36357788003,
+      "conclusion": "success"
+    },
+    "code_scanning_ai_findings": {
+      "run_id": 36357789201,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36357788005,
+      "conclusion": "success",
+      "ubuntu_24_04": {
+        "tests": "492 passed, 1 warning, 35 subtests passed",
+        "wheel_build": "success",
+        "wheel_closure": "success",
+        "installed_wheel_closure": "success"
+      },
+      "windows_latest": {
+        "tests": "492 passed, 1 warning, 35 subtests passed",
+        "wheel_build": "success",
+        "wheel_closure": "success",
+        "installed_wheel_closure": "success"
+      }
+    },
+    "promotion": {
+      "method": "NON_FORCE_FAST_FORWARD_MAIN",
+      "previous_main": "fda30a8fba2d18422cddfc83560bfbb286ef57f0",
+      "candidate_ahead_by": 14,
+      "candidate_behind_by": 0,
+      "readback_main_matches_candidate": true
+    }
+  }
+}

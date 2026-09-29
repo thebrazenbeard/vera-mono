@@ -1,0 +1,355 @@
+{
+  "schema": "VERA_MONO_TASK_EXECUTION_CLOSEOUT_V1",
+  "purpose": "Provide native durable task packets, resumable checkpoints, and evidence-bounded multi-surface closeout for substantial vera-mono work.",
+  "source_semantics": {
+    "native_project_owner": {
+      "logical_id": "VERA_TASK_EXECUTION_AND_CLOSEOUT",
+      "schema": "VERA_TASK_EXECUTION_AND_CLOSEOUT_V2"
+    },
+    "implementation_role": "monorepo-native derived runtime mechanism",
+    "project_source_presence_is_runtime_qualification": false,
+    "task_packet_grants_new_authority": false
+  },
+  "owner": "vera_core.TaskExecutionLedger",
+  "composition_root": "vera_core.QualifiedVeraRuntime",
+  "state_path": "<vera-state-root>/tasks/tasks.sqlite",
+  "task_packet": {
+    "fields": [
+      "purpose",
+      "subject",
+      "completion_state",
+      "evidence_requirements",
+      "writable_scope",
+      "non_targets",
+      "forbidden_shortcuts_or_effects",
+      "priority_order",
+      "unknowns",
+      "return_shape",
+      "relevant_surfaces"
+    ],
+    "exact_subject_required": true,
+    "deterministic_packet_digest": true,
+    "writable_scope_source_grammar": "SOURCE|<repository>|<ref>|<path-or-prefix/**>",
+    "untyped_writable_scope_grants_qualified_source_write": false,
+    "evidence_requirement_source_verification_grammar": "SOURCE_VERIFY|<repository>|<ref>|<check-name>",
+    "evidence_requirement_installation_verification_grammar": "INSTALL_VERIFY|<target-id>|<distribution>|<version>",
+    "evidence_requirement_route_verification_grammar": "ROUTE_VERIFY|<route-id>|<expected-target>",
+    "evidence_requirement_runtime_consumption_grammar": "RUNTIME_CONSUME_VERIFY|<consumer-id>|<route-id>|<expected-target>",
+    "evidence_requirement_behavior_effect_verification_grammar": "BEHAVIOR_EFFECT_VERIFY|<consumer-id>|<probe-id>|<BEHAVIOR-or-EFFECT>|<stimulus-sha256>|<outcome-sha256>",
+    "evidence_requirement_behavior_attestation_grammar": "BEHAVIOR_ATTEST_VERIFY|<consumer-id>|<probe-id>|<declaration-sha256>|<provider-id>|<provider-key-id>|<provider-key-sha256>|<effect-subject-sha256-or-NONE>",
+    "evidence_requirement_independent_behavior_review_grammar": "INDEPENDENT_BEHAVIOR_REVIEW_VERIFY|<consumer-id>|<probe-id>|<review-id>|<subject-actor-id>|<declaration-sha256>|<held-out-probe-set-sha256>|<probe-curator-id>|<evaluator-id>|<evaluator-key-id>|<evaluator-key-sha256>|<authority-id>|<authority-key-id>|<authority-key-sha256>"
+  },
+  "checkpoint": {
+    "method": "QualifiedVeraRuntime.checkpoint_task",
+    "persists": [
+      "exact task subject",
+      "completed evidence references",
+      "blockers",
+      "protected effects still gated",
+      "next runnable frontier",
+      "runtime/lifecycle evidence digest"
+    ],
+    "automatically_surfaces_unresolved_effect_fence_entries": true,
+    "conversation_is_durable_state": false
+  },
+  "closeout_surfaces": [
+    "source",
+    "build/package",
+    "install/registration",
+    "current route",
+    "runtime consumption",
+    "behavior/effect",
+    "docs/rules",
+    "memory/privacy",
+    "workspace/coordination"
+  ],
+  "closeout_states": [
+    "verified-current",
+    "changed-and-verified",
+    "pending",
+    "out-of-scope",
+    "not-applicable"
+  ],
+  "closeout_rules": {
+    "every_relevant_surface_required": true,
+    "pending_relevant_surface_forbids_close": true,
+    "evidence_refs_required": true,
+    "blockers_forbid_close": true,
+    "claim_ceiling_required": true,
+    "next_frontier_required": true,
+    "surface_states_do_not_inherit_from_other_surfaces": true
+  },
+  "qualified_closeout_gate": {
+    "method": "QualifiedVeraRuntime.assess_task_closeout",
+    "requires_accepted_lifecycle": true,
+    "unresolved_effect_fence_forbids_close": true,
+    "coordination_recovery_gap_forbids_close": true,
+    "provider_recovery_gap_forbids_close": true,
+    "caller_supplied_blocker_forbids_close": true,
+    "runtime_evidence_digest_binds": [
+      "lifecycle reconstruction",
+      "outbound audit head",
+      "outbound trust head",
+      "coordination repository head when available",
+      "coordination command projection digest",
+      "runtime-consumption verification head",
+      "behavior/effect verification head",
+      "behavior attestation verification head",
+      "independent behavior review head"
+    ],
+    "bound_task_dependency_not_satisfied_forbids_close": true,
+    "active_delegation_forbids_close": true,
+    "required_source_verification_forbids_close": "matching SOURCE_VERIFY requirements remain non-PASS",
+    "required_installation_verification_forbids_close": "matching INSTALL_VERIFY requirements must be live-current PASS",
+    "required_runtime_consumption_verification_forbids_close": "matching RUNTIME_CONSUME_VERIFY requirements must be live-current PASS",
+    "required_behavior_effect_verification_forbids_close": "matching BEHAVIOR_EFFECT_VERIFY requirements must be live-current PASS and remain bound to the same live consumed process/state plus exact refreshed host/external evidence",
+    "required_behavior_attestation_forbids_close": "matching BEHAVIOR_ATTEST_VERIFY requirements must be live-current PASS above the exact current behavior/effect receipt",
+    "required_independent_behavior_review_forbids_close": "matching INDEPENDENT_BEHAVIOR_REVIEW_VERIFY requirements must be live-current PASS for the exact held-out probe set, declaration, behavior receipt, externally current evaluator authority, signed verdict/result receipt, and review provenance"
+  },
+  "integrity": {
+    "journal": "append-only digest-chained SQLite event ledger",
+    "event_types": [
+      "TASK_OPENED",
+      "TASK_DEPENDENCY",
+      "TASK_DEPENDENCY_CANCELLED",
+      "TASK_CORRECTION",
+      "TASK_DELEGATED",
+      "TASK_DELEGATION_REASSIGNED",
+      "TASK_DELEGATION_RETURNED",
+      "TASK_DELEGATION_CANCELLED",
+      "TASK_CHECKPOINT",
+      "TASK_CLOSED"
+    ],
+    "events_after_closeout": "FAIL_CLOSED",
+    "packet_digest_mismatch": "FAIL_CLOSED",
+    "event_payload_tamper": "FAIL_CLOSED"
+  },
+  "boundaries": {
+    "task_closeout_is_not_installation": true,
+    "task_closeout_is_not_provider_activation": true,
+    "task_closeout_is_not_protected_effect_authority": true,
+    "passing_tests_do_not_close_unproven_surfaces": true,
+    "destructive_cleanup_is_separate_effect": true,
+    "independent_review_not_implied": true
+  },
+  "correction_recurrence": {
+    "event": "TASK_CORRECTION",
+    "record_method": "TaskExecutionLedger.record_correction",
+    "qualified_method": "QualifiedVeraRuntime.record_task_correction",
+    "binds": [
+      "exact task subject",
+      "task packet digest",
+      "correction summary",
+      "obsolete route",
+      "required change",
+      "current owner reference",
+      "provenance references"
+    ],
+    "provenance_required": true,
+    "next_checkpoint_must_address_all_unresolved_corrections": true,
+    "next_checkpoint_requires_one_or_more": [
+      "method_change",
+      "regression_guard",
+      "blocker_classification"
+    ],
+    "unresolved_correction_forbids_closeout": true,
+    "obsolete_route_may_not_be_silently_reoffered": true
+  },
+  "dependencies": {
+    "event": "TASK_DEPENDENCY",
+    "ledger_method": "TaskExecutionLedger.bind_dependency",
+    "qualified_binding_method": "QualifiedVeraRuntime.bind_task_dependency",
+    "kinds": [
+      "EFFECT",
+      "COORDINATION_COMMAND",
+      "PROVIDER_EFFECT"
+    ],
+    "exact_subject_and_packet_bound": true,
+    "exact_replay_idempotent": true,
+    "duplicate_target_under_different_dependency_id": "DENY",
+    "qualified_scoped_paths": {
+      "coordination": "QualifiedVeraRuntime.invoke_task_coordination",
+      "provider": "QualifiedVeraRuntime.prepare_task_provider_effect",
+      "pc": "QualifiedVeraRuntime.prepare_task_pc_job using EFFECT target pc:<envelope_id>",
+      "source_mutation": "QualifiedSourceMutationAdapter.prepare binds PROVIDER_EFFECT target mutation_id after writable-scope and delegation checks"
+    },
+    "assessment_method": "QualifiedVeraRuntime.assess_task_dependencies",
+    "statuses": [
+      "SATISFIED",
+      "MISSING",
+      "PENDING",
+      "RECOVERY_REQUIRED",
+      "TERMINAL_UNSATISFIED",
+      "PROVENANCE_MISMATCH"
+    ],
+    "success_semantics": {
+      "effect": [
+        "COMMITTED",
+        "RECONCILED_COMMITTED"
+      ],
+      "coordination": "durable result journal + successful terminal effect + repository consistency",
+      "provider": [
+        "COMMITTED",
+        "RECONCILED_COMMITTED"
+      ],
+      "source_provider_effect": {
+        "no_SOURCE_VERIFY_requirement": "successful terminal source provider effect + exact durable source mutation outcome",
+        "matching_SOURCE_VERIFY_requirement": "successful terminal source provider effect + exact durable source mutation outcome + exact-commit PASS verification receipt",
+        "FAIL": "PENDING",
+        "PENDING": "PENDING",
+        "UNAVAILABLE": "PENDING",
+        "STALE_HEAD": "PROVENANCE_MISMATCH",
+        "evidence_digest": "composite digest binding mutation id + source outcome digest + verification receipt digest + exact commit SHA"
+      }
+    },
+    "terminal_no_effect_is_satisfied": false,
+    "unresolved_or_unsatisfied_forbids_closeout": true,
+    "restart_context_surfaces_assessment": true,
+    "closeout_auto_appends_dependency_evidence_digest": true,
+    "cancellation": {
+      "event": "TASK_DEPENDENCY_CANCELLED",
+      "qualified_method": "QualifiedVeraRuntime.cancel_task_dependency",
+      "allowed_only_when": "dependency assessment is MISSING and target has no durable preparation/execution evidence",
+      "post_start_cancellation": "DENY",
+      "cancelled_dependency_id_reuse": "DENY",
+      "automatic_preparation_failure_rollback": "qualified task-scoped wrappers cancel the dependency only when the target never acquired durable preparation/execution evidence",
+      "closeout_semantics": "cancelled dependencies are no longer required work, but their cancellation event digest is preserved in closeout evidence",
+      "restart_surface": "TaskDependencyAssessment.cancellation_allowed",
+      "automatic_restart_cancellation": false
+    },
+    "ownership": {
+      "one_durable_owner_per_kind_target": true,
+      "cross_task_evidence_reuse": "DENY",
+      "post_hoc_dependency_claim": "DENY",
+      "exact_binding_replay": "IDEMPOTENT"
+    },
+    "serialization": {
+      "task_action_lock": "PortableFileLock",
+      "closeout_serialized_against_task_scoped_mutation": true,
+      "task_scoped_outbound_preparation_holds_lock": true,
+      "qualified_source_mutation_rechecks_scope_and_owner_under_task_lock_before_transport": true
+    }
+  },
+  "delegation_ownership": {
+    "contract": "architecture/VERA_TASK_DELEGATION_OWNERSHIP_V1.json",
+    "qualified_methods": [
+      "QualifiedVeraRuntime.delegate_task_work",
+      "QualifiedVeraRuntime.reassign_task_delegation",
+      "QualifiedVeraRuntime.return_task_delegation",
+      "QualifiedVeraRuntime.cancel_task_delegation"
+    ],
+    "exact_scope": [
+      "repository",
+      "ref",
+      "subject"
+    ],
+    "one_active_owner_per_scope": true,
+    "assignee_owned_until": [
+      "returned",
+      "cancelled",
+      "explicitly reassigned"
+    ],
+    "active_delegation_forbids_closeout": true,
+    "terminal_delegation_evidence_auto_carried_into_closeout": true,
+    "restart_context_exposes_active_owner": true,
+    "return_shape_enforced": true,
+    "active_owner_reference": "vera_core.TaskDelegationRef",
+    "stale_owner_reference_after_reassignment": "DENY"
+  },
+  "qualified_source_mutation": {
+    "contract": "architecture/VERA_QUALIFIED_SOURCE_MUTATION_V1.json",
+    "operations": [
+      "WRITE_FILE",
+      "DELETE_FILE",
+      "MOVE_FILE"
+    ],
+    "task_packet_writable_scope_required": true,
+    "delegation_guard_required_for_active_subject": true,
+    "provider_authority_and_lifecycle_required": true,
+    "generic_provider_source_escape": "DENY",
+    "source_verification_contract": "architecture/VERA_SOURCE_VERIFICATION_V1.json",
+    "source_verification_runtime": "vera_core.QualifiedSourceVerificationAdapter"
+  },
+  "build_package": {
+    "package_contract": "architecture/VERA_MONOREPO_PACKAGE_V1.json",
+    "source_success_does_not_close_build_package": true,
+    "accepted_repository_build_evidence": [
+      "root vera-mono wheel builds from exact repository revision",
+      "wheel archive contains all required local package roots and representative runtime resources",
+      "isolated target installation imports all expected runtime packages",
+      "representative runtime resources are readable from installed artifact"
+    ],
+    "ci_workflow": ".github/workflows/tests.yml",
+    "boundary": "CI wheel installation is test evidence only; it is not install/registration or runtime-consumption evidence"
+  },
+  "installation_verification": {
+    "contract": "architecture/VERA_INSTALLATION_VERIFICATION_V1.json",
+    "store": "vera_core.InstallationVerificationStore",
+    "adapter": "vera_core.QualifiedInstallationVerificationAdapter",
+    "state_path": "install/verification.sqlite",
+    "required_surface": "install/registration",
+    "accepted_surface_states": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "out_of_scope_or_not_applicable_with_requirement": "DENY",
+    "stored_PASS_without_live_refresh": "DENY",
+    "closeout_evidence_ref": "task-installation:<target-id>:<distribution>:<receipt-digest>",
+    "boundaries": [
+      "package/build PASS is not install PASS",
+      "install PASS is not route PASS",
+      "install PASS is not runtime-consumption PASS",
+      "install PASS is not behavior/effect PASS"
+    ]
+  },
+  "behavior_effect_verification": {
+    "contract": "architecture/VERA_BEHAVIOR_EFFECT_VERIFICATION_V1.json",
+    "store": "vera_core.BehaviorEffectVerificationStore",
+    "adapter": "vera_core.QualifiedBehaviorEffectVerificationAdapter",
+    "state_path": "behavior/verification.sqlite",
+    "required_surface": "behavior/effect",
+    "matching_runtime_consumption_same_consumer_required": true,
+    "runtime_consumption_pass_is_behavior_effect_pass": false,
+    "accepted_surface_states": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "out_of_scope_or_not_applicable_with_requirement": "DENY",
+    "stored_PASS_without_live_refresh": "DENY",
+    "closeout_evidence_ref": "task-behavior-effect:<consumer-id>:<probe-id>:<receipt-digest>",
+    "boundaries": [
+      "runtime consumption PASS is only a prerequisite, not behavioral qualification",
+      "behavior/effect PASS is not provider activation or protected-effect authority",
+      "host/external evidence is required independently of runtime consumption"
+    ]
+  },
+  "behavior_attestation": {
+    "contract": "architecture/VERA_EXTERNAL_BEHAVIOR_ATTESTATION_V1.json",
+    "store": "vera_core.BehaviorAttestationStore",
+    "adapter": "vera_core.QualifiedBehaviorAttestationAdapter",
+    "state_path": "behavior/attestation.sqlite",
+    "required_surface": "behavior/effect",
+    "matching_behavior_effect_required": true,
+    "behavior_effect_pass_is_attestation_pass": false,
+    "accepted_surface_states": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "stored_PASS_without_live_refresh": "DENY",
+    "closeout_evidence_ref": "task-behavior-attestation:<consumer-id>:<probe-id>:<receipt-digest>",
+    "independent_review_implied": false
+  },
+  "independent_behavior_review": {
+    "contract": "architecture/VERA_INDEPENDENT_HELD_OUT_BEHAVIOR_REVIEW_V1.json",
+    "store": "vera_core.IndependentBehaviorReviewStore",
+    "adapter": "vera_core.QualifiedIndependentBehaviorReviewAdapter",
+    "state_path": "behavior/independent-review.sqlite",
+    "required_surface": "behavior/effect",
+    "matching_behavior_effect_required": true,
+    "distinct_subject_curator_evaluator_authority_roles": true,
+    "stored_PASS_without_live_refresh": "DENY",
+    "closeout_evidence_ref": "task-independent-behavior-review:<consumer-id>:<probe-id>:<review-id>:<receipt-digest>",
+    "source_presence_is_external_review_execution": false,
+    "deploy_or_protected_effect_authority": false
+  }
+}

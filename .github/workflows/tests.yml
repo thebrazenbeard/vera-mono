@@ -38,3 +38,21 @@ jobs:
 
       - name: Run monorepo test suite
         run: python -m pytest -q
+
+      - name: Build self-contained monorepo wheel
+        run: |
+          python -c "import shutil; shutil.rmtree('dist', ignore_errors=True); shutil.rmtree('.wheel-install', ignore_errors=True)"
+          python -m pip wheel . --no-deps -w dist
+
+      - name: Verify wheel closure
+        run: >-
+          python -c "from pathlib import Path; import subprocess,sys;
+          wheels=list(Path('dist').glob('*.whl'));
+          assert len(wheels)==1, wheels;
+          subprocess.run([sys.executable,'scripts/verify_monorepo_wheel.py',str(wheels[0])],check=True)"
+
+      - name: Verify installed wheel closure
+        run: |
+          python -c "from pathlib import Path; import subprocess,sys; wheels=list(Path('dist').glob('*.whl')); assert len(wheels)==1, wheels; subprocess.run([sys.executable,'-m','pip','install','--no-deps','--target','.wheel-install',str(wheels[0])],check=True)"
+          python -c "import sys,runpy; sys.path.insert(0,'.wheel-install'); runpy.run_path('scripts/verify_installed_monorepo.py',run_name='__main__')"
+          python -c "import sys; sys.path.insert(0,'.wheel-install'); from vera_core.cli import main; main(['--help'])"

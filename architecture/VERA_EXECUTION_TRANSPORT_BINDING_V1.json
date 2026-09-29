@@ -1,0 +1,42 @@
+{
+  "schema": "VERA_MONO_EXECUTION_TRANSPORT_BINDING_V1",
+  "purpose": "Separate caller-provided data from host-selected execution capability by binding qualified PC/provider effects to host-injected transport objects with exact endpoint identity.",
+  "protocols": {
+    "pc": "vera_core.PCExecutionTransport",
+    "provider": "vera_core.ProviderExecutionTransport"
+  },
+  "composition": {
+    "runtime": "vera_core.QualifiedVeraRuntime",
+    "pc_argument": "pc_execution_transport",
+    "provider_argument": "provider_execution_transports",
+    "verifier_and_transport_both_required_for_external_execution": true
+  },
+  "pc": {
+    "qualified_method": "QualifiedVeraRuntime.execute_pc_job",
+    "journal_qualified_method": "QualifiedPCExecutionAdapter.execute_via_runtime_transport",
+    "exact_binding": "transport.host_id == JobEnvelope.host_id",
+    "trusted_authority_verifier_required": true,
+    "caller_supplied_callback_is_runtime_qualified": false
+  },
+  "provider": {
+    "qualified_method": "QualifiedVeraRuntime.execute_provider_effect",
+    "exact_binding": "transport.provider_id == prepared.provider_id",
+    "provider_keyed_registry": true,
+    "trusted_authority_verifier_for_same_provider_required": true,
+    "caller_supplied_callback_is_runtime_qualified": false
+  },
+  "low_level_adapter_primitives": [
+    "QualifiedVeraRuntime.dispatch_pc_job",
+    "QualifiedVeraRuntime.dispatch_provider_effect",
+    "QualifiedPCExecutionAdapter.execute"
+  ],
+  "boundary": {
+    "transport_objects_persisted": false,
+    "credentials_persisted_by_runtime": false,
+    "transport_identity_is_not_effect_authority": true,
+    "authority_is_still_verified_separately": true,
+    "lifecycle_permit_and_effect_fence_still_required": true,
+    "source_presence_is_not_provider_activation": true,
+    "source_presence_is_not_pc_installation": true
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/ccb-core",
+  "donor_ref": "42e4409dff3baee4acb63b48c9f64c7367a4fd22",
+  "donor_subject": "Radar short-window duplicate suppression and admission rollback",
+  "source_paths": [
+    "src/radar/routing.py",
+    "src/radar/runtime.py",
+    "tests/radar/test_canonical_dedupe_contract.py",
+    "tests/radar/test_runtime_pipeline.py"
+  ],
+  "source_blob_ids": {
+    "src/radar/routing.py": "b871234677c839ff00b36ea77a498e4903444558",
+    "src/radar/runtime.py": "6c2640fd5e40249fdebf76ca5b45e9b18e7c08f4"
+  },
+  "absorbed_target": "packages/vera_coordination/src/coordination_bus/retry_guard.py",
+  "mode": "CONCEPTUAL_METHOD_ADAPTATION_NO_CODE_COPY",
+  "runtime_dependency_on_donor": false,
+  "adapted_mechanisms": [
+    "thread-safe bounded retry window",
+    "monotonic explicit-time rejection",
+    "reservation rollback after downstream admission failure",
+    "serialized reservation plus downstream write boundary"
+  ],
+  "vera_specific_changes": [
+    "retry key binds actor workstream and complete canonical CoordinationEventDraft",
+    "thread, source, target, status, payload, and reference data remain semantically material",
+    "distinct routes are not collapsed merely because payload bytes match",
+    "failed or denied coordination writes roll back the retry reservation"
+  ],
+  "excluded_donor_mechanisms": [
+    "Radar taxonomy and envelope format",
+    "payload-only cross-route dedupe semantics",
+    "Radar priority queue",
+    "Radar DLQ",
+    "Radar node/lease/subscription registry",
+    "Radar telemetry and heartbeat",
+    "Radar routing runtime"
+  ],
+  "authority_rule": "retry suppression changes write admission only; it grants no coordination permission, action authority, provider authority, memory admission, or protected-effect authority",
+  "claim_ceiling": "PROCESS_LOCAL_SHORT_WINDOW_RETRY_SUPPRESSION_NOT_EXACTLY_ONCE_NOT_DURABLE_RESTART_DEDUPE_NOT_DELIVERY_PROOF"
+}

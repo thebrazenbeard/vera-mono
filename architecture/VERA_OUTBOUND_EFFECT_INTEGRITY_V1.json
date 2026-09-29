@@ -1,0 +1,52 @@
+{
+  "schema": "VERA_MONO_OUTBOUND_EFFECT_INTEGRITY_V1",
+  "purpose": "Cross-verify and crash-reconcile the mechanical effect fence with the append-only outbound execution audit before lifecycle state can be treated as qualified.",
+  "owners": {
+    "mechanical_state": "vera_assurance.EffectFence",
+    "explanation_history": "vera_core.OutboundExecutionAudit",
+    "lifecycle_gate": "vera_core.NativeVeraLifecycle",
+    "state_root": "vera_core.VeraStateDirectory"
+  },
+  "invariant": "Every effect-fence record on a state-root lifecycle must have matching qualified audit history. Audit-only AUTHORITY_VERIFIED evidence is allowed because no mechanical effect has yet been reserved.",
+  "restart_reconciliation": {
+    "automatic_on_state_open": true,
+    "serialized_by_lifecycle_action_lock": true,
+    "recoverable_crash_windows": [
+      "AUTHORITY_VERIFIED -> fence RESERVED before audit RESERVED",
+      "fence EXECUTING before audit EXECUTING",
+      "fence COMMITTED before audit COMMITTED",
+      "fence ATTEMPTED_UNKNOWN before audit ATTEMPTED_UNKNOWN",
+      "fence CANCELLED_PRE_DISPATCH before audit cancellation",
+      "fence RECONCILED_* before audit reconciliation"
+    ],
+    "reconstruction_source": "effect fence mechanical receipt",
+    "reconstructed_event_marker": "restart_reconstructed_from_effect_fence",
+    "unaudited_fence_effect": "FAIL_CLOSED",
+    "audit_fence_digest_mismatch": "FAIL_CLOSED",
+    "terminal_audit_ahead_of_fence": "FAIL_CLOSED"
+  },
+  "cross_checks": [
+    "effect state",
+    "request digest",
+    "mechanical permit digest",
+    "authority evidence digest",
+    "lifecycle/currentness evidence digest",
+    "result digest when terminal result is known",
+    "reconciliation evidence digest when reconciled",
+    "effect kind immutability within one effect identity"
+  ],
+  "lifecycle_binding": {
+    "accepted_action_permit_requires_integrity": true,
+    "permit_validation_requires_integrity": true,
+    "checkpoint_currentness_transition_requires_integrity": true,
+    "restart_reconstruction_requires_integrity": true
+  },
+  "boundaries": {
+    "audit_is_not_authority": true,
+    "fence_is_not_authority": true,
+    "restart_repair_does_not_reexecute_external_effect": true,
+    "restart_repair_does_not_reissue_authority": true,
+    "authority_only_audit_event_does_not_imply_effect_reservation": true,
+    "source_presence_is_not_deployment": true
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "schema": "VERA_MONO_RUNTIME_CONSUMPTION_VERIFICATION_V1",
+  "purpose": "Verify that a live runtime consumer is actually consuming the declared target through the declared route, rather than inferring consumption from source, build, installation, or route selection.",
+  "requirement_grammar": {
+    "syntax": "RUNTIME_CONSUME_VERIFY|<consumer-id>|<route-id>|<expected-target>",
+    "owner": "TaskPacket.evidence_requirements",
+    "requirement_requires_surface": "runtime consumption",
+    "conflicting_bindings_for_same_consumer": "DENY"
+  },
+  "composition": {
+    "store": "vera_core.RuntimeConsumptionVerificationStore",
+    "adapter": "vera_core.QualifiedRuntimeConsumptionAdapter",
+    "transport_protocol": "vera_core.RuntimeConsumptionVerificationTransport",
+    "concrete_json_transport": "vera_core.JsonFileRuntimeConsumptionTransport",
+    "state_path": "<vera-state-root>/runtime/consumption-verification.sqlite"
+  },
+  "observation": {
+    "receipt_schema": "VERA_MONO_RUNTIME_CONSUMPTION_VERIFICATION_V1",
+    "append_only_digest_chain": true,
+    "statuses": [
+      "PASS",
+      "FAIL",
+      "UNAVAILABLE"
+    ],
+    "binds": [
+      "task id",
+      "task packet digest",
+      "consumer id",
+      "expected route id",
+      "expected target",
+      "observed route id",
+      "consumed target",
+      "route digest",
+      "process instance id",
+      "runtime state digest",
+      "evidence reference"
+    ],
+    "pass_requires": [
+      "consumer is available",
+      "observed route id exactly equals expected route id",
+      "consumed target exactly equals expected target",
+      "route digest is present",
+      "process instance id is present",
+      "runtime state digest is present",
+      "evidence reference is present"
+    ]
+  },
+  "route_binding": {
+    "matching_ROUTE_VERIFY_requirement_optional": true,
+    "when_present_expected_target_must_match": true,
+    "when_present_route_must_be_live_current_PASS": true,
+    "runtime_reported_route_digest_must_match_live_route_digest": true,
+    "route_pass_alone_is_not_consumption_pass": true
+  },
+  "live_currentness": {
+    "stored_PASS_is_sufficient_without_refresh": false,
+    "live_observation_must_match_exact_stored_PASS": true,
+    "process_instance_change_invalidates_stored_PASS": true,
+    "runtime_state_digest_change_invalidates_stored_PASS": true,
+    "route_digest_change_invalidates_stored_PASS": true,
+    "missing_transport_after_stored_PASS": "PENDING_NOT_CURRENT"
+  },
+  "json_runtime_transport": {
+    "mechanism": "read-only host-written JSON state file",
+    "mutation": false,
+    "required_fields": [
+      "route_id",
+      "target",
+      "route_digest",
+      "process_instance_id"
+    ],
+    "state_digest": "SHA-256 over canonical JSON runtime-state object",
+    "missing_file": "UNAVAILABLE",
+    "credentials_required": false
+  },
+  "task_closeout": {
+    "any_matching_RUNTIME_CONSUME_VERIFY_requires_all_current_PASS": true,
+    "runtime_consumption_surface_must_be": [
+      "verified-current",
+      "changed-and-verified"
+    ],
+    "out_of_scope_or_not_applicable_with_requirement": "DENY",
+    "evidence_ref": "task-runtime-consumption:<consumer-id>:<receipt-digest>",
+    "task_runtime_evidence_cut_includes_consumption_verification_head": true,
+    "closed_task_new_observation": "DENY"
+  },
+  "restart": {
+    "conversation_state_required": false,
+    "state_store_reopened_from_VeraStateDirectory": true,
+    "runtime_context": "runtime_consumption_recovery",
+    "live_transport_missing": "stored PASS is historical evidence only, not current verification"
+  },
+  "boundaries": {
+    "source_pass_is_not_consumption_pass": true,
+    "package_pass_is_not_consumption_pass": true,
+    "installation_pass_is_not_consumption_pass": true,
+    "route_pass_is_not_consumption_pass": true,
+    "consumption_pass_is_not_behavioral_qualification": true,
+    "consumption_pass_is_not_provider_activation": true,
+    "consumption_verification_is_read_only": true,
+    "consumption_verification_grants_no_runtime_mutation_authority": true,
+    "consumer_state_file_is_evidence_only_and_requires_host_truthfulness": true
+  }
+}

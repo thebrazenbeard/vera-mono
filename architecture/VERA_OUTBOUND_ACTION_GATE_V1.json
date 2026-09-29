@@ -1,0 +1,193 @@
+{
+  "schema": "VERA_MONO_OUTBOUND_ACTION_GATE_V1",
+  "purpose": "Bind every qualified coordination command and every PC/provider effect to one exact accepted lifecycle/currentness state before it can escape the monorepo.",
+  "accepted_state_credential": {
+    "type": "VERA_MONO_ACCEPTED_LIFECYCLE_PERMIT_V1",
+    "issuer": "vera_core.NativeVeraLifecycle.accepted_action_permit",
+    "fields": [
+      "project_id",
+      "identity_id",
+      "runtime_id",
+      "memory_head_digest",
+      "recovery_checkpoint_id",
+      "recovery_checkpoint_digest",
+      "recovery_checkpoint_generation",
+      "control_source_digest",
+      "currentness_subject_id",
+      "currentness_generation",
+      "currentness_snapshot_digest",
+      "currentness_payload_digest",
+      "lifecycle_journal_head",
+      "permit_digest"
+    ],
+    "mintable_only_when": [
+      "ACCEPTED_CURRENT",
+      "ACCEPTED_RECONCILED"
+    ],
+    "validation_requires": "ACCEPTED_CURRENT exact field equality at dispatch time"
+  },
+  "serialization_boundary": {
+    "lock": "PortableFileLock over the lifecycle journal action-lock SQLite database",
+    "lifecycle_transitions_share_lock": true,
+    "qualified_outbound_actions_share_lock": true,
+    "purpose": "Prevent a canonical lifecycle transition from interleaving between permit validation and outbound execution.",
+    "trust_lock": "PortableFileLock over outbound trust registry lock SQLite",
+    "external_effects_hold_trust_lock": true,
+    "trust_rotation_cannot_interleave_with_external_execution": true
+  },
+  "coordination": {
+    "canonical_gateway": "vera_core.LifecycleBoundCoordinationBus",
+    "low_level_bus": "coordination_bus.CoordinationBus",
+    "low_level_bus_runtime_qualified_without_gateway": false,
+    "every_command_requires_permit": true,
+    "read_commands": [
+      "coordination_read_inbox",
+      "entry_checkpoint"
+    ],
+    "write_commands": [
+      "coordination_post",
+      "coordination_acknowledge",
+      "coordination_publish_status",
+      "coordination_request_review",
+      "coordination_resolve_thread",
+      "exit_checkpoint"
+    ],
+    "write_commands_effect_fenced": true,
+    "command_id_required_for_write": true,
+    "decision_authority_remains_separate": true
+  },
+  "effects": {
+    "canonical_gateway": "vera_core.LifecycleEffectGateway",
+    "fence": "vera_assurance.EffectFence",
+    "pc_dispatch": "LifecycleEffectGateway.dispatch_pc_job",
+    "provider_dispatch": "LifecycleEffectGateway.dispatch_provider_effect",
+    "currentness_evidence_digest": "accepted lifecycle permit digest",
+    "authority_evidence_digest": "digest of successfully verified exact authority evidence; opaque caller-supplied digests are not a qualified authority path",
+    "retry_semantics": {
+      "same_effect_id_after_commit": "DENY",
+      "exception_or_uncertain_result": "ATTEMPTED_UNKNOWN",
+      "blind_retry_after_unknown": "DENY",
+      "provider_authority_replay_to_different_effect_id": "DENY_BY_SUBJECT_BINDING"
+    },
+    "authority_model": {
+      "pc": {
+        "authorization_envelope": "pc_connection.AuthorizationEnvelope",
+        "exact_subject_proof": "vera_core.PCJobAuthorityProof",
+        "trusted_verifier_injection": "LifecycleEffectGateway(pc_authority_verifier=...)",
+        "caller_supplied_verifier_allowed": false,
+        "shared_job_authorization_fields_checked": true,
+        "job_and_authorization_windows_checked_at_dispatch": true,
+        "opaque_authorization_job_id": "bound by exact authorization digest rather than guessed equality"
+      },
+      "provider": {
+        "envelope": "vera_core.ProviderAuthorityEnvelope",
+        "trusted_verifier_registry": "LifecycleEffectGateway(provider_authority_verifiers={provider_id: verifier})",
+        "caller_supplied_verifier_allowed": false,
+        "authority_subject_binds": [
+          "effect_id",
+          "provider_id",
+          "operation",
+          "exact request digest",
+          "accepted lifecycle permit digest"
+        ]
+      },
+      "persistent_trust_currentness": {
+        "registry": "vera_core.OutboundTrustRegistry",
+        "contract": "architecture/VERA_OUTBOUND_TRUST_LIFECYCLE_V1.json",
+        "currentness_receipt": "VERA_MONO_AUTHORITY_CURRENTNESS_RECEIPT_V1",
+        "verifier_identity_fields": [
+          "authority_id",
+          "key_id",
+          "key_digest"
+        ],
+        "chain_verified_before_receipt": true,
+        "PC_issuer_revocation_epoch_must_match_live_registry": true,
+        "rotation_or_revocation_invalidates_stale_verifier": true,
+        "verifier_secrets_persisted": false
+      }
+    },
+    "unresolved_effect_barrier": {
+      "blocks_new_outbound_effects": true,
+      "blocks_new_lifecycle_currentness_transitions": true,
+      "unresolved_states": [
+        "RESERVED",
+        "EXECUTING",
+        "ATTEMPTED_UNKNOWN"
+      ],
+      "reconciliation_api": "EffectFence.reconcile_unknown",
+      "reconciliation_requires_external_evidence_digest": true,
+      "terminal_reconciliation_states": [
+        "RECONCILED_COMMITTED",
+        "RECONCILED_NO_EFFECT"
+      ],
+      "runtime_qualified_reconciliation": "vera_core.LifecycleEffectRecovery",
+      "trusted_reconciliation_verifier_required": true,
+      "caller_minted_reconciliation_verifier_accepted": false,
+      "restart_context_surfaces_unresolved_effects": true
+    },
+    "qualified_adapters": {
+      "runtime": "vera_core.QualifiedVeraRuntime",
+      "provider": [
+        "prepare_provider_effect",
+        "execute_provider_effect"
+      ],
+      "pc": [
+        "prepare_pc_job",
+        "execute_pc_job"
+      ],
+      "caller_supplies_lifecycle_permit": false
+    },
+    "execution_transport_binding": {
+      "contract": "architecture/VERA_EXECUTION_TRANSPORT_BINDING_V1.json",
+      "pc_protocol": "vera_core.PCExecutionTransport",
+      "provider_protocol": "vera_core.ProviderExecutionTransport",
+      "pc_qualified_method": "QualifiedVeraRuntime.execute_pc_job",
+      "provider_qualified_method": "QualifiedVeraRuntime.execute_provider_effect",
+      "caller_supplied_callback_runtime_qualified": false,
+      "trusted_transport_injected_by_host": true,
+      "verifier_and_transport_identity_are_independent_checks": true,
+      "provider_payload_snapshot": {
+        "qualified_method": "QualifiedVeraRuntime.execute_provider_effect",
+        "deep_copy_before_transport": true,
+        "digest_reverified_after_snapshot": true,
+        "caller_owned_mutable_payload_passed_directly_to_transport": false
+      }
+    },
+    "provider_execution_binding": {
+      "contract": "architecture/VERA_PROVIDER_EXECUTION_BINDING_V1.json",
+      "store": "vera_core.ProviderExecutionBindingStore",
+      "state_path": "provider/execution-bindings.sqlite",
+      "request_payload_persisted": false,
+      "restart_rehydrate_method": "QualifiedVeraRuntime.rehydrate_provider_effect",
+      "original_lifecycle_permit_preserved": true,
+      "stale_permit_auto_refreshed": false,
+      "changed_payload_rejected": true,
+      "recovery_assessment": "QualifiedVeraRuntime.assess_provider_effect"
+    }
+  },
+  "fail_closed_states": [
+    "EMPTY",
+    "MEMORY_AHEAD_OF_CURRENTNESS",
+    "INTERRUPTED_CANDIDATE",
+    "BLOCKED_CANDIDATE",
+    "CONTROL_SOURCE_DRIFT"
+  ],
+  "stale_conditions": [
+    "accepted currentness generation advanced",
+    "currentness snapshot changed",
+    "recovery checkpoint changed",
+    "memory head moved ahead",
+    "control source digest changed",
+    "lifecycle journal head changed"
+  ],
+  "boundaries": {
+    "lifecycle_permit_is_protected_effect_authority": false,
+    "effect_fence_is_authority": false,
+    "coordination_actor_permissions_are_still_checked_by_bus": true,
+    "decision_authority_is_still_external_and_exact_subject_bound": true,
+    "pc_authorization_contracts_remain_required": true,
+    "raw_low_level_mechanisms_are_not_the_runtime_qualified_escape_path": true,
+    "caller_minted_provider_or_pc_verifier_is_authority": false,
+    "trusted_verifiers_are_host_injected": true
+  }
+}

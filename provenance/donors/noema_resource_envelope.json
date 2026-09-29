@@ -1,0 +1,24 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/noema",
+  "donor_head": "697d1fac6f9fea158994888a861e651ac8fac282",
+  "inspected_source_blobs": {
+    "src/noema/accounting.py": "2be0259949e977f303ddd9f09d2b390de1707ccb",
+    "tests/test_accounting_comparator.py": "5cff66e8c134728bfe4c53a7106acbaf0d613eb8"
+  },
+  "adaptation": {
+    "target": "packages/vera_assurance/src/vera_assurance/resource_envelope.py",
+    "mechanism": "pure fail-closed adjudication of fixed resource envelopes where missing measurement remains UNKNOWN/UNMEASURED rather than silently becoming zero",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false,
+    "platform_instrumentation_imported": false
+  },
+  "excluded_claims": [
+    "resource envelope performs measurement",
+    "passing a resource envelope qualifies behavior",
+    "unknown usage is zero usage",
+    "resource headroom grants execution or effect authority",
+    "Noema training or experiment authority is imported"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE5_CI"
+}

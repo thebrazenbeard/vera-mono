@@ -1,0 +1,25 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/deepmemorystorage",
+  "donor_head": "fe73b7eee2e8b2498ff994c57e46080de329a0ef",
+  "inspected_source_blobs": {
+    "architecture/DEEP_MEMORY_INTEGRATION_CONTRACT_V1.md": "35f9be1c67d5898724ac85256af8cc9e667039f1",
+    "tools/query_deep_memory.py": "55fca5ca32d6fab436dc2a6e9b00dea97f46e5f0"
+  },
+  "adaptation": {
+    "target": "packages/vera_memory/src/vera_memory/historical_evidence.py",
+    "mechanism": "fail-closed privacy-filtered historical evidence projection preserving event/record/effective/retrieval chronology separation and explicit nonpromotion semantics",
+    "current_memory_effect": "NONE",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false,
+    "personal_content_imported": false
+  },
+  "excluded_claims": [
+    "historical evidence is current memory",
+    "CANONICAL_HISTORY implies CURRENT",
+    "retrieval proves recollection",
+    "repository access authorizes cross-scope disclosure",
+    "historical evidence authorizes action or present identity/conation state"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE4_CI"
+}

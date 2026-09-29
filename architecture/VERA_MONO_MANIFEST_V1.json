@@ -17,13 +17,21 @@
       "status": "ACTIVE_BOOTSTRAP"
     },
     {
+      "id": "vera_ingest",
+      "path": "packages/vera_ingest",
+      "role": "provider_neutral_provenance_bound_intake",
+      "status": "ABSORBED_EXACT_SOURCE_PLUS_MONOREPO_STATE_BINDING",
+      "donor": "thebrazenbeard/ingest@4e98996391498517976625af90cd938233fbd7d6",
+      "donor_runtime_dependency": false
+    },
+    {
       "id": "vera_identity",
       "path": "packages/vera_identity",
       "role": "identity_bootstrap_and_schema_resources",
       "status": "ABSORBED_SOURCE_UNQUALIFIED",
       "donor": "thebrazenbeard/vera@078d2d7242384c58676305d47654406713e599cf",
       "source_file_count": 25,
-      "supplemental_resource_count": 3
+      "supplemental_resource_count": 5
     },
     {
       "id": "vera_runtime",
@@ -172,6 +180,7 @@
   "self_contained_runtime_scope": {
     "local_code_packages": [
       "vera_core",
+      "vera_ingest",
       "rezon",
       "vera_runtime",
       "vera_identity",
@@ -226,5 +235,499 @@
       "CONTROL_SOURCE_DRIFT"
     ],
     "integrity_fail_closed": true
+  },
+  "outbound_action_boundary": {
+    "schema": "VERA_MONO_OUTBOUND_ACTION_GATE_V1",
+    "contract": "architecture/VERA_OUTBOUND_ACTION_GATE_V1.json",
+    "accepted_lifecycle_permit": "vera_core.AcceptedLifecyclePermit",
+    "coordination_gateway": "vera_core.LifecycleBoundCoordinationBus",
+    "effect_gateway": "vera_core.LifecycleEffectGateway",
+    "effect_fence": "vera_assurance.EffectFence",
+    "action_lock_shared_with_lifecycle_transitions": true,
+    "raw_coordination_bus_runtime_qualified": false,
+    "raw_pc_provider_dispatch_runtime_qualified": false,
+    "blocked_lifecycle_states": [
+      "EMPTY",
+      "MEMORY_AHEAD_OF_CURRENTNESS",
+      "INTERRUPTED_CANDIDATE",
+      "BLOCKED_CANDIDATE",
+      "CONTROL_SOURCE_DRIFT"
+    ],
+    "protected_effect_authority_minted_by_lifecycle": false,
+    "authority": {
+      "pc_verifier": "gateway-injected PCJobAuthorityVerifier",
+      "provider_verifiers": "gateway-injected provider-id registry",
+      "caller_minted_verifier_accepted": false,
+      "pc_authorization_freshness_checked": true,
+      "provider_authority_binds_effect_id": true
+    },
+    "unresolved_effect_barrier": {
+      "contract": "architecture/VERA_EFFECT_RECOVERY_BARRIER_V1.json",
+      "blocks_lifecycle_advance": true,
+      "blocks_new_outbound_mutation": true,
+      "explicit_reconciliation_required": true,
+      "runtime_qualified_recovery": "vera_core.LifecycleEffectRecovery",
+      "trusted_verifier_required": true,
+      "restart_context_surfaces_unresolved_effects": true
+    },
+    "qualified_runtime": "vera_core.QualifiedVeraRuntime",
+    "trust_lifecycle": {
+      "contract": "architecture/VERA_OUTBOUND_TRUST_LIFECYCLE_V1.json",
+      "registry": "vera_core.OutboundTrustRegistry",
+      "state_path": "trust/outbound.sqlite",
+      "key_material_persisted": false,
+      "currentness_receipts": true,
+      "trust_roles": [
+        "PC",
+        "PROVIDER",
+        "RECONCILIATION"
+      ],
+      "rotation": true,
+      "revocation": true,
+      "reactivation": true,
+      "CAS_registry_generation": true,
+      "digest_chained_history": true,
+      "external_effect_execution_serialized_against_trust_mutation": true
+    },
+    "effect_integrity": {
+      "contract": "architecture/VERA_OUTBOUND_EFFECT_INTEGRITY_V1.json",
+      "audit": "vera_core.OutboundExecutionAudit",
+      "fence": "vera_assurance.EffectFence",
+      "automatic_restart_repair": true,
+      "lifecycle_gate": true,
+      "cross_checks": [
+        "state",
+        "request_digest",
+        "mechanical_permit_digest",
+        "authority_evidence_digest",
+        "currentness_evidence_digest",
+        "result_digest",
+        "reconciliation_evidence_digest"
+      ],
+      "unaudited_fence_effect": "FAIL_CLOSED",
+      "authority_only_audit_event": "ALLOWED_NO_EFFECT_RESERVED"
+    }
+  },
+  "qualified_runtime": {
+    "composition_root": "vera_core.QualifiedVeraRuntime",
+    "state_root": "vera_core.VeraStateDirectory",
+    "owns_runtime_qualified_paths": [
+      "accepted lifecycle permit minting",
+      "coordination gateway",
+      "PC/provider effect gateway",
+      "ambiguous-effect recovery gateway",
+      "PC/provider request preparation with lifecycle-bound authority subjects",
+      "persistent authority-currentness enforcement",
+      "outbound audit/effect-fence restart reconciliation",
+      "cross-ledger outbound integrity gating",
+      "payload-safe provider execution binding and restart rehydration",
+      "provider restart recovery assessment",
+      "detached provider transport payload snapshot",
+      "persistent coordination repository",
+      "coordination command/result recovery journal",
+      "durable task packets and resumable checkpoints",
+      "multi-surface evidence-bounded task closeout",
+      "task-scoped coordination/provider/PC dependency binding",
+      "dependency-aware task restart and closeout gating",
+      "durable delegated-subject ownership",
+      "delegation reassignment return and cancellation closeout gating",
+      "delegated-subject mutation ownership guard",
+      "task-bound live-current installation verification",
+      "task-bound live-current route verification",
+      "task-bound live runtime-consumption verification",
+      "task-bound live behavior/effect verification from exact host/external evidence",
+      "task-bound declaration/provider-bound external behavior attestation",
+      "task-bound independent held-out behavior review with externally current evaluator authority and signed provenance"
+    ],
+    "trusted_authority_verifiers_persisted": false,
+    "trusted_authority_verifiers_injected_by_host": true,
+    "low_level_mechanisms_remain_available_but_not_runtime_qualified": true,
+    "pc_adapter": [
+      "prepare_pc_job",
+      "execute_pc_job"
+    ],
+    "provider_adapter": [
+      "prepare_provider_effect",
+      "execute_provider_effect"
+    ],
+    "execution_transport_binding": {
+      "contract": "architecture/VERA_EXECUTION_TRANSPORT_BINDING_V1.json",
+      "pc_protocol": "vera_core.PCExecutionTransport",
+      "provider_protocol": "vera_core.ProviderExecutionTransport",
+      "transports_persisted": false,
+      "caller_callbacks_runtime_qualified": false
+    },
+    "provider_execution_binding": {
+      "contract": "architecture/VERA_PROVIDER_EXECUTION_BINDING_V1.json",
+      "store": "vera_core.ProviderExecutionBindingStore",
+      "state_path": "provider/execution-bindings.sqlite",
+      "request_payload_persisted": false,
+      "prepare_persists_binding": true,
+      "restart_rehydration": true,
+      "restart_recovery_assessment": true,
+      "stale_permit_refresh": false
+    }
+  },
+  "qualified_pc_execution": {
+    "schema": "VERA_MONO_QUALIFIED_PC_EXECUTION_V1",
+    "contract": "architecture/VERA_QUALIFIED_PC_EXECUTION_V1.json",
+    "adapter": "vera_core.QualifiedPCExecutionAdapter",
+    "binding_store": "vera_core.PCExecutionBindingStore",
+    "binding_state_path": "pc/execution-bindings.sqlite",
+    "host_journal": "pc_connection.JobJournal",
+    "conversational_prepared_state_required_for_restart": false,
+    "pre_dispatch_reserved_effect": "CANCEL_AND_ABANDON_NO_EFFECT_ID_REUSE",
+    "ambiguous_or_known_dispatched_missing_result": "RECOVERY_REQUIRED_NO_REPLAY",
+    "local_result_is_server_terminal": false,
+    "production_pc_effect": false,
+    "runtime_transport_method": "execute_via_runtime_transport"
+  },
+  "qualified_coordination_execution": {
+    "schema": "VERA_MONO_QUALIFIED_COORDINATION_EXECUTION_V1",
+    "contract": "architecture/VERA_QUALIFIED_COORDINATION_EXECUTION_V1.json",
+    "gateway": "vera_core.LifecycleBoundCoordinationBus",
+    "repository": "coordination_bus.SQLiteCoordinationRepository",
+    "command_journal": "vera_core.CoordinationCommandJournal",
+    "event_state_path": "coordination/events.sqlite",
+    "command_state_path": "coordination/commands.sqlite",
+    "persistent_default": true,
+    "command_id_single_use": true,
+    "command_projection_integrity": true,
+    "repository_cross_check": true,
+    "committed_missing_command_result": "RECOVERY_REQUIRED_NO_REPLAY",
+    "reserved": "CANCEL_PRE_DISPATCH_NO_EFFECT_ID_REUSE",
+    "source_presence_is_deployment": false
+  },
+  "task_execution_closeout": {
+    "schema": "VERA_MONO_TASK_EXECUTION_CLOSEOUT_V1",
+    "contract": "architecture/VERA_TASK_EXECUTION_CLOSEOUT_V1.json",
+    "project_source_owner": {
+      "logical_id": "VERA_TASK_EXECUTION_AND_CLOSEOUT",
+      "schema": "VERA_TASK_EXECUTION_AND_CLOSEOUT_V2"
+    },
+    "ledger": "vera_core.TaskExecutionLedger",
+    "composition_root": "vera_core.QualifiedVeraRuntime",
+    "state_path": "tasks/tasks.sqlite",
+    "event_types": [
+      "TASK_OPENED",
+      "TASK_DEPENDENCY",
+      "TASK_DEPENDENCY_CANCELLED",
+      "TASK_CORRECTION",
+      "TASK_DELEGATED",
+      "TASK_DELEGATION_REASSIGNED",
+      "TASK_DELEGATION_RETURNED",
+      "TASK_DELEGATION_CANCELLED",
+      "TASK_CHECKPOINT",
+      "TASK_CLOSED"
+    ],
+    "durable_task_packet": true,
+    "resumable_checkpoint": true,
+    "conversational_state_is_durable_state": false,
+    "closeout_surfaces": [
+      "source",
+      "build/package",
+      "install/registration",
+      "current route",
+      "runtime consumption",
+      "behavior/effect",
+      "docs/rules",
+      "memory/privacy",
+      "workspace/coordination"
+    ],
+    "closeout_gate": {
+      "pending_surface": "DENY",
+      "no_evidence": "DENY",
+      "unresolved_effect": "DENY",
+      "coordination_recovery_gap": "DENY",
+      "provider_recovery_gap": "DENY",
+      "supplied_blocker": "DENY",
+      "lifecycle_not_accepted": "DENY",
+      "bound_dependency_not_satisfied": "DENY",
+      "active_delegation": "DENY",
+      "route_verification_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
+      "runtime_consumption_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
+      "behavior_effect_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
+      "behavior_attestation_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS",
+      "independent_behavior_review_required_when_declared": "DENY_UNTIL_LIVE_CURRENT_PASS"
+    },
+    "claim_ceiling_required": true,
+    "independent_surface_closeout": true,
+    "protected_effect_authority": false,
+    "install_or_deploy_implied": false,
+    "correction_recurrence": {
+      "durable_lineage": true,
+      "provenance_required": true,
+      "subject_and_packet_bound": true,
+      "next_checkpoint_requires_changed_method_guard_or_blocker": true,
+      "unresolved_correction_blocks_closeout": true
+    },
+    "dependencies": {
+      "kinds": [
+        "EFFECT",
+        "COORDINATION_COMMAND",
+        "PROVIDER_EFFECT"
+      ],
+      "task_scoped_binding": true,
+      "restart_assessment": true,
+      "unsatisfied_blocks_closeout": true,
+      "terminal_no_effect_is_success": false,
+      "dependency_evidence_auto_carried_into_closeout": true,
+      "qualified_paths": [
+        "invoke_task_coordination",
+        "prepare_task_provider_effect",
+        "prepare_task_pc_job",
+        "qualified source mutation"
+      ],
+      "one_durable_owner_per_kind_target": true,
+      "post_hoc_claim": "DENY",
+      "exact_replay": "IDEMPOTENT",
+      "cancellation_event": "TASK_DEPENDENCY_CANCELLED",
+      "cancellation_allowed_only_before_target_start": true,
+      "cancellation_allowed_restart_flag": true,
+      "automatic_restart_cancellation": false,
+      "cancelled_dependency_id_reuse": "DENY",
+      "cancellation_evidence_auto_carried_into_closeout": true,
+      "task_action_lock": "PORTABLE_FILE_LOCK",
+      "closeout_serialized_against_task_scoped_work": true
+    },
+    "delegation": {
+      "contract": "architecture/VERA_TASK_DELEGATION_OWNERSHIP_V1.json",
+      "one_active_owner_per_repository_ref_subject": true,
+      "explicit_assignee": true,
+      "allowed_and_prohibited_effect_policy": true,
+      "return_shape_required": true,
+      "binding_evidence_required": true,
+      "reassignment_preserves_subject_ownership": true,
+      "returned_or_cancelled_releases_subject": true,
+      "active_delegation_blocks_closeout": true,
+      "terminal_event_digest_auto_carried_into_closeout": true,
+      "restart_context_exposes_active_owners": true,
+      "mutation_guard": {
+        "method": "QualifiedVeraRuntime.assert_task_subject_mutation_allowed",
+        "active_scope_requires_current_owner_ref": true,
+        "stale_or_wrong_assignee": "DENY",
+        "nondelegated_scope": "NO_DELEGATION_BLOCK",
+        "source_mutation_adapter": "QualifiedSourceMutationAdapter",
+        "writable_scope_required": true
+      }
+    }
+  },
+  "qualified_source_mutation": {
+    "schema": "VERA_MONO_QUALIFIED_SOURCE_MUTATION_V1",
+    "contract": "architecture/VERA_QUALIFIED_SOURCE_MUTATION_V1.json",
+    "adapter": "vera_core.QualifiedSourceMutationAdapter",
+    "transport": "vera_core.SourceMutationTransport",
+    "provider_namespace": "source:<repository>",
+    "operations": [
+      "WRITE_FILE",
+      "DELETE_FILE",
+      "MOVE_FILE"
+    ],
+    "writable_scope_source": "TaskPacket.writable_scope",
+    "writable_scope_grammar": "SOURCE|<repository>|<ref>|<path-or-prefix/**>",
+    "delegation_guard": "TaskExecutionLedger.assert_subject_mutation_allowed",
+    "prepare_and_prewrite_recheck": true,
+    "task_dependency_kind": "PROVIDER_EFFECT",
+    "generic_provider_dispatch_for_source_namespace": false,
+    "generic_provider_execute_for_source_namespace": false,
+    "expected_ref_head_and_blob_CAS": true,
+    "transport_result_mismatch": "ATTEMPTED_UNKNOWN",
+    "merge_deploy_install_authority": false,
+    "concrete_github": {
+      "contract": "architecture/VERA_GITHUB_SOURCE_TRANSPORT_V1.json",
+      "transport": "vera_core.GitHubSourceMutationTransport",
+      "api_client": "vera_core.GitHubGitDataAPIClient",
+      "exact_ref_compare_and_swap": true,
+      "ref_CAS_primitive": "GraphQL updateRefs beforeOid/afterOid",
+      "force": false,
+      "REST_git_object_operations": true,
+      "installed_or_active_by_source_presence": false
+    },
+    "restart_binding": {
+      "store": "vera_core.SourceMutationBindingStore",
+      "state_path": "source/mutation-bindings.sqlite",
+      "source_content_persisted": false,
+      "request_content_digest_persisted": true,
+      "task_scope_and_delegation_evidence_persisted": true,
+      "provider_binding_evidence_persisted": true
+    },
+    "restart_recovery": {
+      "assessment": "vera_core.SourceMutationRecoveryAssessment",
+      "exact_rehydration": "QualifiedSourceMutationAdapter.rehydrate_mutation",
+      "stale_lifecycle": "DENY",
+      "stale_delegation": "DENY",
+      "missing_transport": "DENY",
+      "provider_binding_tamper": "DENY",
+      "provider_key_rotation": "DENY",
+      "wrong_rehydrated_content": "DENY"
+    },
+    "pre_dispatch_cancellation": {
+      "api": "QualifiedSourceMutationAdapter.cancel_reserved_mutation",
+      "required_state": "RESERVED",
+      "final_effect_state": "CANCELLED_PRE_DISPATCH",
+      "task_dependency_cancelled": true,
+      "same_mutation_id_retry": false,
+      "ambiguous_dispatch_cancel_allowed": false
+    }
+  },
+  "source_verification": {
+    "schema": "VERA_MONO_SOURCE_VERIFICATION_V1",
+    "contract": "architecture/VERA_SOURCE_VERIFICATION_V1.json",
+    "store": "vera_core.SourceVerificationStore",
+    "adapter": "vera_core.QualifiedSourceVerificationAdapter",
+    "state_path": "source/verification.sqlite",
+    "requirement_grammar": "SOURCE_VERIFY|<repository>|<ref>|<check-name>",
+    "runtime_methods": [
+      "QualifiedVeraRuntime.assess_source_verification",
+      "QualifiedVeraRuntime.verify_source_mutation",
+      "QualifiedVeraRuntime.recover_source_verifications"
+    ],
+    "task_dependency_gate": true,
+    "exact_commit_bound": true,
+    "branch_head_observed_separately": true,
+    "statuses": [
+      "PASS",
+      "FAIL",
+      "PENDING",
+      "UNAVAILABLE",
+      "STALE_HEAD"
+    ],
+    "concrete_github_transport": {
+      "transport": "vera_core.GitHubSourceVerificationTransport",
+      "api_client": "vera_core.GitHubGitDataAPIClient",
+      "GraphQL_statusCheckRollup": true,
+      "exhaustive_pagination": true,
+      "exact_commit_oid_readback": true
+    },
+    "independent_review": false,
+    "deploy_install_runtime_effect_authority": false
+  },
+  "monorepo_package": {
+    "schema": "VERA_MONO_PACKAGE_V1",
+    "contract": "architecture/VERA_MONOREPO_PACKAGE_V1.json",
+    "root_distribution": "vera-mono",
+    "root_pyproject": "pyproject.toml",
+    "package_root_count": 15,
+    "self_contained_local_packages": true,
+    "runtime_resources_packaged": true,
+    "ci_build": true,
+    "wheel_archive_verification": "scripts/verify_monorepo_wheel.py",
+    "isolated_install_verification": "scripts/verify_installed_monorepo.py",
+    "source_pass_is_package_pass": false,
+    "package_pass_is_install_pass": false,
+    "package_pass_is_runtime_pass": false
+  },
+  "installation_verification": {
+    "schema": "VERA_MONO_INSTALLATION_VERIFICATION_V1",
+    "contract": "architecture/VERA_INSTALLATION_VERIFICATION_V1.json",
+    "store": "vera_core.InstallationVerificationStore",
+    "adapter": "vera_core.QualifiedInstallationVerificationAdapter",
+    "state_path": "install/verification.sqlite",
+    "requirement_grammar": "INSTALL_VERIFY|<target-id>|<distribution>|<version>",
+    "concrete_python_transport": "vera_core.PythonDistributionInstallationTransport",
+    "read_only": true,
+    "append_only_receipts": true,
+    "live_currentness_refresh": true,
+    "stored_PASS_without_live_transport": "NOT_CURRENT",
+    "digest_change_after_PASS": "NOT_CURRENT",
+    "task_closeout_gate": true,
+    "install_pass_is_route_or_runtime_pass": false
+  },
+  "route_verification": {
+    "schema": "VERA_MONO_ROUTE_VERIFICATION_V1",
+    "contract": "architecture/VERA_ROUTE_VERIFICATION_V1.json",
+    "store": "vera_core.RouteVerificationStore",
+    "adapter": "vera_core.QualifiedRouteVerificationAdapter",
+    "state_path": "route/verification.sqlite",
+    "requirement_grammar": "ROUTE_VERIFY|<route-id>|<expected-target>",
+    "live_refresh_required": true,
+    "stored_pass_is_current_without_transport": false,
+    "current_route_surface_closeout_gate": true,
+    "route_pass_is_runtime_consumption": false
+  },
+  "runtime_consumption_verification": {
+    "schema": "VERA_MONO_RUNTIME_CONSUMPTION_VERIFICATION_V1",
+    "contract": "architecture/VERA_RUNTIME_CONSUMPTION_VERIFICATION_V1.json",
+    "store": "vera_core.RuntimeConsumptionVerificationStore",
+    "adapter": "vera_core.QualifiedRuntimeConsumptionAdapter",
+    "state_path": "runtime/consumption-verification.sqlite",
+    "requirement_grammar": "RUNTIME_CONSUME_VERIFY|<consumer-id>|<route-id>|<expected-target>",
+    "live_refresh_required": true,
+    "stored_pass_is_current_without_transport": false,
+    "optional_route_cross_binding": true,
+    "matching_declared_route_must_be_current": true,
+    "runtime_consumption_surface_closeout_gate": true,
+    "consumption_pass_is_behavioral_qualification": false
+  },
+  "behavior_effect_verification": {
+    "schema": "VERA_MONO_BEHAVIOR_EFFECT_VERIFICATION_V1",
+    "contract": "architecture/VERA_BEHAVIOR_EFFECT_VERIFICATION_V1.json",
+    "store": "vera_core.BehaviorEffectVerificationStore",
+    "adapter": "vera_core.QualifiedBehaviorEffectVerificationAdapter",
+    "transport_protocol": "vera_core.BehaviorEffectVerificationTransport",
+    "concrete_json_transport": "vera_core.JsonFileBehaviorEffectVerificationTransport",
+    "state_path": "behavior/verification.sqlite",
+    "requirement_grammar": "BEHAVIOR_EFFECT_VERIFY|<consumer-id>|<probe-id>|<BEHAVIOR-or-EFFECT>|<stimulus-sha256>|<outcome-sha256>",
+    "matching_runtime_consumption_same_consumer_required": true,
+    "runtime_consumption_pass_is_behavior_effect_pass": false,
+    "exact_live_process_state_binding": true,
+    "exact_external_evidence_refresh_required": true,
+    "effect_kind_requires_external_effect_receipt": true,
+    "behavior_effect_pass_is_protected_effect_authority": false,
+    "behavior_effect_pass_is_deployment": false
+  },
+  "behavior_attestation": {
+    "schema": "VERA_MONO_EXTERNAL_BEHAVIOR_ATTESTATION_V1",
+    "contract": "architecture/VERA_EXTERNAL_BEHAVIOR_ATTESTATION_V1.json",
+    "store": "vera_core.BehaviorAttestationStore",
+    "adapter": "vera_core.QualifiedBehaviorAttestationAdapter",
+    "transport_protocol": "vera_core.BehaviorAttestationTransport",
+    "concrete_json_transport": "vera_core.JsonFileBehaviorAttestationTransport",
+    "verifier_protocol": "vera_core.BehaviorEvidenceAttestationVerifier",
+    "concrete_hmac_verifier": "vera_core.HmacBehaviorEvidenceAttestationVerifier",
+    "state_path": "behavior/attestation.sqlite",
+    "requirement_grammar": "BEHAVIOR_ATTEST_VERIFY|<consumer-id>|<probe-id>|<declaration-sha256>|<provider-id>|<provider-key-id>|<provider-key-sha256>|<effect-subject-sha256-or-NONE>",
+    "canonical_declaration_digest_required": true,
+    "matching_behavior_effect_live_current_PASS_required": true,
+    "provider_identity_and_key_bound": true,
+    "nonce_replay_protection": true,
+    "effect_kind_cross_binds_external_effect_subject": true,
+    "local_effect_fence_is_external_effect_proof": false,
+    "attestation_pass_is_independent_review": false,
+    "attestation_pass_is_protected_effect_authority": false
+  },
+  "independent_behavior_review": {
+    "schema": "VERA_MONO_INDEPENDENT_HELD_OUT_BEHAVIOR_REVIEW_V1",
+    "contract": "architecture/VERA_INDEPENDENT_HELD_OUT_BEHAVIOR_REVIEW_V1.json",
+    "store": "vera_core.IndependentBehaviorReviewStore",
+    "adapter": "vera_core.QualifiedIndependentBehaviorReviewAdapter",
+    "transport_protocol": "vera_core.IndependentBehaviorReviewTransport",
+    "concrete_json_transport": "vera_core.JsonFileIndependentBehaviorReviewTransport",
+    "verifier_protocol": "vera_core.IndependentReviewSignatureVerifier",
+    "state_path": "behavior/independent-review.sqlite",
+    "requirement_grammar": "INDEPENDENT_BEHAVIOR_REVIEW_VERIFY|<consumer-id>|<probe-id>|<review-id>|<subject-actor-id>|<declaration-sha256>|<held-out-probe-set-sha256>|<probe-curator-id>|<evaluator-id>|<evaluator-key-id>|<evaluator-key-sha256>|<authority-id>|<authority-key-id>|<authority-key-sha256>",
+    "exact_held_out_probe_set_binding": true,
+    "distinct_subject_curator_evaluator_authority_roles": true,
+    "externally_current_evaluator_authority_required": true,
+    "evaluator_and_authority_signing_keys_persisted": false,
+    "matching_behavior_effect_live_current_PASS_required": true,
+    "result_and_result_receipt_bound": true,
+    "review_provenance_bound": true,
+    "nonce_replay_protection": true,
+    "source_presence_is_external_review_execution": false,
+    "independent_review_pass_is_deployment": false,
+    "independent_review_pass_is_protected_effect_authority": false
+  },
+  "intake_boundary": {
+    "schema": "VERA_MONO_INGEST_BOUNDARY_V1",
+    "contract": "architecture/VERA_INGEST_BOUNDARY_V1.json",
+    "package": "ingest",
+    "state_owner": "vera_core.VeraStateDirectory",
+    "state_path": "intake/",
+    "intake_is_truth": false,
+    "intake_is_currentness": false,
+    "intake_is_authority": false,
+    "intake_is_memory_admission": false,
+    "external_repository_code_required_at_runtime": false
   }
 }

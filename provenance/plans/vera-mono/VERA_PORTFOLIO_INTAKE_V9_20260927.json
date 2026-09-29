@@ -1,0 +1,104 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V9_20260927",
+  "status": "INTEGRATED_ON_MAIN_AND_VERIFIED",
+  "observed_date": "2026-09-27",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V8_20260925.json",
+  "main_before_wave6": "0c4035c1a6b926622db80c3aa0e0c70ed840e0ec",
+  "donor": "thebrazenbeard/mosaic",
+  "donor_head": "3a442e94b4f5b8fa365e2206c40405df6961e18d",
+  "classification_correction": "V4 treated Mosaic as research/preimplementation. Current main now contains deterministic executable residency and handoff harnesses with tests. V9 admits only the bounded generic mechanisms below, not the Mosaic model hypothesis.",
+  "adaptations": [
+    {
+      "target": "packages/vera_assurance/src/vera_assurance/residency_feasibility.py",
+      "mechanism": "deterministic analytical specialist residency feasibility with exact input digest, per-step modeled resident bytes, logical-pool-vs-active-ceiling distinction, and an explicit no-hardware-measurement claim ceiling",
+      "authority_effect": "NONE"
+    },
+    {
+      "target": "packages/vera_core/src/vera_core/state_handoff.py",
+      "mechanism": "single-family revision-aware state handoff preserving current per-key values and superseded event IDs while explicitly refusing identity-continuity or authority effects",
+      "identity_continuity_effect": "NONE",
+      "authority_effect": "NONE"
+    }
+  ],
+  "tdd_evidence": {
+    "observed_red_commits": [
+      "9bfb58c4cc095a1f06370b5e0c36a85e76974a35",
+      "03821acac53351427efe9867d8ecf62665d317c1",
+      "8e991e8f2f5edd5fdf912cb21798fb91ecffc430"
+    ],
+    "observed_runs": [
+      {
+        "commit": "9bfb58c4cc095a1f06370b5e0c36a85e76974a35",
+        "run_id": 36352713330,
+        "expected_failure": "missing residency_feasibility module"
+      },
+      {
+        "commit": "03821acac53351427efe9867d8ecf62665d317c1",
+        "run_id": 36352892535,
+        "expected_failure": "missing state_handoff module"
+      },
+      {
+        "commit": "8e991e8f2f5edd5fdf912cb21798fb91ecffc430",
+        "run_id": 36352969456,
+        "expected_failure": "mixed-family handoff accepted"
+      }
+    ]
+  },
+  "hostile_review": {
+    "objection": "The first generic state-handoff adapter accepted multiple semantic families, so equal keys across families could silently supersede one another even though the donor harness scopes each case to one family.",
+    "disposition": "ACCEPTED",
+    "correction_commit": "60c8d8ba0a44b856d9907e90b064215c92969d0b",
+    "correction": "build_state_handoff now fails closed unless all revisions belong to one exact family."
+  },
+  "screened_adjacent": [
+    {
+      "repository": "thebrazenbeard/unvtrslr",
+      "head": "513309edd087f7206a408a6da86ee91fb9efb5c9",
+      "disposition": "RESEARCH_SPEC_NO_EXECUTABLE_CORE_ADMISSION",
+      "reason": "Strong experiment-integrity and semantic-grounding constraints, but current root exposes research/specification material rather than a bounded executable core suitable for source admission."
+    },
+    {
+      "repository": "thebrazenbeard/build-team-2.0",
+      "head": "9f2743214298f1ae9d424f300a13d37e49e3c74f",
+      "disposition": "SCREENED_PROJECT_SPECIFIC_GOVERNANCE_OVERLAY",
+      "reason": "Current instruction precedence and anti-paralysis protocol are Patrick/project-specific governance, not a generic Vera core primitive."
+    },
+    {
+      "repository": "thebrazenbeard/bt2",
+      "head": "53503e5c129ac8de0d343e8224940894a59457a8",
+      "disposition": "SCREENED_OVERLAPPING_COGNITIVE_ARCHITECTURE",
+      "reason": "Broad module architecture overlaps HC/Vera semantic owners; no new bounded generic mechanism established in this wave."
+    },
+    {
+      "repository": "thebrazenbeard/transcendence",
+      "head": "69dacb467e94fb73ce106cd5176c39800c64e195",
+      "disposition": "SCREENED_OVERLAPPING_COGNITIVE_ARCHITECTURE",
+      "reason": "Broad modular cognitive architecture overlaps existing Vera/HC owners; no bounded nonduplicative import established."
+    }
+  ],
+  "private_boundary": "18 private repositories remain screening inputs only. No private-specific source/content is republished into public vera-mono without separate exact publication authority.",
+  "claim_ceiling": "MOSAIC BOUNDED SOURCE ADAPTATIONS INTEGRATED ON MAIN AT 85AB1D01; DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE VERIFIED; ANALYTICAL RESIDENCY IS NOT HARDWARE MEASUREMENT; STATE HANDOFF IS NOT IDENTITY CONTINUITY; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW",
+  "integrated_main_head": "85ab1d016ce040c3ffd19bb67753d38bde73ab0e",
+  "verification": {
+    "dependency_review": {
+      "run_id": 36353060684,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36353060722,
+      "conclusion": "success",
+      "platforms": [
+        "ubuntu-24.04",
+        "windows-latest"
+      ],
+      "includes": [
+        "monorepo tests",
+        "wheel build",
+        "wheel closure",
+        "installed wheel closure"
+      ]
+    },
+    "observed_main_head_matches_candidate": true
+  }
+}

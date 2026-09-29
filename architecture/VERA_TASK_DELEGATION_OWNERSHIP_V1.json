@@ -1,0 +1,101 @@
+{
+  "schema": "VERA_MONO_TASK_DELEGATION_OWNERSHIP_V1",
+  "purpose": "Make delegated work an exact durable ownership transfer instead of conversational coordination, and prevent the same repository/ref/subject from being independently owned while delegation is active.",
+  "owner": "vera_core.TaskExecutionLedger",
+  "composition_root": "vera_core.QualifiedVeraRuntime",
+  "state_path": "tasks/tasks.sqlite",
+  "event_types": [
+    "TASK_DELEGATED",
+    "TASK_DELEGATION_REASSIGNED",
+    "TASK_DELEGATION_RETURNED",
+    "TASK_DELEGATION_CANCELLED"
+  ],
+  "binding": {
+    "required_fields": [
+      "task_id",
+      "delegation_id",
+      "repository",
+      "ref",
+      "subject",
+      "assignee_ref",
+      "allowed_effects",
+      "prohibited_effects",
+      "return_shape",
+      "evidence_refs"
+    ],
+    "subject_scope_key": [
+      "repository",
+      "ref",
+      "subject"
+    ],
+    "one_active_owner_per_subject_scope": true,
+    "task_subject_and_packet_digest_bound": true,
+    "explicit_return_shape_required": true,
+    "binding_evidence_required": true,
+    "allowed_and_prohibited_effects_must_be_disjoint": true,
+    "return_shape_is_enforced_on_return": true,
+    "return_shape_is_not_documentation_only": true
+  },
+  "lifecycle": {
+    "active_owner_until": [
+      "TASK_DELEGATION_RETURNED",
+      "TASK_DELEGATION_CANCELLED",
+      "TASK_DELEGATION_REASSIGNED changes assignee without releasing scope"
+    ],
+    "reassignment_requires": [
+      "new assignee",
+      "reassignment id",
+      "evidence refs"
+    ],
+    "return_requires": [
+      "return id",
+      "summary",
+      "return_values mapping whose keys exactly equal the declared return_shape",
+      "non-empty value for every declared return field",
+      "result evidence refs"
+    ],
+    "cancellation_requires": [
+      "cancellation id",
+      "reason",
+      "evidence refs"
+    ],
+    "terminal_delegation_id_reuse": false,
+    "subject_scope_reusable_after_terminal_release": true
+  },
+  "closeout": {
+    "active_delegation": "DENY",
+    "returned_or_cancelled_delegation": "ALLOW_IF_OTHER_CLOSEOUT_GATES_PASS",
+    "terminal_delegation_event_digest_carried_into_closeout_evidence": true
+  },
+  "restart": {
+    "conversational_state_required": false,
+    "active_ownership_exposed_in_resume_context": true,
+    "task_context_exposes_all_delegations": true,
+    "stale_owner_reference_after_reassignment": "DENY",
+    "owner_reference_after_return_or_cancel": "DENY"
+  },
+  "boundaries": {
+    "delegation_does_not_grant_repository_or_provider_authority": true,
+    "delegation_does_not_merge_or_deploy": true,
+    "task_ledger_is_local_evidence_not_remote_worker_liveness": true,
+    "assignee_identity_is_an_exact_reference_not_proof_of_active_process": true,
+    "source_presence_is_not_runtime_activation": true
+  },
+  "mutation_guard": {
+    "ledger_method": "TaskExecutionLedger.assert_subject_mutation_allowed",
+    "qualified_method": "QualifiedVeraRuntime.assert_task_subject_mutation_allowed",
+    "behavior": {
+      "no_active_delegation": "ALLOW_DELEGATION_GUARD_ONLY",
+      "active_delegation_without_owner_ref": "DENY",
+      "wrong_actor": "DENY",
+      "stale_owner_ref": "DENY",
+      "exact_current_owner_ref": "ALLOW_DELEGATION_GUARD_ONLY"
+    },
+    "note": "Passing the delegation guard does not grant repository/provider authority; downstream mutation adapters must still enforce their own authority.",
+    "source_mutation_adapter": "vera_core.QualifiedSourceMutationAdapter",
+    "source_mutation_contract": "architecture/VERA_QUALIFIED_SOURCE_MUTATION_V1.json",
+    "source_mutation_rechecks_guard_immediately_before_transport": true,
+    "source_mutation_also_requires_task_packet_writable_scope": true,
+    "generic_provider_dispatch_for_source_namespace": "DENY"
+  }
+}

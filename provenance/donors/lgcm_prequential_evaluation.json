@@ -1,0 +1,24 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/lgcm",
+  "donor_head": "bdce91014809f32c19213edb9790da8122abe3cc",
+  "correction_to_prior_intake": "V4 classified LGCM as early/pre-implementation from its README. Direct source inspection found an executable package and test suite; that classification is obsolete.",
+  "inspected_source_blobs": {
+    "src/lgcm/evaluation.py": "ec10d3f663ea656d44095ad848abfa54fe5589b4",
+    "tests/test_evaluator_boundary.py": "cf6911f917e64b4a2c59281030cdf76d4f6dd324",
+    "tests/test_restart_equivalence.py": "3c927d72fcd553aa942a2174eaaa03df544ff9bf"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/prequential_evaluation.py",
+    "mechanism": "prediction and scoring are fixed before current-case learner update; evaluator-only context is withheld from learner callbacks",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "LGCM world model is installed in Vera",
+    "continual learning is generally solved",
+    "prequential scores prove behavioral qualification",
+    "evaluator labels may guide the learner during the scored prediction"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_COMBINED_CI"
+}

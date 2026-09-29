@@ -1,0 +1,61 @@
+{
+  "schema": "VERA_MONO_CHATGPT_PROJECT_PACK_V1",
+  "status": "CANDIDATE_NOT_INSTALLED",
+  "repository": "thebrazenbeard/vera-mono",
+  "source_branch": "architecture/chatgpt-native-project-v1-20260925",
+  "source_head_before_manifest": "d4215b615b3bbc0cec198a01cac971afac971ee6",
+  "creation_base_main": "0074915ecf07aca8a22392b7656c49aa2a2ee558",
+  "project_name": "Vera Mono",
+  "instructions_file": "PROJECT_INSTRUCTIONS.md",
+  "members": [
+    {
+      "filename": "BOOTSTRAP.md",
+      "sha256": "65c6e1ae8f99d1d93e425f79318d08e10cd17c2413338b648b6d8c161dff8c2a",
+      "size_bytes": 2102
+    },
+    {
+      "filename": "CHATGPT_REPO_INTERFACE.yaml",
+      "sha256": "d264d2e023df66b3967a629c776f455a1b460d67171e6eaed7b220edd23011c3",
+      "size_bytes": 3404
+    },
+    {
+      "filename": "EPISTEMIC_IDENTITY_CONTRACT.md",
+      "sha256": "ce9e5c5d13e4c830d0c4d0f64a88a02a3002687844c691ed0697dfdb101b404b",
+      "size_bytes": 2258
+    },
+    {
+      "filename": "PROJECT_INSTRUCTIONS.md",
+      "sha256": "c790535547dfe55edb8b8e87164cb3458762e96ea526fe14b7c25045f9fcec8a",
+      "size_bytes": 5347
+    },
+    {
+      "filename": "README.md",
+      "sha256": "c9ddd70c15f1a2e51978d6df064514a5c02f87e82fb0d42d5ba05d6e0319a757",
+      "size_bytes": 1571
+    },
+    {
+      "filename": "RECOVERY_AND_CONTINUATION.md",
+      "sha256": "566e2daab8924261462a9612cea41bdd23ba4ca34a25763f0df95e462a41ea6a",
+      "size_bytes": 1517
+    },
+    {
+      "filename": "RUNTIME_EFFECT_CONTRACT.md",
+      "sha256": "f7efe2bbd9592989122df44fd445930c4736c739ee4a3f34949e9d445a00ba62",
+      "size_bytes": 2281
+    }
+  ],
+  "claim_ceiling": "UPLOAD_READY_PROJECT_PACK; NOT INSTALLED; NOT RUNTIME_CONSUMED; NOT BEHAVIORALLY_QUALIFIED",
+  "protected_effects_not_authorized": [
+    "MERGE",
+    "DIRECT_MAIN_MUTATION",
+    "DEPLOY",
+    "INSTALL",
+    "ACTIVATE_OR_CUTOVER",
+    "CREDENTIAL_OR_PERMISSION_CHANGE",
+    "PRODUCTION_PROVIDER_MUTATION",
+    "PAID_COMPUTE",
+    "DELETE_OR_IRREVERSIBLE_REWRITE",
+    "CANONICAL_MEMORY_WRITE",
+    "PRIVATE_PUBLICATION"
+  ]
+}

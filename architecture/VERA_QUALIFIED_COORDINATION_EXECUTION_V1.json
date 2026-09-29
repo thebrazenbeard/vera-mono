@@ -1,0 +1,68 @@
+{
+  "schema": "VERA_MONO_QUALIFIED_COORDINATION_EXECUTION_V1",
+  "purpose": "Bind every persistent coordination write to one exact accepted lifecycle permit, one single-use effect identity, the append-only coordination repository, and durable command/result recovery evidence.",
+  "composition": {
+    "runtime": "vera_core.QualifiedVeraRuntime",
+    "gateway": "vera_core.LifecycleBoundCoordinationBus",
+    "repository": "coordination_bus.SQLiteCoordinationRepository",
+    "command_journal": "vera_core.CoordinationCommandJournal",
+    "effect_fence": "vera_assurance.EffectFence",
+    "outbound_audit": "vera_core.OutboundExecutionAudit"
+  },
+  "state_paths": {
+    "events": "<vera-state-root>/coordination/events.sqlite",
+    "commands": "<vera-state-root>/coordination/commands.sqlite"
+  },
+  "write_binding": {
+    "command_id_required": true,
+    "effect_id": "coordination:<command_id>",
+    "persists_before_effect_dispatch": [
+      "command",
+      "actor workstream",
+      "lifecycle permit digest",
+      "invocation digest",
+      "mechanical request digest"
+    ],
+    "invocation_payload_persisted": false,
+    "same_command_id_changed_invocation": "FAIL_CLOSED"
+  },
+  "result_binding": {
+    "persists_after_committed_effect": [
+      "effect result digest",
+      "coordination result class",
+      "database_write_confirmed",
+      "event_id",
+      "event_sequence"
+    ],
+    "repository_cross_check": true,
+    "write_confirmed_result_requires_matching_persistent_event": true
+  },
+  "restart_classification": {
+    "bound_no_effect": "retry candidate only while original lifecycle permit remains current",
+    "reserved": "pre-dispatch cancellation allowed; same effect identity is not reused",
+    "executing": "RECOVERY_REQUIRED_NO_REPLAY",
+    "attempted_unknown": "RECOVERY_REQUIRED_NO_REPLAY",
+    "committed_without_command_result": "RECOVERY_REQUIRED_NO_REPLAY",
+    "reconciled_committed_without_command_result": "RECOVERY_REQUIRED_NO_REPLAY",
+    "committed_with_matching_command_result_and_repository_event": "TERMINAL_NO_REPLAY",
+    "cancelled_pre_dispatch": "TERMINAL_NO_REPLAY",
+    "reconciled_no_effect": "TERMINAL_NO_REPLAY"
+  },
+  "integrity": {
+    "command_projection_digest": true,
+    "binding_count_checked": true,
+    "result_count_checked": true,
+    "binding_record_digests_checked": true,
+    "result_record_digests_checked": true,
+    "effect_fence_audit_consistency_checked": true,
+    "persistent_repository_integrity_checked_by_repository": true
+  },
+  "boundaries": {
+    "coordination_permissions_remain_bus_authority": true,
+    "lifecycle_permit_is_not_decision_authority": true,
+    "command_journal_is_evidence_not_authority": true,
+    "outbound_audit_is_evidence_not_authority": true,
+    "local_command_result_is_not_external_publication": true,
+    "source_presence_is_not_deployment": true
+  }
+}
