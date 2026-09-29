@@ -44,6 +44,41 @@ from .independent_behavior_review_adapter import (
     IndependentBehaviorReviewAssessment,
     QualifiedIndependentBehaviorReviewAdapter,
 )
+from .agi_novel_mapping import NovelMappingQualificationResult
+from .agi_novel_mapping_promotion import (
+    NovelMappingPromotionAssessment,
+    QualifiedNovelMappingPromotionAdapter,
+)
+from .agi_compositional_transfer import (
+    CompositionalTransferQualificationResult,
+)
+from .agi_compositional_promotion import (
+    CompositionalTransferPromotionAssessment,
+    QualifiedCompositionalTransferPromotionAdapter,
+)
+from .agi_regime_return import RegimeReturnQualificationResult
+from .agi_regime_return_promotion import (
+    QualifiedRegimeReturnPromotionAdapter,
+    RegimeReturnPromotionAssessment,
+)
+from .agi_ambiguous_spec_qualification import (
+    AmbiguousSpecQualificationResult,
+)
+from .agi_ambiguous_spec_promotion import (
+    AmbiguousSpecPromotionAssessment,
+    QualifiedAmbiguousSpecPromotionAdapter,
+)
+from .agi_correction_transfer_qualification import (
+    CorrectionTransferQualificationResult,
+)
+from .agi_correction_transfer_promotion import (
+    CorrectionTransferPromotionAssessment,
+    QualifiedCorrectionTransferPromotionAdapter,
+)
+from .agi_runtime_aggregate import (
+    AGIPacketReviewBinding,
+    QualifiedAGIRuntimeAggregateAdapter,
+)
 from .coordination_command_journal import CoordinationCommandJournal
 from .effect_recovery import (
     EffectReconciliationVerifier,
@@ -1436,6 +1471,143 @@ class QualifiedVeraRuntime:
         self,
     ) -> tuple[IndependentBehaviorReviewAssessment, ...]:
         return self.independent_behavior_review_adapter().recover()
+
+    def novel_mapping_promotion_adapter(
+        self,
+    ) -> QualifiedNovelMappingPromotionAdapter:
+        return QualifiedNovelMappingPromotionAdapter(runtime=self)
+
+    def promote_novel_mapping_qualification(
+        self,
+        measurement: NovelMappingQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> NovelMappingPromotionAssessment:
+        return QualifiedNovelMappingPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def compositional_transfer_promotion_adapter(
+        self,
+    ) -> QualifiedCompositionalTransferPromotionAdapter:
+        return QualifiedCompositionalTransferPromotionAdapter(runtime=self)
+
+    def promote_compositional_transfer_qualification(
+        self,
+        measurement: CompositionalTransferQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> CompositionalTransferPromotionAssessment:
+        return QualifiedCompositionalTransferPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def regime_return_promotion_adapter(
+        self,
+    ) -> QualifiedRegimeReturnPromotionAdapter:
+        return QualifiedRegimeReturnPromotionAdapter(runtime=self)
+
+    def promote_regime_return_qualification(
+        self,
+        measurement: RegimeReturnQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> RegimeReturnPromotionAssessment:
+        return QualifiedRegimeReturnPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def ambiguous_spec_promotion_adapter(
+        self,
+    ) -> QualifiedAmbiguousSpecPromotionAdapter:
+        return QualifiedAmbiguousSpecPromotionAdapter(runtime=self)
+
+    def promote_ambiguous_spec_qualification(
+        self,
+        measurement: AmbiguousSpecQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> AmbiguousSpecPromotionAssessment:
+        return QualifiedAmbiguousSpecPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def correction_transfer_promotion_adapter(
+        self,
+    ) -> QualifiedCorrectionTransferPromotionAdapter:
+        return QualifiedCorrectionTransferPromotionAdapter(runtime=self)
+
+    def promote_correction_transfer_qualification(
+        self,
+        measurement: CorrectionTransferQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> CorrectionTransferPromotionAssessment:
+        return QualifiedCorrectionTransferPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def aggregate_agi_qualification(
+        self,
+        packets: Sequence[Mapping[str, Any]],
+        *,
+        subject_head: str,
+        review_bindings: Sequence[AGIPacketReviewBinding],
+        claim_ceiling: str,
+    ) -> dict[str, object]:
+        return QualifiedAGIRuntimeAggregateAdapter(
+            runtime=self
+        ).aggregate(
+            packets,
+            subject_head=subject_head,
+            review_bindings=review_bindings,
+            claim_ceiling=claim_ceiling,
+        )
 
     def assess_task_dependencies(
         self,

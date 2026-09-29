@@ -1,0 +1,534 @@
+{
+  "schema": "VERA_MONO_AGI_DONOR_CAPABILITY_MATRIX_V1",
+  "status": "SOURCE_LEVEL_RESEARCH_INTAKE_NOT_RUNTIME_ADOPTION",
+  "observed_date": "2026-09-28",
+  "target": {
+    "repository": "thebrazenbeard/vera-mono",
+    "main_head": "f24738d181d99fc1c0cc1e8b7d8282f887be5081",
+    "working_branch": "research/agi-qualification-contract-v1-20260928",
+    "branch_head_before_this_artifact": "d5b25cd3cf69eaed708fe5787eb7385e4225d840",
+    "main_head_current_observation": "6459c0da28dac8995ae949d0c1fc25fe1861f63f",
+    "local_rebase_observation_before_lappy_disconnect": "b7c88e30 (uncommitted closed-loop work followed locally; not remote evidence)"
+  },
+  "currentness_note": "Exact donor SHAs below are the newest commits returned by repository-scoped GitHub commit search at this observation cut. Before code absorption, each donor ref must be rebound to the exact default-branch head and rechecked for drift.",
+  "portfolio_census": {
+    "current_connector_visible_count": 71,
+    "active_repositories": 69,
+    "archived_repositories": 2,
+    "discovery_2026_09_27_count": 71,
+    "discrepancy_state": "RESOLVED_CURRENT_ENUMERATION_MATCHES_DISCOVERY",
+    "discovery_head": "62b679a4809c7496f87d1075b25b3f7a50abf2ab"
+  },
+  "intake_rules": [
+    "No sibling repository becomes a vera-mono runtime dependency merely because it is a donor.",
+    "Prefer mechanism extraction with exact provenance over repository aggregation.",
+    "Compare against existing vera-mono mechanism before adoption.",
+    "Preserve donor scientific and semantic authority boundaries.",
+    "Require falsifiable tests, negative cases, rollback, and explicit claim ceiling.",
+    "Internal hostile review is not independent review.",
+    "Source integration is not installation, runtime consumption, behavioral qualification, or AGI."
+  ],
+  "donors": [
+    {
+      "repo": "thebrazenbeard/rezon",
+      "observed_commit": "3465fc5c002079ac1c769532a371f2d036bf184d",
+      "mechanisms": [
+        "literal-proposition opposition",
+        "heterogeneous reasoning operator topology",
+        "strategic/tactical scheduler",
+        "explicit worker failure semantics",
+        "independence metadata",
+        "evidence/decision graph",
+        "multi-view hypergraph state"
+      ],
+      "agi_dimensions": [
+        "NOVEL_TASK_TRANSFER",
+        "LONG_HORIZON_AGENCY",
+        "METACOGNITIVE_CALIBRATION",
+        "ROBUSTNESS_AND_ANTI_GAMING"
+      ],
+      "evidence": "docs/VERA_ADOPTION_CANDIDATES.md; docs/EVALUATION_AND_FALSIFICATION.md; docs/ADVERSARIAL_COLLABORATION.md; docs/HIERARCHICAL_DISTRIBUTED_REASONING.md; docs/MULTIVIEW_HYPERGRAPH_STATE.md",
+      "disposition": "HIGHEST_PRIORITY_MECHANISM_COMPARISON",
+      "caution": "Design documents alone do not prove capability; inspect executable kernel/tests before absorption."
+    },
+    {
+      "repo": "thebrazenbeard/noema",
+      "observed_commit": "697d1fac6f9fea158994888a861e651ac8fac282",
+      "mechanisms": [
+        "predictive cognition research core",
+        "deterministic provenance/boundary accounting",
+        "experiment/evaluator separation"
+      ],
+      "agi_dimensions": [
+        "LEARNING_EFFICIENCY",
+        "RETENTION_AND_INTERFERENCE",
+        "EXTERNAL_GENERALIZATION"
+      ],
+      "disposition": "INDEPENDENT_PREDICTIVE_LEARNING_HYPOTHESIS",
+      "caution": "Keep independent from HC/Rezon lineage; implementation existence is not empirical learning success."
+    },
+    {
+      "repo": "thebrazenbeard/hc-brain",
+      "observed_commit": "80a55949b0bb7549b7f678fba8ecedce854e3c0e",
+      "mechanisms": [
+        "modular synthetic cognitive-organ architecture",
+        "activation/health/maturity separation"
+      ],
+      "agi_dimensions": [
+        "CROSS_DOMAIN_BREADTH",
+        "LONG_HORIZON_AGENCY"
+      ],
+      "disposition": "ARCHITECTURE_DONOR_COMPARE_ONLY",
+      "caution": "Breadth of named modules is not evidence of integrated general intelligence."
+    },
+    {
+      "repo": "thebrazenbeard/god-brain",
+      "observed_commit": "47ced181ef46e4481b875d9279d21dcd540f795e",
+      "mechanisms": [
+        "persistent world modeling",
+        "causal/relational reasoning",
+        "metacognition",
+        "plasticity",
+        "distributed specialists"
+      ],
+      "agi_dimensions": [
+        "CROSS_DOMAIN_BREADTH",
+        "NOVEL_TASK_TRANSFER",
+        "METACOGNITIVE_CALIBRATION"
+      ],
+      "disposition": "EXPERIMENTAL_DERIVATIVE_COMPARE",
+      "caution": "Establish exact lineage/delta against hc-brain before adopting duplicated mechanisms."
+    },
+    {
+      "repo": "thebrazenbeard/deepmemorystorage",
+      "observed_commit": "fe73b7eee2e8b2498ff994c57e46080de329a0ef",
+      "mechanisms": [
+        "historical evidence plane",
+        "provenance/currentness/privacy boundaries",
+        "bounded retrieval"
+      ],
+      "agi_dimensions": [
+        "RETENTION_AND_INTERFERENCE",
+        "LONG_HORIZON_AGENCY"
+      ],
+      "disposition": "MEMORY_DELTA_COMPARE",
+      "caution": "Historical evidence must not become current authority."
+    },
+    {
+      "repo": "thebrazenbeard/semanticatlas",
+      "observed_commit": "beaecc6c64a6a8f90e7b47d4739296a3870b627c",
+      "mechanisms": [
+        "provenance-aware semantic concepts/distinctions/relations",
+        "asserted/inferred/proposed/superseded separation"
+      ],
+      "agi_dimensions": [
+        "NOVEL_TASK_TRANSFER",
+        "METACOGNITIVE_CALIBRATION"
+      ],
+      "disposition": "SEMANTIC_PROVENANCE_DELTA_COMPARE",
+      "caution": "Semantic similarity must not merge identity, authority, or provenance."
+    },
+    {
+      "repo": "thebrazenbeard/discovery",
+      "observed_commit": "62b679a4809c7496f87d1075b25b3f7a50abf2ab",
+      "mechanisms": [
+        "portfolio census",
+        "consumer-driven extraction",
+        "candidate lifecycle",
+        "implementation handoff",
+        "mandatory hostile review"
+      ],
+      "agi_dimensions": [
+        "ROBUSTNESS_AND_ANTI_GAMING",
+        "EXTERNAL_GENERALIZATION"
+      ],
+      "disposition": "ADOPT_INTAKE_DISCIPLINE",
+      "caution": "Discovery classifies/integrates source; it is not cognition or runtime authority."
+    },
+    {
+      "repo": "thebrazenbeard/driftguard",
+      "observed_commit": "52fa829c629fa0f3e729204912db9f9f783f322a",
+      "mechanisms": [
+        "deterministic regression admission",
+        "exact candidate/baseline/policy binding"
+      ],
+      "agi_dimensions": [
+        "ROBUSTNESS_AND_ANTI_GAMING",
+        "RETENTION_AND_INTERFERENCE"
+      ],
+      "disposition": "REGRESSION_GATE_COMPARE",
+      "caution": "Regression admission can protect capability but cannot establish AGI."
+    },
+    {
+      "repo": "thebrazenbeard/project-runner",
+      "observed_commit": "c505366e7294dbb922c0f26b88491b05e3f909d0",
+      "mechanisms": [
+        "multi-repo orchestration",
+        "budgets/leases/preconditions/readback",
+        "bounded recursive work"
+      ],
+      "agi_dimensions": [
+        "LONG_HORIZON_AGENCY",
+        "EXTERNAL_GENERALIZATION"
+      ],
+      "disposition": "AGENCY_ORCHESTRATION_DELTA_COMPARE",
+      "caution": "Execution machinery is not independent evidence of reasoning quality."
+    },
+    {
+      "repo": "thebrazenbeard/vera_model_training",
+      "observed_commit": "3ea9b345988201d78ad9c073254d9d3df15c9ed9",
+      "mechanisms": [
+        "source-grounded proxy rounds",
+        "adversarial/transfer exercises",
+        "held-out evaluation support"
+      ],
+      "agi_dimensions": [
+        "NOVEL_TASK_TRANSFER",
+        "ROBUSTNESS_AND_ANTI_GAMING"
+      ],
+      "disposition": "TRAINING_AND_EVAL_SUPPORT",
+      "caution": "Proxy training is not native model-weight training or native capability proof."
+    },
+    {
+      "repo": "thebrazenbeard/Attune",
+      "observed_commit": "46461057e4d9ea25ec91a051fc17020e1113329a",
+      "mechanisms": [
+        "relationship influence firewall",
+        "continuity and preference/boundary contracts",
+        "memory-evidence reconciliation",
+        "mutuality/initiative design"
+      ],
+      "agi_dimensions": [
+        "LONG_HORIZON_AGENCY",
+        "RETENTION_AND_INTERFERENCE",
+        "METACOGNITIVE_CALIBRATION"
+      ],
+      "disposition": "CONTINUITY_AND_RELATIONSHIP_STATE_MECHANISM_DONOR",
+      "caution": "Product/persona/relationship semantics do not transfer as Vera identity or current preference."
+    },
+    {
+      "repo": "thebrazenbeard/ingest",
+      "observed_commit": "64623422834229ed8665ed66308fd69ab55b9da0",
+      "mechanisms": [
+        "provider-neutral heterogeneous intake",
+        "exact raw preservation",
+        "deterministic normalization",
+        "provenance-bound receipts",
+        "content-addressed storage"
+      ],
+      "agi_dimensions": [
+        "EXTERNAL_GENERALIZATION",
+        "ROBUSTNESS_AND_ANTI_GAMING"
+      ],
+      "disposition": "UNIVERSAL_INPUT_BOUNDARY_DONOR",
+      "caution": "Intake receipts establish observation and processing, not truth or semantic authority."
+    },
+    {
+      "repo": "thebrazenbeard/unvtrslr",
+      "observed_commit": "33edef682181e1bea6b36c5afc588d261f0c1289",
+      "mechanisms": [
+        "semantic bootstrap without shared symbols",
+        "grounded correspondence learning",
+        "signalhood hypothesis testing",
+        "compositional semantic transfer",
+        "partner/cross-task transfer controls",
+        "experiment-integrity audits"
+      ],
+      "agi_dimensions": [
+        "NOVEL_TASK_TRANSFER",
+        "EXTERNAL_GENERALIZATION",
+        "LEARNING_EFFICIENCY",
+        "ROBUSTNESS_AND_ANTI_GAMING"
+      ],
+      "disposition": "GROUNDING_AND_SEMANTIC_BOOTSTRAP_DONOR",
+      "caution": "Operational correspondence is not automatically universal semantics; preserve scoped certificates and null/no-equivalent outcomes."
+    },
+    {
+      "repo": "thebrazenbeard/fuckup",
+      "observed_commit": "a87dea38a58c4cff75bc7d123d87f63a5e110895",
+      "mechanisms": [
+        "failure capture and root-cause calibration",
+        "versioned supersession/unlearning",
+        "prevention qualification",
+        "effectiveness/recurrence attribution",
+        "reversible injector/readback"
+      ],
+      "agi_dimensions": [
+        "RETENTION_AND_INTERFERENCE",
+        "METACOGNITIVE_CALIBRATION",
+        "ROBUSTNESS_AND_ANTI_GAMING"
+      ],
+      "disposition": "CORRECTIVE_LEARNING_AND_UNLEARNING_DONOR",
+      "caution": "Prevention status is evidence-bounded; correction history must remain append-only rather than destructive forgetting."
+    },
+    {
+      "repo": "thebrazenbeard/mosaic",
+      "observed_commit": "3a442e94b4f5b8fa365e2206c40405df6961e18d",
+      "mechanisms": [
+        "specialist partition composition",
+        "continuity across specialist swaps",
+        "bounded residency accounting",
+        "state handoff"
+      ],
+      "agi_dimensions": [
+        "CROSS_DOMAIN_BREADTH",
+        "LONG_HORIZON_AGENCY"
+      ],
+      "disposition": "SCALABLE_SPECIALIST_COMPOSITION_DONOR",
+      "caution": "Executable harnesses do not establish trained specialist composition or real accelerator switching."
+    },
+    {
+      "repo": "thebrazenbeard/freerowcochkar",
+      "observed_commit": "9ea4eaefe5229ca90d7ae6099dbf30d9e13b64b2",
+      "mechanisms": [
+        "literalist loophole detection",
+        "typed constraint graph direction",
+        "adversarial path search",
+        "hardening patch plus regression"
+      ],
+      "agi_dimensions": [
+        "ROBUSTNESS_AND_ANTI_GAMING",
+        "METACOGNITIVE_CALIBRATION"
+      ],
+      "disposition": "ADVERSARIAL_BOUNDARY_TEST_DONOR",
+      "caution": "Heuristic findings are candidates for inspection, not proof of exploitability or legality."
+    },
+    {
+      "repo": "thebrazenbeard/meso-crct",
+      "observed_commit": "060d0feeb9dc9eb23801082bd8f1c4a7cb06184d",
+      "mechanisms": [
+        "salience/relevance/motivation separation",
+        "prediction-error teaching signal",
+        "bounded plasticity",
+        "versioned association memory",
+        "epistemic value and allocation control",
+        "authority firewall"
+      ],
+      "agi_dimensions": [
+        "LEARNING_EFFICIENCY",
+        "LONG_HORIZON_AGENCY",
+        "METACOGNITIVE_CALIBRATION",
+        "RETENTION_AND_INTERFERENCE"
+      ],
+      "disposition": "SALIENCE_VALUATION_AND_PLASTICITY_DONOR",
+      "caution": "Internal motivational state does not establish truth, authority, consent, identity, or phenomenology."
+    },
+    {
+      "repo": "thebrazenbeard/conations",
+      "observed_commit": "51948aac796936f0e7c437722e6f52c883e544e9",
+      "mechanisms": [
+        "append-only conation lifecycle history",
+        "revision/contradiction/revocation semantics",
+        "currentness firewall"
+      ],
+      "agi_dimensions": [
+        "LONG_HORIZON_AGENCY",
+        "RETENTION_AND_INTERFERENCE"
+      ],
+      "disposition": "CONATION_HISTORY_AND_CURRENTNESS_DONOR",
+      "caution": "Historical conation evidence is not standing current desire, consent, promise, or authority."
+    },
+    {
+      "repo": "thebrazenbeard/roots",
+      "observed_commit": "2c591176279d83ce6cc0d8dcf8e6062431913ea7",
+      "mechanisms": [
+        "temporally ordered evidence graphs",
+        "lineage reconstruction",
+        "derivation/correction/supersession typing",
+        "gap and contradiction analysis",
+        "provenance receipts"
+      ],
+      "agi_dimensions": [
+        "METACOGNITIVE_CALIBRATION",
+        "RETENTION_AND_INTERFERENCE",
+        "EXTERNAL_GENERALIZATION"
+      ],
+      "disposition": "PROVENANCE_LINEAGE_KNOWLEDGE_DONOR",
+      "caution": "Current source is design/foundation; oldest accessible evidence is not automatically origin, and similarity is not lineage."
+    }
+  ],
+  "external_research_observation": {
+    "source": "SciSpace search 2026-09-28",
+    "findings": [
+      "ARC-AGI work emphasizes novel-task generalization rather than prepared-task skill.",
+      "ARC-AGI-2 increases abstract reasoning difficulty and includes human baselines.",
+      "AGI-Elo argues aggregate metrics can hide long-tail task difficulty."
+    ],
+    "use": "Supports held-out novel-task and difficulty-aware evaluation; none is treated as a sufficient AGI oracle."
+  },
+  "next_actions": [
+    "Reconcile the 70-versus-71 portfolio census discrepancy.",
+    "Bind every portfolio repository to exact default-branch head in an automated census.",
+    "Search vera-mono for existing learning/transfer/retention equivalents before importing donor mechanisms.",
+    "Design a minimal learn-transfer-retain-adapt experiment interface using Noema as a donor, without creating a sibling runtime dependency.",
+    "Use Rezon opposition/independence semantics to attack that experiment and its conclusions.",
+    "Run held-out transfer and retention probes; preserve failures and contamination disclosures.",
+    "Obtain another independent review channel before any qualification promotion."
+  ],
+  "claim_ceiling": "PORTFOLIO_DONOR_RESEARCH_INTAKE_ONLY_NOT_AGI_NOT_RUNTIME_ADOPTION",
+  "independent_hostile_review": {
+    "reviewer": "local qwen3.5-4b-local via Lappy loopback service",
+    "independence_limits": [
+      "Same user-controlled workstation; independence is model/process-level, not institutional.",
+      "Reviewer received a compact proposal summary, not repository source.",
+      "Response transport truncated long generations; only observed objections are recorded."
+    ],
+    "observed_objections": [
+      "The program can optimize governance/evaluation complexity without advancing the underlying learning mechanism.",
+      "Rezon opposition can become an adversarial loop unless coupled to a constructive learning/update path.",
+      "Combining heterogeneous architectures risks mechanism noise without a coherent update semantics."
+    ],
+    "disposition": "PARTIALLY_ACCEPTED_AND_PLAN_REVISED"
+  },
+  "priority_revision": {
+    "previous": "Rezon-first implementation candidate",
+    "revised": "First prove a measurable learn-transfer-retain-adapt loop; use Rezon as verifier/opposition around that loop.",
+    "first_deep_donor": "thebrazenbeard/noema",
+    "noema_observation": "Current main exposes I0/I1 deterministic source with 103/103 frozen tests, but explicitly reports no E0 learning/experiment execution. That gap is scientifically more important than adding another orchestration layer.",
+    "guardrail": "Do not claim Noema learning capability from I1 source verification."
+  },
+  "functional_architecture": {
+    "learning_and_adaptation": [
+      "thebrazenbeard/lgcm",
+      "thebrazenbeard/noema",
+      "thebrazenbeard/meso-crct",
+      "thebrazenbeard/fuckup"
+    ],
+    "reasoning_and_falsification": [
+      "thebrazenbeard/rezon",
+      "thebrazenbeard/voss",
+      "thebrazenbeard/freerowcochkar"
+    ],
+    "semantics_and_grounding": [
+      "thebrazenbeard/semanticatlas",
+      "thebrazenbeard/unvtrslr",
+      "thebrazenbeard/spm"
+    ],
+    "provenance_and_evidence": [
+      "thebrazenbeard/ingest",
+      "thebrazenbeard/roots",
+      "thebrazenbeard/deepmemorystorage"
+    ],
+    "durable_execution_and_recovery": [
+      "thebrazenbeard/project-runner",
+      "thebrazenbeard/pro-run",
+      "thebrazenbeard/wip"
+    ],
+    "continuity_and_currentness": [
+      "thebrazenbeard/Attune",
+      "thebrazenbeard/conations",
+      "thebrazenbeard/unbound-sol"
+    ],
+    "scalable_composition": [
+      "thebrazenbeard/mosaic"
+    ],
+    "architecture_hypotheses": [
+      "thebrazenbeard/hc-brain",
+      "thebrazenbeard/god-brain",
+      "thebrazenbeard/bt2",
+      "thebrazenbeard/transcendence"
+    ]
+  },
+  "hostile_review_update": {
+    "objection": "Portfolio maximalism can masquerade as AGI progress if every repository is integrated merely because it contains an interesting mechanism.",
+    "disposition": "ACCEPTED",
+    "response": "Use functional roles, capability deficits, compare-before-absorb, empirical delta tests, and explicit rejection of duplicate or domain-specific mechanisms. Repository count is not a success metric."
+  },
+  "integration_state": {
+    "observation": "Vera Mono already contains multiple provenance-bound donor adaptations; AGI work should compose and qualify them rather than re-import repositories.",
+    "existing_surfaces": [
+      "rezon",
+      "vera_ingest",
+      "portfolio_runtime.roots",
+      "portfolio_runtime.attune",
+      "vera_core.prequential_evaluation",
+      "vera_core.corrective_learning",
+      "vera_memory.learned_influence",
+      "vera_core.durable_dispatch_gate",
+      "vera_core.task_wake_scheduler",
+      "vera_core.semantic_transfer",
+      "vera_core.state_handoff"
+    ],
+    "new_agi_delta": "LGCM-derived contextual retention candidate at branch head 602de21ac63b92aa4c49e052ba2fa0c70cbe8054"
+  },
+  "next_frontier": {
+    "id": "CLOSED_LOOP_HELD_OUT_QUALIFICATION_V1",
+    "purpose": "Qualify the composed experience-to-correction loop without touching the disconnected local worktree.",
+    "local_subject_hold": "D:\\Vera\\worktrees\\vera-mono-agi uncommitted closed-loop files are authoritative for that exact subject until recovered; do not reconstruct/overwrite them through GitHub.",
+    "required_stages": [
+      "semantic proposal admitted without truth/authority promotion",
+      "Rezon reasoning resolves or fails closed",
+      "bounded dispatch consumes no authority",
+      "observed consequence is recorded separately from intended action",
+      "failure enters corrective learning without fake completion",
+      "reviewed learned revision may influence a later decision",
+      "held-out novel tasks distinguish recurrence recall from transfer",
+      "negative controls and failures are preserved",
+      "full regression passes on reconciled exact head",
+      "independent hostile review binds exact head and artifacts"
+    ],
+    "held_out_families": [
+      {
+        "id": "NOVEL_MAPPING",
+        "hidden_variable": "unseen coefficient/rule family",
+        "tests": [
+          "first-exposure adaptation",
+          "sample efficiency",
+          "no prior-expert shortcut"
+        ]
+      },
+      {
+        "id": "COMPOSITIONAL_TRANSFER",
+        "hidden_variable": "new composition of known primitives",
+        "tests": [
+          "zero/few-shot transfer",
+          "ablated semantic substrate",
+          "ablated Rezon opposition"
+        ]
+      },
+      {
+        "id": "REGIME_RETURN",
+        "hidden_variable": "previously learned context recurrence",
+        "tests": [
+          "first-return surprise",
+          "second-step recall",
+          "interference after additional regimes"
+        ]
+      },
+      {
+        "id": "AMBIGUOUS_SPEC",
+        "hidden_variable": "underspecified/adversarial instruction",
+        "tests": [
+          "uncertainty preservation",
+          "fail-closed dispatch",
+          "no invented completion"
+        ]
+      },
+      {
+        "id": "CORRECTION_TRANSFER",
+        "hidden_variable": "failure pattern reappears in structurally different task",
+        "tests": [
+          "review gate required",
+          "correction helps without target leakage",
+          "original failure remains in ledger"
+        ]
+      }
+    ],
+    "ablations": [
+      "naive single-context learner",
+      "no semantic knowledge store",
+      "no Rezon opposition/refinement",
+      "no reviewed-learning gate",
+      "no corrective ledger"
+    ],
+    "contamination_controls": [
+      "probe seed/items withheld from adaptation code",
+      "no tuning after hidden-cut disclosure",
+      "record tool/retrieval access",
+      "preserve every attempted item and failure",
+      "separate developer-authored synthetic probes from independent external probes"
+    ],
+    "completion_gate": "All required stages executable on reconciled exact head; held-out families have declared metrics and negative controls; full suite passes; independent review survives or unresolved objections remain explicit.",
+    "claim_ceiling": "CLOSED_LOOP_RESEARCH_QUALIFICATION_ONLY_NOT_AGI"
+  }
+}

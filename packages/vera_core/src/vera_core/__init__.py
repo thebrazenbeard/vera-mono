@@ -657,3 +657,239 @@ __all__ = [
     "capability",
     "validate_registry",
 ]
+
+from .agi_closed_loop import (
+    CALLBACK_OBSERVATION_RECORDED,
+    ClosedLoopFrontier,
+    ClosedLoopResult,
+    ClosedLoopTask,
+)
+
+__all__.extend([
+    "CALLBACK_OBSERVATION_RECORDED",
+    "ClosedLoopFrontier",
+    "ClosedLoopResult",
+    "ClosedLoopTask",
+])
+
+
+from .agi_evaluation import (
+    AGIContaminationDisclosure,
+    HeldOutAttempt,
+    HeldOutCase,
+    HeldOutProbe,
+    HeldOutProbeResult,
+    build_agi_evaluation_packet,
+    run_held_out_probe,
+    run_prequential_held_out_probe,
+)
+
+__all__.extend([
+    "AGIContaminationDisclosure",
+    "HeldOutAttempt",
+    "HeldOutCase",
+    "HeldOutProbe",
+    "HeldOutProbeResult",
+    "build_agi_evaluation_packet",
+    "run_held_out_probe",
+    "run_prequential_held_out_probe",
+])
+
+
+from .agi_qualification import (
+    REQUIRED_AGI_DIMENSIONS,
+    aggregate_agi_qualification,
+)
+
+__all__.extend([
+    "REQUIRED_AGI_DIMENSIONS",
+    "aggregate_agi_qualification",
+])
+
+
+from .agi_novel_mapping import (
+    NovelMappingMetrics,
+    NovelMappingQualificationResult,
+    NovelMappingThresholds,
+    qualify_novel_mapping,
+)
+
+__all__.extend([
+    "NovelMappingMetrics",
+    "NovelMappingQualificationResult",
+    "NovelMappingThresholds",
+    "qualify_novel_mapping",
+])
+
+
+from .agi_novel_mapping_promotion import NovelMappingPromotionAssessment
+
+__all__.append("NovelMappingPromotionAssessment")
+
+
+from .agi_runtime_aggregate import AGIPacketReviewBinding
+
+__all__.append("AGIPacketReviewBinding")
+
+
+from .agi_compositional_transfer import (
+    AffinePrimitiveLearner,
+    CompositionalTransferMetrics,
+    CompositionalTransferQualificationResult,
+    CompositionalTransferThresholds,
+    PrimitiveProgramMemorizer,
+    qualify_compositional_transfer,
+)
+
+__all__.extend([
+    "AffinePrimitiveLearner",
+    "CompositionalTransferMetrics",
+    "CompositionalTransferQualificationResult",
+    "CompositionalTransferThresholds",
+    "PrimitiveProgramMemorizer",
+    "qualify_compositional_transfer",
+])
+
+
+from .agi_compositional_promotion import (
+    CompositionalTransferPromotionAssessment,
+    QualifiedCompositionalTransferPromotionAdapter,
+)
+
+__all__.extend([
+    "CompositionalTransferPromotionAssessment",
+    "QualifiedCompositionalTransferPromotionAdapter",
+])
+
+
+from .adaptive_linear import (
+    ContextualOnlineLinearPredictor,
+    OnlineLinearPredictor,
+)
+from .agi_regime_return import (
+    RegimeReturnMetrics,
+    RegimeReturnPhaseEvidence,
+    RegimeReturnQualificationResult,
+    RegimeReturnThresholds,
+    qualify_regime_return,
+)
+
+__all__.extend([
+    "ContextualOnlineLinearPredictor",
+    "OnlineLinearPredictor",
+    "RegimeReturnMetrics",
+    "RegimeReturnPhaseEvidence",
+    "RegimeReturnQualificationResult",
+    "RegimeReturnThresholds",
+    "qualify_regime_return",
+])
+
+
+from .agi_regime_return_promotion import (
+    QualifiedRegimeReturnPromotionAdapter,
+    RegimeReturnPromotionAssessment,
+)
+
+__all__.extend([
+    "QualifiedRegimeReturnPromotionAdapter",
+    "RegimeReturnPromotionAssessment",
+])
+
+
+from .agi_ambiguous_spec import (
+    DecisionCandidate,
+    StructuredAmbiguityDecision,
+    StructuredAmbiguityGuard,
+    StructuredAmbiguitySpec,
+)
+
+__all__.extend([
+    "DecisionCandidate",
+    "StructuredAmbiguityDecision",
+    "StructuredAmbiguityGuard",
+    "StructuredAmbiguitySpec",
+])
+
+
+from .agi_ambiguous_spec_qualification import (
+    AmbiguousSpecMetrics,
+    AmbiguousSpecQualificationResult,
+    AmbiguousSpecThresholds,
+    qualify_ambiguous_spec,
+)
+
+__all__.extend([
+    "AmbiguousSpecMetrics",
+    "AmbiguousSpecQualificationResult",
+    "AmbiguousSpecThresholds",
+    "qualify_ambiguous_spec",
+])
+
+
+from .agi_ambiguous_spec_promotion import (
+    AmbiguousSpecPromotionAssessment,
+    QualifiedAmbiguousSpecPromotionAdapter,
+)
+
+__all__.extend([
+    "AmbiguousSpecPromotionAssessment",
+    "QualifiedAmbiguousSpecPromotionAdapter",
+])
+
+
+from .agi_correction_transfer import (
+    CorrectionRecurrence,
+    CorrectionTransferDecision,
+    CorrectionTransferGuard,
+    ExactCaseCorrectionMemorizer,
+)
+
+__all__.extend([
+    "CorrectionRecurrence",
+    "CorrectionTransferDecision",
+    "CorrectionTransferGuard",
+    "ExactCaseCorrectionMemorizer",
+])
+
+
+from .agi_correction_transfer_qualification import (
+    CorrectionTransferCase,
+    CorrectionTransferMetrics,
+    CorrectionTransferQualificationResult,
+    CorrectionTransferThresholds,
+    qualify_correction_transfer,
+)
+
+__all__.extend([
+    "CorrectionTransferCase",
+    "CorrectionTransferMetrics",
+    "CorrectionTransferQualificationResult",
+    "CorrectionTransferThresholds",
+    "qualify_correction_transfer",
+])
+
+
+from .agi_correction_transfer_promotion import (
+    CorrectionTransferPromotionAssessment,
+    QualifiedCorrectionTransferPromotionAdapter,
+)
+
+__all__.extend([
+    "CorrectionTransferPromotionAssessment",
+    "QualifiedCorrectionTransferPromotionAdapter",
+])
+
+
+from .agi_metacognitive_calibration import (
+    CalibrationAdmission,
+    CalibrationForecast,
+    CalibrationObservation,
+    OnlineConfidenceCalibrator,
+)
+
+__all__.extend([
+    "CalibrationAdmission",
+    "CalibrationForecast",
+    "CalibrationObservation",
+    "OnlineConfidenceCalibrator",
+])

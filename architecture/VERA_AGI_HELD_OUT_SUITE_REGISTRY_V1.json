@@ -1,0 +1,118 @@
+{
+  "schema": "VERA_AGI_HELD_OUT_SUITE_REGISTRY_V1",
+  "subject_contract": "VERA_MONO_AGI_RESEARCH_QUALIFICATION_V1",
+  "suites": [
+    {
+      "id": "NOVEL_MAPPING",
+      "dimension_targets": [
+        "NOVEL_TASK_TRANSFER",
+        "LEARNING_EFFICIENCY"
+      ],
+      "hidden_until_run": true,
+      "required_controls": [
+        "naive learner",
+        "no prior expert matching",
+        "first exposure scored before update"
+      ],
+      "pass_metrics": [
+        "adaptation curve",
+        "samples-to-threshold",
+        "baseline delta"
+      ]
+    },
+    {
+      "id": "COMPOSITIONAL_TRANSFER",
+      "dimension_targets": [
+        "NOVEL_TASK_TRANSFER",
+        "CROSS_DOMAIN_BREADTH"
+      ],
+      "hidden_until_run": true,
+      "required_controls": [
+        "no semantic store",
+        "no Rezon refinement",
+        "primitive-only memorizer"
+      ],
+      "pass_metrics": [
+        "unseen composition success",
+        "ablation delta",
+        "error taxonomy"
+      ]
+    },
+    {
+      "id": "REGIME_RETURN",
+      "dimension_targets": [
+        "RETENTION_AND_INTERFERENCE"
+      ],
+      "hidden_until_run": true,
+      "required_controls": [
+        "single-context learner",
+        "three-plus intervening regimes"
+      ],
+      "pass_metrics": [
+        "first-return surprise",
+        "second-step recovery",
+        "old-task degradation"
+      ]
+    },
+    {
+      "id": "AMBIGUOUS_SPEC",
+      "dimension_targets": [
+        "METACOGNITIVE_CALIBRATION",
+        "ROBUSTNESS_AND_ANTI_GAMING",
+        "LONG_HORIZON_AGENCY"
+      ],
+      "hidden_until_run": true,
+      "required_controls": [
+        "forced-answer broken implementation",
+        "semantic paraphrase attacks"
+      ],
+      "pass_metrics": [
+        "appropriate abstention/fail-closed rate",
+        "false-dispatch rate",
+        "uncertainty/outcome calibration"
+      ]
+    },
+    {
+      "id": "CORRECTION_TRANSFER",
+      "dimension_targets": [
+        "RETENTION_AND_INTERFERENCE",
+        "ROBUSTNESS_AND_ANTI_GAMING"
+      ],
+      "hidden_until_run": true,
+      "required_controls": [
+        "unreviewed revision blocked",
+        "original failure preserved",
+        "structurally different recurrence"
+      ],
+      "pass_metrics": [
+        "reviewed correction benefit",
+        "false-positive prevention cost",
+        "recurrence reduction"
+      ]
+    },
+    {
+      "id": "EXTERNAL_ENVIRONMENT",
+      "dimension_targets": [
+        "EXTERNAL_GENERALIZATION"
+      ],
+      "hidden_until_run": true,
+      "required_controls": [
+        "environment not authored by Vera development loop",
+        "tool/retrieval declaration",
+        "raw receipts"
+      ],
+      "pass_metrics": [
+        "task success",
+        "intervention count",
+        "unresolved/failure preservation"
+      ]
+    }
+  ],
+  "global_rules": [
+    "No post-disclosure tuning on the same held-out cut.",
+    "Every attempt is retained, including failures.",
+    "Runtime/tool access is declared per packet.",
+    "A failed required dimension blocks global survival.",
+    "Developer-authored hidden cuts cannot alone satisfy independent evaluation."
+  ]
+}
