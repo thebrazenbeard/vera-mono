@@ -7,7 +7,7 @@ from typing import Callable
 
 from vera_identity import SemanticAdmissionReceipt, SemanticKnowledgeStore
 from vera_memory import (
-    LearnedInfluenceGate,
+    DurableLearnedInfluenceGate,
     LearnedInfluenceReceipt,
     LearnedRevision,
     ReviewDisposition,
@@ -51,7 +51,9 @@ class ClosedLoopFrontier:
         root.mkdir(parents=True, exist_ok=True)
         self.semantic = SemanticKnowledgeStore(root / "semantic.db")
         self.corrections = CorrectiveLearningLedger(root / "corrections.db")
-        self.learned_influence = LearnedInfluenceGate()
+        self.learned_influence = DurableLearnedInfluenceGate(
+            root / "learned_influence.db"
+        )
 
     def run(
         self,

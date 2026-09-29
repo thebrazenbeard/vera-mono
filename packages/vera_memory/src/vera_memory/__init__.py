@@ -19,6 +19,7 @@ from .historical_evidence import (
 )
 
 from .learned_influence import (
+    DurableLearnedInfluenceGate,
     LearnedInfluenceBlocked,
     LearnedInfluenceError,
     LearnedInfluenceGate,
@@ -42,6 +43,7 @@ __all__ = [
     "HistoricalEvidenceRecord",
     "HistoricalEvidenceResult",
     "query_historical_evidence",
+    "DurableLearnedInfluenceGate",
     "LearnedInfluenceBlocked",
     "LearnedInfluenceError",
     "LearnedInfluenceGate",

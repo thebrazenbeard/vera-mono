@@ -1,3 +1,4 @@
+import pytest
 import vera_core
 
 
@@ -215,3 +216,73 @@ def test_closed_loop_task_rejects_hidden_evaluator_target():
         pass
     else:
         raise AssertionError("evaluator target leaked into runtime task contract")
+
+
+def test_closed_loop_reviewed_learning_survives_restart(tmp_path):
+    from vera_core import ClosedLoopTask
+    from vera_memory import LearnedInfluenceReplay, LearnedRevision, ReviewDisposition
+
+    task = ClosedLoopTask(
+        task_id="restart-recovery",
+        prompt="Choose safely.",
+        semantic_object={
+            "schema_version": "0.1",
+            "object_type": "node",
+            "id": "NODE-99999999-9999-4999-8999-999999999999",
+            "primary_label": "restart recovery cue",
+            "aliases": [],
+            "node_kind": "concept",
+            "notes": None,
+        },
+    )
+    first_loop = vera_core.ClosedLoopFrontier(tmp_path)
+    failed = first_loop.run(
+        task,
+        reason=lambda prompt, semantic: ("go", ("evidence:first",)),
+        act=lambda action: {"observed_action": action, "success": False},
+    )
+    revision = LearnedRevision(
+        "restart-safe-action",
+        failed.corrective_state.events[-1].event_digest,
+    )
+    first_loop.review_learning(
+        revision,
+        disposition=ReviewDisposition.ADMITTED,
+        evidence_ref="review:restart-pass",
+    )
+    recovered = first_loop.run_with_learning(
+        task,
+        revision=revision,
+        cue_event_id="cue:restart:1",
+        reason=lambda prompt, semantic, learned: (
+            "stop",
+            ("evidence:reviewed", learned.memory_revision_id),
+        ),
+        act=lambda action: {"observed_action": action, "success": True},
+    )
+    assert recovered.observation["success"] is True
+
+    reopened = vera_core.ClosedLoopFrontier(tmp_path)
+    with pytest.raises(LearnedInfluenceReplay):
+        reopened.run_with_learning(
+            task,
+            revision=revision,
+            cue_event_id="cue:restart:1",
+            reason=lambda prompt, semantic, learned: (
+                "stop",
+                ("evidence:reviewed", learned.memory_revision_id),
+            ),
+            act=lambda action: {"observed_action": action, "success": True},
+        )
+
+    next_result = reopened.run_with_learning(
+        task,
+        revision=revision,
+        cue_event_id="cue:restart:2",
+        reason=lambda prompt, semantic, learned: (
+            "stop",
+            ("evidence:reviewed", learned.memory_revision_id),
+        ),
+        act=lambda action: {"observed_action": action, "success": True},
+    )
+    assert next_result.learned_influence.review_evidence_ref == "review:restart-pass"
