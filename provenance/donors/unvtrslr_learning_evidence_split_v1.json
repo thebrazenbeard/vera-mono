@@ -1,0 +1,37 @@
+{
+  "adaptation": {
+    "authority_effect": "NONE",
+    "consumer": "packages/vera_core/src/vera_core/agi_closed_loop.py",
+    "donor_runtime_dependency": false,
+    "mechanism": "generic exact-identity separation of calibration evidence A, held-out qualification evidence B, and later-use evidence C for qualified learned influence",
+    "target": "packages/vera_memory/src/vera_memory/learned_influence.py",
+    "target_code_head": "0f5821446c8e73561ed17c3c5df9db241ae498ce"
+  },
+  "claim_ceiling": "GENERIC_DURABLE_LEARNED_EVIDENCE_PHASE_SEPARATION_WITH_FOCUSED_TEST_PASS; NOT INDEPENDENT QUALIFICATION; NOT GENERAL LEARNING; NOT AGI",
+  "domain_specific_material_not_absorbed": [
+    "acoustic prototypes",
+    "translator/source-profile types",
+    "acoustic match-rate thresholds",
+    "target-language rendering"
+  ],
+  "donor_head": "33edef682181e1bea6b36c5afc588d261f0c1289",
+  "donor_repository": "thebrazenbeard/unvtrslr",
+  "inspected_source_blobs": {
+    "docs/CALIBRATION_HOLDOUT_QUALIFICATION_V1.md": "9034701e5e14055f5721409d9d98ce0ec142ceee",
+    "src/unvtrslr/calibration_qualification.py": "f2951b97a088b2c831023198cd30c6a930c2d540"
+  },
+  "preserved_controls": [
+    "calibration and qualification evidence identities must be disjoint",
+    "qualified learning cannot be consumed without a later-use evidence identity",
+    "later-use evidence identity cannot equal any calibration or qualification identity",
+    "later-use evidence identity is single-use for an exact learned revision",
+    "evidence-phase bindings and replay fences survive restart"
+  ],
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "trigger": "Vera now has a concrete durable learned-component consumer, satisfying the prior portfolio-intake reopen condition for evidence-phase separation.",
+  "verification": {
+    "focused_command": "python -m pytest tests/test_learned_influence_gate.py tests/test_agi_closed_loop.py -q",
+    "full_suite_status": "NOT_CLAIMED_DUE_TO_CONCURRENT_LOCAL_VERIFICATION_CONTENTION",
+    "result": "15 passed"
+  }
+}
