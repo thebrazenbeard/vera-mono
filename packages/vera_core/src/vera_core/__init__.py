@@ -835,3 +835,18 @@ __all__.extend([
     "AmbiguousSpecPromotionAssessment",
     "QualifiedAmbiguousSpecPromotionAdapter",
 ])
+
+
+from .agi_correction_transfer import (
+    CorrectionRecurrence,
+    CorrectionTransferDecision,
+    CorrectionTransferGuard,
+    ExactCaseCorrectionMemorizer,
+)
+
+__all__.extend([
+    "CorrectionRecurrence",
+    "CorrectionTransferDecision",
+    "CorrectionTransferGuard",
+    "ExactCaseCorrectionMemorizer",
+])
