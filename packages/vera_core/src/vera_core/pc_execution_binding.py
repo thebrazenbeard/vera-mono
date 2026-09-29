@@ -14,6 +14,7 @@ from portfolio_runtime.lantern.canonical import (
 
 from .lifecycle import AcceptedLifecyclePermit
 from .outbound_authority import pc_authority_subject
+from .task_execution import TaskDependencyRef
 
 
 class PCExecutionBindingError(ValueError):
@@ -50,6 +51,7 @@ class PreparedPCDispatch:
     job_digest: str
     authorization_digest: str
     authority_subject: str
+    task_dependency: TaskDependencyRef | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +71,8 @@ class PCExecutionBindingStore:
     attempt when conversational state is gone.
     """
 
-    SCHEMA = "VERA_MONO_PC_EXECUTION_BINDING_V1"
+    SCHEMA = "VERA_MONO_PC_EXECUTION_BINDING_V2"
+    LEGACY_SCHEMA = "VERA_MONO_PC_EXECUTION_BINDING_V1"
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
@@ -121,6 +124,11 @@ class PCExecutionBindingStore:
                 "job_digest": prepared.job_digest,
                 "authorization_digest": prepared.authorization_digest,
                 "authority_subject": prepared.authority_subject,
+                "task_dependency": (
+                    None
+                    if prepared.task_dependency is None
+                    else prepared.task_dependency.canonical_body()
+                ),
             },
             "lease": {
                 "job_id": lease.job_id,
@@ -216,6 +224,20 @@ class PCExecutionBindingStore:
             for row in rows
         )
 
+    def bindings_for_effect(
+        self,
+        effect_id: str,
+    ) -> tuple[PCExecutionBinding, ...]:
+        if type(effect_id) is not str or not effect_id:
+            raise PCExecutionBindingError(
+                "effect_id must be a non-empty exact string"
+            )
+        return tuple(
+            binding
+            for binding in self.all()
+            if binding.effect_id == effect_id
+        )
+
     def context(self) -> dict[str, Any]:
         bindings = self.all()
         return {
@@ -255,7 +277,10 @@ class PCExecutionBindingStore:
             raise PCExecutionBindingError(
                 "PC execution binding is not valid JSON"
             ) from exc
-        if not isinstance(payload, dict) or payload.get("schema") != cls.SCHEMA:
+        if (
+            not isinstance(payload, dict)
+            or payload.get("schema") not in {cls.SCHEMA, cls.LEGACY_SCHEMA}
+        ):
             raise PCExecutionBindingError(
                 "unsupported PC execution binding schema"
             )
@@ -296,6 +321,35 @@ class PCExecutionBindingStore:
             raise PCExecutionBindingError(
                 "stored PC authority subject mismatch"
             )
+        raw_task_dependency = prepared_fields.get("task_dependency")
+        task_dependency = None
+        if raw_task_dependency is not None:
+            if not isinstance(raw_task_dependency, dict):
+                raise PCExecutionBindingError(
+                    "stored PC task dependency must be an object"
+                )
+            try:
+                task_dependency = TaskDependencyRef(
+                    task_id=str(raw_task_dependency["task_id"]),
+                    dependency_id=str(raw_task_dependency["dependency_id"]),
+                    kind=str(raw_task_dependency["kind"]),
+                    target_id=str(raw_task_dependency["target_id"]),
+                    binding_event_digest=str(
+                        raw_task_dependency["binding_event_digest"]
+                    ),
+                )
+            except KeyError as exc:
+                raise PCExecutionBindingError(
+                    "stored PC task dependency is incomplete"
+                ) from exc
+            if (
+                task_dependency.kind != "EFFECT"
+                or task_dependency.target_id != f"pc:{job.envelope_id}"
+                or len(task_dependency.binding_event_digest) != 64
+            ):
+                raise PCExecutionBindingError(
+                    "stored PC task dependency binding mismatch"
+                )
 
         prepared = PreparedPCDispatch(
             permit=permit,
@@ -304,6 +358,7 @@ class PCExecutionBindingStore:
             job_digest=job_digest,
             authorization_digest=authorization_digest,
             authority_subject=authority_subject,
+            task_dependency=task_dependency,
         )
         raw_lease = payload["lease"]
         lease = PCExecutionLease(
@@ -318,7 +373,11 @@ class PCExecutionBindingStore:
             raise PCExecutionBindingError(
                 "stored PC effect identity mismatch"
             )
-        if _exact_json(cls._payload(prepared, lease)) != payload_json:
+        expected_payload = cls._payload(prepared, lease)
+        expected_payload["schema"] = payload["schema"]
+        if payload["schema"] == cls.LEGACY_SCHEMA:
+            expected_payload["prepared"].pop("task_dependency", None)
+        if _exact_json(expected_payload) != payload_json:
             raise PCExecutionBindingError(
                 "PC execution binding canonical readback mismatch"
             )

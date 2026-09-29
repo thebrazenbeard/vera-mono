@@ -1,0 +1,22 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/fuckup",
+  "donor_head": "a3fbc79ef5c7781a2297615d2447a4acb369f0be",
+  "inspected_source_blobs": {
+    "src/fuckup_protocol/effectiveness.py": "550af78eddc6c4712014e6335df3e934155a99b8",
+    "tests/test_effectiveness.py": "1f25f040ca2c890b8af82c0ca545faf679fc9af9"
+  },
+  "adaptation": {
+    "target": "packages/vera_assurance/src/vera_assurance/corrective_effectiveness.py",
+    "mechanism": "bound baseline/active post-correction outcome comparison with exact correction revision/scope and active promotion/binding identity; regression dominates apparent rate improvement",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "observed rate improvement proves causal attribution",
+    "effectiveness evidence authorizes promotion or deployment",
+    "stored correction completion proves effectiveness",
+    "unbound observations may be mixed with bound observations"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_WAVE7_CI"
+}

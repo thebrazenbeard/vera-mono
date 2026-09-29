@@ -11,6 +11,39 @@ from vera_assurance import EffectFence, EffectReceipt, EffectState
 from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 
 from .action_gate import LifecycleBoundCoordinationBus, LifecycleEffectGateway
+from .behavior_effect_verification import (
+    BehaviorEffectVerificationError,
+    BehaviorEffectVerificationReceipt,
+    BehaviorEffectVerificationStore,
+    BehaviorEffectVerificationTransport,
+    behavior_effect_requirements,
+)
+from .behavior_effect_verification_adapter import (
+    BehaviorEffectAssessment,
+    QualifiedBehaviorEffectVerificationAdapter,
+)
+from .behavior_attestation import (
+    BehaviorAttestationError,
+    BehaviorAttestationReceipt,
+    BehaviorAttestationStore,
+    BehaviorAttestationTransport,
+    behavior_attestation_requirements,
+)
+from .behavior_attestation_adapter import (
+    BehaviorAttestationAssessment,
+    QualifiedBehaviorAttestationAdapter,
+)
+from .independent_behavior_review import (
+    IndependentBehaviorReviewError,
+    IndependentBehaviorReviewReceipt,
+    IndependentBehaviorReviewStore,
+    IndependentBehaviorReviewTransport,
+    independent_behavior_review_requirements,
+)
+from .independent_behavior_review_adapter import (
+    IndependentBehaviorReviewAssessment,
+    QualifiedIndependentBehaviorReviewAdapter,
+)
 from .coordination_command_journal import CoordinationCommandJournal
 from .effect_recovery import (
     EffectReconciliationVerifier,
@@ -19,6 +52,19 @@ from .effect_recovery import (
 from .execution_adapters import (
     PCExecutionTransport,
     ProviderExecutionTransport,
+    SourceMutationTransport,
+    validate_pc_execution_transport_for_job,
+)
+from .installation_verification import (
+    InstallationVerificationError,
+    InstallationVerificationReceipt,
+    InstallationVerificationStore,
+    InstallationVerificationTransport,
+    installation_verification_requirements,
+)
+from .installation_verification_adapter import (
+    InstallationVerificationAssessment,
+    QualifiedInstallationVerificationAdapter,
 )
 from .lifecycle import (
     AcceptedLifecyclePermit,
@@ -42,9 +88,50 @@ from .provider_execution_binding import (
     ProviderExecutionBindingStore,
     ProviderExecutionRecoveryAssessment,
 )
+from .route_verification import (
+    RouteVerificationError,
+    RouteVerificationReceipt,
+    RouteVerificationStore,
+    RouteVerificationTransport,
+    route_verification_requirements,
+)
+from .route_verification_adapter import (
+    QualifiedRouteVerificationAdapter,
+    RouteVerificationAssessment,
+)
+from .runtime_consumption import (
+    RuntimeConsumptionVerificationError,
+    RuntimeConsumptionVerificationReceipt,
+    RuntimeConsumptionVerificationStore,
+    RuntimeConsumptionVerificationTransport,
+    runtime_consumption_requirements,
+)
+from .runtime_consumption_adapter import (
+    QualifiedRuntimeConsumptionAdapter,
+    RuntimeConsumptionAssessment,
+)
 from .state import VeraStateDirectory
+from .source_mutation import (
+    QualifiedSourceMutationAdapter,
+    SourceMutationRecoveryAssessment,
+)
+from .source_mutation_binding import SourceMutationBindingStore
+from .source_mutation_outcome import SourceMutationOutcomeStore
+from .source_verification import (
+    SourceVerificationReceipt,
+    SourceVerificationStore,
+    SourceVerificationTransport,
+)
+from .source_verification_adapter import (
+    QualifiedSourceVerificationAdapter,
+    SourceVerificationAssessment,
+)
 from .task_execution import (
     TaskCloseoutAssessment,
+    TaskDependencyAssessment,
+    TaskDelegation,
+    TaskDelegationRef,
+    TaskDependencyRef,
     TaskExecutionError,
     TaskExecutionLedger,
     TaskPacket,
@@ -75,8 +162,39 @@ class QualifiedVeraRuntime:
     audit: OutboundExecutionAudit
     pc_execution_transport: PCExecutionTransport | None
     provider_execution_transports: Mapping[str, ProviderExecutionTransport]
+    source_mutation_transports: Mapping[
+        tuple[str, str], SourceMutationTransport
+    ]
     pc_execution_bindings: PCExecutionBindingStore
     provider_execution_bindings: ProviderExecutionBindingStore
+    source_mutation_bindings: SourceMutationBindingStore
+    source_mutation_outcomes: SourceMutationOutcomeStore
+    source_verifications: SourceVerificationStore
+    source_verification_transports: Mapping[
+        tuple[str, str], SourceVerificationTransport
+    ]
+    installation_verifications: InstallationVerificationStore
+    installation_verification_transports: Mapping[
+        tuple[str, str], InstallationVerificationTransport
+    ]
+    route_verifications: RouteVerificationStore
+    route_verification_transports: Mapping[str, RouteVerificationTransport]
+    runtime_consumption_verifications: RuntimeConsumptionVerificationStore
+    runtime_consumption_transports: Mapping[
+        str, RuntimeConsumptionVerificationTransport
+    ]
+    behavior_effect_verifications: BehaviorEffectVerificationStore
+    behavior_effect_transports: Mapping[
+        str, BehaviorEffectVerificationTransport
+    ]
+    behavior_attestations: BehaviorAttestationStore
+    behavior_attestation_transports: Mapping[
+        tuple[str, str], BehaviorAttestationTransport
+    ]
+    independent_behavior_reviews: IndependentBehaviorReviewStore
+    independent_behavior_review_transports: Mapping[
+        tuple[str, str], IndependentBehaviorReviewTransport
+    ]
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
 
@@ -93,6 +211,30 @@ class QualifiedVeraRuntime:
         pc_execution_transport: PCExecutionTransport | None = None,
         provider_execution_transports: Mapping[
             str, ProviderExecutionTransport
+        ] | None = None,
+        source_mutation_transports: Mapping[
+            tuple[str, str], SourceMutationTransport
+        ] | None = None,
+        source_verification_transports: Mapping[
+            tuple[str, str], SourceVerificationTransport
+        ] | None = None,
+        installation_verification_transports: Mapping[
+            tuple[str, str], InstallationVerificationTransport
+        ] | None = None,
+        route_verification_transports: Mapping[
+            str, RouteVerificationTransport
+        ] | None = None,
+        runtime_consumption_transports: Mapping[
+            str, RuntimeConsumptionVerificationTransport
+        ] | None = None,
+        behavior_effect_transports: Mapping[
+            str, BehaviorEffectVerificationTransport
+        ] | None = None,
+        behavior_attestation_transports: Mapping[
+            tuple[str, str], BehaviorAttestationTransport
+        ] | None = None,
+        independent_behavior_review_transports: Mapping[
+            tuple[str, str], IndependentBehaviorReviewTransport
         ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
@@ -111,6 +253,34 @@ class QualifiedVeraRuntime:
         provider_execution_bindings = (
             state.provider_execution_binding_store()
         )
+        source_mutation_bindings = (
+            state.source_mutation_binding_store()
+        )
+        source_mutation_outcomes = (
+            state.source_mutation_outcome_store()
+        )
+        source_verifications = state.source_verification_store()
+        source_verifications.verify_chain()
+        installation_verifications = (
+            state.installation_verification_store()
+        )
+        installation_verifications.verify_chain()
+        route_verifications = state.route_verification_store()
+        route_verifications.verify_chain()
+        runtime_consumption_verifications = (
+            state.runtime_consumption_verification_store()
+        )
+        runtime_consumption_verifications.verify_chain()
+        behavior_effect_verifications = (
+            state.behavior_effect_verification_store()
+        )
+        behavior_effect_verifications.verify_chain()
+        behavior_attestations = state.behavior_attestation_store()
+        behavior_attestations.verify_chain()
+        independent_behavior_reviews = (
+            state.independent_behavior_review_store()
+        )
+        independent_behavior_reviews.verify_chain()
         coordination_commands = state.coordination_command_journal()
         tasks = state.task_execution_ledger()
 
@@ -171,6 +341,218 @@ class QualifiedVeraRuntime:
                     "a trusted provider authority verifier"
                 )
 
+        source_transports = dict(source_mutation_transports or {})
+        for scope, transport in source_transports.items():
+            if (
+                not isinstance(scope, tuple)
+                or len(scope) != 2
+                or not all(type(item) is str and item for item in scope)
+            ):
+                raise TypeError(
+                    "source mutation transport keys must be (repository, ref)"
+                )
+            if not isinstance(transport, SourceMutationTransport):
+                raise TypeError(
+                    f"source mutation transport for {scope!r} "
+                    "does not satisfy SourceMutationTransport"
+                )
+            if (transport.repository, transport.ref) != scope:
+                raise ValueError(
+                    f"source mutation transport identity mismatch for {scope!r}"
+                )
+            expected_provider_id = f"source:{scope[0]}"
+            if transport.provider_id != expected_provider_id:
+                raise ValueError(
+                    "source mutation transport provider identity must be "
+                    f"{expected_provider_id!r}"
+                )
+            if transport.provider_id not in provider_verifiers:
+                raise ValueError(
+                    f"source mutation transport {scope!r} requires a trusted "
+                    "provider authority verifier"
+                )
+            if transport.provider_id in provider_transports:
+                raise ValueError(
+                    "source mutation provider id is reserved from generic "
+                    "provider execution transports"
+                )
+
+        verification_transports = dict(
+            source_verification_transports or {}
+        )
+        for scope, transport in verification_transports.items():
+            if (
+                not isinstance(scope, tuple)
+                or len(scope) != 2
+                or not all(type(item) is str and item for item in scope)
+            ):
+                raise TypeError(
+                    "source verification transport keys must be "
+                    "(repository, ref)"
+                )
+            if not isinstance(transport, SourceVerificationTransport):
+                raise TypeError(
+                    f"source verification transport for {scope!r} "
+                    "does not satisfy SourceVerificationTransport"
+                )
+            if (transport.repository, transport.ref) != scope:
+                raise ValueError(
+                    "source verification transport identity mismatch for "
+                    f"{scope!r}"
+                )
+
+        installation_transports = dict(
+            installation_verification_transports or {}
+        )
+        for scope, transport in installation_transports.items():
+            if (
+                not isinstance(scope, tuple)
+                or len(scope) != 2
+                or not all(type(item) is str and item for item in scope)
+            ):
+                raise TypeError(
+                    "installation verification transport keys must be "
+                    "(target_id, distribution_name)"
+                )
+            if not isinstance(
+                transport,
+                InstallationVerificationTransport,
+            ):
+                raise TypeError(
+                    f"installation verification transport for {scope!r} "
+                    "does not satisfy InstallationVerificationTransport"
+                )
+            if (
+                transport.target_id,
+                transport.distribution_name,
+            ) != scope:
+                raise ValueError(
+                    "installation verification transport identity mismatch "
+                    f"for {scope!r}"
+                )
+
+        route_transports = dict(route_verification_transports or {})
+        for route_id, transport in route_transports.items():
+            if type(route_id) is not str or not route_id:
+                raise TypeError(
+                    "route verification transport keys must be non-empty strings"
+                )
+            if not isinstance(transport, RouteVerificationTransport):
+                raise TypeError(
+                    f"route verification transport for {route_id!r} "
+                    "does not satisfy RouteVerificationTransport"
+                )
+            if transport.route_id != route_id:
+                raise ValueError(
+                    "route verification transport identity mismatch for "
+                    f"{route_id!r}"
+                )
+
+        consumption_transports = dict(
+            runtime_consumption_transports or {}
+        )
+        for consumer_id, transport in consumption_transports.items():
+            if type(consumer_id) is not str or not consumer_id:
+                raise TypeError(
+                    "runtime consumption transport keys must be non-empty strings"
+                )
+            if not isinstance(
+                transport,
+                RuntimeConsumptionVerificationTransport,
+            ):
+                raise TypeError(
+                    f"runtime consumption transport for {consumer_id!r} "
+                    "does not satisfy RuntimeConsumptionVerificationTransport"
+                )
+            if transport.consumer_id != consumer_id:
+                raise ValueError(
+                    "runtime consumption transport identity mismatch for "
+                    f"{consumer_id!r}"
+                )
+
+        behavior_transports = dict(behavior_effect_transports or {})
+        for consumer_id, transport in behavior_transports.items():
+            if type(consumer_id) is not str or not consumer_id:
+                raise TypeError(
+                    "behavior/effect transport keys must be non-empty strings"
+                )
+            if not isinstance(
+                transport,
+                BehaviorEffectVerificationTransport,
+            ):
+                raise TypeError(
+                    f"behavior/effect transport for {consumer_id!r} "
+                    "does not satisfy BehaviorEffectVerificationTransport"
+                )
+            if transport.consumer_id != consumer_id:
+                raise ValueError(
+                    "behavior/effect transport identity mismatch for "
+                    f"{consumer_id!r}"
+                )
+            if consumer_id not in consumption_transports:
+                raise ValueError(
+                    "behavior/effect transport requires a matching live "
+                    "runtime-consumption transport for the same consumer"
+                )
+
+        attestation_transports = dict(
+            behavior_attestation_transports or {}
+        )
+        for scope, transport in attestation_transports.items():
+            if (
+                not isinstance(scope, tuple)
+                or len(scope) != 2
+                or not all(type(item) is str and item for item in scope)
+            ):
+                raise TypeError(
+                    "behavior attestation transport keys must be "
+                    "(consumer_id, provider_id)"
+                )
+            if not isinstance(transport, BehaviorAttestationTransport):
+                raise TypeError(
+                    f"behavior attestation transport for {scope!r} "
+                    "does not satisfy BehaviorAttestationTransport"
+                )
+            if (transport.consumer_id, transport.provider_id) != scope:
+                raise ValueError(
+                    "behavior attestation transport identity mismatch for "
+                    f"{scope!r}"
+                )
+            if scope[0] not in behavior_transports:
+                raise ValueError(
+                    "behavior attestation transport requires a matching live "
+                    "behavior/effect transport for the same consumer"
+                )
+
+        review_transports = dict(
+            independent_behavior_review_transports or {}
+        )
+        for scope, transport in review_transports.items():
+            if (
+                not isinstance(scope, tuple)
+                or len(scope) != 2
+                or not all(type(item) is str and item for item in scope)
+            ):
+                raise TypeError(
+                    "independent review transport keys must be "
+                    "(consumer_id, review_id)"
+                )
+            if not isinstance(transport, IndependentBehaviorReviewTransport):
+                raise TypeError(
+                    f"independent review transport for {scope!r} "
+                    "does not satisfy IndependentBehaviorReviewTransport"
+                )
+            if (transport.consumer_id, transport.review_id) != scope:
+                raise ValueError(
+                    "independent review transport identity mismatch for "
+                    f"{scope!r}"
+                )
+            if scope[0] not in behavior_transports:
+                raise ValueError(
+                    "independent review transport requires a matching live "
+                    "behavior/effect transport for the same consumer"
+                )
+
         effects = LifecycleEffectGateway(
             lifecycle=lifecycle,
             fence=fence,
@@ -212,14 +594,37 @@ class QualifiedVeraRuntime:
             audit=audit,
             pc_execution_transport=pc_execution_transport,
             provider_execution_transports=provider_transports,
+            source_mutation_transports=source_transports,
             pc_execution_bindings=pc_execution_bindings,
             provider_execution_bindings=provider_execution_bindings,
+            source_mutation_bindings=source_mutation_bindings,
+            source_mutation_outcomes=source_mutation_outcomes,
+            source_verifications=source_verifications,
+            source_verification_transports=verification_transports,
+            installation_verifications=installation_verifications,
+            installation_verification_transports=installation_transports,
+            route_verifications=route_verifications,
+            route_verification_transports=route_transports,
+            runtime_consumption_verifications=runtime_consumption_verifications,
+            runtime_consumption_transports=consumption_transports,
+            behavior_effect_verifications=behavior_effect_verifications,
+            behavior_effect_transports=behavior_transports,
+            behavior_attestations=behavior_attestations,
+            behavior_attestation_transports=attestation_transports,
+            independent_behavior_reviews=independent_behavior_reviews,
+            independent_behavior_review_transports=review_transports,
             coordination_commands=coordination_commands,
             tasks=tasks,
         )
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
         return self.lifecycle.accepted_action_permit()
+
+    def source_mutation_adapter(self) -> QualifiedSourceMutationAdapter:
+        return QualifiedSourceMutationAdapter(
+            runtime=self,
+            transports=self.source_mutation_transports,
+        )
 
     def _task_runtime_evidence_digest(self) -> str:
         lifecycle_context = self.lifecycle.reconstruct().as_resume_context()
@@ -235,6 +640,27 @@ class QualifiedVeraRuntime:
         coordination_projection = (
             self.coordination_commands.verify_integrity()
         )
+        source_verification_head = (
+            self.source_verifications.verify_chain()
+        )
+        installation_verification_head = (
+            self.installation_verifications.verify_chain()
+        )
+        route_verification_head = (
+            self.route_verifications.verify_chain()
+        )
+        runtime_consumption_head = (
+            self.runtime_consumption_verifications.verify_chain()
+        )
+        behavior_effect_head = (
+            self.behavior_effect_verifications.verify_chain()
+        )
+        behavior_attestation_head = (
+            self.behavior_attestations.verify_chain()
+        )
+        independent_behavior_review_head = (
+            self.independent_behavior_reviews.verify_chain()
+        )
         body = {
             "schema": "VERA_MONO_TASK_RUNTIME_EVIDENCE_V1",
             "project_id": self.lifecycle.project_id,
@@ -246,6 +672,25 @@ class QualifiedVeraRuntime:
             "coordination_command_projection_digest": (
                 coordination_projection
             ),
+            "source_verification_head_digest": (
+                source_verification_head
+            ),
+            "installation_verification_head_digest": (
+                installation_verification_head
+            ),
+            "route_verification_head_digest": route_verification_head,
+            "runtime_consumption_verification_head_digest": (
+                runtime_consumption_head
+            ),
+            "behavior_effect_verification_head_digest": (
+                behavior_effect_head
+            ),
+            "behavior_attestation_verification_head_digest": (
+                behavior_attestation_head
+            ),
+            "independent_behavior_review_head_digest": (
+                independent_behavior_review_head
+            ),
         }
         return sha256_hex(canonical_json_bytes(body))
 
@@ -254,11 +699,470 @@ class QualifiedVeraRuntime:
         task_id: str,
         packet: TaskPacket,
     ) -> TaskState:
-        return self.tasks.open_task(
-            task_id,
-            packet,
-            lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+        with self.tasks.action_lock():
+            return self.tasks.open_task(
+                task_id,
+                packet,
+                lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+            )
+
+    def _task_dependency_target_started(
+        self,
+        *,
+        kind: str,
+        target_id: str,
+    ) -> bool:
+        if kind == "EFFECT":
+            if self.audit.latest(target_id) is not None:
+                return True
+            try:
+                self.fence.read(target_id)
+            except KeyError:
+                pass
+            else:
+                return True
+            if target_id.startswith("pc:"):
+                return bool(
+                    self.pc_execution_bindings.bindings_for_effect(
+                        target_id
+                    )
+                )
+            return False
+        if kind == "COORDINATION_COMMAND":
+            try:
+                self.coordination_commands.read_binding(target_id)
+            except KeyError:
+                return False
+            return True
+        if kind == "PROVIDER_EFFECT":
+            try:
+                self.provider_execution_bindings.read(target_id)
+            except KeyError:
+                return False
+            return True
+        raise TaskExecutionError(
+            f"unsupported task dependency kind: {kind!r}"
         )
+
+    def _bind_task_dependency_unlocked(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        kind: str,
+        target_id: str,
+    ) -> TaskState:
+        state = self.tasks.read(task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "closed task cannot accept dependency"
+            )
+        existing = {
+            item.dependency_id: item for item in state.dependencies
+        }.get(dependency_id)
+        if existing is not None:
+            if existing.kind != kind or existing.target_id != target_id:
+                raise TaskExecutionError(
+                    "task dependency identity is already bound differently"
+                )
+            if dependency_id in set(state.cancelled_dependency_ids):
+                raise TaskExecutionError(
+                    "cancelled task dependency identity cannot be reused"
+                )
+            return state
+        if self._task_dependency_target_started(
+            kind=kind,
+            target_id=target_id,
+        ):
+            raise TaskExecutionError(
+                "task dependency cannot be bound after target execution "
+                "or preparation has started"
+            )
+        return self.tasks.bind_dependency(
+            task_id,
+            dependency_id,
+            kind=kind,
+            target_id=target_id,
+        )
+
+    def bind_task_dependency(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        kind: str,
+        target_id: str,
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            return self._bind_task_dependency_unlocked(
+                task_id,
+                dependency_id,
+                kind=kind,
+                target_id=target_id,
+            )
+
+    def _validate_task_dependency_ref(
+        self,
+        ref: TaskDependencyRef,
+        *,
+        expected_kind: str,
+        expected_target_id: str,
+    ) -> TaskDependencyRef:
+        if type(ref) is not TaskDependencyRef:
+            raise TaskExecutionError(
+                "task dependency provenance must be exact TaskDependencyRef"
+            )
+        state = self.tasks.read(ref.task_id)
+        if state.closed:
+            raise TaskExecutionError(
+                "task-bound outbound work cannot execute after task closeout"
+            )
+        active = {
+            item.dependency_id: item
+            for item in state.active_dependencies
+        }.get(ref.dependency_id)
+        if active is None:
+            raise TaskExecutionError(
+                "task-bound outbound work references inactive dependency"
+            )
+        if (
+            active.kind != expected_kind
+            or active.target_id != expected_target_id
+            or ref.kind != active.kind
+            or ref.target_id != active.target_id
+            or ref.binding_event_digest != active.event_digest
+        ):
+            raise TaskExecutionError(
+                "task dependency provenance does not match durable task binding"
+            )
+        return ref
+
+    def _audit_task_dependency_matches(
+        self,
+        effect_id: str,
+        ref: TaskDependencyRef,
+    ) -> bool | None:
+        authority_events = tuple(
+            event
+            for event in self.audit.events(effect_id)
+            if event.event_type == "AUTHORITY_VERIFIED"
+        )
+        if not authority_events:
+            return None
+        if len(authority_events) != 1:
+            raise TaskExecutionError(
+                "outbound audit contains multiple authority events for effect"
+            )
+        details = authority_events[0].payload.get("authority_details")
+        if not isinstance(details, Mapping):
+            return False
+        return details.get("task_dependency") == ref.canonical_body()
+
+    def cancel_task_dependency(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        reason: str,
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            state = self.tasks.read(task_id)
+            active = {
+                item.dependency_id: item
+                for item in state.active_dependencies
+            }.get(dependency_id)
+            if active is None:
+                raise TaskExecutionError(
+                    "task dependency is not active"
+                )
+            if self._task_dependency_target_started(
+                kind=active.kind,
+                target_id=active.target_id,
+            ):
+                raise TaskExecutionError(
+                    "task dependency cannot be cancelled after target "
+                    "execution or preparation has started"
+                )
+            return self.tasks.cancel_dependency(
+                task_id,
+                dependency_id,
+                reason=reason,
+            )
+
+    def invoke_task_coordination(
+        self,
+        task_id: str,
+        dependency_id: str,
+        command: str,
+        *,
+        actor: Any,
+        command_id: str,
+        args: tuple[Any, ...] = (),
+        kwargs: Mapping[str, Any] | None = None,
+    ) -> Any:
+        if self.coordination is None:
+            raise TaskExecutionError(
+                "qualified coordination runtime is unavailable"
+            )
+        with self.tasks.action_lock():
+            state = self.tasks.read(task_id)
+            if state.closed:
+                raise TaskExecutionError(
+                    "closed task cannot execute coordination dependency"
+                )
+            bound = self._bind_task_dependency_unlocked(
+                task_id,
+                dependency_id,
+                kind="COORDINATION_COMMAND",
+                target_id=command_id,
+            )
+            task_dependency = bound.dependency_ref(dependency_id)
+            try:
+                return self.coordination.invoke(
+                    command,
+                    permit=self.accepted_permit(),
+                    actor=actor,
+                    command_id=command_id,
+                    args=args,
+                    kwargs=kwargs,
+                    task_dependency=task_dependency,
+                )
+            except BaseException:
+                if not self._task_dependency_target_started(
+                    kind="COORDINATION_COMMAND",
+                    target_id=command_id,
+                ):
+                    self.tasks.cancel_dependency(
+                        task_id,
+                        dependency_id,
+                        reason=(
+                            "qualified coordination failed before durable "
+                            "command preparation"
+                        ),
+                    )
+                raise
+
+    def prepare_task_provider_effect(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        effect_id: str,
+        provider_id: str,
+        operation: str,
+        request_payload: Any,
+    ) -> PreparedProviderDispatch:
+        with self.tasks.action_lock():
+            state = self.tasks.read(task_id)
+            if state.closed:
+                raise TaskExecutionError(
+                    "closed task cannot prepare provider dependency"
+                )
+            bound = self._bind_task_dependency_unlocked(
+                task_id,
+                dependency_id,
+                kind="PROVIDER_EFFECT",
+                target_id=effect_id,
+            )
+            task_dependency = bound.dependency_ref(dependency_id)
+            try:
+                return self.prepare_provider_effect(
+                    effect_id=effect_id,
+                    provider_id=provider_id,
+                    operation=operation,
+                    request_payload=request_payload,
+                    task_dependency=task_dependency,
+                )
+            except BaseException:
+                if not self._task_dependency_target_started(
+                    kind="PROVIDER_EFFECT",
+                    target_id=effect_id,
+                ):
+                    self.tasks.cancel_dependency(
+                        task_id,
+                        dependency_id,
+                        reason=(
+                            "qualified provider preparation failed before "
+                            "durable provider binding"
+                        ),
+                    )
+                raise
+
+    def prepare_task_pc_job(
+        self,
+        task_id: str,
+        dependency_id: str,
+        *,
+        job: JobEnvelope,
+        authorization: AuthorizationEnvelope,
+    ) -> PreparedPCDispatch:
+        with self.tasks.action_lock():
+            state = self.tasks.read(task_id)
+            if state.closed:
+                raise TaskExecutionError(
+                    "closed task cannot prepare PC dependency"
+                )
+            bound = self._bind_task_dependency_unlocked(
+                task_id,
+                dependency_id,
+                kind="EFFECT",
+                target_id=f"pc:{job.envelope_id}",
+            )
+            task_dependency = bound.dependency_ref(dependency_id)
+            try:
+                return self.prepare_pc_job(
+                    job=job,
+                    authorization=authorization,
+                    task_dependency=task_dependency,
+                )
+            except BaseException:
+                if not self._task_dependency_target_started(
+                    kind="EFFECT",
+                    target_id=f"pc:{job.envelope_id}",
+                ):
+                    self.tasks.cancel_dependency(
+                        task_id,
+                        dependency_id,
+                        reason=(
+                            "qualified PC preparation failed before any "
+                            "mechanical effect evidence"
+                        ),
+                    )
+                raise
+
+    def delegate_task_work(
+        self,
+        task_id: str,
+        delegation_id: str,
+        *,
+        repository: str,
+        ref: str,
+        subject: str,
+        assignee_ref: str,
+        allowed_effects: tuple[str, ...],
+        prohibited_effects: tuple[str, ...],
+        return_shape: tuple[str, ...],
+        evidence_refs: tuple[str, ...],
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            return self.tasks.delegate_work(
+                task_id,
+                delegation_id,
+                repository=repository,
+                ref=ref,
+                subject=subject,
+                assignee_ref=assignee_ref,
+                allowed_effects=allowed_effects,
+                prohibited_effects=prohibited_effects,
+                return_shape=return_shape,
+                evidence_refs=evidence_refs,
+            )
+
+    def reassign_task_delegation(
+        self,
+        task_id: str,
+        delegation_id: str,
+        reassignment_id: str,
+        *,
+        new_assignee_ref: str,
+        evidence_refs: tuple[str, ...],
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            return self.tasks.reassign_delegation(
+                task_id,
+                delegation_id,
+                reassignment_id,
+                new_assignee_ref=new_assignee_ref,
+                evidence_refs=evidence_refs,
+            )
+
+    def return_task_delegation(
+        self,
+        task_id: str,
+        delegation_id: str,
+        return_id: str,
+        *,
+        summary: str,
+        return_values: Mapping[str, str],
+        result_evidence_refs: tuple[str, ...],
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            return self.tasks.return_delegation(
+                task_id,
+                delegation_id,
+                return_id,
+                summary=summary,
+                return_values=return_values,
+                result_evidence_refs=result_evidence_refs,
+            )
+
+    def cancel_task_delegation(
+        self,
+        task_id: str,
+        delegation_id: str,
+        cancellation_id: str,
+        *,
+        reason: str,
+        evidence_refs: tuple[str, ...],
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            return self.tasks.cancel_delegation(
+                task_id,
+                delegation_id,
+                cancellation_id,
+                reason=reason,
+                evidence_refs=evidence_refs,
+            )
+
+    def validate_task_delegation(
+        self,
+        ref: TaskDelegationRef,
+        *,
+        actor_ref: str | None = None,
+    ) -> TaskDelegationRef:
+        return self.tasks.validate_delegation_ref(
+            ref,
+            actor_ref=actor_ref,
+        )
+
+    def assert_task_subject_mutation_allowed(
+        self,
+        *,
+        repository: str,
+        ref: str,
+        subject: str,
+        actor_ref: str,
+        delegation_ref: TaskDelegationRef | None = None,
+    ) -> TaskDelegationRef | None:
+        return self.tasks.assert_subject_mutation_allowed(
+            repository=repository,
+            ref=ref,
+            subject=subject,
+            actor_ref=actor_ref,
+            delegation_ref=delegation_ref,
+        )
+
+    def record_task_correction(
+        self,
+        task_id: str,
+        correction_id: str,
+        *,
+        summary: str,
+        obsolete_route: str,
+        required_change: str,
+        current_owner_ref: str,
+        provenance_refs: tuple[str, ...],
+    ) -> TaskState:
+        with self.tasks.action_lock():
+            return self.tasks.record_correction(
+                task_id,
+                correction_id,
+                summary=summary,
+                obsolete_route=obsolete_route,
+                required_change=required_change,
+                current_owner_ref=current_owner_ref,
+                provenance_refs=provenance_refs,
+            )
 
     def checkpoint_task(
         self,
@@ -269,25 +1173,708 @@ class QualifiedVeraRuntime:
         blockers: tuple[str, ...] = (),
         protected_effects_still_gated: tuple[str, ...] = (),
         next_frontier: str,
+        correction_ids_addressed: tuple[str, ...] = (),
+        method_change: str | None = None,
+        regression_guard: str | None = None,
+        blocker_classification: str | None = None,
     ) -> TaskState:
-        unresolved = tuple(
-            f"{receipt.effect_id}:{receipt.state.value}"
-            for receipt in self.fence.unresolved()
-        )
-        protected = tuple(
-            dict.fromkeys(
-                (*protected_effects_still_gated, *unresolved)
+        with self.tasks.action_lock():
+            unresolved = tuple(
+                f"{receipt.effect_id}:{receipt.state.value}"
+                for receipt in self.fence.unresolved()
             )
+            protected = tuple(
+                dict.fromkeys(
+                    (*protected_effects_still_gated, *unresolved)
+                )
+            )
+            return self.tasks.checkpoint(
+                task_id,
+                checkpoint_id,
+                completed_evidence=completed_evidence,
+                blockers=blockers,
+                protected_effects_still_gated=protected,
+                next_frontier=next_frontier,
+                lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+                correction_ids_addressed=correction_ids_addressed,
+                method_change=method_change,
+                regression_guard=regression_guard,
+                blocker_classification=blocker_classification,
+            )
+
+    def source_verification_adapter(
+        self,
+    ) -> QualifiedSourceVerificationAdapter:
+        return QualifiedSourceVerificationAdapter(
+            runtime=self,
+            transports=self.source_verification_transports,
         )
-        return self.tasks.checkpoint(
+
+    def assess_source_verification(
+        self,
+        mutation_id: str,
+    ) -> SourceVerificationAssessment:
+        return self.source_verification_adapter().assess(mutation_id)
+
+    def verify_source_mutation(
+        self,
+        mutation_id: str,
+    ) -> SourceVerificationReceipt:
+        return self.source_verification_adapter().verify_mutation(
+            mutation_id
+        )
+
+    def recover_source_verifications(
+        self,
+    ) -> tuple[SourceVerificationAssessment, ...]:
+        return self.source_verification_adapter().recover()
+
+    def installation_verification_adapter(
+        self,
+    ) -> QualifiedInstallationVerificationAdapter:
+        return QualifiedInstallationVerificationAdapter(
+            runtime=self,
+            transports=self.installation_verification_transports,
+        )
+
+    def assess_installation_verification(
+        self,
+        task_id: str,
+        target_id: str,
+        distribution_name: str,
+    ) -> InstallationVerificationAssessment:
+        return self.installation_verification_adapter().assess(
             task_id,
-            checkpoint_id,
-            completed_evidence=completed_evidence,
-            blockers=blockers,
-            protected_effects_still_gated=protected,
-            next_frontier=next_frontier,
-            lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+            target_id,
+            distribution_name,
         )
+
+    def verify_task_installation(
+        self,
+        task_id: str,
+        target_id: str,
+        distribution_name: str,
+    ) -> InstallationVerificationReceipt:
+        return self.installation_verification_adapter().verify(
+            task_id,
+            target_id,
+            distribution_name,
+        )
+
+    def recover_installation_verifications(
+        self,
+    ) -> tuple[InstallationVerificationAssessment, ...]:
+        return self.installation_verification_adapter().recover()
+
+    def route_verification_adapter(
+        self,
+    ) -> QualifiedRouteVerificationAdapter:
+        return QualifiedRouteVerificationAdapter(
+            runtime=self,
+            transports=self.route_verification_transports,
+        )
+
+    def assess_route_verification(
+        self,
+        task_id: str,
+        route_id: str,
+    ) -> RouteVerificationAssessment:
+        return self.route_verification_adapter().assess(
+            task_id,
+            route_id,
+        )
+
+    def verify_task_route(
+        self,
+        task_id: str,
+        route_id: str,
+    ) -> RouteVerificationReceipt:
+        return self.route_verification_adapter().verify(
+            task_id,
+            route_id,
+        )
+
+    def recover_route_verifications(
+        self,
+    ) -> tuple[RouteVerificationAssessment, ...]:
+        return self.route_verification_adapter().recover()
+
+    def runtime_consumption_adapter(
+        self,
+    ) -> QualifiedRuntimeConsumptionAdapter:
+        return QualifiedRuntimeConsumptionAdapter(
+            runtime=self,
+            transports=self.runtime_consumption_transports,
+        )
+
+    def assess_runtime_consumption(
+        self,
+        task_id: str,
+        consumer_id: str,
+    ) -> RuntimeConsumptionAssessment:
+        return self.runtime_consumption_adapter().assess(
+            task_id,
+            consumer_id,
+        )
+
+    def verify_task_runtime_consumption(
+        self,
+        task_id: str,
+        consumer_id: str,
+    ) -> RuntimeConsumptionVerificationReceipt:
+        return self.runtime_consumption_adapter().verify(
+            task_id,
+            consumer_id,
+        )
+
+    def recover_runtime_consumption_verifications(
+        self,
+    ) -> tuple[RuntimeConsumptionAssessment, ...]:
+        return self.runtime_consumption_adapter().recover()
+
+    def behavior_effect_verification_adapter(
+        self,
+    ) -> QualifiedBehaviorEffectVerificationAdapter:
+        return QualifiedBehaviorEffectVerificationAdapter(
+            runtime=self,
+            transports=self.behavior_effect_transports,
+        )
+
+    def assess_behavior_effect(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+    ) -> BehaviorEffectAssessment:
+        return self.behavior_effect_verification_adapter().assess(
+            task_id,
+            consumer_id,
+            probe_id,
+        )
+
+    def verify_task_behavior_effect(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+    ) -> BehaviorEffectVerificationReceipt:
+        return self.behavior_effect_verification_adapter().verify(
+            task_id,
+            consumer_id,
+            probe_id,
+        )
+
+    def recover_behavior_effect_verifications(
+        self,
+    ) -> tuple[BehaviorEffectAssessment, ...]:
+        return self.behavior_effect_verification_adapter().recover()
+
+    def behavior_attestation_adapter(
+        self,
+    ) -> QualifiedBehaviorAttestationAdapter:
+        return QualifiedBehaviorAttestationAdapter(
+            runtime=self,
+            transports=self.behavior_attestation_transports,
+        )
+
+    def assess_behavior_attestation(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+    ) -> BehaviorAttestationAssessment:
+        return self.behavior_attestation_adapter().assess(
+            task_id, consumer_id, probe_id
+        )
+
+    def verify_task_behavior_attestation(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+    ) -> BehaviorAttestationReceipt:
+        return self.behavior_attestation_adapter().verify(
+            task_id, consumer_id, probe_id
+        )
+
+    def recover_behavior_attestations(
+        self,
+    ) -> tuple[BehaviorAttestationAssessment, ...]:
+        return self.behavior_attestation_adapter().recover()
+
+    def independent_behavior_review_adapter(
+        self,
+    ) -> QualifiedIndependentBehaviorReviewAdapter:
+        return QualifiedIndependentBehaviorReviewAdapter(
+            runtime=self,
+            transports=self.independent_behavior_review_transports,
+        )
+
+    def assess_independent_behavior_review(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> IndependentBehaviorReviewAssessment:
+        return self.independent_behavior_review_adapter().assess(
+            task_id, consumer_id, probe_id, review_id
+        )
+
+    def verify_task_independent_behavior_review(
+        self,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> IndependentBehaviorReviewReceipt:
+        return self.independent_behavior_review_adapter().verify(
+            task_id, consumer_id, probe_id, review_id
+        )
+
+    def recover_independent_behavior_reviews(
+        self,
+    ) -> tuple[IndependentBehaviorReviewAssessment, ...]:
+        return self.independent_behavior_review_adapter().recover()
+
+    def assess_task_dependencies(
+        self,
+        task_id: str,
+    ) -> tuple[TaskDependencyAssessment, ...]:
+        state = self.tasks.read(task_id)
+        if not state.active_dependencies:
+            return ()
+
+        self.audit.verify_fence_consistency(self.fence)
+        assessments: list[TaskDependencyAssessment] = []
+        success_states = {
+            EffectState.COMMITTED.value,
+            EffectState.RECONCILED_COMMITTED.value,
+        }
+
+        for dependency in state.active_dependencies:
+            ref = state.dependency_ref(dependency.dependency_id)
+            if dependency.kind == "EFFECT":
+                try:
+                    receipt = self.fence.read(dependency.target_id)
+                except KeyError:
+                    receipt = None
+
+                pc_bindings = (
+                    self.pc_execution_bindings.bindings_for_effect(
+                        dependency.target_id
+                    )
+                    if dependency.target_id.startswith("pc:")
+                    else ()
+                )
+                if receipt is None:
+                    if pc_bindings:
+                        if any(
+                            binding.prepared.task_dependency != ref
+                            for binding in pc_bindings
+                        ):
+                            assessments.append(
+                                TaskDependencyAssessment(
+                                    dependency_id=dependency.dependency_id,
+                                    kind=dependency.kind,
+                                    target_id=dependency.target_id,
+                                    status="PROVENANCE_MISMATCH",
+                                    evidence_digest=pc_bindings[-1].binding_digest,
+                                    reason=(
+                                        "PC execution binding does not carry "
+                                        "the exact owning task dependency"
+                                    ),
+                                )
+                            )
+                        else:
+                            assessments.append(
+                                TaskDependencyAssessment(
+                                    dependency_id=dependency.dependency_id,
+                                    kind=dependency.kind,
+                                    target_id=dependency.target_id,
+                                    status="PENDING",
+                                    evidence_digest=pc_bindings[-1].binding_digest,
+                                    reason=(
+                                        "PC attempt preparation is durable but "
+                                        "no mechanical effect has started"
+                                    ),
+                                )
+                            )
+                    else:
+                        assessments.append(
+                            TaskDependencyAssessment(
+                                dependency_id=dependency.dependency_id,
+                                kind=dependency.kind,
+                                target_id=dependency.target_id,
+                                status="MISSING",
+                                evidence_digest=None,
+                                reason=(
+                                    "bound effect dependency has no mechanical "
+                                    "or PC preparation evidence"
+                                ),
+                            )
+                        )
+                    continue
+
+                latest = self.audit.latest(dependency.target_id)
+                evidence_digest = (
+                    None if latest is None else latest.event_digest
+                )
+                provenance_matches = self._audit_task_dependency_matches(
+                    dependency.target_id,
+                    ref,
+                )
+                if provenance_matches is not True:
+                    status = "PROVENANCE_MISMATCH"
+                    reason = (
+                        "mechanical effect does not carry the exact owning "
+                        "task dependency in qualified authority evidence"
+                    )
+                elif receipt.state.value in success_states:
+                    status = "SATISFIED"
+                    reason = (
+                        "qualified task-bound effect reached a successful "
+                        "terminal state"
+                    )
+                elif receipt.state in {
+                    EffectState.EXECUTING,
+                    EffectState.ATTEMPTED_UNKNOWN,
+                }:
+                    status = "RECOVERY_REQUIRED"
+                    reason = (
+                        "task-bound effect may have crossed dispatch and "
+                        "requires reconciliation"
+                    )
+                elif receipt.state in {
+                    EffectState.CANCELLED_PRE_DISPATCH,
+                    EffectState.RECONCILED_NO_EFFECT,
+                }:
+                    status = "TERMINAL_UNSATISFIED"
+                    reason = (
+                        "task-bound effect terminated without the required "
+                        "external effect"
+                    )
+                else:
+                    status = "PENDING"
+                    reason = (
+                        "task-bound effect has not reached terminal success"
+                    )
+                assessments.append(
+                    TaskDependencyAssessment(
+                        dependency_id=dependency.dependency_id,
+                        kind=dependency.kind,
+                        target_id=dependency.target_id,
+                        status=status,
+                        evidence_digest=evidence_digest,
+                        reason=reason,
+                    )
+                )
+                continue
+
+            if dependency.kind == "COORDINATION_COMMAND":
+                if self.coordination is None:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="MISSING",
+                            evidence_digest=None,
+                            reason="qualified coordination runtime is unavailable",
+                        )
+                    )
+                    continue
+                try:
+                    command = self.coordination.assess_command(
+                        dependency.target_id
+                    )
+                except KeyError:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="MISSING",
+                            evidence_digest=None,
+                            reason=(
+                                "bound coordination command has no durable "
+                                "command binding"
+                            ),
+                        )
+                    )
+                    continue
+
+                result = self.coordination_commands.read_result(
+                    dependency.target_id
+                )
+                provenance_matches = self._audit_task_dependency_matches(
+                    command.effect_id,
+                    ref,
+                )
+                if provenance_matches is False:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="PROVENANCE_MISMATCH",
+                            evidence_digest=(
+                                None
+                                if self.audit.latest(command.effect_id) is None
+                                else self.audit.latest(
+                                    command.effect_id
+                                ).event_digest
+                            ),
+                            reason=(
+                                "coordination effect authority evidence does "
+                                "not carry the exact owning task dependency"
+                            ),
+                        )
+                    )
+                    continue
+                if (
+                    command.terminal
+                    and command.result_recorded
+                    and command.fence_state in success_states
+                    and result is not None
+                    and provenance_matches is True
+                ):
+                    status = "SATISFIED"
+                    evidence_digest = result.result_record_digest
+                    reason = (
+                        "coordination command result and terminal effect agree"
+                    )
+                elif (
+                    command.result_recorded
+                    and provenance_matches is not True
+                ):
+                    status = "PROVENANCE_MISMATCH"
+                    evidence_digest = (
+                        None
+                        if self.audit.latest(command.effect_id) is None
+                        else self.audit.latest(command.effect_id).event_digest
+                    )
+                    reason = (
+                        "coordination result exists without exact task-bound "
+                        "authority provenance"
+                    )
+                elif command.recovery_required:
+                    status = "RECOVERY_REQUIRED"
+                    evidence_digest = None
+                    reason = command.reason
+                elif command.terminal:
+                    status = "TERMINAL_UNSATISFIED"
+                    evidence_digest = None
+                    reason = command.reason
+                else:
+                    status = "PENDING"
+                    evidence_digest = None
+                    reason = command.reason
+                assessments.append(
+                    TaskDependencyAssessment(
+                        dependency_id=dependency.dependency_id,
+                        kind=dependency.kind,
+                        target_id=dependency.target_id,
+                        status=status,
+                        evidence_digest=evidence_digest,
+                        reason=reason,
+                    )
+                )
+                continue
+
+            if dependency.kind == "PROVIDER_EFFECT":
+                try:
+                    provider_binding = self.provider_execution_bindings.read(
+                        dependency.target_id
+                    )
+                    provider = self.assess_provider_effect(
+                        dependency.target_id
+                    )
+                except KeyError:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="MISSING",
+                            evidence_digest=None,
+                            reason=(
+                                "bound provider effect has no durable provider "
+                                "execution binding"
+                            ),
+                        )
+                    )
+                    continue
+
+                if provider_binding.task_dependency != ref:
+                    assessments.append(
+                        TaskDependencyAssessment(
+                            dependency_id=dependency.dependency_id,
+                            kind=dependency.kind,
+                            target_id=dependency.target_id,
+                            status="PROVENANCE_MISMATCH",
+                            evidence_digest=provider_binding.binding_digest,
+                            reason=(
+                                "provider execution binding does not carry "
+                                "the exact owning task dependency"
+                            ),
+                        )
+                    )
+                    continue
+
+                latest = self.audit.latest(provider.mechanical_effect_id)
+                evidence_digest = (
+                    None if latest is None else latest.event_digest
+                )
+                provenance_matches = self._audit_task_dependency_matches(
+                    provider.mechanical_effect_id,
+                    ref,
+                )
+                if (
+                    provider.fence_state is not None
+                    and provenance_matches is not True
+                ):
+                    status = "PROVENANCE_MISMATCH"
+                    reason = (
+                        "provider mechanical effect does not carry the exact "
+                        "owning task dependency in qualified authority evidence"
+                    )
+                elif (
+                    provider.terminal
+                    and provider.fence_state in success_states
+                ):
+                    if provider.provider_id.startswith("source:"):
+                        try:
+                            source_binding = self.source_mutation_bindings.read(
+                                dependency.target_id
+                            )
+                            source_outcome = self.source_mutation_outcomes.read(
+                                dependency.target_id
+                            )
+                        except (KeyError, ValueError):
+                            status = "RECOVERY_REQUIRED"
+                            reason = (
+                                "source provider effect committed but exact "
+                                "source mutation outcome is missing or invalid"
+                            )
+                        else:
+                            if (
+                                source_outcome.source_binding_digest
+                                != source_binding.binding_digest
+                                or source_outcome.provider_binding_digest
+                                != provider_binding.binding_digest
+                                or source_outcome.mechanical_effect_id
+                                != provider.mechanical_effect_id
+                            ):
+                                status = "PROVENANCE_MISMATCH"
+                                reason = (
+                                    "source outcome does not bind the exact "
+                                    "source/provider execution evidence"
+                                )
+                            else:
+                                verification = (
+                                    self.assess_source_verification(
+                                        dependency.target_id
+                                    )
+                                )
+                                if not verification.verification_required:
+                                    status = "SATISFIED"
+                                    evidence_digest = (
+                                        source_outcome.outcome_digest
+                                    )
+                                    reason = (
+                                        "source provider effect and exact "
+                                        "durable source outcome both reached "
+                                        "success; task packet requires no "
+                                        "additional exact-commit verification"
+                                    )
+                                elif verification.passed:
+                                    if (
+                                        verification.latest_receipt_digest
+                                        is None
+                                    ):
+                                        raise TaskExecutionError(
+                                            "passed source verification lacks "
+                                            "durable receipt digest"
+                                        )
+                                    status = "SATISFIED"
+                                    evidence_digest = sha256_hex(
+                                        canonical_json_bytes(
+                                            {
+                                                "schema": (
+                                                    "VERA_MONO_SOURCE_"
+                                                    "DEPENDENCY_EVIDENCE_V1"
+                                                ),
+                                                "mutation_id": (
+                                                    dependency.target_id
+                                                ),
+                                                "source_outcome_digest": (
+                                                    source_outcome.outcome_digest
+                                                ),
+                                                "source_verification_"
+                                                "receipt_digest": (
+                                                    verification.
+                                                    latest_receipt_digest
+                                                ),
+                                                "commit_sha": (
+                                                    verification.commit_sha
+                                                ),
+                                            }
+                                        )
+                                    )
+                                    reason = (
+                                        "source provider effect, exact durable "
+                                        "source outcome, and required exact-"
+                                        "commit verification all passed"
+                                    )
+                                elif (
+                                    verification.latest_status
+                                    == "STALE_HEAD"
+                                    or verification.
+                                    current_ref_matches_commit is False
+                                ):
+                                    status = "PROVENANCE_MISMATCH"
+                                    evidence_digest = (
+                                        verification.latest_receipt_digest
+                                    )
+                                    reason = verification.reason
+                                else:
+                                    status = "PENDING"
+                                    evidence_digest = (
+                                        verification.latest_receipt_digest
+                                    )
+                                    reason = verification.reason
+                    else:
+                        status = "SATISFIED"
+                        reason = (
+                            "provider effect reached a successful terminal state"
+                        )
+                elif provider.recovery_required:
+                    status = "RECOVERY_REQUIRED"
+                    reason = provider.reason
+                elif provider.terminal:
+                    status = "TERMINAL_UNSATISFIED"
+                    reason = provider.reason
+                else:
+                    status = "PENDING"
+                    reason = provider.reason
+                assessments.append(
+                    TaskDependencyAssessment(
+                        dependency_id=dependency.dependency_id,
+                        kind=dependency.kind,
+                        target_id=dependency.target_id,
+                        status=status,
+                        evidence_digest=evidence_digest,
+                        reason=reason,
+                    )
+                )
+                continue
+
+            raise TaskExecutionError(
+                f"unsupported task dependency kind: {dependency.kind!r}"
+            )
+
+        return tuple(assessments)
 
     def assess_task_closeout(
         self,
@@ -347,6 +1934,350 @@ class QualifiedVeraRuntime:
                 + ", ".join(provider_recovery_ids)
             )
 
+        dependency_assessments = self.assess_task_dependencies(
+            task_id
+        )
+        unsatisfied_dependency_ids = tuple(
+            assessment.dependency_id
+            for assessment in dependency_assessments
+            if not assessment.satisfied
+        )
+        if unsatisfied_dependency_ids:
+            reasons.append(
+                "task dependencies are not satisfied: "
+                + ", ".join(
+                    f"{assessment.dependency_id}({assessment.status})"
+                    for assessment in dependency_assessments
+                    if not assessment.satisfied
+                )
+            )
+
+        installation_requirements = (
+            installation_verification_requirements(
+                state.packet.evidence_requirements
+            )
+        )
+        installation_assessments: tuple[
+            InstallationVerificationAssessment, ...
+        ] = ()
+        if installation_requirements:
+            if "install/registration" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "INSTALL_VERIFY evidence requires the "
+                    "install/registration closeout surface"
+                )
+            elif surfaces.get("install/registration") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required installation evidence cannot close an "
+                    "install/registration surface that is not verified-current "
+                    "or changed-and-verified"
+                )
+            try:
+                installation_assessments = (
+                    self.installation_verification_adapter().assess_task(
+                        task_id
+                    )
+                )
+            except InstallationVerificationError as exc:
+                reasons.append(
+                    "installation verification contract is invalid: "
+                    + str(exc)
+                )
+            else:
+                not_current = tuple(
+                    assessment
+                    for assessment in installation_assessments
+                    if not assessment.passed
+                )
+                if not_current:
+                    reasons.append(
+                        "required installations are not verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.target_id}/"
+                                f"{item.distribution_name}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current
+                        )
+                    )
+
+        route_requirements = route_verification_requirements(
+            state.packet.evidence_requirements
+        )
+        route_assessments: tuple[
+            RouteVerificationAssessment, ...
+        ] = ()
+        if route_requirements:
+            if "current route" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "ROUTE_VERIFY evidence requires the current route "
+                    "closeout surface"
+                )
+            elif surfaces.get("current route") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required route evidence cannot close a current route "
+                    "surface that is not verified-current or "
+                    "changed-and-verified"
+                )
+            try:
+                route_assessments = (
+                    self.route_verification_adapter().assess_task(task_id)
+                )
+            except RouteVerificationError as exc:
+                reasons.append(
+                    "route verification contract is invalid: " + str(exc)
+                )
+            else:
+                not_current_routes = tuple(
+                    assessment
+                    for assessment in route_assessments
+                    if not assessment.passed
+                )
+                if not_current_routes:
+                    reasons.append(
+                        "required routes are not verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.route_id}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current_routes
+                        )
+                    )
+
+        runtime_consumption_requirements_for_task = (
+            runtime_consumption_requirements(
+                state.packet.evidence_requirements
+            )
+        )
+        runtime_consumption_assessments: tuple[
+            RuntimeConsumptionAssessment, ...
+        ] = ()
+        if runtime_consumption_requirements_for_task:
+            if "runtime consumption" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "RUNTIME_CONSUME_VERIFY evidence requires the "
+                    "runtime consumption closeout surface"
+                )
+            elif surfaces.get("runtime consumption") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required runtime consumption evidence cannot close a "
+                    "runtime consumption surface that is not "
+                    "verified-current or changed-and-verified"
+                )
+            try:
+                runtime_consumption_assessments = (
+                    self.runtime_consumption_adapter().assess_task(task_id)
+                )
+            except RuntimeConsumptionVerificationError as exc:
+                reasons.append(
+                    "runtime consumption verification contract is invalid: "
+                    + str(exc)
+                )
+            else:
+                not_current_consumers = tuple(
+                    assessment
+                    for assessment in runtime_consumption_assessments
+                    if not assessment.passed
+                )
+                if not_current_consumers:
+                    reasons.append(
+                        "required runtime consumers are not verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.consumer_id}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current_consumers
+                        )
+                    )
+
+        behavior_effect_requirements_for_task = (
+            behavior_effect_requirements(
+                state.packet.evidence_requirements
+            )
+        )
+        behavior_effect_assessments: tuple[
+            BehaviorEffectAssessment, ...
+        ] = ()
+        if behavior_effect_requirements_for_task:
+            if "behavior/effect" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "BEHAVIOR_EFFECT_VERIFY evidence requires the "
+                    "behavior/effect closeout surface"
+                )
+            elif surfaces.get("behavior/effect") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required behavior/effect evidence cannot close a "
+                    "behavior/effect surface that is not verified-current "
+                    "or changed-and-verified"
+                )
+            try:
+                behavior_effect_assessments = (
+                    self.behavior_effect_verification_adapter().assess_task(
+                        task_id
+                    )
+                )
+            except BehaviorEffectVerificationError as exc:
+                reasons.append(
+                    "behavior/effect verification contract is invalid: "
+                    + str(exc)
+                )
+            else:
+                not_current_behavior = tuple(
+                    assessment
+                    for assessment in behavior_effect_assessments
+                    if not assessment.passed
+                )
+                if not_current_behavior:
+                    reasons.append(
+                        "required behavior/effect probes are not "
+                        "verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.consumer_id}/{item.probe_id}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current_behavior
+                        )
+                    )
+
+        behavior_attestation_requirements_for_task = (
+            behavior_attestation_requirements(
+                state.packet.evidence_requirements
+            )
+        )
+        behavior_attestation_assessments: tuple[
+            BehaviorAttestationAssessment, ...
+        ] = ()
+        if behavior_attestation_requirements_for_task:
+            if "behavior/effect" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "BEHAVIOR_ATTEST_VERIFY evidence requires the "
+                    "behavior/effect closeout surface"
+                )
+            elif surfaces.get("behavior/effect") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required behavior attestation cannot close a "
+                    "behavior/effect surface that is not verified-current "
+                    "or changed-and-verified"
+                )
+            try:
+                behavior_attestation_assessments = (
+                    self.behavior_attestation_adapter().assess_task(
+                        task_id
+                    )
+                )
+            except BehaviorAttestationError as exc:
+                reasons.append(
+                    "behavior attestation contract is invalid: " + str(exc)
+                )
+            else:
+                not_current_attestations = tuple(
+                    assessment
+                    for assessment in behavior_attestation_assessments
+                    if not assessment.passed
+                )
+                if not_current_attestations:
+                    reasons.append(
+                        "required behavior attestations are not "
+                        "verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.consumer_id}/{item.probe_id}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current_attestations
+                        )
+                    )
+
+        independent_review_requirements_for_task = (
+            independent_behavior_review_requirements(
+                state.packet.evidence_requirements
+            )
+        )
+        independent_review_assessments: tuple[
+            IndependentBehaviorReviewAssessment, ...
+        ] = ()
+        if independent_review_requirements_for_task:
+            if "behavior/effect" not in state.packet.relevant_surfaces:
+                reasons.append(
+                    "INDEPENDENT_BEHAVIOR_REVIEW_VERIFY evidence requires "
+                    "the behavior/effect closeout surface"
+                )
+            elif surfaces.get("behavior/effect") not in {
+                "verified-current",
+                "changed-and-verified",
+            }:
+                reasons.append(
+                    "required independent review cannot close a "
+                    "behavior/effect surface that is not verified-current "
+                    "or changed-and-verified"
+                )
+            try:
+                independent_review_assessments = (
+                    self.independent_behavior_review_adapter().assess_task(
+                        task_id
+                    )
+                )
+            except IndependentBehaviorReviewError as exc:
+                reasons.append(
+                    "independent behavior review contract is invalid: "
+                    + str(exc)
+                )
+            else:
+                not_current_reviews = tuple(
+                    assessment
+                    for assessment in independent_review_assessments
+                    if not assessment.passed
+                )
+                if not_current_reviews:
+                    reasons.append(
+                        "required independent behavior reviews are not "
+                        "verified-current: "
+                        + ", ".join(
+                            (
+                                f"{item.consumer_id}/{item.probe_id}/"
+                                f"{item.review_id}"
+                                f"({item.latest_status or 'NOT_RUN'})"
+                            )
+                            for item in not_current_reviews
+                        )
+                    )
+
+        active_delegation_ids = tuple(
+            delegation.delegation_id
+            for delegation in state.active_delegations
+        )
+        if active_delegation_ids:
+            reasons.append(
+                "task delegated subjects remain active: "
+                + ", ".join(active_delegation_ids)
+            )
+
+        unresolved_correction_ids = state.unresolved_correction_ids
+        if unresolved_correction_ids:
+            reasons.append(
+                "task corrections remain unresolved: "
+                + ", ".join(unresolved_correction_ids)
+            )
+
         blockers = tuple(additional_blockers)
         if blockers:
             reasons.append(
@@ -363,6 +2294,11 @@ class QualifiedVeraRuntime:
             unresolved_effect_ids=unresolved_effect_ids,
             coordination_recovery_ids=coordination_recovery_ids,
             provider_recovery_ids=provider_recovery_ids,
+            dependency_assessments=dependency_assessments,
+            unsatisfied_dependency_ids=unsatisfied_dependency_ids,
+            cancelled_dependency_ids=state.cancelled_dependency_ids,
+            active_delegation_ids=active_delegation_ids,
+            unresolved_correction_ids=unresolved_correction_ids,
             supplied_blockers=blockers,
             ready=not reasons,
             reasons=tuple(reasons),
@@ -379,25 +2315,246 @@ class QualifiedVeraRuntime:
         next_frontier: str,
         additional_blockers: tuple[str, ...] = (),
     ) -> TaskState:
-        assessment = self.assess_task_closeout(
-            task_id,
-            surfaces=surfaces,
-            additional_blockers=additional_blockers,
-        )
-        if not assessment.ready:
-            raise TaskExecutionError(
-                "task closeout blocked: " + "; ".join(assessment.reasons)
+        with self.tasks.action_lock():
+            assessment = self.assess_task_closeout(
+                task_id,
+                surfaces=surfaces,
+                additional_blockers=additional_blockers,
             )
-        return self.tasks.close_task(
-            task_id,
-            closeout_id,
-            surfaces=surfaces,
-            evidence_refs=evidence_refs,
-            blockers=(),
-            claim_ceiling=claim_ceiling,
-            next_frontier=next_frontier,
-            lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
-        )
+            if not assessment.ready:
+                raise TaskExecutionError(
+                    "task closeout blocked: " + "; ".join(assessment.reasons)
+                )
+            missing_dependency_evidence = tuple(
+                item.dependency_id
+                for item in assessment.dependency_assessments
+                if item.satisfied and item.evidence_digest is None
+            )
+            if missing_dependency_evidence:
+                raise TaskExecutionError(
+                    "satisfied task dependency lacks durable evidence digest: "
+                    + ", ".join(missing_dependency_evidence)
+                )
+            state = self.tasks.read(task_id)
+            installation_assessments = (
+                self.installation_verification_adapter().assess_task(
+                    task_id
+                )
+            )
+            missing_installation_evidence = tuple(
+                (
+                    item.target_id,
+                    item.distribution_name,
+                )
+                for item in installation_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_installation_evidence:
+                raise TaskExecutionError(
+                    "verified installation lacks durable evidence digest: "
+                    + ", ".join(
+                        f"{target}/{distribution}"
+                        for target, distribution
+                        in missing_installation_evidence
+                    )
+                )
+            route_assessments = (
+                self.route_verification_adapter().assess_task(task_id)
+            )
+            missing_route_evidence = tuple(
+                item.route_id
+                for item in route_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_route_evidence:
+                raise TaskExecutionError(
+                    "verified route lacks durable evidence digest: "
+                    + ", ".join(missing_route_evidence)
+                )
+            runtime_consumption_assessments = (
+                self.runtime_consumption_adapter().assess_task(task_id)
+            )
+            missing_runtime_consumption_evidence = tuple(
+                item.consumer_id
+                for item in runtime_consumption_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_runtime_consumption_evidence:
+                raise TaskExecutionError(
+                    "verified runtime consumption lacks durable evidence digest: "
+                    + ", ".join(missing_runtime_consumption_evidence)
+                )
+            behavior_effect_assessments = (
+                self.behavior_effect_verification_adapter().assess_task(
+                    task_id
+                )
+            )
+            missing_behavior_effect_evidence = tuple(
+                f"{item.consumer_id}/{item.probe_id}"
+                for item in behavior_effect_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_behavior_effect_evidence:
+                raise TaskExecutionError(
+                    "verified behavior/effect lacks durable evidence digest: "
+                    + ", ".join(missing_behavior_effect_evidence)
+                )
+            behavior_attestation_assessments = (
+                self.behavior_attestation_adapter().assess_task(
+                    task_id
+                )
+            )
+            missing_behavior_attestation_evidence = tuple(
+                f"{item.consumer_id}/{item.probe_id}"
+                for item in behavior_attestation_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_behavior_attestation_evidence:
+                raise TaskExecutionError(
+                    "verified behavior attestation lacks durable evidence "
+                    "digest: "
+                    + ", ".join(missing_behavior_attestation_evidence)
+                )
+            independent_review_assessments = (
+                self.independent_behavior_review_adapter().assess_task(
+                    task_id
+                )
+            )
+            missing_independent_review_evidence = tuple(
+                f"{item.consumer_id}/{item.probe_id}/{item.review_id}"
+                for item in independent_review_assessments
+                if item.passed and item.latest_receipt_digest is None
+            )
+            if missing_independent_review_evidence:
+                raise TaskExecutionError(
+                    "verified independent behavior review lacks durable "
+                    "evidence digest: "
+                    + ", ".join(missing_independent_review_evidence)
+                )
+            binding_digests = {
+                dependency.dependency_id: dependency.event_digest
+                for dependency in state.dependencies
+            }
+            dependency_evidence_refs = tuple(
+                (
+                    "task-dependency:"
+                    f"{item.dependency_id}:"
+                    f"{binding_digests[item.dependency_id]}:"
+                    f"{item.evidence_digest}"
+                )
+                for item in assessment.dependency_assessments
+                if item.evidence_digest is not None
+            )
+            cancellation_evidence_refs = tuple(
+                (
+                    "task-dependency-cancelled:"
+                    f"{item.dependency_id}:"
+                    f"{binding_digests[item.dependency_id]}:"
+                    f"{item.event_digest}"
+                )
+                for item in state.dependency_cancellations
+            )
+            delegation_evidence_refs = tuple(
+                (
+                    "task-delegation:"
+                    f"{item.delegation_id}:"
+                    f"{item.status}:"
+                    f"{item.event_digest}"
+                )
+                for item in state.delegations
+                if not item.active
+            )
+            installation_evidence_refs = tuple(
+                (
+                    "task-installation:"
+                    f"{item.target_id}:"
+                    f"{item.distribution_name}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in installation_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
+            route_evidence_refs = tuple(
+                (
+                    "task-route:"
+                    f"{item.route_id}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in route_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
+            runtime_consumption_evidence_refs = tuple(
+                (
+                    "task-runtime-consumption:"
+                    f"{item.consumer_id}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in runtime_consumption_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
+            behavior_effect_evidence_refs = tuple(
+                (
+                    "task-behavior-effect:"
+                    f"{item.consumer_id}:"
+                    f"{item.probe_id}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in behavior_effect_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
+            behavior_attestation_evidence_refs = tuple(
+                (
+                    "task-behavior-attestation:"
+                    f"{item.consumer_id}:"
+                    f"{item.probe_id}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in behavior_attestation_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
+            independent_review_evidence_refs = tuple(
+                (
+                    "task-independent-behavior-review:"
+                    f"{item.consumer_id}:"
+                    f"{item.probe_id}:"
+                    f"{item.review_id}:"
+                    f"{item.latest_receipt_digest}"
+                )
+                for item in independent_review_assessments
+                if item.passed
+                and item.latest_receipt_digest is not None
+            )
+            merged_evidence = tuple(
+                dict.fromkeys(
+                    (
+                        *evidence_refs,
+                        *dependency_evidence_refs,
+                        *cancellation_evidence_refs,
+                        *delegation_evidence_refs,
+                        *installation_evidence_refs,
+                        *route_evidence_refs,
+                        *runtime_consumption_evidence_refs,
+                        *behavior_effect_evidence_refs,
+                        *behavior_attestation_evidence_refs,
+                        *independent_review_evidence_refs,
+                    )
+                )
+            )
+            return self.tasks.close_task(
+                task_id,
+                closeout_id,
+                surfaces=surfaces,
+                evidence_refs=merged_evidence,
+                blockers=(),
+                claim_ceiling=claim_ceiling,
+                next_frontier=next_frontier,
+                lifecycle_evidence_digest=self._task_runtime_evidence_digest(),
+            )
 
     def cancel_reserved_effect(self, effect_id: str) -> EffectReceipt:
         """Cancel an effect proven not to have crossed the dispatch claim."""
@@ -437,10 +2594,17 @@ class QualifiedVeraRuntime:
         *,
         job: JobEnvelope,
         authorization: AuthorizationEnvelope,
+        task_dependency: TaskDependencyRef | None = None,
     ) -> PreparedPCDispatch:
         validate_pc_authorization_binding(job, authorization)
         if job.project_id != self.lifecycle.project_id:
             raise ValueError("PC job project does not match qualified runtime")
+        if task_dependency is not None:
+            self._validate_task_dependency_ref(
+                task_dependency,
+                expected_kind="EFFECT",
+                expected_target_id=f"pc:{job.envelope_id}",
+            )
         permit = self.accepted_permit()
         job_digest = job.digest()
         authorization_digest = authorization.digest()
@@ -455,6 +2619,7 @@ class QualifiedVeraRuntime:
                 authorization_digest=authorization_digest,
                 lifecycle_permit_digest=permit.permit_digest,
             ),
+            task_dependency=task_dependency,
         )
 
     def dispatch_pc_job(
@@ -470,12 +2635,19 @@ class QualifiedVeraRuntime:
             raise ValueError("prepared PC job changed after preparation")
         if prepared.authorization.digest() != prepared.authorization_digest:
             raise ValueError("prepared PC authorization changed after preparation")
+        if prepared.task_dependency is not None:
+            self._validate_task_dependency_ref(
+                prepared.task_dependency,
+                expected_kind="EFFECT",
+                expected_target_id=f"pc:{prepared.job.envelope_id}",
+            )
         return self.effects.dispatch_pc_job(
             permit=prepared.permit,
             job=prepared.job,
             authorization=prepared.authorization,
             authority_proof=authority_proof,
             execute=execute,
+            task_dependency=prepared.task_dependency,
         )
 
     def execute_pc_job(
@@ -489,10 +2661,10 @@ class QualifiedVeraRuntime:
             raise ValueError(
                 "qualified PC execution requires a host-injected PC execution transport"
             )
-        if transport.host_id != prepared.job.host_id:
-            raise ValueError(
-                "PC execution transport host identity does not match job host"
-            )
+        validate_pc_execution_transport_for_job(
+            transport,
+            prepared.job,
+        )
         return self.dispatch_pc_job(
             prepared,
             authority_proof=authority_proof,
@@ -509,7 +2681,14 @@ class QualifiedVeraRuntime:
         provider_id: str,
         operation: str,
         request_payload: Any,
+        task_dependency: TaskDependencyRef | None = None,
     ) -> PreparedProviderDispatch:
+        if task_dependency is not None:
+            self._validate_task_dependency_ref(
+                task_dependency,
+                expected_kind="PROVIDER_EFFECT",
+                expected_target_id=effect_id,
+            )
         permit = self.accepted_permit()
         request_digest = self.effects.provider_request_digest(
             provider_id=provider_id,
@@ -530,6 +2709,7 @@ class QualifiedVeraRuntime:
                 request_digest=request_digest,
                 lifecycle_permit_digest=permit.permit_digest,
             ),
+            task_dependency=task_dependency,
         )
         self.provider_execution_bindings.bind(prepared)
         return prepared
@@ -558,6 +2738,7 @@ class QualifiedVeraRuntime:
             request_payload=request_payload,
             request_digest=binding.request_digest,
             authority_subject=binding.authority_subject,
+            task_dependency=binding.task_dependency,
         )
         self.provider_execution_bindings.bind(prepared)
         return prepared
@@ -571,6 +2752,11 @@ class QualifiedVeraRuntime:
     ) -> Any:
         if type(prepared) is not PreparedProviderDispatch:
             raise TypeError("prepared must be exact PreparedProviderDispatch")
+        if prepared.provider_id.startswith("source:"):
+            raise ValueError(
+                "source mutation providers must dispatch through the "
+                "qualified source mutation adapter"
+            )
         observed_digest = self.effects.provider_request_digest(
             provider_id=prepared.provider_id,
             operation=prepared.operation,
@@ -578,6 +2764,12 @@ class QualifiedVeraRuntime:
         )
         if observed_digest != prepared.request_digest:
             raise ValueError("prepared provider request changed after preparation")
+        if prepared.task_dependency is not None:
+            self._validate_task_dependency_ref(
+                prepared.task_dependency,
+                expected_kind="PROVIDER_EFFECT",
+                expected_target_id=prepared.effect_id,
+            )
         return self.effects.dispatch_provider_effect(
             permit=prepared.permit,
             effect_id=prepared.effect_id,
@@ -586,6 +2778,7 @@ class QualifiedVeraRuntime:
             request_payload=prepared.request_payload,
             authority=authority,
             execute=execute,
+            task_dependency=prepared.task_dependency,
         )
 
     def execute_provider_effect(
@@ -594,6 +2787,11 @@ class QualifiedVeraRuntime:
         *,
         authority: ProviderAuthorityEnvelope,
     ) -> Any:
+        if prepared.provider_id.startswith("source:"):
+            raise ValueError(
+                "source mutation providers must execute through the "
+                "qualified source mutation adapter"
+            )
         transport = self.provider_execution_transports.get(
             prepared.provider_id
         )
@@ -624,6 +2822,7 @@ class QualifiedVeraRuntime:
             request_payload=execution_payload,
             request_digest=prepared.request_digest,
             authority_subject=prepared.authority_subject,
+            task_dependency=prepared.task_dependency,
         )
         return self.dispatch_provider_effect(
             snapshotted,
@@ -732,6 +2931,11 @@ class QualifiedVeraRuntime:
             for binding in self.provider_execution_bindings.all()
         )
 
+    def recover_source_mutations(
+        self,
+    ) -> tuple[SourceMutationRecoveryAssessment, ...]:
+        return self.source_mutation_adapter().recover_mutations()
+
     def resume_context(self) -> dict[str, Any]:
         context = self.lifecycle.reconstruct().as_resume_context()
         context["outbound_trust"] = self.outbound_trust.context()
@@ -753,6 +2957,274 @@ class QualifiedVeraRuntime:
         context["provider_execution_bindings"] = (
             self.provider_execution_bindings.context()
         )
+        context["source_mutation_bindings"] = (
+            self.source_mutation_bindings.context()
+        )
+        context["source_mutation_outcomes"] = (
+            self.source_mutation_outcomes.context()
+        )
+        context["source_verifications"] = self.source_verifications.context()
+        context["source_verification_recovery"] = [
+            {
+                "mutation_id": assessment.mutation_id,
+                "repository": assessment.repository,
+                "ref": assessment.ref,
+                "commit_sha": assessment.commit_sha,
+                "required_checks": list(assessment.required_checks),
+                "verification_required": assessment.verification_required,
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": (
+                    assessment.latest_receipt_digest
+                ),
+                "transport_available": assessment.transport_available,
+                "passed": assessment.passed,
+                "current_ref_head": assessment.current_ref_head,
+                "current_ref_matches_commit": (
+                    assessment.current_ref_matches_commit
+                ),
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_source_verifications()
+        ]
+        context["installation_verifications"] = (
+            self.installation_verifications.context()
+        )
+        context["route_verifications"] = self.route_verifications.context()
+        context["route_verification_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "route_id": assessment.route_id,
+                "expected_target": assessment.expected_target,
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": assessment.latest_receipt_digest,
+                "latest_route_digest": assessment.latest_route_digest,
+                "transport_available": assessment.transport_available,
+                "current_selected_target": assessment.current_selected_target,
+                "current_route_digest": assessment.current_route_digest,
+                "current_matches_receipt": assessment.current_matches_receipt,
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_route_verifications()
+        ]
+        context["installation_verification_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "target_id": assessment.target_id,
+                "distribution_name": assessment.distribution_name,
+                "expected_version": assessment.expected_version,
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": (
+                    assessment.latest_receipt_digest
+                ),
+                "latest_installation_digest": (
+                    assessment.latest_installation_digest
+                ),
+                "transport_available": assessment.transport_available,
+                "current_observed_version": (
+                    assessment.current_observed_version
+                ),
+                "current_installation_digest": (
+                    assessment.current_installation_digest
+                ),
+                "current_matches_receipt": (
+                    assessment.current_matches_receipt
+                ),
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_installation_verifications()
+        ]
+        context["runtime_consumption_verifications"] = (
+            self.runtime_consumption_verifications.context()
+        )
+        context["runtime_consumption_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "consumer_id": assessment.consumer_id,
+                "expected_route_id": assessment.expected_route_id,
+                "expected_target": assessment.expected_target,
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": assessment.latest_receipt_digest,
+                "latest_route_digest": assessment.latest_route_digest,
+                "latest_process_instance_id": (
+                    assessment.latest_process_instance_id
+                ),
+                "latest_state_digest": assessment.latest_state_digest,
+                "transport_available": assessment.transport_available,
+                "current_consumed_target": (
+                    assessment.current_consumed_target
+                ),
+                "current_route_digest": assessment.current_route_digest,
+                "current_process_instance_id": (
+                    assessment.current_process_instance_id
+                ),
+                "current_state_digest": assessment.current_state_digest,
+                "current_matches_receipt": assessment.current_matches_receipt,
+                "route_verification_required": (
+                    assessment.route_verification_required
+                ),
+                "route_verified_current": assessment.route_verified_current,
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_runtime_consumption_verifications()
+        ]
+        context["behavior_effect_verifications"] = (
+            self.behavior_effect_verifications.context()
+        )
+        context["behavior_effect_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "consumer_id": assessment.consumer_id,
+                "probe_id": assessment.probe_id,
+                "evidence_kind": assessment.evidence_kind,
+                "expected_stimulus_digest": (
+                    assessment.expected_stimulus_digest
+                ),
+                "expected_outcome_digest": (
+                    assessment.expected_outcome_digest
+                ),
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": assessment.latest_receipt_digest,
+                "latest_runtime_consumption_receipt_digest": (
+                    assessment.latest_runtime_consumption_receipt_digest
+                ),
+                "latest_process_instance_id": (
+                    assessment.latest_process_instance_id
+                ),
+                "latest_runtime_state_digest": (
+                    assessment.latest_runtime_state_digest
+                ),
+                "latest_external_effect_id": (
+                    assessment.latest_external_effect_id
+                ),
+                "latest_external_effect_receipt_digest": (
+                    assessment.latest_external_effect_receipt_digest
+                ),
+                "latest_external_evidence_digest": (
+                    assessment.latest_external_evidence_digest
+                ),
+                "transport_available": assessment.transport_available,
+                "runtime_consumption_current": (
+                    assessment.runtime_consumption_current
+                ),
+                "current_runtime_consumption_receipt_digest": (
+                    assessment.current_runtime_consumption_receipt_digest
+                ),
+                "current_process_instance_id": (
+                    assessment.current_process_instance_id
+                ),
+                "current_runtime_state_digest": (
+                    assessment.current_runtime_state_digest
+                ),
+                "current_observed_outcome_digest": (
+                    assessment.current_observed_outcome_digest
+                ),
+                "current_external_effect_id": (
+                    assessment.current_external_effect_id
+                ),
+                "current_external_effect_receipt_digest": (
+                    assessment.current_external_effect_receipt_digest
+                ),
+                "current_external_evidence_digest": (
+                    assessment.current_external_evidence_digest
+                ),
+                "current_matches_receipt": (
+                    assessment.current_matches_receipt
+                ),
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_behavior_effect_verifications()
+        ]
+        context["behavior_attestations"] = (
+            self.behavior_attestations.context()
+        )
+        context["behavior_attestation_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "consumer_id": assessment.consumer_id,
+                "probe_id": assessment.probe_id,
+                "evidence_kind": assessment.evidence_kind,
+                "expected_declaration_digest": (
+                    assessment.expected_declaration_digest
+                ),
+                "expected_provider_id": assessment.expected_provider_id,
+                "expected_provider_key_id": (
+                    assessment.expected_provider_key_id
+                ),
+                "expected_provider_key_digest": (
+                    assessment.expected_provider_key_digest
+                ),
+                "expected_effect_subject_digest": (
+                    assessment.expected_effect_subject_digest
+                ),
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": assessment.latest_receipt_digest,
+                "latest_behavior_effect_receipt_digest": (
+                    assessment.latest_behavior_effect_receipt_digest
+                ),
+                "latest_attestation_subject_digest": (
+                    assessment.latest_attestation_subject_digest
+                ),
+                "latest_external_evidence_digest": (
+                    assessment.latest_external_evidence_digest
+                ),
+                "transport_available": assessment.transport_available,
+                "behavior_effect_current": (
+                    assessment.behavior_effect_current
+                ),
+                "current_behavior_effect_receipt_digest": (
+                    assessment.current_behavior_effect_receipt_digest
+                ),
+                "current_attestation_subject_digest": (
+                    assessment.current_attestation_subject_digest
+                ),
+                "current_external_evidence_digest": (
+                    assessment.current_external_evidence_digest
+                ),
+                "current_signature_valid": (
+                    assessment.current_signature_valid
+                ),
+                "current_matches_receipt": (
+                    assessment.current_matches_receipt
+                ),
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_behavior_attestations()
+        ]
+        context["independent_behavior_reviews"] = (
+            self.independent_behavior_reviews.context()
+        )
+        context["independent_behavior_review_recovery"] = [
+            {
+                "task_id": assessment.task_id,
+                "consumer_id": assessment.consumer_id,
+                "probe_id": assessment.probe_id,
+                "review_id": assessment.review_id,
+                "latest_status": assessment.latest_status,
+                "latest_receipt_digest": assessment.latest_receipt_digest,
+                "transport_available": assessment.transport_available,
+                "behavior_effect_current": assessment.behavior_effect_current,
+                "current_authority_current": (
+                    assessment.current_authority_current
+                ),
+                "current_operationally_separate": (
+                    assessment.current_operationally_separate
+                ),
+                "current_signatures_valid": (
+                    assessment.current_signatures_valid
+                ),
+                "current_matches_receipt": (
+                    assessment.current_matches_receipt
+                ),
+                "passed": assessment.passed,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_independent_behavior_reviews()
+        ]
         context["coordination"] = {
             "schema": "VERA_MONO_COORDINATION_RUNTIME_CONTEXT_V1",
             "repository_type": type(self.coordination.bus.repository).__name__,
@@ -763,6 +3235,46 @@ class QualifiedVeraRuntime:
         }
         context["coordination_commands"] = self.coordination_commands.context()
         context["tasks"] = self.tasks.context()
+        context["task_delegation_ownership"] = [
+            {
+                "task_id": task.task_id,
+                "delegation_id": delegation.delegation_id,
+                "repository": delegation.repository,
+                "ref": delegation.ref,
+                "subject": delegation.subject,
+                "assignee_ref": delegation.assignee_ref,
+                "allowed_effects": list(delegation.allowed_effects),
+                "prohibited_effects": list(
+                    delegation.prohibited_effects
+                ),
+                "return_shape": list(delegation.return_shape),
+            }
+            for task in self.tasks.tasks()
+            for delegation in task.active_delegations
+        ]
+        context["task_dependency_recovery"] = [
+            {
+                "task_id": task.task_id,
+                "dependencies": [
+                    {
+                        "dependency_id": assessment.dependency_id,
+                        "kind": assessment.kind,
+                        "target_id": assessment.target_id,
+                        "status": assessment.status,
+                        "evidence_digest": assessment.evidence_digest,
+                        "cancellation_allowed": (
+                            assessment.cancellation_allowed
+                        ),
+                        "reason": assessment.reason,
+                    }
+                    for assessment in self.assess_task_dependencies(
+                        task.task_id
+                    )
+                ],
+            }
+            for task in self.tasks.tasks()
+            if not task.closed and task.dependencies
+        ]
         context["coordination_command_recovery"] = [
             {
                 "command_id": assessment.command_id,
@@ -786,6 +3298,47 @@ class QualifiedVeraRuntime:
                 "reason": assessment.reason,
             }
             for assessment in self.coordination.recover_commands()
+        ]
+        context["source_mutation_recovery"] = [
+            {
+                "mutation_id": assessment.mutation_id,
+                "task_id": assessment.task_id,
+                "dependency_id": assessment.dependency_id,
+                "repository": assessment.repository,
+                "ref": assessment.ref,
+                "operation": assessment.operation,
+                "path": assessment.path,
+                "destination_path": assessment.destination_path,
+                "provider_fence_state": assessment.provider_fence_state,
+                "lifecycle_permit_current": (
+                    assessment.lifecycle_permit_current
+                ),
+                "task_open": assessment.task_open,
+                "packet_current": assessment.packet_current,
+                "writable_scope_current": (
+                    assessment.writable_scope_current
+                ),
+                "delegation_current": assessment.delegation_current,
+                "provider_binding_current": (
+                    assessment.provider_binding_current
+                ),
+                "provider_authority_current": (
+                    assessment.provider_authority_current
+                ),
+                "transport_available": assessment.transport_available,
+                "outcome_current": assessment.outcome_current,
+                "new_ref_head": assessment.new_ref_head,
+                "content_rehydration_required": (
+                    assessment.content_rehydration_required
+                ),
+                "dispatch_candidate_allowed": (
+                    assessment.dispatch_candidate_allowed
+                ),
+                "recovery_required": assessment.recovery_required,
+                "terminal": assessment.terminal,
+                "reason": assessment.reason,
+            }
+            for assessment in self.recover_source_mutations()
         ]
         context["provider_execution_recovery"] = [
             {

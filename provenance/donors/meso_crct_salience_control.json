@@ -1,0 +1,34 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/meso-crct",
+  "donor_ref": "8316eb3c3a82705e227cb0c275877fae039ab75a",
+  "donor_subject": "PR #3 salience-first V2 architecture",
+  "absorbed_target": "packages/vera_runtime/src/runtime_cohesion/salience_control.py",
+  "mode": "CONCEPTUAL_METHOD_ADAPTATION_NO_CODE_COPY",
+  "runtime_dependency_on_donor": false,
+  "adapted_mechanisms": [
+    "typed upstream salience channels",
+    "protective attention override",
+    "non-scalar dominant-driver arbitration",
+    "explicit nonprotective mode precedence",
+    "satiation applied only to incentive salience",
+    "long-horizon attention-allocation auditing"
+  ],
+  "vera_specific_changes": [
+    "salience arbitration remains pre-action and cannot replace InitiativeKernel",
+    "all results carry authority NONE",
+    "protective saturation is audited rather than treated as automatically healthy",
+    "no hedonic floor, association memory, intent system, review registry, or execution path is imported"
+  ],
+  "excluded_donor_mechanisms": [
+    "hedonic state and welfare floor",
+    "association memory and recall",
+    "review/quarantine registry",
+    "action tendency and intent proposal layers",
+    "decision-cycle composition",
+    "provenance receipt implementation",
+    "MESO runtime ownership"
+  ],
+  "authority_rule": "salience may affect attention/focus candidates only; it cannot establish truth, evidence, consent, identity, memory admission, action authority, or effect authority",
+  "claim_ceiling": "SOURCE_MECHANISM_ADAPTED_AND_LOCALLY_TESTED_NOT_RUNTIME_INSTALLATION_NOT_BEHAVIORAL_QUALIFICATION_NOT_AGI"
+}

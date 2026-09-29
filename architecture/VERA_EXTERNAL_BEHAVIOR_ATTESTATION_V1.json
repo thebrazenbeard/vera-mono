@@ -1,0 +1,95 @@
+{
+  "schema": "VERA_MONO_EXTERNAL_BEHAVIOR_ATTESTATION_V1",
+  "purpose": "Bind a live-current behavior/effect PASS to an exact canonical behavior declaration and a host/external evidence-provider attestation so Vera does not treat its own local behavior receipt as sufficient external provenance.",
+  "requirement_grammar": {
+    "syntax": "BEHAVIOR_ATTEST_VERIFY|<consumer-id>|<probe-id>|<declaration-sha256>|<provider-id>|<provider-key-id>|<provider-key-sha256>|<effect-subject-sha256-or-NONE>",
+    "owner": "TaskPacket.evidence_requirements",
+    "matching_behavior_effect_requirement_required": true,
+    "required_surface": "behavior/effect"
+  },
+  "declaration_binding": {
+    "digest_method": "SHA-256 over canonical JSON bytes",
+    "utility": "vera_core.canonical_behavior_declaration_digest",
+    "task_local_stimulus_outcome_hashes_are_sufficient_without_declaration": false
+  },
+  "composition": {
+    "store": "vera_core.BehaviorAttestationStore",
+    "adapter": "vera_core.QualifiedBehaviorAttestationAdapter",
+    "transport_protocol": "vera_core.BehaviorAttestationTransport",
+    "concrete_transport": "vera_core.JsonFileBehaviorAttestationTransport",
+    "verifier_protocol": "vera_core.BehaviorEvidenceAttestationVerifier",
+    "concrete_verifier": "vera_core.HmacBehaviorEvidenceAttestationVerifier",
+    "state_path": "<vera-state-root>/behavior/attestation.sqlite",
+    "verifier_secrets_persisted_by_vera": false
+  },
+  "evidence_envelope": {
+    "schema": "VERA_MONO_EXTERNAL_BEHAVIOR_ATTESTATION_V1",
+    "signature_subject_schema": "VERA_MONO_BEHAVIOR_ATTESTATION_SUBJECT_V1",
+    "preserves_by_exact_binding": [
+      "canonical behavior declaration digest",
+      "exact behavior/effect receipt digest",
+      "consumed process instance id",
+      "runtime state digest",
+      "stimulus digest",
+      "outcome digest",
+      "SHA-256 of decoded raw response bytes",
+      "provider id",
+      "provider key id",
+      "provider key digest",
+      "single-use attestation nonce",
+      "external effect id when EFFECT",
+      "SHA-256 of decoded external effect receipt bytes when EFFECT",
+      "declared external effect subject digest when EFFECT"
+    ],
+    "exact_external_file_digest": "SHA-256 over raw attestation JSON bytes"
+  },
+  "verification": {
+    "behavior_effect_must_be_live_current_PASS": true,
+    "behavior_effect_receipt_must_match_exactly": true,
+    "provider_identity_and_key_must_match_requirement": true,
+    "signature_must_verify": true,
+    "declaration_digest_must_match_requirement": true,
+    "process_runtime_stimulus_outcome_must_match_behavior_receipt": true,
+    "nonce_replay": "DENY_PER_PROVIDER_KEY",
+    "missing_file": "UNAVAILABLE",
+    "stale_or_mismatched_evidence": "FAIL_OR_NOT_CURRENT"
+  },
+  "effect_cross_binding": {
+    "BEHAVIOR_effect_subject": "NONE",
+    "EFFECT_effect_subject_digest_required": true,
+    "signed_subject_binds_external_effect_id_receipt_digest_and_subject_digest": true,
+    "external_effect_receipt_bytes_digest_must_match_behavior_effect_receipt": true,
+    "local_effect_fence_used_as_external_proof": false
+  },
+  "task_closeout": {
+    "matching_requirement_requires_live_current_PASS": true,
+    "evidence_ref": "task-behavior-attestation:<consumer-id>:<probe-id>:<receipt-digest>",
+    "task_runtime_evidence_cut_includes_attestation_head": true
+  },
+  "hostile_regressions": [
+    "stale process",
+    "stale declaration/profile",
+    "forged signature",
+    "nonce replay",
+    "mismatched stimulus",
+    "mismatched outcome",
+    "missing external evidence",
+    "mismatched external effect subject"
+  ],
+  "boundaries": {
+    "behavior_effect_pass_is_attestation_pass": false,
+    "attestation_pass_is_independent_review": false,
+    "attestation_pass_is_protected_effect_authority": false,
+    "attestation_pass_is_deployment": false,
+    "attestation_pass_is_provider_activation": false,
+    "local_effect_fence_is_external_effect_proof": false,
+    "hmac_verifier_is_independent_evaluator": false,
+    "exact_byte_binding_proves_provenance_integrity_not_truthfulness": true,
+    "consciousness_or_phenomenology_evidence": false
+  },
+  "statuses": [
+    "PASS",
+    "FAIL",
+    "UNAVAILABLE"
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "schema": "VERA_MONO_GITHUB_SOURCE_TRANSPORT_V1",
+  "purpose": "Provide a concrete GitHub repository mutation transport for QualifiedSourceMutationAdapter without weakening task scope, delegation, authority, lifecycle, audit, or effect-fence gates.",
+  "implementation": {
+    "source_transport": "vera_core.GitHubSourceMutationTransport",
+    "git_data_client": "vera_core.GitHubGitDataAPIClient",
+    "http_transport": "vera_core.UrllibGitHubJSONHTTPTransport",
+    "credentials": "injected at runtime; never persisted by these components"
+  },
+  "github_primitives": {
+    "ref_read": "REST Git references",
+    "commit_read_and_create": "REST Git commits",
+    "tree_read_and_create": "REST Git trees",
+    "blob_create": "REST Git blobs",
+    "exact_ref_compare_and_swap": "GraphQL updateRefs",
+    "ref_update_contract": {
+      "name": "refs/heads/<ref>",
+      "beforeOid": "exact expected_ref_head",
+      "afterOid": "new commit SHA",
+      "force": false
+    }
+  },
+  "mutation_algorithm": [
+    "validate exact source mutation request schema and transport repository/ref identity",
+    "read current ref head and require exact expected_ref_head",
+    "read expected commit/tree",
+    "read exact source and destination Git tree entries and enforce expected blob identity/absence",
+    "for WRITE_FILE create one blob and one tree update",
+    "for DELETE_FILE create one tree deletion",
+    "for MOVE_FILE create one tree containing source deletion and destination addition using the same source blob",
+    "create one commit whose only parent is expected_ref_head",
+    "re-read ref as advisory drift check",
+    "perform provider-side exact ref compare-and-swap using updateRefs beforeOid/afterOid",
+    "read back exact new ref head and mutated path/blob state",
+    "return SourceMutationTransportResult only after readback passes"
+  ],
+  "fail_closed": {
+    "recursive_tree_truncated": true,
+    "wrong_ref_head": true,
+    "wrong_source_blob": true,
+    "unexpected_existing_destination": true,
+    "unsupported_non_blob_path": true,
+    "unsupported_file_mode": true,
+    "content_digest_mismatch": true,
+    "GraphQL_or_HTTP_error": true,
+    "post_write_ref_readback_mismatch": true,
+    "post_write_blob_readback_mismatch": true
+  },
+  "move_atomicity": {
+    "source_delete_and_destination_add_share_one_tree": true,
+    "one_commit": true,
+    "one_exact_ref_CAS": true,
+    "ref_CAS_failure_leaves_branch_without_partial_move": true,
+    "orphan_git_objects_may_exist_after_failed_ref_CAS": true
+  },
+  "ambiguity": {
+    "retries_inside_transport": false,
+    "provider_or_network_exception_after_effect_dispatch": "propagate",
+    "qualified_effect_result": "ATTEMPTED_UNKNOWN until separately reconciled",
+    "blind_retry": false
+  },
+  "restart_evidence": {
+    "store": "vera_core.SourceMutationBindingStore",
+    "state_path": "source/mutation-bindings.sqlite",
+    "persists_source_content": false,
+    "persists": [
+      "task/dependency identity",
+      "task packet digest",
+      "repository/ref/subject/actor",
+      "operation and paths",
+      "expected ref/blob identities",
+      "content digest only",
+      "matched writable-scope entries",
+      "delegation reference when present",
+      "provider binding digest/request digest/authority subject/lifecycle permit digest"
+    ]
+  },
+  "boundaries": {
+    "source_presence_is_not_installation_or_provider_activation": true,
+    "GitHub_token_is_not_persisted": true,
+    "transport_does_not_grant_task_writable_scope": true,
+    "transport_does_not_grant_delegation_ownership": true,
+    "transport_does_not_grant_provider_authority": true,
+    "merge_or_protected_branch_authority_not_created": true,
+    "actual_host_registration_remains_external": true
+  }
+}

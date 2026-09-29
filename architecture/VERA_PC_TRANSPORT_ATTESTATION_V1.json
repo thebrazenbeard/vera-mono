@@ -1,0 +1,43 @@
+{
+  "schema": "VERA_PC_TRANSPORT_ATTESTATION_V1",
+  "status": "SOURCE_INTEGRATION_CANDIDATE",
+  "owner": "vera_core PC execution boundary",
+  "purpose": "Bind PCCC job requirements to a live host-injected PC transport observation immediately before qualified dispatch.",
+  "transport_contract": {
+    "required_identity": "host_id",
+    "required_method": "attest()",
+    "attestation_fields": [
+      "host_id",
+      "capability_digest",
+      "local_policy_digest",
+      "read_roots_digest"
+    ]
+  },
+  "dispatch_match_requirements": {
+    "host_id": "attestation.host_id == transport.host_id == job.host_id",
+    "capability_digest": "attestation.capability_digest == job.required_capability_digest",
+    "local_policy_digest": "attestation.local_policy_digest == job.required_local_policy_digest",
+    "read_roots_digest": "attestation.read_roots_digest == job.read_roots_digest"
+  },
+  "enforcement_surfaces": [
+    "QualifiedVeraRuntime.execute_pc_job",
+    "QualifiedPCExecutionAdapter.execute_via_runtime_transport"
+  ],
+  "failure_boundary": "ALL_MISMATCHES_FAIL_BEFORE_TRANSPORT_EXECUTION; JOURNAL_ADAPTER_PATH_FAILS_BEFORE_LOCAL_ATTEMPT_STATE",
+  "compatibility_rule": "LEGACY_PC_TRANSPORTS_WITHOUT_ATTEST_ARE_REJECTED_AT_RUNTIME_COMPOSITION",
+  "observation_semantics": [
+    "transport attestation is a host-supplied live observation",
+    "digest equality does not prove the underlying policy is correct",
+    "digest equality does not independently prove the provider enforces every declared capability restriction",
+    "read_roots digest equality does not by itself prove OS filesystem confinement",
+    "capability equality does not grant permission or protected-effect authority"
+  ],
+  "desktop_commander_rule": "UNRESTRICTED_COMMAND_STRING_SURFACE_IS_NOT_AUTO_ADMITTED_BY_THIS_BINDING",
+  "process_execution_rule": "PCCC phase-one forbidden capabilities remain unchanged; arbitrary shell/process execution is not enabled by this adaptation",
+  "authorization_effect": "NONE",
+  "memory_admission_effect": "NONE",
+  "identity_effect": "NONE",
+  "runtime_dependency_on_workbridge": false,
+  "donor_ref": "thebrazenbeard/WorkBridgeMCP@8707a2e1eaf7de5ce2316567b5e6f1e805c0537b",
+  "claim_ceiling": "LIVE_REQUIREMENT_MATCH_ONLY_NOT_INDEPENDENT_PROVIDER_QUALIFICATION_NOT_DEPLOYMENT_NOT_AGI"
+}

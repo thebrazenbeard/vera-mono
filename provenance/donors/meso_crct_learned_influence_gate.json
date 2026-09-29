@@ -1,0 +1,25 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/meso-crct",
+  "donor_head": "060d0feeb9dc9eb23801082bd8f1c4a7cb06184d",
+  "inspected_source_blobs": {
+    "src/meso_crct/memory.py": "b1459aaea08d2d525f8249deec9de65d3f39cbe7",
+    "src/meso_crct/recall.py": "305950bbc2c72882d128ad8613b9fd8b94384c02",
+    "src/meso_crct/review.py": "7f07a096a4664928d0662964c953856fb7c4774c",
+    "tests/test_recall.py": "ab255539757affb5ce5166878e9460642be0c9f8",
+    "tests/test_association_review.py": "6acca171e78541d6fe1bb628739bbe4abfa3601e"
+  },
+  "adaptation": {
+    "target": "packages/vera_memory/src/vera_memory/learned_influence.py",
+    "mechanism": "exact-revision review binding, quarantine/staleness checks, and association+revision+cue replay prevention for learned influences",
+    "authority_effect": "NONE",
+    "donor_runtime_dependency": false
+  },
+  "excluded_claims": [
+    "learned association equals autobiographical memory",
+    "unreviewed learned influence is true",
+    "review admission grants external-effect authority",
+    "MESO-CRCT reward or motivational semantics are installed"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_COMBINED_CI"
+}

@@ -33,7 +33,11 @@ from .outbound_authority import (
     validate_pc_authorization_binding,
 )
 from .outbound_audit import OutboundExecutionAudit
-from .outbound_trust import OutboundTrustRegistry
+from .outbound_trust import (
+    AuthorityCurrentnessReceipt,
+    OutboundTrustRegistry,
+)
+from .task_execution import TaskDependencyRef
 
 
 T = TypeVar("T")
@@ -142,6 +146,32 @@ class LifecycleEffectGateway:
                 )
         self._provider_authority_verifiers = registry
         self._clock = clock or (lambda: datetime.now(timezone.utc))
+
+    def provider_authority_currentness(
+        self,
+        provider_id: str,
+    ) -> AuthorityCurrentnessReceipt:
+        if type(provider_id) is not str or not provider_id:
+            raise OutboundAuthorityError(
+                "provider_id must be a non-empty exact string"
+            )
+        verifier = self._provider_authority_verifiers.get(provider_id)
+        if verifier is None:
+            raise OutboundAuthorityError(
+                f"no trusted authority verifier registered for provider {provider_id!r}"
+            )
+        trust = self._outbound_trust_registry
+        if trust is None:
+            raise OutboundAuthorityError(
+                "provider authority currentness requires persistent outbound trust"
+            )
+        return trust.assert_current(
+            authority_id=verifier.authority_id,
+            role="PROVIDER",
+            provider_id=provider_id,
+            key_id=verifier.key_id,
+            key_digest=verifier.key_digest,
+        )
 
     @staticmethod
     def effect_request_digest(
@@ -365,6 +395,7 @@ class LifecycleEffectGateway:
         authorization: AuthorizationEnvelope,
         authority_proof: PCJobAuthorityProof,
         execute: Callable[[], T],
+        task_dependency: TaskDependencyRef | None = None,
     ) -> OutboundEffectResult:
         if type(job) is not JobEnvelope:
             raise OutboundActionError("PC effect requires an exact JobEnvelope")
@@ -383,6 +414,18 @@ class LifecycleEffectGateway:
             raise LifecycleActionDenied(
                 "PC job project does not match accepted lifecycle project"
             )
+        if task_dependency is not None:
+            if type(task_dependency) is not TaskDependencyRef:
+                raise OutboundActionError(
+                    "PC task_dependency must be exact TaskDependencyRef"
+                )
+            if (
+                task_dependency.kind != "EFFECT"
+                or task_dependency.target_id != f"pc:{job.envelope_id}"
+            ):
+                raise OutboundActionError(
+                    "PC task dependency does not bind this exact effect"
+                )
 
         def verify_authority() -> VerifiedAuthorityEvidence:
             validate_pc_authorization_binding(job, authorization)
@@ -456,6 +499,11 @@ class LifecycleEffectGateway:
                     "authority_proof": authority_proof,
                     "authority_currentness": trust_receipt,
                     "lifecycle_permit_digest": permit.permit_digest,
+                    "task_dependency": (
+                        None
+                        if task_dependency is None
+                        else task_dependency.canonical_body()
+                    ),
                 }
             )
             return VerifiedAuthorityEvidence(
@@ -470,6 +518,11 @@ class LifecycleEffectGateway:
                     "job_digest": job.digest(),
                     "authorization_digest": authorization.digest(),
                     "authority_currentness": trust_receipt,
+                    "task_dependency": (
+                        None
+                        if task_dependency is None
+                        else task_dependency.canonical_body()
+                    ),
                 },
             )
 
@@ -522,6 +575,7 @@ class LifecycleEffectGateway:
         request_payload: Any,
         authority: ProviderAuthorityEnvelope,
         execute: Callable[[], T],
+        task_dependency: TaskDependencyRef | None = None,
     ) -> OutboundEffectResult:
         if type(provider_id) is not str or not provider_id:
             raise OutboundActionError("provider_id must be a non-empty exact string")
@@ -531,6 +585,18 @@ class LifecycleEffectGateway:
             raise OutboundAuthorityError(
                 "provider effect requires exact ProviderAuthorityEnvelope"
             )
+        if task_dependency is not None:
+            if type(task_dependency) is not TaskDependencyRef:
+                raise OutboundActionError(
+                    "provider task_dependency must be exact TaskDependencyRef"
+                )
+            if (
+                task_dependency.kind != "PROVIDER_EFFECT"
+                or task_dependency.target_id != effect_id
+            ):
+                raise OutboundActionError(
+                    "provider task dependency does not bind this exact effect"
+                )
         authority_verifier = self._provider_authority_verifiers.get(provider_id)
         if authority_verifier is None:
             raise OutboundAuthorityError(
@@ -585,6 +651,11 @@ class LifecycleEffectGateway:
                     "authority": authority,
                     "authority_currentness": trust_receipt,
                     "lifecycle_permit_digest": permit.permit_digest,
+                    "task_dependency": (
+                        None
+                        if task_dependency is None
+                        else task_dependency.canonical_body()
+                    ),
                 }
             )
             return VerifiedAuthorityEvidence(
@@ -600,6 +671,11 @@ class LifecycleEffectGateway:
                     "authority_subject": authority.subject,
                     "provider_request_digest": provider_request_digest,
                     "authority_currentness": trust_receipt,
+                    "task_dependency": (
+                        None
+                        if task_dependency is None
+                        else task_dependency.canonical_body()
+                    ),
                 },
             )
 
@@ -687,6 +763,7 @@ class LifecycleBoundCoordinationBus:
         command_id: str | None = None,
         args: tuple[Any, ...] = (),
         kwargs: Mapping[str, Any] | None = None,
+        task_dependency: TaskDependencyRef | None = None,
     ) -> Any:
         if command not in self.COMMANDS:
             raise OutboundActionError(
@@ -708,6 +785,18 @@ class LifecycleBoundCoordinationBus:
             raise OutboundActionError(
                 "write-capable coordination commands require command_id"
             )
+        if task_dependency is not None:
+            if type(task_dependency) is not TaskDependencyRef:
+                raise OutboundActionError(
+                    "coordination task_dependency must be exact TaskDependencyRef"
+                )
+            if (
+                task_dependency.kind != "COORDINATION_COMMAND"
+                or task_dependency.target_id != command_id
+            ):
+                raise OutboundActionError(
+                    "coordination task dependency does not bind this exact command"
+                )
         actor_binding = {
             "workstream": getattr(actor, "workstream", None),
             "permissions": sorted(getattr(actor, "permissions", ())),
@@ -717,6 +806,11 @@ class LifecycleBoundCoordinationBus:
                 "schema": "VERA_MONO_COORDINATION_AUTHORITY_BINDING_V1",
                 "actor": actor_binding,
                 "command": command,
+                "task_dependency": (
+                    None
+                    if task_dependency is None
+                    else task_dependency.canonical_body()
+                ),
             }
         )
         effect_id = f"coordination:{command_id}"
@@ -764,6 +858,11 @@ class LifecycleBoundCoordinationBus:
                     "kind": "COORDINATION",
                     "command": command,
                     "actor": actor_binding,
+                    "task_dependency": (
+                        None
+                        if task_dependency is None
+                        else task_dependency.canonical_body()
+                    ),
                 },
             ),
             execute=lambda: method(actor, *args, **call_kwargs),

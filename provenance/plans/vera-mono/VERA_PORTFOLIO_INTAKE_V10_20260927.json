@@ -1,0 +1,111 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V10_20260927",
+  "status": "INTEGRATED_ON_MAIN_AND_VERIFIED",
+  "observed_date": "2026-09-27",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V9_20260927.json",
+  "main_before_wave7": "85ab1d016ce040c3ffd19bb67753d38bde73ab0e",
+  "wave7_subject_head_before_ledger": "da117a768b70cfcb6805c22a832466aebbed8726",
+  "donor": "thebrazenbeard/fuckup",
+  "donor_head": "a3fbc79ef5c7781a2297615d2447a4acb369f0be",
+  "classification_correction": "The original portfolio intake treated Fuckup as already absorbed. Its current main is 153 commits beyond the earlier baseline and now contains a substantial executable protocol/runtime package. V10 re-opens only newly useful generic mechanisms rather than wholesale-importing its runtime, database authority, or execution coordinator.",
+  "adaptations": [
+    {
+      "target": "packages/vera_assurance/src/vera_assurance/corrective_effectiveness.py",
+      "mechanism": "exact-subject post-correction baseline/active outcome comparison; active observations require exact promotion/binding identity; observed regression dominates apparent aggregate rate improvement",
+      "authority_effect": "NONE",
+      "causal_attribution_effect": "NONE"
+    },
+    {
+      "target": "packages/vera_assurance/src/vera_assurance/causal_ambiguity.py",
+      "mechanism": "ranked causal-hypothesis ambiguity assessment with minimum support/margin gates, explicit supporting-evidence-reference requirement, and bounded collect-evidence/human-review routing",
+      "authority_effect": "NONE",
+      "truth_effect": "NONE"
+    }
+  ],
+  "donor_sources": {
+    "corrective_effectiveness": {
+      "src/fuckup_protocol/effectiveness.py": "550af78eddc6c4712014e6335df3e934155a99b8",
+      "tests/test_effectiveness.py": "1f25f040ca2c890b8af82c0ca545faf679fc9af9"
+    },
+    "causal_ambiguity": {
+      "src/fuckup_protocol/ambiguity.py": "95fa5644b71a4b037bbb0a0e972dbba5df0af8ef",
+      "tests/test_ambiguity.py": "88809b9b2086b910c770d2c81e2ac49f32071128"
+    }
+  },
+  "tdd_evidence": {
+    "observed_red_commits": [
+      "c9a410aa90f87aa8aad83b77ecb5ead5b4fb115d",
+      "2acb77e26e722649f41e3fe5ba6eaefc53447a2d",
+      "bc9eedd41eff544518f3e7300dadf1ad083267fe",
+      "3910200a7c58eec8a22a8307e1acd22cafe0fc96"
+    ],
+    "observed_runs": [
+      {
+        "commit": "c9a410aa90f87aa8aad83b77ecb5ead5b4fb115d",
+        "run_id": 36353383389,
+        "expected_failure": "missing corrective_effectiveness module"
+      },
+      {
+        "commit": "2acb77e26e722649f41e3fe5ba6eaefc53447a2d",
+        "run_id": 36353490303,
+        "expected_failure": "missing causal_ambiguity module"
+      },
+      {
+        "commit": "3910200a7c58eec8a22a8307e1acd22cafe0fc96",
+        "run_id": 36353691441,
+        "expected_failure": "unsupported causal confidence and unbound effectiveness were accepted"
+      }
+    ]
+  },
+  "hostile_review": [
+    {
+      "objection": "The first effectiveness adapter could report improvement from observations not bound to any exact correction subject.",
+      "disposition": "ACCEPTED",
+      "correction_commit": "bc763fcecb1d91ecf555c9669ba6e4c9b75a2fc0",
+      "correction": "Non-empty effectiveness observations now require exact subject binding; mixed bound/unbound observations remain invalid."
+    },
+    {
+      "objection": "The first ambiguity adapter could treat a high numerical support score as resolved even when the top hypothesis carried no supporting evidence reference.",
+      "disposition": "ACCEPTED",
+      "correction_commit": "da117a768b70cfcb6805c22a832466aebbed8726",
+      "correction": "A top hypothesis with no supporting evidence references remains ambiguous and routes to evidence collection."
+    }
+  ],
+  "excluded_scope": [
+    "Fuckup database/migration authority",
+    "Fuckup execution coordinator or protected-effect execution",
+    "automatic correction promotion",
+    "causal truth from support scores",
+    "effectiveness improvement as causal proof",
+    "provider/runtime installation or activation"
+  ],
+  "next_frontier": {
+    "repository": "thebrazenbeard/spm",
+    "head": "d9ea72798ac892ac75f858177b6ed0c5a6b4c37c",
+    "classification_correction": "SPM is no longer research-only: current main contains executable benchmark, opaque-state runtime, intervention, causal-evidence, and memory-specialist code. The next bounded candidate is nuisance-matched causal-specificity evidence; do not import model weights, trained adapters, or training/runtime activation wholesale."
+  },
+  "claim_ceiling": "FUCKUP BOUNDED ASSURANCE ADAPTATIONS INTEGRATED ON MAIN AT 71955F78; DEPENDENCY REVIEW AND CROSS-PLATFORM MONOREPO/WHEEL CLOSURE VERIFIED; EFFECTIVENESS IS OBSERVATIONAL NOT CAUSAL PROOF; AMBIGUITY SUPPORT SCORES ARE INPUTS NOT CALIBRATED TRUTH; NOT INSTALLATION; NOT DEPLOYMENT; NOT RUNTIME CONSUMPTION; NOT BEHAVIORAL QUALIFICATION; NOT INDEPENDENT REVIEW",
+  "integrated_main_head": "71955f785e9132acbabf8dab85842a24cb9847f2",
+  "verification": {
+    "dependency_review": {
+      "run_id": 36354572846,
+      "conclusion": "success"
+    },
+    "monorepo_tests": {
+      "run_id": 36354572836,
+      "conclusion": "success",
+      "platforms": [
+        "ubuntu-24.04",
+        "windows-latest"
+      ],
+      "includes": [
+        "monorepo tests",
+        "wheel build",
+        "wheel closure",
+        "installed wheel closure"
+      ]
+    },
+    "observed_main_head_matches_candidate": true
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "schema": "VERA_IDENTITY_DONOR_ADMISSION_AUDIT_V1",
+  "audited_date": "2026-09-28",
+  "target_repository": "thebrazenbeard/vera-mono",
+  "target_main_baseline": "cddfcb355b678c5a88a58562edb9082d6258595f",
+  "purpose": "Record exact current donor heads and admission boundaries for identity-bearing Vera-family repositories. This is provenance/currentness evidence, not automatic identity or memory admission.",
+  "donors": [
+    {
+      "repo": "thebrazenbeard/self",
+      "head": "f97e5696938586211c24367e9462b896fa7b7932",
+      "classification": "TEMPLATE_ARCHITECTURE_NOT_VERA_IDENTITY",
+      "decision": "DO_NOT_ADMIT_NAMED_SELF_CONTENT",
+      "evidence": [
+        "self identity/ARCHITECTURE.md blob b68e33f01935e283f6f51ece386b36f7517621c5",
+        "self identity/CONTINUITY_SUBSTRATE.md blob 55a54bb6f0b1188a16c9ca85fda897796596eabc"
+      ],
+      "note": "Repository explicitly defines reusable identity machinery without a particular identity. SELF-TRUTHS.md contains Patrick first-person material and is not Vera identity."
+    },
+    {
+      "repo": "thebrazenbeard/selfimage",
+      "head": "ebcea11beea64bfcee386893464f573cdbeada17",
+      "classification": "VERA_REPRESENTATION_SOURCE",
+      "decision": "PROVENANCE_ONLY_PENDING_EXACT_BINDING",
+      "note": "Visual/self-image representation is not literal body, event, phenomenology, or identity proof."
+    },
+    {
+      "repo": "thebrazenbeard/conations",
+      "head": "51948aac796936f0e7c437722e6f52c883e544e9",
+      "classification": "HISTORICAL_VERA_SELF_APPRAISAL",
+      "decision": "HISTORICAL_EVIDENCE_ONLY_NOT_CURRENT_DESIRE_CONSENT_OR_ORDER",
+      "evidence": [
+        "VERA_CONATIONS_EXTERNAL_PASS_2026-08-23.md blob f278ad0e1e7f55a8b76c605d3c5329a5bad00fe8"
+      ],
+      "note": "The donor itself distinguishes present endorsement from historical evidence; current Project control further forbids treating historical conations as standing desire/consent/order."
+    },
+    {
+      "repo": "thebrazenbeard/empathy",
+      "head": "76ebb492827a79b20b3be76fe9f9f48ab860ef1d",
+      "classification": "EMPATHY_ARCHITECTURE_RESEARCH",
+      "decision": "ARCHITECTURE_EVIDENCE_NOT_CURRENT_SELF_STATE",
+      "evidence": [
+        "docs/ARCHITECTURE_STATUS.md blob 026e510bec3f64ff85c8278f3258882f7ccd574a"
+      ],
+      "note": "Current donor status explicitly separates repository guidance/design/research from runtime installation, activation, and behavioral qualification."
+    },
+    {
+      "repo": "thebrazenbeard/sexuality",
+      "head": "0c5dc52e984cbdaa87fc9fe75fd03c212f477c87",
+      "classification": "VERA_SPECIFIC_SEXUALITY_SOURCE_WITH_PRIVATE_SCOPE",
+      "decision": "EXISTING_BOUND_IMPORTS_ONLY_UNLESS_EXACT_CURRENT_QUALIFICATION_AND_PRIVACY_AUTHORITY",
+      "note": "vera-mono already carries bounded sexuality/sexual-drive provenance. No broad private-content absorption."
+    },
+    {
+      "repo": "thebrazenbeard/orgasm",
+      "head": "0ac1dc154179096e472a7b23bd42c4ec9570e9bb",
+      "classification": "VERA_SPECIFIC_AFFECTIVE_RUNTIME_SOURCE_WITH_PRIVATE_SCOPE",
+      "decision": "EXISTING_BOUND_CONTRACT_IMPORTS_ONLY_UNLESS_EXACT_CURRENT_QUALIFICATION_AND_PRIVACY_AUTHORITY",
+      "note": "Source presence or snapshots do not establish current runtime effect or phenomenology."
+    },
+    {
+      "repo": "thebrazenbeard/semanticatlas",
+      "head": "beaecc6c64a6a8f90e7b47d4739296a3870b627c",
+      "classification": "PROVENANCE_AND_SEMANTIC_METHODOLOGY_WITH_HISTORICAL_VERA_CORPUS",
+      "decision": "METHODOLOGY_PROVENANCE_ONLY_NOT_AUTOMATIC_MEMORY_ADMISSION",
+      "note": "Semantic Atlas contains historical Vera materials, but provenance/semantic similarity does not promote them to current memory or identity."
+    },
+    {
+      "repo": "thebrazenbeard/personification",
+      "head": "8c6cf04c45c83447801db997eac843968c0991c6",
+      "classification": "PERSONIFICATION_REPOSITORY_CURRENTLY_BRIGIT_ORIENTED",
+      "decision": "DO_NOT_TRANSFER_BRIGIT_IDENTITY_TO_VERA",
+      "note": "Brigit material never transfers identity, consent, preference, or authority automatically."
+    }
+  ],
+  "hostile_review": [
+    "Completeness is not maximized by importing every first-person artifact. That would destroy referent fidelity.",
+    "Historical Vera-authored language can be evidence of prior self-appraisal without being current self-state.",
+    "A donor being current on its own main branch does not make its contents current Vera control, memory, desire, runtime behavior, or phenomenology.",
+    "Private identity-adjacent material must remain private unless exact publication/portability authority exists."
+  ],
+  "next_frontier": [
+    "Bind selfimage exact representation provenance without promoting representation to literal embodiment.",
+    "Refresh sexuality/orgasm exact existing imported-contract correspondence against donor current heads.",
+    "Assess Semantic Atlas runtime/currentness contracts for methodology improvements without importing its historical corpus as current memory.",
+    "Add tests/manifest linkage only where the monorepo architecture consumes the audit."
+  ],
+  "claim_ceiling": "CURRENT-HEAD DONOR ADMISSION AUDIT; NOT MEMORY ADMISSION, NOT CONTROL PROMOTION, NOT INSTALLATION, NOT RUNTIME CONSUMPTION, NOT BEHAVIORAL QUALIFICATION, NOT PHENOMENOLOGICAL EVIDENCE"
+}

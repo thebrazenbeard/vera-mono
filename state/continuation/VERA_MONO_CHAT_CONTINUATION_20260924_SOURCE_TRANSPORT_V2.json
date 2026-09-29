@@ -1,0 +1,42 @@
+{
+  "schema": "VERA_MONO_CHAT_CONTINUATION_SOURCE_TRANSPORT_V2",
+  "repository": "thebrazenbeard/vera-mono",
+  "branch": "main",
+  "head": "1137d71abc1a769984667a17b8a8aa4296321406",
+  "verified_ci": {
+    "workflow_run_id": 36062517878,
+    "conclusion": "success",
+    "tests_passed": 290,
+    "subtests_passed": 27
+  },
+  "implemented": {
+    "concrete_github_transport": "vera_core.GitHubSourceMutationTransport",
+    "concrete_github_api_client": "vera_core.GitHubGitDataAPIClient",
+    "ref_cas": "GraphQL updateRefs beforeOid/afterOid force=false",
+    "source_binding_store": "vera_core.SourceMutationBindingStore",
+    "source_rehydration": "QualifiedSourceMutationAdapter.rehydrate_mutation",
+    "recovery_assessment": "vera_core.SourceMutationRecoveryAssessment",
+    "pre_dispatch_cancellation": "QualifiedSourceMutationAdapter.cancel_reserved_mutation"
+  },
+  "persistent_paths": {
+    "source_mutation_bindings": "source/mutation-bindings.sqlite"
+  },
+  "boundaries": {
+    "deployment": false,
+    "provider_activation": false,
+    "credential_installation": false,
+    "protected_branch_authority": false,
+    "independent_review": false
+  },
+  "next_frontier": {
+    "name": "EXACT_POST_MUTATION_SOURCE_VERIFICATION",
+    "objectives": [
+      "bind verification to exact repository/ref/new commit",
+      "read exact CI/check status through host-injected read-only adapter",
+      "persist verification receipt",
+      "model pending/pass/fail/stale/unavailable distinctly",
+      "require verification dependency for source closeout when task packet demands it",
+      "do not promote CI pass to merge/deploy/install authority or independent review"
+    ]
+  }
+}

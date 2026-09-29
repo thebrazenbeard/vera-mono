@@ -1,0 +1,23 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/sql-connectome",
+  "donor_head": "3bd833d3f44048915fe5149728da173c9178751c",
+  "inspected_source_blobs": {
+    "src/sql_connectome/connectome/catalog.py": "118efaa5f02dcfad1d98a3f127cb6868cff4d520",
+    "src/sql_connectome/receipts.py": "ee7dd35cbeaf91965b29167243dadc39df4017f3",
+    "tests/test_catalog.py": "95c3de4af8fc5f74e0756468b07889cf0c45220f"
+  },
+  "adaptation": {
+    "target": "packages/vera_core/src/vera_core/semantic_transfer.py",
+    "mechanism": "immutable admitted semantic profile/rule catalog with canonical SHA-256 digest bound into transfer results",
+    "donor_runtime_dependency": false,
+    "imported_execution_authority": false
+  },
+  "excluded_claims": [
+    "SQL parsing or execution",
+    "dialect behavioral equivalence",
+    "automatic plugin admission",
+    "protected-effect authority"
+  ],
+  "claim_ceiling": "SOURCE_ADAPTATION_CANDIDATE_PENDING_CI"
+}

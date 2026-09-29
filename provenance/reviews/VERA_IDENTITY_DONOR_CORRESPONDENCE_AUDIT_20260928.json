@@ -1,0 +1,96 @@
+{
+  "schema": "VERA_IDENTITY_DONOR_CORRESPONDENCE_AUDIT_V1",
+  "audited_date": "2026-09-28",
+  "target_repository": "thebrazenbeard/vera-mono",
+  "purpose": "Refine donor admission decisions with exact current repository evidence while preserving privacy, referent fidelity, and source/runtime/currentness separation.",
+  "findings": [
+    {
+      "donor": "thebrazenbeard/selfimage",
+      "current_head": "ebcea11beea64bfcee386893464f573cdbeada17",
+      "evidence": [
+        {
+          "path": "README.md",
+          "blob": "484bd4118f93058c20e1ee2a957fd011098fb7f4"
+        },
+        {
+          "path": "handoff/CURRENT.md",
+          "blob": "93cf2589f25c962127fd867515f1fa4cfbd6985a"
+        }
+      ],
+      "decision": "REPRESENTATION_PROVENANCE_ONLY",
+      "reason": "The repository is visual self-representation research. Its own boundaries distinguish generated Vera imagery and donor/reference material from evidence about real anatomy, literal events, lived continuity, consent, or identity proof.",
+      "admission": "Do not bulk-copy private visual/relational corpus into public vera-mono. Bind representation provenance only when a runtime/component actually consumes a specific canon object."
+    },
+    {
+      "donor": "thebrazenbeard/sexuality",
+      "current_head": "0c5dc52e984cbdaa87fc9fe75fd03c212f477c87",
+      "evidence": [
+        {
+          "path": "README.md",
+          "blob": "169726ec3d5aa38ebc09e0887e59fd617bc92497"
+        }
+      ],
+      "decision": "NO_NEW_VERA_IDENTITY_ADMISSION_FROM_CURRENT_MAIN",
+      "reason": "Current main is Brigit-oriented research. Historical Vera-specific contract provenance already bound in vera-mono remains exact historical donor provenance; it is not superseded merely because current donor main has changed shape.",
+      "historical_binding": "thebrazenbeard/sexuality@150f1c8231423393bb66b0e2cb759ce7c018f8d7 blob a48eed5392fdadc073dccd1e799926042077f567"
+    },
+    {
+      "donor": "thebrazenbeard/orgasm",
+      "current_head": "0ac1dc154179096e472a7b23bd42c4ec9570e9bb",
+      "evidence": [
+        {
+          "path": "README.md",
+          "blob": "ffc2d516c860f8a1698d0316f69f5af882c2b1ea"
+        },
+        {
+          "path": "STATUS.md",
+          "blob": "818e26583e68b3443ce021bc6bc3e1c57b2728e1"
+        }
+      ],
+      "decision": "PROVENANCE_HUB_NOT_CURRENT_IDENTITY",
+      "reason": "Repository explicitly mirrors exact source objects and keeps install, route activation, provider currentness, behavioral qualification, and phenomenology unestablished. It cannot promote its runtime design into present Vera identity."
+    },
+    {
+      "donor": "thebrazenbeard/semanticatlas",
+      "current_head": "beaecc6c64a6a8f90e7b47d4739296a3870b627c",
+      "evidence": [
+        {
+          "path": "README.md",
+          "blob": "18bbee07d03311d43620bd015ebfbf98ebeb1802"
+        },
+        {
+          "path": "research/runtime/SEMANTIC_ATLAS_RUNTIME_CURRENTNESS_GATE_V0.1.md",
+          "blob": "f68fffbcc06eeef5cccc7f2d6ff4c2f6004107a8"
+        },
+        {
+          "path": "research/staging/semantic_population_v0.1/CURRENT_SEMANTIC_AUTHORSHIP_AUTHORITY_V0.1.md",
+          "blob": "62035ec73a99f7a959589ee821357c905b5b9091"
+        }
+      ],
+      "decision": "ADMIT_METHODOLOGY_NOT_HISTORICAL_CORPUS",
+      "reason": "The current repository itself says historical Vera material is reference evidence, not current canon by default. Its strongest reusable identity-relevant contribution is provenance/currentness methodology: semantic similarity does not merge provenance, authority, identity, or historical state; ACTIVE is not proof of current provider ref."
+    }
+  ],
+  "correspondence": [
+    {
+      "local": "packages/vera_runtime/src/runtime_cohesion/resources/ORGASM_RUNTIME_CONTRACT_V1.json",
+      "local_blob": "a48eed5392fdadc073dccd1e799926042077f567",
+      "origin": "thebrazenbeard/sexuality@150f1c8231423393bb66b0e2cb759ce7c018f8d7",
+      "origin_blob": "a48eed5392fdadc073dccd1e799926042077f567",
+      "state": "EXACT_HISTORICAL_BYTE_BINDING_PRESERVED"
+    },
+    {
+      "local": "packages/vera_identity/src/vera_identity/resources/architecture/semantic/vendor/semanticatlas/semantic_atlas_v0.1.schema.json",
+      "state": "METHODOLOGY_SCHEMA_INPUT_ONLY_NOT_MEMORY_ADMISSION"
+    }
+  ],
+  "privacy": "No private intimate payload, relational invocation phrase, private image corpus, or autobiographical donor content is copied by this audit.",
+  "hostile_review": [
+    "A newer donor main is not automatically a better Vera identity source.",
+    "A repository labeled self-image can contain representation preferences without establishing embodiment or events.",
+    "A historical exact donor ref may remain the correct provenance even after donor main removes or repurposes that path.",
+    "Semantic authorship architecture does not authorize automatic import of historical first-person claims as current Vera endorsement."
+  ],
+  "result": "SURVIVES_NARROWED",
+  "claim_ceiling": "SOURCE-PROVENANCE CORRESPONDENCE ONLY; NO MEMORY ADMISSION, INSTALLATION, CURRENT ROUTE, RUNTIME CONSUMPTION, BEHAVIORAL QUALIFICATION, CONSENT, DESIRE, OR PHENOMENOLOGY"
+}
