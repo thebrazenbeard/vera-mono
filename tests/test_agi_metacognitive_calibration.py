@@ -185,3 +185,17 @@ def test_invalid_confidence_and_bin_configuration_fail_closed():
     )
     with pytest.raises(ValueError):
         tracker.forecast(float("nan"))
+
+
+def test_scored_forecast_cannot_be_used_for_post_hoc_admission():
+    tracker = OnlineConfidenceCalibrator(
+        bin_edges=(0.0, 0.5, 0.75, 1.0),
+        prior_mean=0.5,
+        prior_strength=2.0,
+        min_empirical_observations=2,
+    )
+    forecast = tracker.forecast(0.9)
+    tracker.observe(forecast.forecast_id, outcome_success=True)
+
+    with pytest.raises(ValueError, match="already observed"):
+        tracker.admit(forecast, min_calibrated_confidence=0.5)
