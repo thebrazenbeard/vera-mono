@@ -61,6 +61,13 @@ from .agi_regime_return_promotion import (
     QualifiedRegimeReturnPromotionAdapter,
     RegimeReturnPromotionAssessment,
 )
+from .agi_ambiguous_spec_qualification import (
+    AmbiguousSpecQualificationResult,
+)
+from .agi_ambiguous_spec_promotion import (
+    AmbiguousSpecPromotionAssessment,
+    QualifiedAmbiguousSpecPromotionAdapter,
+)
 from .agi_runtime_aggregate import (
     AGIPacketReviewBinding,
     QualifiedAGIRuntimeAggregateAdapter,
@@ -1521,6 +1528,30 @@ class QualifiedVeraRuntime:
         review_id: str,
     ) -> RegimeReturnPromotionAssessment:
         return QualifiedRegimeReturnPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def ambiguous_spec_promotion_adapter(
+        self,
+    ) -> QualifiedAmbiguousSpecPromotionAdapter:
+        return QualifiedAmbiguousSpecPromotionAdapter(runtime=self)
+
+    def promote_ambiguous_spec_qualification(
+        self,
+        measurement: AmbiguousSpecQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> AmbiguousSpecPromotionAssessment:
+        return QualifiedAmbiguousSpecPromotionAdapter(
             runtime=self
         ).promote(
             measurement,
