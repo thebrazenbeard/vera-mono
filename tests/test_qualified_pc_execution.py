@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -160,6 +161,14 @@ class StubPCTransport:
     def __init__(self, host_id):
         self.host_id = host_id
         self.calls = []
+
+    def attest(self):
+        return SimpleNamespace(
+            host_id=self.host_id,
+            capability_digest="3" * 64,
+            local_policy_digest="2" * 64,
+            read_roots_digest="1" * 64,
+        )
 
     def execute(self, job, authorization):
         self.calls.append((job.envelope_id, authorization.envelope_id))
@@ -787,3 +796,179 @@ def test_task_pc_dependency_rejects_non_task_execution_binding(tmp_path):
     assert assessment.status == "PROVENANCE_MISMATCH"
     assert assessment.satisfied is False
     assert assessment.cancellation_allowed is False
+
+
+class _ObservedPCAttestation:
+    def __init__(
+        self,
+        *,
+        host_id,
+        capability_digest,
+        local_policy_digest,
+        read_roots_digest,
+    ):
+        self.host_id = host_id
+        self.capability_digest = capability_digest
+        self.local_policy_digest = local_policy_digest
+        self.read_roots_digest = read_roots_digest
+
+
+class MismatchedCapabilityPCTransport(StubPCTransport):
+    def attest(self):
+        return _ObservedPCAttestation(
+            host_id=self.host_id,
+            capability_digest="9" * 64,
+            local_policy_digest="2" * 64,
+            read_roots_digest="1" * 64,
+        )
+
+
+def test_runtime_transport_rejects_live_capability_mismatch_before_dispatch(tmp_path):
+    state = accepted_state(tmp_path)
+    bound_job = job()
+    bound_authorization = authorization(bound_job)
+    verifier = HmacPCJobAuthority(
+        bound_authorization.issuer_id,
+        b"c" * 32,
+        key_id="pc-key-v1",
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=verifier.authority_id,
+        role="PC",
+        key_id=verifier.key_id,
+        key_digest=verifier.key_digest,
+        expected_registry_generation=0,
+    )
+    transport = MismatchedCapabilityPCTransport(bound_job.host_id)
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        pc_authority_verifier=verifier,
+        pc_execution_transport=transport,
+        clock=lambda: datetime(
+            2026,
+            8,
+            1,
+            20,
+            5,
+            tzinfo=timezone.utc,
+        ),
+    )
+    prepared = runtime.prepare_pc_job(
+        job=bound_job,
+        authorization=bound_authorization,
+    )
+    proof = verifier.issue(
+        job=bound_job,
+        authorization=bound_authorization,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+    adapter = QualifiedPCExecutionAdapter(
+        runtime=runtime,
+        journal=JobJournal(
+            VerifiedJournalPath.for_test(tmp_path / "pc-attestation-local")
+        ),
+        bindings=state.pc_execution_binding_store(),
+    )
+
+    with pytest.raises(ValueError, match="capability digest"):
+        adapter.execute_via_runtime_transport(
+            prepared,
+            authority_proof=proof,
+            lease=lease(),
+            event_source=Events(),
+        )
+
+    assert transport.calls == []
+    assert adapter.journal.get(lease().job_id, lease().attempt_id) is None
+
+
+class MismatchedPolicyPCTransport(StubPCTransport):
+    def attest(self):
+        return _ObservedPCAttestation(
+            host_id=self.host_id,
+            capability_digest="3" * 64,
+            local_policy_digest="9" * 64,
+            read_roots_digest="1" * 64,
+        )
+
+
+class MismatchedReadRootsPCTransport(StubPCTransport):
+    def attest(self):
+        return _ObservedPCAttestation(
+            host_id=self.host_id,
+            capability_digest="3" * 64,
+            local_policy_digest="2" * 64,
+            read_roots_digest="9" * 64,
+        )
+
+
+@pytest.mark.parametrize(
+    ("transport_type", "error_fragment"),
+    [
+        (MismatchedPolicyPCTransport, "local policy digest"),
+        (MismatchedReadRootsPCTransport, "read roots digest"),
+    ],
+)
+def test_runtime_transport_rejects_other_live_surface_mismatch_before_dispatch(
+    tmp_path,
+    transport_type,
+    error_fragment,
+):
+    state = accepted_state(tmp_path)
+    bound_job = job()
+    bound_authorization = authorization(bound_job)
+    verifier = HmacPCJobAuthority(
+        bound_authorization.issuer_id,
+        b"c" * 32,
+        key_id="pc-key-v1",
+    )
+    trust = state.outbound_trust_registry()
+    trust.register(
+        authority_id=verifier.authority_id,
+        role="PC",
+        key_id=verifier.key_id,
+        key_digest=verifier.key_digest,
+        expected_registry_generation=0,
+    )
+    transport = transport_type(bound_job.host_id)
+    runtime = QualifiedVeraRuntime.from_state_directory(
+        state,
+        pc_authority_verifier=verifier,
+        pc_execution_transport=transport,
+        clock=lambda: datetime(
+            2026,
+            8,
+            1,
+            20,
+            5,
+            tzinfo=timezone.utc,
+        ),
+    )
+    prepared = runtime.prepare_pc_job(
+        job=bound_job,
+        authorization=bound_authorization,
+    )
+    proof = verifier.issue(
+        job=bound_job,
+        authorization=bound_authorization,
+        lifecycle_permit_digest=prepared.permit.permit_digest,
+    )
+    adapter = QualifiedPCExecutionAdapter(
+        runtime=runtime,
+        journal=JobJournal(
+            VerifiedJournalPath.for_test(tmp_path / "pc-surface-local")
+        ),
+        bindings=state.pc_execution_binding_store(),
+    )
+
+    with pytest.raises(ValueError, match=error_fragment):
+        adapter.execute_via_runtime_transport(
+            prepared,
+            authority_proof=proof,
+            lease=lease(),
+            event_source=Events(),
+        )
+
+    assert transport.calls == []
+    assert adapter.journal.get(lease().job_id, lease().attempt_id) is None
