@@ -1,0 +1,38 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "donor": "thebrazenbeard/ccb-core",
+  "donor_ref": "42e4409dff3baee4acb63b48c9f64c7367a4fd22",
+  "donor_subject": "Radar durable routing telemetry and heartbeat semantics",
+  "source_paths": [
+    "src/radar/telemetry.py",
+    "src/radar/heartbeat.py"
+  ],
+  "source_blob_ids": {
+    "src/radar/telemetry.py": "44e5ffd20a7c90f6390d170850a821d03c835da9",
+    "src/radar/heartbeat.py": "fc5cee71a34bca8861560260a0853fb057539ffd"
+  },
+  "absorbed_target": "CoordinationCommandJournal.health_projection",
+  "mode": "CONCEPTUAL_METHOD_ADAPTATION_NO_CODE_COPY",
+  "runtime_dependency_on_donor": false,
+  "adapted_mechanisms": [
+    "coordination health should expose outcome counts rather than only raw records",
+    "health readout must be derived from durable evidence",
+    "missed or unresolved operational state must remain visible"
+  ],
+  "vera_specific_changes": [
+    "no second telemetry database is created",
+    "all counts are derived from the integrity-checked coordination command journal",
+    "unresolved command bindings are surfaced explicitly",
+    "confirmed writes and result classes are diagnostic only",
+    "no heartbeat scheduler or sink is installed"
+  ],
+  "excluded_donor_mechanisms": [
+    "Radar routed/dropped/DLQ counter schema",
+    "independent telemetry counter persistence",
+    "60-second heartbeat scheduler",
+    "heartbeat sink execution",
+    "provider-state emission"
+  ],
+  "authority_rule": "health projection is read-only diagnostic evidence and grants no routing, retry, provider, action, or protected-effect authority",
+  "claim_ceiling": "DERIVED_JOURNAL_HEALTH_PROJECTION_NOT_RUNTIME_HEALTH_ATTESTATION_NOT_EXTERNAL_HEARTBEAT"
+}

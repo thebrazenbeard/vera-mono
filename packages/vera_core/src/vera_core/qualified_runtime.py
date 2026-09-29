@@ -53,6 +53,7 @@ from .execution_adapters import (
     PCExecutionTransport,
     ProviderExecutionTransport,
     SourceMutationTransport,
+    validate_pc_execution_transport_for_job,
 )
 from .installation_verification import (
     InstallationVerificationError,
@@ -2660,10 +2661,10 @@ class QualifiedVeraRuntime:
             raise ValueError(
                 "qualified PC execution requires a host-injected PC execution transport"
             )
-        if transport.host_id != prepared.job.host_id:
-            raise ValueError(
-                "PC execution transport host identity does not match job host"
-            )
+        validate_pc_execution_transport_for_job(
+            transport,
+            prepared.job,
+        )
         return self.dispatch_pc_job(
             prepared,
             authority_proof=authority_proof,
