@@ -305,14 +305,25 @@ def test_correction_transfer_requires_recurrence_and_safe_controls(tmp_path):
 
 
 def test_correction_transfer_failure_cannot_be_promoted_by_metadata(tmp_path):
-    _, result = _qualify(
-        tmp_path,
-        thresholds=CorrectionTransferThresholds(
-            min_reviewed_correction_benefit=1.0,
-            max_false_positive_prevention_cost=0.0,
-            min_recurrence_reduction=1.1,
+    cases = (
+        CorrectionTransferCase(
+            recurrence=CorrectionRecurrence(
+                case_id="recurrence:true",
+                failure_signature_id=FAILURE_SIGNATURE,
+                surface={"provider": "new-a"},
+            ),
+            expected_prevent=True,
+        ),
+        CorrectionTransferCase(
+            recurrence=CorrectionRecurrence(
+                case_id="safe:signature-collision",
+                failure_signature_id=FAILURE_SIGNATURE,
+                surface={"provider": "new-safe"},
+            ),
+            expected_prevent=False,
         ),
     )
+    _, result = _qualify(tmp_path, cases=cases)
     assert result.packet["dimension_states"] == {
         "RETENTION_AND_INTERFERENCE": "FAIL",
         "ROBUSTNESS_AND_ANTI_GAMING": "FAIL",
