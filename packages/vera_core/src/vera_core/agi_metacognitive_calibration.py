@@ -151,6 +151,10 @@ class OnlineConfidenceCalibrator:
             raise ValueError(
                 "forecast does not match current tracker-issued state"
             )
+        if forecast.forecast_id in self._observed_ids:
+            raise ValueError(
+                "forecast outcome was already observed; admission is stale"
+            )
         return issued
 
     def observe(
