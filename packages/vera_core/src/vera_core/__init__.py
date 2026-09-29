@@ -68,6 +68,7 @@ from .agi_closed_loop import ClosedLoopFrontier, ClosedLoopResult, ClosedLoopTas
 from .agi_learning_probes import (
     SyntheticProbeReport,
     run_compositional_transfer_probe,
+    run_novel_mapping_probe,
     run_regime_return_probe,
 )
 from .agi_qualification import (
@@ -465,6 +466,7 @@ __all__ = [
     "ClosedLoopTask",
     "SyntheticProbeReport",
     "run_compositional_transfer_probe",
+    "run_novel_mapping_probe",
     "run_regime_return_probe",
 
     "AGIEvaluationPacket",

@@ -247,3 +247,76 @@ def run_compositional_transfer_probe(
         metrics,
         packet,
     )
+
+
+def run_novel_mapping_probe(
+    *,
+    seed: int,
+    subject_head: str,
+) -> SyntheticProbeReport:
+    """Measure bounded adaptation to a seeded unseen affine mapping."""
+    rng = random.Random(seed)
+    slope = rng.uniform(-1.2, 1.2)
+    intercept = rng.uniform(-0.8, 0.8)
+    base_inputs = [-1.0, -0.5, 0.0, 0.5, 1.0]
+    rng.shuffle(base_inputs)
+    inputs = tuple(base_inputs[index % len(base_inputs)] for index in range(32))
+
+    learner = OnlineLinearPredictor.zeros(dimension=2, learning_rate=0.25)
+    cases = tuple(
+        PrequentialCase(
+            case_id=f"novel-map-{index}",
+            model_input=(value, 1.0),
+            expected=slope * value + intercept,
+        )
+        for index, value in enumerate(inputs)
+    )
+    trace = _run(learner, cases)
+    scores = [step.score for step in trace.steps]
+
+    frozen_scores = [
+        squared_error(0.0, slope * value + intercept)
+        for value in inputs
+    ]
+    window = 4
+    threshold = 0.01
+    samples_to_threshold = len(scores) + 1
+    for end in range(window, len(scores) + 1):
+        if sum(scores[end - window : end]) / window < threshold:
+            samples_to_threshold = end
+            break
+
+    tail = 8
+    candidate_tail_mse = sum(scores[-tail:]) / tail
+    frozen_tail_mse = sum(frozen_scores[-tail:]) / tail
+    metrics: dict[str, object] = {
+        "mapping_family": "AFFINE_1D_WITH_BIAS",
+        "first_exposure_scored_before_update": (
+            trace.evaluation_order == "PREDICT_SCORE_THEN_UPDATE"
+        ),
+        "first_exposure_error": scores[0],
+        "samples_to_threshold": samples_to_threshold,
+        "threshold": threshold,
+        "threshold_window": window,
+        "candidate_tail_mse": candidate_tail_mse,
+        "frozen_tail_mse": frozen_tail_mse,
+    }
+    criteria = (
+        metrics["first_exposure_scored_before_update"] is True,
+        samples_to_threshold <= 12,
+        candidate_tail_mse < 0.01,
+        candidate_tail_mse < frozen_tail_mse * 0.1,
+    )
+    state = DimensionState.PARTIAL if all(criteria) else DimensionState.FAIL
+    packet = _packet(
+        family="NOVEL_MAPPING",
+        seed=seed,
+        subject_head=subject_head,
+        metrics=metrics,
+        criteria=criteria,
+        dimension_states={
+            "NOVEL_TASK_TRANSFER": state,
+            "LEARNING_EFFICIENCY": state,
+        },
+    )
+    return SyntheticProbeReport("NOVEL_MAPPING", seed, metrics, packet)
