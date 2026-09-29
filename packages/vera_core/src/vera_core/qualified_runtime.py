@@ -44,6 +44,15 @@ from .independent_behavior_review_adapter import (
     IndependentBehaviorReviewAssessment,
     QualifiedIndependentBehaviorReviewAdapter,
 )
+from .agi_novel_mapping import NovelMappingQualificationResult
+from .agi_novel_mapping_promotion import (
+    NovelMappingPromotionAssessment,
+    QualifiedNovelMappingPromotionAdapter,
+)
+from .agi_runtime_aggregate import (
+    AGIPacketReviewBinding,
+    QualifiedAGIRuntimeAggregateAdapter,
+)
 from .coordination_command_journal import CoordinationCommandJournal
 from .effect_recovery import (
     EffectReconciliationVerifier,
@@ -1436,6 +1445,47 @@ class QualifiedVeraRuntime:
         self,
     ) -> tuple[IndependentBehaviorReviewAssessment, ...]:
         return self.independent_behavior_review_adapter().recover()
+
+    def novel_mapping_promotion_adapter(
+        self,
+    ) -> QualifiedNovelMappingPromotionAdapter:
+        return QualifiedNovelMappingPromotionAdapter(runtime=self)
+
+    def promote_novel_mapping_qualification(
+        self,
+        measurement: NovelMappingQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> NovelMappingPromotionAssessment:
+        return QualifiedNovelMappingPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def aggregate_agi_qualification(
+        self,
+        packets: Sequence[Mapping[str, Any]],
+        *,
+        subject_head: str,
+        review_bindings: Sequence[AGIPacketReviewBinding],
+        claim_ceiling: str,
+    ) -> dict[str, object]:
+        return QualifiedAGIRuntimeAggregateAdapter(
+            runtime=self
+        ).aggregate(
+            packets,
+            subject_head=subject_head,
+            review_bindings=review_bindings,
+            claim_ceiling=claim_ceiling,
+        )
 
     def assess_task_dependencies(
         self,
