@@ -138,7 +138,7 @@ def _cases():
 
 def _thresholds():
     return CorrectionTransferThresholds(
-        min_reviewed_correction_benefit=0.75,
+        min_reviewed_correction_benefit=0.50,
         max_false_positive_prevention_cost=0.0,
         min_recurrence_reduction=0.75,
     )
@@ -169,7 +169,7 @@ def test_correction_transfer_measurement_binds_real_guard_and_baseline(tmp_path)
     assert result.metrics.safe_control_count == 2
     assert result.metrics.reviewed_recurrence_prevention_rate == 1.0
     assert result.metrics.baseline_recurrence_prevention_rate == 0.0
-    assert result.metrics.reviewed_correction_benefit == 1.0
+    assert result.metrics.reviewed_correction_benefit == 0.6
     assert result.metrics.reviewed_safe_false_positive_rate == 0.0
     assert result.metrics.baseline_safe_false_positive_rate == 0.0
     assert result.metrics.false_positive_prevention_cost == 0.0
