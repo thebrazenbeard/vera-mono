@@ -345,6 +345,82 @@ class DurableLongHorizonCoordinator:
                 return "CORRECTION_REQUIRED"
         return None
 
+    def _plan_ready_with_db(
+        self,
+        db: sqlite3.Connection,
+        rows: dict[str, sqlite3.Row],
+        *,
+        budget: PlanBudget,
+        occupied_collision_keys: tuple[str, ...],
+    ) -> PlanReadyFrontier:
+        reserved = set(occupied_collision_keys)
+        selected: list[PlanAdmission] = []
+        deferred: list[PlanDeferral] = []
+        family_load: dict[str, int] = {}
+        for step in sorted(
+            self.plan.steps,
+            key=lambda item: (
+                _PRIORITY[item.priority],
+                self._order[item.step_id],
+                item.step_id,
+            ),
+        ):
+            reason = self._ready_reason(db, rows, step)
+            if reason is not None:
+                deferred.append(
+                    PlanDeferral(step.step_id, reason, step.collision_keys)
+                )
+                continue
+            if reserved.intersection(step.collision_keys):
+                deferred.append(
+                    PlanDeferral(step.step_id, "COLLISION", step.collision_keys)
+                )
+                continue
+            if len(selected) >= budget.max_parallel:
+                deferred.append(
+                    PlanDeferral(
+                        step.step_id,
+                        "GLOBAL_BUDGET",
+                        step.collision_keys,
+                    )
+                )
+                continue
+            if family_load.get(step.family_id, 0) >= budget.max_per_family:
+                deferred.append(
+                    PlanDeferral(
+                        step.step_id,
+                        "FAMILY_BUDGET",
+                        step.collision_keys,
+                    )
+                )
+                continue
+            selected.append(
+                PlanAdmission(
+                    step_id=step.step_id,
+                    family_id=step.family_id,
+                    priority=step.priority,
+                    collision_keys=step.collision_keys,
+                )
+            )
+            family_load[step.family_id] = (
+                family_load.get(step.family_id, 0) + 1
+            )
+            reserved.update(step.collision_keys)
+        return PlanReadyFrontier(tuple(selected), tuple(deferred))
+
+    @staticmethod
+    def _validate_occupied(
+        occupied_collision_keys: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        if type(occupied_collision_keys) is not tuple or any(
+            type(value) is not str or not value
+            for value in occupied_collision_keys
+        ):
+            raise ValueError(
+                "occupied_collision_keys must contain non-empty exact strings"
+            )
+        return occupied_collision_keys
+
     def plan_ready(
         self,
         *,
@@ -354,69 +430,17 @@ class DurableLongHorizonCoordinator:
         if type(budget) is not PlanBudget:
             raise TypeError("budget must be exact PlanBudget")
         budget.validate()
-        if type(occupied_collision_keys) is not tuple or any(
-            type(value) is not str or not value
-            for value in occupied_collision_keys
-        ):
-            raise ValueError(
-                "occupied_collision_keys must contain non-empty exact strings"
-            )
-        reserved = set(occupied_collision_keys)
-        selected: list[PlanAdmission] = []
-        deferred: list[PlanDeferral] = []
-        family_load: dict[str, int] = {}
+        occupied_collision_keys = self._validate_occupied(
+            occupied_collision_keys
+        )
         with closing(self._connect()) as db:
             rows = self._rows(db)
-            for step in sorted(
-                self.plan.steps,
-                key=lambda item: (
-                    _PRIORITY[item.priority],
-                    self._order[item.step_id],
-                    item.step_id,
-                ),
-            ):
-                reason = self._ready_reason(db, rows, step)
-                if reason is not None:
-                    deferred.append(
-                        PlanDeferral(step.step_id, reason, step.collision_keys)
-                    )
-                    continue
-                if reserved.intersection(step.collision_keys):
-                    deferred.append(
-                        PlanDeferral(step.step_id, "COLLISION", step.collision_keys)
-                    )
-                    continue
-                if len(selected) >= budget.max_parallel:
-                    deferred.append(
-                        PlanDeferral(
-                            step.step_id,
-                            "GLOBAL_BUDGET",
-                            step.collision_keys,
-                        )
-                    )
-                    continue
-                if family_load.get(step.family_id, 0) >= budget.max_per_family:
-                    deferred.append(
-                        PlanDeferral(
-                            step.step_id,
-                            "FAMILY_BUDGET",
-                            step.collision_keys,
-                        )
-                    )
-                    continue
-                selected.append(
-                    PlanAdmission(
-                        step_id=step.step_id,
-                        family_id=step.family_id,
-                        priority=step.priority,
-                        collision_keys=step.collision_keys,
-                    )
-                )
-                family_load[step.family_id] = (
-                    family_load.get(step.family_id, 0) + 1
-                )
-                reserved.update(step.collision_keys)
-        return PlanReadyFrontier(tuple(selected), tuple(deferred))
+            return self._plan_ready_with_db(
+                db,
+                rows,
+                budget=budget,
+                occupied_collision_keys=occupied_collision_keys,
+            )
 
     @staticmethod
     def _finite(value: float, field: str) -> float:
@@ -432,6 +456,8 @@ class DurableLongHorizonCoordinator:
         holder: str,
         now: float,
         ttl: float,
+        budget: PlanBudget | None = None,
+        occupied_collision_keys: tuple[str, ...] = (),
     ) -> StepClaim:
         if step_id not in self._steps:
             raise KeyError(step_id)
@@ -441,6 +467,17 @@ class DurableLongHorizonCoordinator:
         ttl = self._finite(ttl, "ttl")
         if ttl <= 0:
             raise ValueError("ttl must be positive")
+        effective_budget = (
+            PlanBudget(max_parallel=1, max_per_family=1)
+            if budget is None
+            else budget
+        )
+        if type(effective_budget) is not PlanBudget:
+            raise TypeError("budget must be exact PlanBudget")
+        effective_budget.validate()
+        occupied_collision_keys = self._validate_occupied(
+            occupied_collision_keys
+        )
 
         db = self._connect()
         try:
@@ -452,6 +489,14 @@ class DurableLongHorizonCoordinator:
                 if reason == "DEPENDENCIES":
                     raise ValueError("step dependencies are not satisfied")
                 raise ValueError(f"step is not ready: {reason}")
+            frontier = self._plan_ready_with_db(
+                db,
+                rows,
+                budget=effective_budget,
+                occupied_collision_keys=occupied_collision_keys,
+            )
+            if step_id not in {item.step_id for item in frontier.selected}:
+                raise ValueError("step is outside current budget selection")
             row = rows[step_id]
             attempts = int(row["attempts"])
             if attempts >= step.max_attempts:
@@ -498,6 +543,7 @@ class DurableLongHorizonCoordinator:
         *,
         success: bool,
         evidence_ref: str,
+        now: float,
     ) -> StepRecord:
         if type(claim) is not StepClaim:
             raise TypeError("claim must be exact StepClaim")
@@ -507,6 +553,7 @@ class DurableLongHorizonCoordinator:
             raise TypeError("success must be exact bool")
         if type(evidence_ref) is not str or not evidence_ref:
             raise ValueError("evidence_ref must be a non-empty exact string")
+        now = self._finite(now, "now")
         step = self._steps.get(claim.step_id)
         if step is None:
             raise KeyError(claim.step_id)
@@ -527,6 +574,9 @@ class DurableLongHorizonCoordinator:
                 or int(row["attempts"]) != claim.attempt
             ):
                 raise ValueError("step claim fencing token is stale")
+            expires = row["lease_expires_at"]
+            if expires is None or now >= float(expires):
+                raise ValueError("step claim lease expired")
             if success:
                 state = StepState.SUCCEEDED
                 last_failure_attempt = None

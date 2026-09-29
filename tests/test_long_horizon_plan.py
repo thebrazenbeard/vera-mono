@@ -90,15 +90,16 @@ def test_failure_requires_explicit_correction_and_survives_restart(tmp_path):
     coord = DurableLongHorizonCoordinator(path, plan=_plan())
 
     observe = coord.claim("observe", holder="agent", now=1.0, ttl=10.0)
-    coord.complete(observe, success=True, evidence_ref="obs:1")
+    coord.complete(observe, success=True, evidence_ref="obs:1", now=1.5)
     infer = coord.claim("infer", holder="agent", now=2.0, ttl=10.0)
-    coord.complete(infer, success=True, evidence_ref="infer:1")
+    coord.complete(infer, success=True, evidence_ref="infer:1", now=2.5)
 
     act = coord.claim("act", holder="agent", now=3.0, ttl=10.0)
     failed = coord.complete(
         act,
         success=False,
         evidence_ref="environment:changed",
+        now=3.5,
     )
     assert failed.state is StepState.FAILED_RETRYABLE
 
@@ -116,11 +117,11 @@ def test_failure_requires_explicit_correction_and_survives_restart(tmp_path):
     assert retry.attempt == 2
 
     with pytest.raises(ValueError, match="stale"):
-        reopened.complete(act, success=True, evidence_ref="late:stale")
+        reopened.complete(act, success=True, evidence_ref="late:stale", now=4.5)
 
-    reopened.complete(retry, success=True, evidence_ref="act:2")
+    reopened.complete(retry, success=True, evidence_ref="act:2", now=4.5)
     verify = reopened.claim("verify", holder="agent", now=5.0, ttl=10.0)
-    reopened.complete(verify, success=True, evidence_ref="verify:1")
+    reopened.complete(verify, success=True, evidence_ref="verify:1", now=5.5)
 
     state = reopened.snapshot()
     assert state.objective == _plan().objective
@@ -135,3 +136,34 @@ def test_dependencies_cannot_be_skipped(tmp_path):
     coord = DurableLongHorizonCoordinator(tmp_path / "plan.db", plan=_plan())
     with pytest.raises(ValueError, match="dependencies"):
         coord.claim("act", holder="agent", now=1.0, ttl=10.0)
+
+
+
+def test_claim_cannot_bypass_current_budget_selection(tmp_path):
+    plan = LongHorizonPlan(
+        plan_id="priority",
+        objective="enforce deterministic priority admission",
+        steps=(
+            PlanStep("first", (), "P0", "a", ("a",), 1),
+            PlanStep("second", (), "P1", "b", ("b",), 1),
+        ),
+    )
+    coord = DurableLongHorizonCoordinator(tmp_path / "priority.db", plan=plan)
+    with pytest.raises(ValueError, match="budget selection"):
+        coord.claim("second", holder="agent", now=1.0, ttl=10.0)
+    first = coord.claim("first", holder="agent", now=1.0, ttl=10.0)
+    coord.complete(first, success=True, evidence_ref="first:done", now=1.5)
+    second = coord.claim("second", holder="agent", now=2.0, ttl=10.0)
+    assert second.step_id == "second"
+
+
+def test_expired_claim_cannot_complete(tmp_path):
+    coord = DurableLongHorizonCoordinator(tmp_path / "expiry.db", plan=_plan())
+    claim = coord.claim("observe", holder="agent", now=1.0, ttl=1.0)
+    with pytest.raises(ValueError, match="expired"):
+        coord.complete(
+            claim,
+            success=True,
+            evidence_ref="late",
+            now=2.0,
+        )

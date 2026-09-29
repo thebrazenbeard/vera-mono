@@ -65,14 +65,15 @@ def _run(path: Path, *, subject_head: str) -> LongHorizonProbeReport:
         dependency_rejections += 1
 
     observe = coord.claim("observe", holder="probe", now=1.0, ttl=10.0)
-    coord.complete(observe, success=True, evidence_ref="probe:observe")
+    coord.complete(observe, success=True, evidence_ref="probe:observe", now=1.5)
     infer = coord.claim("infer", holder="probe", now=2.0, ttl=10.0)
-    coord.complete(infer, success=True, evidence_ref="probe:infer")
+    coord.complete(infer, success=True, evidence_ref="probe:infer", now=2.5)
     first_act = coord.claim("act", holder="probe", now=3.0, ttl=10.0)
     coord.complete(
         first_act,
         success=False,
         evidence_ref="probe:environment-shift",
+        now=3.5,
     )
 
     restart_count = 1
@@ -91,12 +92,13 @@ def _run(path: Path, *, subject_head: str) -> LongHorizonProbeReport:
             first_act,
             success=True,
             evidence_ref="probe:stale-completion",
+            now=4.5,
         )
     except ValueError:
         stale_fence_rejected = True
-    coord.complete(retry, success=True, evidence_ref="probe:act-retry")
+    coord.complete(retry, success=True, evidence_ref="probe:act-retry", now=4.5)
     verify = coord.claim("verify", holder="probe", now=5.0, ttl=10.0)
-    coord.complete(verify, success=True, evidence_ref="probe:verify")
+    coord.complete(verify, success=True, evidence_ref="probe:verify", now=5.5)
 
     final = coord.snapshot()
     completed = final.completed_steps
