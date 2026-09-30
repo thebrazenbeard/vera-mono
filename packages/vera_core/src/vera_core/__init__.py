@@ -906,3 +906,14 @@ __all__.extend([
     "MetacognitiveCalibrationQualificationResult",
     "qualify_metacognitive_calibration",
 ])
+
+
+from .agi_metacognitive_promotion import (
+    MetacognitiveCalibrationPromotionAssessment,
+    QualifiedMetacognitiveCalibrationPromotionAdapter,
+)
+
+__all__.extend([
+    "MetacognitiveCalibrationPromotionAssessment",
+    "QualifiedMetacognitiveCalibrationPromotionAdapter",
+])

@@ -75,6 +75,13 @@ from .agi_correction_transfer_promotion import (
     CorrectionTransferPromotionAssessment,
     QualifiedCorrectionTransferPromotionAdapter,
 )
+from .agi_metacognitive_qualification import (
+    MetacognitiveCalibrationQualificationResult,
+)
+from .agi_metacognitive_promotion import (
+    MetacognitiveCalibrationPromotionAssessment,
+    QualifiedMetacognitiveCalibrationPromotionAdapter,
+)
 from .agi_runtime_aggregate import (
     AGIPacketReviewBinding,
     QualifiedAGIRuntimeAggregateAdapter,
@@ -1583,6 +1590,32 @@ class QualifiedVeraRuntime:
         review_id: str,
     ) -> CorrectionTransferPromotionAssessment:
         return QualifiedCorrectionTransferPromotionAdapter(
+            runtime=self
+        ).promote(
+            measurement,
+            task_id=task_id,
+            consumer_id=consumer_id,
+            probe_id=probe_id,
+            review_id=review_id,
+        )
+
+    def metacognitive_calibration_promotion_adapter(
+        self,
+    ) -> QualifiedMetacognitiveCalibrationPromotionAdapter:
+        return QualifiedMetacognitiveCalibrationPromotionAdapter(
+            runtime=self
+        )
+
+    def promote_metacognitive_calibration_qualification(
+        self,
+        measurement: MetacognitiveCalibrationQualificationResult,
+        *,
+        task_id: str,
+        consumer_id: str,
+        probe_id: str,
+        review_id: str,
+    ) -> MetacognitiveCalibrationPromotionAssessment:
+        return QualifiedMetacognitiveCalibrationPromotionAdapter(
             runtime=self
         ).promote(
             measurement,
