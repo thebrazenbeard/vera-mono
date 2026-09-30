@@ -1,10 +1,15 @@
+from dataclasses import replace
 import hashlib
 import json
 from pathlib import Path
 
 import jsonschema
 import vera_core
-from vera_core.behavior_attestation import BehaviorAttestationReceipt
+from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
+from vera_core.behavior_attestation import (
+    BehaviorAttestationReceipt,
+    BehaviorAttestationStore,
+)
 
 
 def _digest(value: str) -> str:
@@ -17,7 +22,7 @@ def _receipt(index: int) -> BehaviorAttestationReceipt:
     provider_key_digest = _digest("external-key")
     declaration_digest = _digest("external-environment-behavior")
     behavior_receipt_digest = _digest(f"behavior-{index}")
-    return BehaviorAttestationReceipt(
+    receipt = BehaviorAttestationReceipt(
         sequence=index + 1,
         task_id=f"external-task-{index}",
         packet_digest=_digest(f"packet-{index}"),
@@ -51,8 +56,12 @@ def _receipt(index: int) -> BehaviorAttestationReceipt:
         evidence_ref=f"external://evidence/{index}",
         status="PASS",
         predecessor_digest=_digest(f"predecessor-{index}"),
-        receipt_digest=_digest(f"receipt-{index}"),
+        receipt_digest="0" * 64,
     )
+    digest = sha256_hex(
+        canonical_json_bytes(BehaviorAttestationStore._payload(receipt))
+    )
+    return replace(receipt, receipt_digest=digest)
 
 
 def test_external_environment_measurement_binds_signed_receipts_and_stays_partial():
