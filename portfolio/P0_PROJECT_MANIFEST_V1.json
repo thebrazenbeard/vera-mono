@@ -13,8 +13,8 @@
   },
   "role": {
     "purpose": "Self-contained Vera implementation with local lifecycle, recovery, assurance and effect gates.",
-    "status": "Main advances persistent trust, authority rotation and ambiguity recovery; Windows portability remains open.",
-    "current_frontier": "Finish portable recovery and reduce external runtime dependency without erasing provenance."
+    "status": "Historical P0 scheduling snapshot as of 2026-09-24; this file does not prove current Windows qualification, runtime installation, or selected route.",
+    "current_frontier": "Freshly verify Windows portability, native lifecycle, and exact effect gates against current main while retaining donor provenance; missing runtime evidence fails closed."
   },
   "governance": {
     "priority_is_authority": false,
