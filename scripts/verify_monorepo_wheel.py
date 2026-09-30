@@ -8,6 +8,12 @@ import sys
 from zipfile import ZipFile
 
 
+EXPECTED_REQUIRES_DIST = {
+    "cryptography>=43.0",
+    "jsonschema>=4.0",
+}
+
+
 REQUIRED_FILES = {
     "vera_core/__init__.py",
     "vera_core/__main__.py",
@@ -95,6 +101,15 @@ def main(argv: list[str]) -> int:
             fail("wheel METADATA does not identify vera-mono")
         if metadata.get("Version") != "0.1.0":
             fail("wheel METADATA carries unexpected version")
+        requires_dist = {
+            value.strip()
+            for value in (metadata.get_all("Requires-Dist") or [])
+        }
+        if requires_dist != EXPECTED_REQUIRES_DIST:
+            fail(
+                "wheel external dependency set mismatch: "
+                + repr(sorted(requires_dist))
+            )
 
         entry_point_names = sorted(
             name
