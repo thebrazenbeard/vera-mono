@@ -2,8 +2,13 @@ import json
 from pathlib import Path
 
 import jsonschema
+import pytest
 import vera_core
-from vera_core import OnlineConfidenceCalibrator
+from vera_core import (
+    CalibrationForecast,
+    CalibrationObservation,
+    OnlineConfidenceCalibrator,
+)
 
 
 def _observations():
@@ -74,3 +79,60 @@ def test_metacognitive_measurement_improves_prequential_calibration_but_stays_pa
         ).read_text(encoding="utf-8")
     )
     jsonschema.validate(result.packet, schema)
+
+
+
+def test_hindsight_perfect_calibration_trace_is_rejected():
+    forged = []
+    for index, success in enumerate(
+        (False, True, False, True, False, True, False, True)
+    ):
+        raw_confidence = 0.9
+        calibrated_confidence = 1.0 if success else 0.0
+        target = 1.0 if success else 0.0
+        forecast = CalibrationForecast(
+            forecast_id=f"calibration:{index}",
+            raw_confidence=raw_confidence,
+            calibrated_confidence=calibrated_confidence,
+            bin_index=2,
+            sample_count=index,
+            evidence_class=(
+                "UNSEEN_BIN_PRIOR"
+                if index == 0
+                else (
+                    "SPARSE_OUTCOME_HISTORY"
+                    if index == 1
+                    else "EMPIRICAL_OUTCOME_HISTORY"
+                )
+            ),
+            unknown=index < 2,
+        )
+        forged.append(
+            CalibrationObservation(
+                forecast=forecast,
+                outcome_success=success,
+                raw_brier=(raw_confidence - target) ** 2,
+                calibrated_brier=(calibrated_confidence - target) ** 2,
+            )
+        )
+
+    qualify = vera_core.qualify_metacognitive_calibration
+    with pytest.raises(ValueError, match="prequential calibration"):
+        qualify(
+            tuple(forged),
+            admission_threshold=0.8,
+            min_observations=8,
+            min_brier_improvement=0.10,
+            max_calibrated_false_admission_rate=0.25,
+            min_false_admission_delta=0.50,
+            repository="thebrazenbeard/vera-mono",
+            exact_head="2" * 40,
+            runtime_binding="LOCAL_TEST_RUNTIME",
+            probe_id="metacognitive-forged-hindsight",
+            items_digest="b" * 64,
+            curator_independence="INDEPENDENT_MODEL",
+            training_overlap="NONE_KNOWN",
+            developer_item_access=False,
+            tool_access=(),
+            claim_ceiling="METACOGNITIVE_CALIBRATION_MEASUREMENT_ONLY_NOT_AGI",
+        )
