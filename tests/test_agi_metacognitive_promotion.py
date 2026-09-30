@@ -10,7 +10,10 @@ from vera_core import (
 
 
 ITEMS_DIGEST = "a" * 64
-ARTIFACT_JSON = '{"schema":"METACOGNITIVE_CALIBRATION_MEASUREMENT_TEST"}'
+ARTIFACT_JSON = (
+    '{"measurement_only":true,'
+    '"schema":"VERA_AGI_METACOGNITIVE_CALIBRATION_QUALIFICATION_V1"}'
+)
 ARTIFACT_DIGEST = hashlib.sha256(ARTIFACT_JSON.encode("utf-8")).hexdigest()
 RECEIPT_DIGEST = "b" * 64
 
