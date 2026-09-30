@@ -401,6 +401,45 @@ class ContextualInterpretationStore:
             raise KeyError(interpretation_id)
         return self._decode_interpretation_row(row)
 
+    def _validate_persisted_supersession_graph(
+        self,
+        db: sqlite3.Connection,
+        values: tuple[ContextualInterpretation, ...],
+    ) -> None:
+        by_id = {value.interpretation_id: value for value in values}
+        for value in values:
+            if value.supersedes_id is None:
+                continue
+            row = db.execute(
+                self._interpretation_select() + " WHERE interpretation_id=?",
+                (value.supersedes_id,),
+            ).fetchone()
+            if row is None:
+                raise ContextualInterpretationError(
+                    f"{_CORRUPT_PREFIX}:dangling_supersession"
+                )
+            target = self._decode_interpretation_row(row)
+            if target.object_id != value.object_id:
+                raise ContextualInterpretationError(
+                    f"{_CORRUPT_PREFIX}:cross_referent_supersession"
+                )
+
+        for value in values:
+            seen: set[str] = set()
+            cursor = value
+            while cursor.supersedes_id is not None:
+                if cursor.interpretation_id in seen:
+                    raise ContextualInterpretationError(
+                        f"{_CORRUPT_PREFIX}:supersession_cycle"
+                    )
+                seen.add(cursor.interpretation_id)
+                target = by_id.get(cursor.supersedes_id)
+                if target is None:
+                    raise ContextualInterpretationError(
+                        f"{_CORRUPT_PREFIX}:invalid_supersession_graph"
+                    )
+                cursor = target
+
     def _all_interpretations(
         self,
         object_id: str,
@@ -411,7 +450,9 @@ class ContextualInterpretationStore:
                 + " WHERE object_id=? ORDER BY interpretation_id",
                 (object_id,),
             ).fetchall()
-        return tuple(self._decode_interpretation_row(row) for row in rows)
+            values = tuple(self._decode_interpretation_row(row) for row in rows)
+            self._validate_persisted_supersession_graph(db, values)
+        return values
 
     @staticmethod
     def _superseded_ids(
@@ -497,6 +538,22 @@ class ContextualInterpretationStore:
             status=status,
         )
 
+    def _validate_persisted_relation_endpoints(
+        self,
+        db: sqlite3.Connection,
+        relation: InterpretationRelation,
+    ) -> None:
+        for endpoint in (relation.left_id, relation.right_id):
+            row = db.execute(
+                self._interpretation_select() + " WHERE interpretation_id=?",
+                (endpoint,),
+            ).fetchone()
+            if row is None:
+                raise ContextualInterpretationError(
+                    f"{_CORRUPT_PREFIX}:relation_endpoint"
+                )
+            self._decode_interpretation_row(row)
+
     def get_relation(self, relation_id: str) -> InterpretationRelation:
         _require_exact_nonempty(relation_id, "relation_id")
         with self._connect() as db:
@@ -504,9 +561,11 @@ class ContextualInterpretationStore:
                 self._relation_select() + " WHERE relation_id=?",
                 (relation_id,),
             ).fetchone()
-        if row is None:
-            raise KeyError(relation_id)
-        return self._decode_relation_row(row)
+            if row is None:
+                raise KeyError(relation_id)
+            relation = self._decode_relation_row(row)
+            self._validate_persisted_relation_endpoints(db, relation)
+        return relation
 
     def _relations_for(
         self,
@@ -518,7 +577,10 @@ class ContextualInterpretationStore:
                 + " WHERE left_id=? OR right_id=? ORDER BY relation_id",
                 (interpretation_id, interpretation_id),
             ).fetchall()
-        return tuple(self._decode_relation_row(row) for row in rows)
+            relations = tuple(self._decode_relation_row(row) for row in rows)
+            for relation in relations:
+                self._validate_persisted_relation_endpoints(db, relation)
+        return relations
 
     def query(
         self,

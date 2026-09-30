@@ -401,3 +401,85 @@ def test_corrupt_durable_rows_fail_closed_with_stable_error_prefix(tmp_path):
         match="CORRUPT_CONTEXTUAL_INTERPRETATION_STATE",
     ):
         ci.ContextualInterpretationStore(path).get_relation("REL-001")
+
+
+def test_reopen_revalidates_supersession_graph_even_if_digest_is_recomputed(tmp_path):
+    import sqlite3
+
+    ci = _ci()
+    path = tmp_path / "graph-corrupt.db"
+    store = ci.ContextualInterpretationStore(path)
+    store.admit_interpretation(
+        _reading(
+            interpretation_id="INT-A",
+            required_context=frozenset(),
+            excluded_context=frozenset(),
+        )
+    )
+    store.admit_interpretation(
+        _reading(
+            interpretation_id="INT-B",
+            supersedes_id="INT-A",
+            required_context=frozenset(),
+            excluded_context=frozenset(),
+        )
+    )
+
+    value = store.get_interpretation("INT-B").manifest()
+    value["supersedes_id"] = "MISSING"
+    canonical = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "UPDATE contextual_interpretations SET digest=?, canonical_json=? "
+            "WHERE interpretation_id=?",
+            (digest, canonical, "INT-B"),
+        )
+        db.commit()
+
+    with pytest.raises(
+        ci.ContextualInterpretationError,
+        match="CORRUPT_CONTEXTUAL_INTERPRETATION_STATE",
+    ):
+        ci.ContextualInterpretationStore(path).query("NODE-001", set())
+
+
+def test_reopen_revalidates_relation_endpoints_even_if_digest_is_recomputed(tmp_path):
+    import sqlite3
+
+    ci = _ci()
+    path = tmp_path / "relation-graph-corrupt.db"
+    store = ci.ContextualInterpretationStore(path)
+    store.admit_interpretation(_reading(interpretation_id="INT-A"))
+    store.admit_interpretation(_reading(interpretation_id="INT-B"))
+    store.admit_relation(_relation())
+
+    value = store.get_relation("REL-001").manifest()
+    value["right_id"] = "MISSING"
+    canonical = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "UPDATE contextual_relations "
+            "SET right_id=?, digest=?, canonical_json=? WHERE relation_id=?",
+            ("MISSING", digest, canonical, "REL-001"),
+        )
+        db.commit()
+
+    with pytest.raises(
+        ci.ContextualInterpretationError,
+        match="CORRUPT_CONTEXTUAL_INTERPRETATION_STATE",
+    ):
+        ci.ContextualInterpretationStore(path).get_relation("REL-001")
