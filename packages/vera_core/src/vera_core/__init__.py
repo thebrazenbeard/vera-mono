@@ -893,3 +893,16 @@ __all__.extend([
     "CalibrationObservation",
     "OnlineConfidenceCalibrator",
 ])
+
+
+from .agi_metacognitive_qualification import (
+    MetacognitiveCalibrationMetrics,
+    MetacognitiveCalibrationQualificationResult,
+    qualify_metacognitive_calibration,
+)
+
+__all__.extend([
+    "MetacognitiveCalibrationMetrics",
+    "MetacognitiveCalibrationQualificationResult",
+    "qualify_metacognitive_calibration",
+])
