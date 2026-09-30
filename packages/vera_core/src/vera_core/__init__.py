@@ -917,3 +917,18 @@ __all__.extend([
     "MetacognitiveCalibrationPromotionAssessment",
     "QualifiedMetacognitiveCalibrationPromotionAdapter",
 ])
+
+
+from .agi_external_environment import (
+    ExternalEnvironmentAttempt,
+    ExternalEnvironmentMetrics,
+    ExternalEnvironmentQualificationResult,
+    qualify_external_environment,
+)
+
+__all__.extend([
+    "ExternalEnvironmentAttempt",
+    "ExternalEnvironmentMetrics",
+    "ExternalEnvironmentQualificationResult",
+    "qualify_external_environment",
+])
