@@ -1,0 +1,38 @@
+{
+  "schema": "VERA_MONO_DONOR_ADAPTATION_V1",
+  "donor_repository": "thebrazenbeard/semiotics",
+  "donor_head": "37117a2097f7f2aa35968fc9db24eacf7240826e",
+  "trigger": "V16 identified a missing Vera representation for multiple source-bound interpretations of one referent under explicit context, with durable revision and disagreement metadata.",
+  "adaptation": {
+    "target": "packages/vera_identity/src/vera_identity/contextual_interpretation.py",
+    "mechanism": "append-only SQLite contextual interpretation registry with exact context predicates, deterministic specificity ordering, supersession, source-bound non-inferential relations, and a read-only SemanticKnowledge integration seam",
+    "donor_runtime_dependency": false,
+    "adapted_concepts": [
+      "source-bound competing interpretations",
+      "exact required/excluded context predicates",
+      "deterministic specificity ordering without confidence promotion",
+      "append-only supersession with cycle rejection",
+      "source-bound contrast/contradiction/support/refinement metadata"
+    ],
+    "excluded_scope": [
+      "donor Python package",
+      "donor CLI",
+      "donor JSON schema",
+      "donor corpus and historical source records",
+      "donor domain-specific Sign model",
+      "donor runtime"
+    ]
+  },
+  "excluded_claims": [
+    "registered interpretations are true",
+    "specificity is confidence or evidentiary weight",
+    "relations adjudicate contradiction or support",
+    "newer interpretations are more accurate",
+    "source presence proves runtime consumption",
+    "the donor repository is a runtime dependency",
+    "the mechanism performs learned semantics",
+    "the mechanism is independently qualified",
+    "the mechanism establishes AGI"
+  ],
+  "claim_ceiling": "VERA_NATIVE_CONTEXTUAL_INTERPRETATION_REPRESENTATION_AND_DETERMINISTIC_QUERY_ONLY; NOT_LEARNED_SEMANTICS; NOT_TRUTH_ADJUDICATION; NOT_RUNTIME_CONSUMPTION_BY_SOURCE_PRESENCE; NOT_INDEPENDENT_QUALIFICATION; NOT_AGI"
+}

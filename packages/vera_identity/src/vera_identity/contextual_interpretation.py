@@ -573,3 +573,33 @@ class _BorrowedConnection:
     def __exit__(self, exc_type, exc, tb) -> None:
         if exc_type is not None:
             self.db.rollback()
+
+
+@dataclass(frozen=True, slots=True)
+class ContextualSemanticView:
+    """Read-only pairing of a semantic object with compatible interpretations."""
+
+    semantic_object: dict[str, object]
+    interpretations: tuple[ContextualInterpretationResult, ...]
+
+
+def query_semantic_interpretations(
+    semantic_store: object,
+    interpretation_store: ContextualInterpretationStore,
+    object_id: str,
+    context: frozenset[str] | set[str],
+    *,
+    include_superseded: bool = False,
+) -> ContextualSemanticView:
+    """Bind exact semantic referent existence to contextual query without mutation."""
+
+    semantic_object = semantic_store.get(object_id)
+    interpretations = interpretation_store.query(
+        object_id,
+        context,
+        include_superseded=include_superseded,
+    )
+    return ContextualSemanticView(
+        semantic_object=semantic_object,
+        interpretations=interpretations,
+    )
