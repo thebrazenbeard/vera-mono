@@ -163,6 +163,9 @@ def qualify_metacognitive_calibration(
 
     seen_ids: set[str] = set()
     seen_per_bin: dict[int, int] = {}
+    successes_per_bin: dict[int, int] = {}
+    inferred_prior_mean: float | None = None
+    inferred_prior_strength: float | None = None
     raw_brier_total = 0.0
     calibrated_brier_total = 0.0
     failed_outcomes = 0
@@ -184,7 +187,27 @@ def qualify_metacognitive_calibration(
                 "forecast sample_count is not prequentially aligned "
                 "within its confidence bin"
             )
-        seen_per_bin[forecast.bin_index] = expected_sample_count + 1
+
+        if forecast.sample_count == 0:
+            if (
+                forecast.unknown is not True
+                or forecast.evidence_class != "UNSEEN_BIN_PRIOR"
+            ):
+                raise ValueError(
+                    "prequential calibration evidence class is inconsistent "
+                    "with an unseen confidence bin"
+                )
+        elif forecast.unknown:
+            if forecast.evidence_class != "SPARSE_OUTCOME_HISTORY":
+                raise ValueError(
+                    "prequential calibration sparse evidence metadata "
+                    "is inconsistent"
+                )
+        elif forecast.evidence_class != "EMPIRICAL_OUTCOME_HISTORY":
+            raise ValueError(
+                "prequential calibration empirical evidence metadata "
+                "is inconsistent"
+            )
 
         raw = _probability(
             forecast.raw_confidence,
@@ -194,6 +217,70 @@ def qualify_metacognitive_calibration(
             forecast.calibrated_confidence,
             f"observations[{index}].calibrated_confidence",
         )
+
+        successes_before = successes_per_bin.get(forecast.bin_index, 0)
+        if forecast.sample_count == 0:
+            if inferred_prior_mean is None:
+                inferred_prior_mean = calibrated
+            elif not math.isclose(
+                calibrated,
+                inferred_prior_mean,
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            ):
+                raise ValueError(
+                    "prequential calibration bins do not share one prior mean"
+                )
+        else:
+            if inferred_prior_mean is None:
+                raise ValueError(
+                    "prequential calibration prior mean is unavailable"
+                )
+            prior_mean = inferred_prior_mean
+            sample_count = forecast.sample_count
+
+            if inferred_prior_strength is not None:
+                expected_calibrated = (
+                    prior_mean * inferred_prior_strength
+                    + successes_before
+                ) / (inferred_prior_strength + sample_count)
+                if not math.isclose(
+                    calibrated,
+                    expected_calibrated,
+                    rel_tol=0.0,
+                    abs_tol=1e-12,
+                ):
+                    raise ValueError(
+                        "prequential calibration confidence is not derivable "
+                        "from prior outcomes"
+                    )
+            elif math.isclose(
+                calibrated,
+                prior_mean,
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            ):
+                if not math.isclose(
+                    float(successes_before),
+                    prior_mean * sample_count,
+                    rel_tol=0.0,
+                    abs_tol=1e-12,
+                ):
+                    raise ValueError(
+                        "prequential calibration confidence is not derivable "
+                        "from prior outcomes"
+                    )
+            else:
+                candidate = (
+                    successes_before - calibrated * sample_count
+                ) / (calibrated - prior_mean)
+                if not math.isfinite(candidate) or candidate <= 0.0:
+                    raise ValueError(
+                        "prequential calibration implies an invalid prior "
+                        "strength"
+                    )
+                inferred_prior_strength = candidate
+
         target = 1.0 if observation.outcome_success else 0.0
         expected_raw_brier = (raw - target) ** 2
         expected_calibrated_brier = (calibrated - target) ** 2
@@ -231,6 +318,11 @@ def qualify_metacognitive_calibration(
 
         raw_brier_total += expected_raw_brier
         calibrated_brier_total += expected_calibrated_brier
+        seen_per_bin[forecast.bin_index] = expected_sample_count + 1
+        successes_per_bin[forecast.bin_index] = (
+            successes_before + int(observation.outcome_success)
+        )
+
         artifact_rows.append(
             {
                 "forecast_id": forecast.forecast_id,
@@ -299,6 +391,12 @@ def qualify_metacognitive_calibration(
             "min_brier_improvement": min_brier,
             "max_calibrated_false_admission_rate": max_false,
             "min_false_admission_delta": min_delta,
+        },
+        "trajectory_validation": {
+            "inferred_prior_mean": inferred_prior_mean,
+            "inferred_prior_strength": inferred_prior_strength,
+            "sample_count_bound": True,
+            "outcome_order": "FORECAST_THEN_OBSERVE",
         },
         "metrics": {
             "observation_count": metrics.observation_count,
