@@ -26,7 +26,9 @@ def test_wheel_verifier_accepts_crlf_metadata(tmp_path: Path) -> None:
             "vera_mono-0.1.0.dist-info/METADATA",
             "Metadata-Version: 2.4\r\n"
             "Name: vera-mono\r\n"
-            "Version: 0.1.0\r\n\r\n",
+            "Version: 0.1.0\r\n"
+            "Requires-Dist: jsonschema>=4.0\r\n"
+            "Requires-Dist: cryptography>=43.0\r\n\r\n",
         )
         archive.writestr(
             "vera_mono-0.1.0.dist-info/entry_points.txt",
@@ -41,3 +43,33 @@ def test_wheel_verifier_accepts_crlf_metadata(tmp_path: Path) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_wheel_verifier_rejects_unexpected_external_dependency(tmp_path: Path) -> None:
+    verifier = _verifier_module()
+    wheel = tmp_path / "vera_mono-0.1.0-py3-none-any.whl"
+    with ZipFile(wheel, "w") as archive:
+        for name in verifier.REQUIRED_FILES:
+            archive.writestr(name, b"x")
+        archive.writestr(
+            "vera_mono-0.1.0.dist-info/METADATA",
+            "Metadata-Version: 2.4\n"
+            "Name: vera-mono\n"
+            "Version: 0.1.0\n"
+            "Requires-Dist: jsonschema>=4.0\n"
+            "Requires-Dist: cryptography>=43.0\n"
+            "Requires-Dist: requests>=2\n\n",
+        )
+        archive.writestr(
+            "vera_mono-0.1.0.dist-info/entry_points.txt",
+            "[console_scripts]\nvera-mono = vera_core.cli:main\n",
+        )
+
+    result = subprocess.run(
+        [sys.executable, "scripts/verify_monorepo_wheel.py", str(wheel)],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "external dependency set mismatch" in (result.stdout + result.stderr)

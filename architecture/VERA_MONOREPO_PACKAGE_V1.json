@@ -51,7 +51,8 @@
     "wheel_verifier": "scripts/verify_monorepo_wheel.py",
     "installed_verifier": "scripts/verify_installed_monorepo.py",
     "unsafe_archive_paths": "DENY",
-    "missing_expected_package_or_resource": "DENY"
+    "missing_expected_package_or_resource": "DENY",
+    "external_dependency_metadata_drift": "DENY"
   },
   "self_containment": {
     "git_submodules": false,
@@ -61,7 +62,8 @@
       "jsonschema>=4.0",
       "cryptography>=43.0"
     ],
-    "external_provider_infrastructure_allowed_via_local_adapters": true
+    "external_provider_infrastructure_allowed_via_local_adapters": true,
+    "external_python_dependency_policy": "EXACT_WHEEL_METADATA_SET_NO_UNDECLARED_RUNTIME_DEPENDENCIES"
   },
   "boundaries": {
     "wheel_build_pass_is_not_installation": true,
