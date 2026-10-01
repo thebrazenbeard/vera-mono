@@ -43,3 +43,13 @@ def test_manifest_registers_semantic_powershell_interface():
     assert interface["powershell_entrypoint"] == "vera.ps1"
     assert interface["external_llm_required"] is False
     assert interface["protected_effect_authority"] is False
+
+
+def test_interaction_layer_composes_existing_semantic_planes_without_replacing_them():
+    contract = _load("architecture/VERA_SEMANTIC_INTERACTION_INTERFACE_V1.json")
+    planes = contract["existing_semantic_planes"]
+    assert planes["semantic_knowledge"]["owner"] == "vera_identity.SemanticKnowledgeStore"
+    assert planes["contextual_interpretation"]["owner"] == "vera_identity.ContextualInterpretationStore"
+    assert planes["contextual_interpretation"]["replaced_by_interaction_envelope"] is False
+    assert planes["interaction_semantics"]["durable_semantic_authority"] is False
+    assert planes["relationship"] == "COMPLEMENTARY_LAYERS_NOT_COMPETING_AUTHORITIES"
