@@ -51,5 +51,13 @@
     "ci": "RUNNING_ON_DRAFT_PR_65"
   },
   "claim_ceiling": "SOURCE_LEVEL_PROVIDER_ADMISSION_AND_DATED_CONNECTOR_CLASSIFICATION_ONLY; NOT_CONNECTION_HEALTH; NOT_RUNTIME_ACTIVATION; NOT_BEHAVIORAL_QUALIFICATION; NOT_INDEPENDENT_REVIEW; NOT_DEPLOYMENT",
-  "next_frontier": "If CI is green, inspect whether a concrete consumer justifies binding one provider. Otherwise keep providers external and use the capability mesh to select the next non-duplicative gap."
+  "next_frontier": "If CI is green, inspect whether a concrete consumer justifies binding one provider. Otherwise keep providers external and use the capability mesh to select the next non-duplicative gap.",
+  "hostile_review_conation": {
+    "source_repo": "thebrazenbeard/conations",
+    "exact_main": "51948aac796936f0e7c437722e6f52c883e544e9",
+    "prior_vera_disposition": "DOMAIN_OR_CONTENT_SPECIFIC_NO_CORE_INGEST",
+    "objection": "A new conation ledger would duplicate vera_memory lifecycle/provenance mechanics and risk converting historical evidence into present desire.",
+    "disposition": "ACCEPTED_KEEP_SEPARATE",
+    "consequence": "Capability mesh corrected; no new conation database or currentness projection was implemented."
+  }
 }
