@@ -729,5 +729,23 @@
     "intake_is_authority": false,
     "intake_is_memory_admission": false,
     "external_repository_code_required_at_runtime": false
+  },
+  "capability_mesh": {
+    "schema": "VERA_CAPABILITY_MESH_V1",
+    "contract": "architecture/VERA_CAPABILITY_MESH_V1.json",
+    "semantic_owner_map_is_runtime_registry": false,
+    "local_package_registry": "packages/vera_core/src/vera_core/registry.py",
+    "external_strengthener_is_semantic_owner": false
+  },
+  "external_provider_admission": {
+    "schema": "VERA_MONO_EXTERNAL_PROVIDER_ADMISSION_V1",
+    "contract": "architecture/VERA_EXTERNAL_PROVIDER_ADMISSION_V1.json",
+    "implementation": "vera_core.external_provider_admission",
+    "dated_observation": "architecture/VERA_EXPOSED_PLUGIN_CONNECTOR_SURFACE_V2.json",
+    "core_runtime_dependency_created_by_admission": false,
+    "identity_authority_created_by_admission": false,
+    "source_authority_created_by_admission": false,
+    "effect_authority_created_by_admission": false,
+    "provider_specific_binding_requires_concrete_consumer": true
   }
 }
