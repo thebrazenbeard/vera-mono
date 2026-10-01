@@ -82,17 +82,33 @@ Independent falsification is deliberately different from internal assurance. Ver
 
 ## Terminal chat
 
-The installed console entry point now has a conversational surface:
+Vera Mono now carries a native language-model path instead of delegating terminal generation to an external LLM. The default command is simply:
 
 ```powershell
-vera-mono chat --base-url http://localhost:1234/v1 --model local-model
+vera-mono chat
 ```
 
-The command is shell-neutral and uses stdin/stdout, so the same interface works from PowerShell, Windows Terminal, cmd.exe, bash, zsh, and similar terminals. LM Studio, Ollama's OpenAI-compatible endpoint, or another compatible host can supply text generation. The generator is treated as an inference substrate, not as Vera identity/source/memory/effect authority.
+The packaged default is a deliberately tiny 620-parameter **smoke checkpoint**. It proves that the installed repository/wheel can load Vera's own byte-BPE tokenizer, Vera-native checkpoint, decoder-only transformer, and next-token sampler without an Ollama/LM Studio/OpenAI-style model server. It is not claimed to have useful conversational competence.
 
-With no state arguments, the session runs in `SOURCE_ONLY` mode and loads the governed Vera identity and behavior resources from the installed package. To bind an existing local Vera runtime state, supply all three of `--state-root`, `--project-id`, and `--identity-id`; the command reconstructs `QualifiedVeraRuntime`, hashes the full resume context locally, and sends only a strict scalar metadata projection plus that digest to the generator as `QUALIFIED_STATE_BOUND` evidence. Durable task, memory, trust, and effect contents are not implicitly exported. State binding still does not mint protected-effect authority.
+A separately trained Vera-native model can be selected with:
 
-Conversation history is process-local and ephemeral in V1. The terminal does not silently write canonical memory. A one-shot prompt can be supplied as a positional argument, and piped stdin is supported for scripting. Backend configuration can also come from `VERA_MODEL_BASE_URL`, `VERA_MODEL_NAME`, and `VERA_MODEL_API_KEY`; the API key is not persisted by the terminal interface.
+```powershell
+vera-mono chat --checkpoint path/to/model.npz --tokenizer path/to/tokenizer.json
+```
+
+There is no `--model`, `--base-url`, API key, or external text-generation backend in this path.
+
+Model artifacts can be inspected with `vera-mono model inspect`. Training is optional and uses PyTorch only as an autograd/math substrate; it does not load a pretrained third-party model:
+
+```powershell
+pip install ".[model-training]"
+vera-mono model train --corpus corpus.txt --out-dir .vera-model
+vera-mono chat --checkpoint .vera-model/model.npz --tokenizer .vera-model/tokenizer.json
+```
+
+Inference itself uses NumPy and the exported safe `.npz` weights. Conversation history remains process-local and ephemeral; terminal chat does not silently write canonical memory or mint protected-effect authority. Supplying `--state-root`, `--project-id`, and `--identity-id` together binds the session to an existing `QualifiedVeraRuntime` state while admitting only a bounded metadata projection/digest into model context.
+
+The bootstrap checkpoint is only a wiring proof. Making Vera genuinely useful as a standalone language model requires a substantially larger architecture/checkpoint and a large, appropriately licensed training corpus; that capability is not implied by the smoke artifact.
 
 ## Status
 
