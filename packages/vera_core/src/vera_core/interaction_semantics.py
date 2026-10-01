@@ -10,6 +10,7 @@ from .semantic_transfer import TransferFidelity
 
 class SpeechAct(StrEnum):
     GREETING = "GREETING"
+    INVOCATION = "INVOCATION"
     QUESTION = "QUESTION"
     REQUEST = "REQUEST"
     CORRECTION = "CORRECTION"
@@ -23,6 +24,7 @@ class InteractionTarget(StrEnum):
     CAPABILITIES = "CAPABILITIES"
     HELP = "HELP"
     IDENTITY = "IDENTITY"
+    USER_IDENTITY = "USER_IDENTITY"
     MEANING = "MEANING"
     EXIT = "EXIT"
     UNKNOWN = "UNKNOWN"
@@ -121,6 +123,7 @@ _GREETING_RE = re.compile(
     r"^\s*(?:hi|hello|hey|yo)(?:\s+vera)?[!.?\s]*$",
     re.I,
 )
+_INVOCATION_RE = re.compile(r"^\s*vera[!.?]*\s*$", re.I)
 _REQUEST_RE = re.compile(
     rf"^\s*{_HEDGE_PREFIX}(?:please\s+)?{_ACTION_VERBS}\b",
     re.I,
@@ -160,6 +163,13 @@ _NATURAL_TARGET_RULES: tuple[
         ),
     ),
     (
+        InteractionTarget.USER_IDENTITY,
+        (
+            ("who am i", re.compile(r"\bwho\s+am\s+i\b", re.I)),
+            ("my name", re.compile(r"\b(?:what(?:'s| is)\s+)?my\s+name\b", re.I)),
+        ),
+    ),
+    (
         InteractionTarget.IDENTITY,
         (
             ("who are you", re.compile(r"\bwho\s+are\s+you\b", re.I)),
@@ -185,7 +195,20 @@ def _interaction_id(raw_text: str, previous_interaction_id: str | None) -> str:
 
 
 def _exact_candidates(text: str) -> tuple[InterpretationCandidate, ...]:
-    stripped = text.lstrip()
+    stripped = text.strip()
+    exit_match = re.fullmatch(
+        r"(?::|/)?(?P<name>exit|quit|end|bye)[.!]?",
+        stripped,
+        flags=re.I,
+    )
+    if exit_match is not None:
+        return (
+            InterpretationCandidate(
+                target=InteractionTarget.EXIT,
+                evidence_cues=(exit_match.group(0).lower(),),
+                specificity=100,
+            ),
+        )
     if not stripped.startswith(":"):
         return ()
     first = re.match(
@@ -253,6 +276,8 @@ def _speech_act(
 ) -> SpeechAct:
     if _CORRECTION_RE.search(text):
         return SpeechAct.CORRECTION
+    if _INVOCATION_RE.match(text):
+        return SpeechAct.INVOCATION
     if _GREETING_RE.match(text):
         return SpeechAct.GREETING
     if exact_control:
@@ -322,7 +347,7 @@ def interpret_utterance(
         target=target,
         exact_control=bool(exact),
     )
-    if act is SpeechAct.GREETING:
+    if act in {SpeechAct.GREETING, SpeechAct.INVOCATION}:
         resolved = True
         if target is InteractionTarget.UNKNOWN:
             fidelity = TransferFidelity.CONSTRUCTIVE
