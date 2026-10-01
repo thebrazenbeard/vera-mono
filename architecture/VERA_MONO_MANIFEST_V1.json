@@ -614,7 +614,7 @@
     "contract": "architecture/VERA_MONOREPO_PACKAGE_V1.json",
     "root_distribution": "vera-mono",
     "root_pyproject": "pyproject.toml",
-    "package_root_count": 15,
+    "package_root_count": 16,
     "self_contained_local_packages": true,
     "runtime_resources_packaged": true,
     "ci_build": true,
