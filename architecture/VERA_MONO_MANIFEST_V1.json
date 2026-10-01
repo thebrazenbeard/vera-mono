@@ -118,6 +118,12 @@
         "r8a0/trust.py",
         "r8a0/recovery_runtime.py"
       ]
+    },
+    {
+      "id": "vera_model",
+      "path": "packages/vera_model",
+      "role": "native_language_model_tokenization_training_checkpoint_and_inference",
+      "status": "DERIVED_MONOREPO_NATIVE_CANDIDATE"
     }
   ],
   "active_local_capability_registry": "packages/vera_core/src/vera_core/registry.py",
@@ -190,7 +196,8 @@
       "vera_assurance",
       "vera_pc_connection",
       "vera_recovery",
-      "portfolio_runtime"
+      "portfolio_runtime",
+      "vera_model"
     ],
     "external_allowed_only_as_infrastructure_or_independent_observer": true,
     "external_repository_code_required_at_runtime": false
@@ -761,18 +768,27 @@
     "substrate_presence_is_runtime_consumption": false,
     "substrate_presence_is_canonical_memory": false,
     "substrate_presence_is_effect_authority": false
-  }
-,
+  },
   "terminal_chat_interface": {
-    "schema": "VERA_MONO_TERMINAL_CHAT_INTERFACE_V1",
-    "contract": "architecture/VERA_TERMINAL_CHAT_INTERFACE_V1.json",
+    "schema": "architecture/VERA_TERMINAL_CHAT_INTERFACE_V1.json",
     "entrypoint": "vera-mono chat",
-    "session": "vera_core.terminal_chat.TerminalChatSession",
-    "generator_transport": "vera_core.terminal_chat.OpenAICompatibleBackend",
-    "source_only_mode": true,
-    "qualified_state_bound_mode": true,
+    "generator": "vera_model.NativeTransformer",
+    "external_llm_backend": false,
+    "source_only": true,
+    "state_bound": true,
     "canonical_memory_write": false,
-    "protected_effect_authority": false,
-    "inference_substrate_identity_authority": false
+    "protected_effect_authority": false
+  },
+  "native_language_model": {
+    "contract": "architecture/VERA_NATIVE_LANGUAGE_MODEL_V1.json",
+    "package": "vera_model",
+    "tokenizer": "VERA_NATIVE_BPE_TOKENIZER_V1",
+    "checkpoint": "VERA_NATIVE_TRANSFORMER_CHECKPOINT_V1",
+    "inference_runtime": "NumPy",
+    "training_runtime": "optional PyTorch",
+    "external_llm_required": false,
+    "pretrained_third_party_weights": false,
+    "bootstrap_checkpoint_role": "SMOKE_ONLY",
+    "protected_effect_authority": false
   }
 }
