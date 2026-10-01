@@ -1,0 +1,90 @@
+{
+  "schema": "VERA_SEMANTIC_INTERACTION_INTERFACE_V1",
+  "status": "CANDIDATE_SOURCE_IMPLEMENTATION",
+  "repository": "thebrazenbeard/vera-mono",
+  "purpose": "Provide a PowerShell-first direct interaction surface over Vera Mono in which raw communication is preserved and candidate meaning-in-context is represented before any repository/runtime operation is selected.",
+  "entrypoint": {
+    "powershell": ".\\vera.ps1",
+    "cli": "vera-mono shell",
+    "source_only_default": true,
+    "qualified_state_binding_optional": true
+  },
+  "semantics": {
+    "implementation": "vera_core.interaction_semantics",
+    "envelope": "VERA_INTERACTION_ENVELOPE_V1",
+    "organizing_principle": "MEANING_IN_CONTEXT_BEFORE_OPERATION_SELECTION",
+    "raw_signal_preserved": true,
+    "speech_act_typed": true,
+    "competing_interpretations_preservable": true,
+    "hedge_scope_preserved_as_modifier": true,
+    "correction_predecessor_binding": true,
+    "transfer_fidelity": [
+      "EXACT",
+      "CONSTRUCTIVE",
+      "LOSSY",
+      "UNREPRESENTABLE"
+    ],
+    "unknown_language_policy": "PRESERVE_AS_UNRESOLVED",
+    "interpretation_is_truth": false,
+    "interpretation_is_canon": false,
+    "interpretation_is_authority": false,
+    "semantic_equivalence_automatically_established": false
+  },
+  "console": {
+    "implementation": "vera_core.console.VeraConsole",
+    "direct_response_channel": "VERA_RESPONSE",
+    "diagnostic_channel": "DIAGNOSTIC_INTERPRETATION",
+    "channels_collapsed": false,
+    "exact_commands": [
+      ":status",
+      ":tasks",
+      ":context",
+      ":identity",
+      ":meaning <text>",
+      ":help",
+      ":exit"
+    ],
+    "natural_language_aliases": "BOUNDED_CONSERVATIVE",
+    "ambiguous_control_input": "NO_DISPATCH",
+    "unresolved_free_form_input": "PRESERVED_NO_GUESS"
+  },
+  "runtime": {
+    "preferred_boundary": "vera_core.QualifiedVeraRuntime",
+    "source_only_supported": true,
+    "state_bound_requires": [
+      "state_root",
+      "project_id",
+      "identity_id"
+    ],
+    "state_binding_infers_missing_values": false,
+    "runtime_state_evidence_is_effect_authority": false
+  },
+  "generation": {
+    "external_llm_required": false,
+    "pretrained_model_required": false,
+    "model_server_required": false,
+    "api_key_required": false,
+    "language_generation_claim": "NONE_V1_TEMPLATE_AND_STRUCTURED_RENDERING_ONLY"
+  },
+  "memory": {
+    "canonical_memory_write_implicit": false,
+    "conversation_history": "PROCESS_LOCAL_INTERACTION_ENVELOPES",
+    "semantic_interpretation_is_memory_admission": false
+  },
+  "effects": {
+    "protected_effect_execution_from_interpretation": false,
+    "protected_effect_authority_minted": false,
+    "existing_runtime_effect_gates_preserved": true
+  },
+  "research_lineage": {
+    "spm": "meaning-in-context and semantic/pragmatic state are primary computational concerns",
+    "semanticatlas": "proposition, provenance, currentness, interpretation, authorship, and canon remain separate",
+    "semiotics": "same form can retain multiple context-bound readings; specificity is not truth",
+    "rezon": "reasoning proposition types and lifecycle/effect states remain explicit",
+    "sql_connectome": "surface parse is not semantic equivalence; IR transfer fidelity is explicit",
+    "noema": "communication is distinct from diagnostic interpretation; pragmatic uncertainty has local scope",
+    "lgcm": "context mismatch/switch/recall is a later adaptive layer, not V1 semantic authority",
+    "mosaic": "not adopted as the interaction architecture"
+  },
+  "claim_ceiling": "SOURCE_AND_CI_VERIFIED_INTERACTION_MECHANISM_ONLY_NOT_GENERAL_LANGUAGE_UNDERSTANDING_NOT_SEMANTIC_TRUTH_NOT_RUNTIME_CONSUMPTION_NOT_BEHAVIORAL_QUALIFICATION_NOT_PROTECTED_EFFECT_AUTHORITY"
+}
