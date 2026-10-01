@@ -20,6 +20,7 @@ class InteractionTarget(StrEnum):
     STATUS = "STATUS"
     TASKS = "TASKS"
     CONTEXT = "CONTEXT"
+    CAPABILITIES = "CAPABILITIES"
     HELP = "HELP"
     IDENTITY = "IDENTITY"
     MEANING = "MEANING"
@@ -85,6 +86,7 @@ _EXACT_COMMANDS = {
     "status": InteractionTarget.STATUS,
     "tasks": InteractionTarget.TASKS,
     "context": InteractionTarget.CONTEXT,
+    "capabilities": InteractionTarget.CAPABILITIES,
     "help": InteractionTarget.HELP,
     "identity": InteractionTarget.IDENTITY,
     "meaning": InteractionTarget.MEANING,
@@ -133,6 +135,13 @@ _NATURAL_TARGET_RULES: tuple[
         ),
     ),
     (
+        InteractionTarget.CAPABILITIES,
+        (
+            ("capabilities", re.compile(r"\\bcapabilities\\b", re.I)),
+            ("what capabilities", re.compile(r"\\bwhat\\s+capabilities\\b", re.I)),
+        ),
+    ),
+    (
         InteractionTarget.IDENTITY,
         (
             ("who are you", re.compile(r"\bwho\s+are\s+you\b", re.I)),
@@ -159,7 +168,7 @@ def _interaction_id(raw_text: str, previous_interaction_id: str | None) -> str:
 
 def _exact_candidates(text: str) -> tuple[InterpretationCandidate, ...]:
     found = re.findall(
-        r"(?<!\S):(status|tasks|context|help|identity|meaning|exit|quit)\b",
+        r"(?<!\\S):(status|tasks|context|capabilities|help|identity|meaning|exit|quit)\\b",
         text,
         flags=re.I,
     )
