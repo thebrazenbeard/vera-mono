@@ -82,3 +82,10 @@ def test_embedded_colon_command_is_not_exact_control_syntax_or_dispatch():
     assert env.fidelity is not TransferFidelity.EXACT
     assert env.speech_act is SpeechAct.ASSERTION
     assert env.dispatch_permitted is False
+
+
+def test_meaning_operator_treats_remainder_as_diagnostic_operand():
+    env = interpret_utterance(":meaning :status")
+    assert env.target is InteractionTarget.MEANING
+    assert env.fidelity is TransferFidelity.EXACT
+    assert env.resolved is True
