@@ -116,7 +116,13 @@ Use `-Refresh` to reinstall the current checkout into the repository-local envir
 .\vera.ps1 -Refresh ":identity"
 ```
 
-Without state arguments the console is `SOURCE_ONLY`. The installed `vera-mono shell` command also supports explicit binding to an existing `VeraStateDirectory` with `--state-root`, `--project-id`, and `--identity-id`; all three are required together. State binding exposes read-only console inspection and does not mint protected-effect authority or silently write canonical memory.
+Without state arguments the console is `SOURCE_ONLY`. To bind the PowerShell launcher to an existing `VeraStateDirectory`, use all three native PowerShell parameters together:
+
+```powershell
+.\vera.ps1 -StateRoot "C:\path\to\state" -ProjectId "<project-id>" -IdentityId "<identity-id>" ":status"
+```
+
+The launcher forwards those values to `vera-mono shell --state-root ... --project-id ... --identity-id ...`. State binding exposes read-only console inspection and does not mint protected-effect authority or silently write canonical memory.
 
 ## Status
 
