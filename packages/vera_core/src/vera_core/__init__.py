@@ -301,6 +301,13 @@ from .reasoning_cascade import (
     LayerSpec,
     ReasoningRequest,
 )
+from .interaction_semantics import (
+    InteractionEnvelope,
+    InteractionTarget,
+    InterpretationCandidate,
+    SpeechAct,
+    interpret_utterance,
+)
 from .semantic_transfer import (
     AppliedSemanticRewrite,
     SemanticCapabilityProfile,
@@ -624,6 +631,11 @@ __all__ = [
     "OutboundEffectResult",
     "NativeVeraLifecycle",
     "ReasoningRequest",
+    "InteractionEnvelope",
+    "InteractionTarget",
+    "InterpretationCandidate",
+    "SpeechAct",
+    "interpret_utterance",
     "AppliedSemanticRewrite",
     "SemanticCapabilityProfile",
     "SemanticTransferPlan",

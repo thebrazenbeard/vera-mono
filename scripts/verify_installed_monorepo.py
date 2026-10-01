@@ -6,6 +6,8 @@ from importlib import import_module, resources
 MODULES = (
     "vera_core",
     "vera_core.cli",
+    "vera_core.console",
+    "vera_core.interaction_semantics",
     "ingest",
     "rezon",
     "portfolio_runtime",

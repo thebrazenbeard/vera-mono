@@ -761,5 +761,24 @@
     "substrate_presence_is_runtime_consumption": false,
     "substrate_presence_is_canonical_memory": false,
     "substrate_presence_is_effect_authority": false
+  },
+  "semantic_interaction_interface": {
+    "schema": "VERA_SEMANTIC_INTERACTION_INTERFACE_V1",
+    "contract": "architecture/VERA_SEMANTIC_INTERACTION_INTERFACE_V1.json",
+    "implementation": [
+      "vera_core.interaction_semantics",
+      "vera_core.console"
+    ],
+    "cli_entrypoint": "vera-mono shell",
+    "powershell_entrypoint": "vera.ps1",
+    "semantic_pragmatic_state_first": true,
+    "external_llm_required": false,
+    "pretrained_model_required": false,
+    "source_only_default": true,
+    "qualified_runtime_binding_optional": true,
+    "implicit_canonical_memory_write": false,
+    "protected_effect_authority": false,
+    "lgcm_runtime_dependency": false,
+    "mosaic_runtime_dependency": false
   }
 }

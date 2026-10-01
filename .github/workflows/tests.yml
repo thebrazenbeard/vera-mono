@@ -57,3 +57,9 @@ jobs:
           python -c "from pathlib import Path; import subprocess,sys; wheels=list(Path('dist').glob('*.whl')); assert len(wheels)==1, wheels; subprocess.run([sys.executable,'-m','pip','install','--no-deps','--target','.wheel-install',str(wheels[0])],check=True)"
           python -c "import sys,runpy; sys.path.insert(0,'.wheel-install'); runpy.run_path('scripts/verify_installed_monorepo.py',run_name='__main__')"
           python -c "import sys; sys.path.insert(0,'.wheel-install'); from vera_core.cli import main; main(['--help'])"
+
+      - name: Verify PowerShell repository console
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          .\vera.ps1 -Refresh ":status"
