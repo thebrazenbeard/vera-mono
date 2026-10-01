@@ -6,6 +6,8 @@ from typing import Callable
 
 from vera_identity.loader import load_json_resource
 
+from .registry import CAPABILITIES, validate_registry
+
 from .interaction_semantics import (
     InteractionEnvelope,
     InteractionTarget,
@@ -125,6 +127,31 @@ class VeraConsole:
             indent=2,
         )
 
+    @staticmethod
+    def _capabilities_text() -> str:
+        errors = validate_registry()
+        if errors:
+            return "Capability registry is invalid: " + "; ".join(errors)
+        rows = [
+            {
+                "capability_id": item.capability_id,
+                "package": item.package,
+                "role": item.role,
+                "status": "SOURCE_DECLARED_NOT_RUNTIME_CONSUMPTION_PROOF",
+            }
+            for item in CAPABILITIES
+        ]
+        return json.dumps(
+            {
+                "schema": "VERA_CONSOLE_CAPABILITY_INVENTORY_V1",
+                "capabilities": rows,
+            },
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            indent=2,
+        )
+
     def _context_text(self) -> str:
         context = self._context()
         if context is None:
@@ -201,6 +228,8 @@ class VeraConsole:
             return ConsoleResponse(self._tasks_text(), envelope)
         if envelope.target is InteractionTarget.CONTEXT:
             return ConsoleResponse(self._context_text(), envelope)
+        if envelope.target is InteractionTarget.CAPABILITIES:
+            return ConsoleResponse(self._capabilities_text(), envelope)
         if envelope.target is InteractionTarget.MEANING:
             return ConsoleResponse(
                 self._meaning_text(
