@@ -17,7 +17,8 @@ def test_powershell_entrypoint_is_repo_rooted_and_local():
 def test_powershell_entrypoint_forwards_remaining_arguments():
     text = (ROOT / "vera.ps1").read_text(encoding="utf-8")
     assert "ValueFromRemainingArguments" in text
-    assert "@ConsoleArgs" in text
+    assert "$ForwardArgs += $ConsoleArgs" in text
+    assert "@ForwardArgs" in text
 
 
 def test_powershell_entrypoint_has_no_external_model_server_configuration():
