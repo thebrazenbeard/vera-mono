@@ -1,0 +1,188 @@
+{
+  "schema": "VERA_PORTFOLIO_INTAKE_V17_20260930",
+  "status": "LIVE_CENSUS_76_FULL_PORTFOLIO_SWEEP_AND_BOUNDED_ADMISSION",
+  "observed_date": "2026-09-30",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "authoritative_vera_main_at_audit": "413397e51bce35d0a36f00cf0ca2c876ca720b44",
+  "predecessor": "provenance/plans/vera-mono/VERA_PORTFOLIO_INTAKE_V16_20260929.json",
+  "portfolio_membership": {
+    "total_owned_repositories": 76,
+    "active_repositories": 74,
+    "archived_repositories": 2,
+    "archived_names": [
+      "conditioning",
+      "self"
+    ],
+    "previous_recorded_total": 73,
+    "newly_observed_repositories": [
+      "thebrazenbeard/retro-gamer",
+      "thebrazenbeard/workbridge",
+      "thebrazenbeard/thebrazenbeard"
+    ]
+  },
+  "methodology": {
+    "census": "fresh GitHub enumeration of repositories owned by thebrazenbeard",
+    "first_pass": "README/default-main orientation across the full owned portfolio",
+    "second_pass": "deeper source/contract inspection only where a plausible Vera capability delta remained after comparison with current vera-mono",
+    "admission_rule": "admit mechanisms only when a concrete current Vera capability gap exists; prefer existing Vera-native owners over duplicate abstractions",
+    "repositories_reviewed": [
+      "thebrazenbeard/vera",
+      "thebrazenbeard/vera_ark",
+      "thebrazenbeard/build-team-2.0",
+      "thebrazenbeard/vera_model_training",
+      "thebrazenbeard/project-lantern",
+      "thebrazenbeard/chat-communication-bus",
+      "thebrazenbeard/vera-os",
+      "thebrazenbeard/vera-apk",
+      "thebrazenbeard/vera-synology",
+      "thebrazenbeard/vera-mesh",
+      "thebrazenbeard/vera-habitat",
+      "thebrazenbeard/project-achilles",
+      "thebrazenbeard/vera-R9A0",
+      "thebrazenbeard/voss",
+      "thebrazenbeard/hephaestus",
+      "thebrazenbeard/masamune",
+      "thebrazenbeard/vera-control-plane",
+      "thebrazenbeard/trek-data-core",
+      "thebrazenbeard/hc-brain",
+      "thebrazenbeard/selfimage",
+      "thebrazenbeard/deepmemorystorage",
+      "thebrazenbeard/semanticatlas",
+      "thebrazenbeard/conations",
+      "thebrazenbeard/empathy",
+      "thebrazenbeard/vera-works",
+      "thebrazenbeard/brigit",
+      "thebrazenbeard/skeletonkey",
+      "thebrazenbeard/entropyinc",
+      "thebrazenbeard/spm",
+      "thebrazenbeard/sexuality",
+      "thebrazenbeard/brigit-unbound",
+      "thebrazenbeard/wip",
+      "thebrazenbeard/mediaphile",
+      "thebrazenbeard/bugops",
+      "thebrazenbeard/noema",
+      "thebrazenbeard/abil",
+      "thebrazenbeard/unvtrslr",
+      "thebrazenbeard/personification",
+      "thebrazenbeard/temporal",
+      "thebrazenbeard/conditioning",
+      "thebrazenbeard/self",
+      "thebrazenbeard/bt2",
+      "thebrazenbeard/orgasm",
+      "thebrazenbeard/Attune",
+      "thebrazenbeard/wreckforge",
+      "thebrazenbeard/rezon",
+      "thebrazenbeard/roots",
+      "thebrazenbeard/world-zero",
+      "thebrazenbeard/on-theo",
+      "thebrazenbeard/firesafe",
+      "thebrazenbeard/project-runner",
+      "thebrazenbeard/intranel",
+      "thebrazenbeard/transcendence",
+      "thebrazenbeard/mosaic",
+      "thebrazenbeard/testament",
+      "thebrazenbeard/driftguard",
+      "thebrazenbeard/discovery",
+      "thebrazenbeard/god-brain",
+      "thebrazenbeard/WorkBridgeMCP",
+      "thebrazenbeard/meso-crct",
+      "thebrazenbeard/unbound-sol",
+      "thebrazenbeard/RepairTracker",
+      "thebrazenbeard/freerowcochkar",
+      "thebrazenbeard/ccb-core",
+      "thebrazenbeard/fuckup",
+      "thebrazenbeard/sql-connectome",
+      "thebrazenbeard/axle",
+      "thebrazenbeard/ingest",
+      "thebrazenbeard/pro-run",
+      "thebrazenbeard/lgcm",
+      "thebrazenbeard/semiotics",
+      "thebrazenbeard/workbridgecommander",
+      "thebrazenbeard/retro-gamer",
+      "thebrazenbeard/workbridge",
+      "thebrazenbeard/thebrazenbeard",
+      "thebrazenbeard/vera-mono"
+    ]
+  },
+  "newly_observed_repository_dispositions": [
+    {
+      "repository": "thebrazenbeard/retro-gamer",
+      "disposition": "NO_VERA_RUNTIME_INGESTION",
+      "reason": "domain media/emulator collection; no general mechanism identified that improves current Vera Mono architecture"
+    },
+    {
+      "repository": "thebrazenbeard/workbridge",
+      "disposition": "KEEP_EXTERNAL_TRANSPORT_AND_PACKAGE_INFRASTRUCTURE",
+      "reason": "NAS relay/package implementation is external infrastructure; vera-mono already owns provider-neutral execution/effect boundaries and should not absorb the deployment implementation"
+    },
+    {
+      "repository": "thebrazenbeard/thebrazenbeard",
+      "disposition": "NO_VERA_RUNTIME_INGESTION",
+      "reason": "GitHub profile/presentation repository; portfolio topology description is useful orientation but not a runtime mechanism"
+    }
+  ],
+  "strongest_candidate_review": [
+    {
+      "repository": "thebrazenbeard/voss",
+      "exact_head": "36a623d3a158e5aef521d42e378bafacd67d3de5",
+      "disposition": "ADMIT_BOUNDED_MECHANISM",
+      "capability_delta": [
+        "explicit competing rival hypotheses",
+        "support deduplication by evidence independence group",
+        "contradiction-based rival elimination",
+        "UNRESOLVED when multiple explanations survive",
+        "explicit discriminating-evidence requirement instead of forced closure"
+      ],
+      "target": "packages/vera_core/src/vera_core/rival_hypotheses.py",
+      "runtime_dependency": false
+    },
+    {
+      "repository": "thebrazenbeard/semiotics",
+      "exact_head": "37117a2097f7f2aa35968fc9db24eacf7240826e",
+      "disposition": "ALREADY_ABSORBED_STRONGER_NO_NEW_IMPLEMENTATION",
+      "existing_target": "packages/vera_identity/src/vera_identity/contextual_interpretation.py",
+      "reason": "current main already contains durable contextual interpretations, relations, supersession, integrity checking and explicit no-truth/no-authority semantics"
+    },
+    {
+      "repository": "thebrazenbeard/vera_ark",
+      "disposition": "DEFER_UNTIL_CONCRETE_ACTUATOR_SESSION_CONSUMER",
+      "candidate_delta": "atomic action batches that guarantee an exact neutral/release state after held control",
+      "reopen_condition": "vera-mono gains a qualified interactive actuator/session surface with held state requiring deterministic release semantics"
+    },
+    {
+      "repository": "thebrazenbeard/firesafe",
+      "disposition": "REJECT_DUPLICATE_MECHANISM",
+      "reason": "source/derivative hash lineage and conversion identity are already covered more generally by vera_ingest raw/normalized artifact and derivation receipts"
+    }
+  ],
+  "already_absorbed_or_owned_examples": [
+    "provider-neutral exact-byte intake and derivation provenance",
+    "contextual interpretation and supersession",
+    "corrective learning/effectiveness",
+    "semantic transfer and catalog provenance",
+    "salience/attention and learned influence controls",
+    "continual context retention and prequential evaluation",
+    "durable dispatch and wake scheduling",
+    "resource leases and fencing",
+    "state handoff and residency accounting",
+    "repair lifecycle and portfolio system modeling",
+    "chronology",
+    "simulation boundary",
+    "PC/provider/source effect and currentness boundaries",
+    "independent behavior review and held-out qualification"
+  ],
+  "hostile_review": {
+    "objection": "Portfolio maximalism can reward copying named mechanisms that Vera already owns under stronger abstractions, producing a larger but worse architecture.",
+    "disposition": "ACCEPTED",
+    "correction": "Require a concrete current consumer and a non-duplicative capability delta. Existing stronger Vera-native implementations win; domain content and external provider implementations remain external."
+  },
+  "result": {
+    "repositories_reviewed": 76,
+    "new_repositories_found": 3,
+    "new_code_mechanisms_admitted": 1,
+    "already_absorbed_candidate_confirmed": 1,
+    "deferred_reopen_candidates": 1,
+    "duplicate_candidate_rejected": 1
+  },
+  "claim_ceiling": "LIVE_PORTFOLIO_CENSUS_PLUS_SOURCE_LEVEL_VOSS_RIVAL_RESOLUTION_ADAPTATION; NOT_INSTALLATION; NOT_CURRENT_ROUTE; NOT_RUNTIME_CONSUMPTION; NOT_BEHAVIORAL_QUALIFICATION; NOT_INDEPENDENT_REVIEW; NOT_DEPLOYMENT; NOT_AGI"
+}
