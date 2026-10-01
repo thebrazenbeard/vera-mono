@@ -1,0 +1,64 @@
+{
+  "schema": "VERA_MONO_TERMINAL_CHAT_INTERFACE_V1",
+  "status": "CANDIDATE_SOURCE_IMPLEMENTATION",
+  "repository": "thebrazenbeard/vera-mono",
+  "entrypoint": "vera-mono chat",
+  "purpose": "Provide a shell-neutral text interaction surface that presents Vera Mono as a conversational runtime while keeping the text-generation substrate separate from Vera identity, source authority, memory authority, and effect authority.",
+  "layers": {
+    "interaction_surface": "vera_core.terminal_chat.TerminalChatSession",
+    "governed_identity": "vera_identity resources",
+    "runtime_state_optional": "vera_core.QualifiedVeraRuntime.resume_context",
+    "text_generation_substrate": "host-selected OpenAI-compatible chat-completions endpoint"
+  },
+  "modes": {
+    "SOURCE_ONLY": {
+      "runtime_state_required": false,
+      "claims": "governed source identity and behavior only"
+    },
+    "QUALIFIED_STATE_BOUND": {
+      "runtime_state_required": true,
+      "state_root": "existing VeraStateDirectory",
+      "runtime_context": "reconstructed at session start",
+      "effect_authority_implied": false
+    }
+  },
+  "inference_substrate": {
+    "semantic_role": "COMPUTE_PROVIDER",
+    "identity_authority": "NONE",
+    "source_authority": "NONE",
+    "canonical_memory_authority": "NONE",
+    "effect_authority": "NONE",
+    "core_runtime_dependency": false,
+    "default_protocol": "OpenAI-compatible POST /chat/completions",
+    "api_key_persistence": false,
+    "api_key_default_source": "VERA_MODEL_API_KEY environment variable"
+  },
+  "conversation": {
+    "history": "EPHEMERAL_PROCESS_MEMORY",
+    "canonical_memory_write": false,
+    "implicit_external_effects": false,
+    "slash_commands": [
+      "/help",
+      "/clear",
+      "/mode",
+      "/exit"
+    ],
+    "one_shot_prompt_supported": true,
+    "stdin_prompt_supported": true
+  },
+  "shell_compatibility": [
+    "PowerShell",
+    "Windows Terminal",
+    "cmd.exe",
+    "bash",
+    "zsh",
+    "other stdin/stdout terminals"
+  ],
+  "security": {
+    "credentials_in_command_line_required": false,
+    "authorization_minted_by_chat": false,
+    "protected_effect_execution": false,
+    "network_call_occurs_only_after_explicit chat invocation"
+  },
+  "claim_ceiling": "SOURCE_LEVEL_TERMINAL_INTERFACE_NOT_INSTALLATION_NOT_ROUTE_ACTIVATION_NOT_RUNTIME_CONSUMPTION_NOT_BEHAVIORAL_QUALIFICATION"
+}
