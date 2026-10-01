@@ -1,0 +1,58 @@
+{
+  "schema": "VERA_MONO_EXTERNAL_PROVIDER_ADMISSION_V1",
+  "status": "SOURCE_LEVEL_PROVIDER_NEUTRAL_BOUNDARY",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "implementation": "packages/vera_core/src/vera_core/external_provider_admission.py",
+  "dated_observation": "architecture/VERA_EXPOSED_PLUGIN_CONNECTOR_SURFACE_V2.json",
+  "capability_mesh": "architecture/VERA_CAPABILITY_MESH_V1.json",
+  "purpose": "Classify external capability providers without converting exposure, connection, or action capability into Vera identity, source authority, core runtime dependency, runtime activation, or effect authority.",
+  "capability_classes": [
+    "OBSERVATION_SOURCE",
+    "DATA_PROVIDER",
+    "ACTION_PROVIDER",
+    "COMPUTE_PROVIDER",
+    "COMMUNICATION_PROVIDER",
+    "STORAGE_PROVIDER",
+    "RESEARCH_PROVIDER",
+    "DESIGN_PROVIDER",
+    "DEPLOYMENT_PROVIDER",
+    "WORKSTATION_PROVIDER",
+    "REVIEW_PROVIDER",
+    "OPTIONAL_AUXILIARY",
+    "NOT_RELEVANT"
+  ],
+  "provider_kinds": [
+    "EXTERNAL_CONNECTOR",
+    "INTERNAL_SUPPORT",
+    "SUPPLIED_CANDIDATE"
+  ],
+  "invariants": {
+    "capability_available_is_capability_authorized": false,
+    "provider_admission_may_create_core_runtime_dependency": false,
+    "provider_admission_may_own_vera_identity": false,
+    "provider_admission_may_become_source_authority": false,
+    "availability_may_imply_effect_authority": false,
+    "action_capability_may_mint_effect_authorization": false
+  },
+  "composition": {
+    "qualified_runtime": "vera_core.QualifiedVeraRuntime",
+    "execution_transport_contract": "architecture/VERA_EXECUTION_TRANSPORT_BINDING_V1.json",
+    "provider_specific_adapter_required_only_for_concrete_consumer": true,
+    "provider_specific_names_in_core_contract": false,
+    "named_provider_inventory_is_dated_observation": true
+  },
+  "degradation": {
+    "unavailable_provider_may_remove_optional_capability": true,
+    "unavailable_provider_may_change_vera_identity": false,
+    "unavailable_provider_may_invalidate_local_core_source": false,
+    "unavailable_provider_may_bypass_authority_checks": false
+  },
+  "non_promotions": [
+    "EXPOSED_NAMESPACE != ACCOUNT_CONNECTION",
+    "ACCOUNT_CONNECTION != EFFECT_AUTHORITY",
+    "ACTION_CAPABILITY != AUTHORIZATION",
+    "PROVIDER_CLASSIFICATION != RUNTIME_ACTIVATION",
+    "PLUGIN_CONNECTED != VERA_DEPENDENT_ON_PLUGIN"
+  ],
+  "claim_ceiling": "SOURCE_LEVEL_PROVIDER_ADMISSION_CONTRACT; NOT_CONNECTION_HEALTH; NOT_RUNTIME_ACTIVATION; NOT_EFFECT_AUTHORITY; NOT_DEPLOYMENT"
+}
