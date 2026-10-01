@@ -27,6 +27,10 @@ REQUIRED_FILES = {
     "vera_control/__init__.py",
     "r8a0/__init__.py",
     "vera_recovery/__init__.py",
+    "vera_model/__init__.py",
+    "vera_model/resources/bootstrap/tokenizer.json",
+    "vera_model/resources/bootstrap/model.npz.b64.00",
+    "vera_model/resources/bootstrap/TRAINING_RECEIPT.json",
     (
         "vera_control/resources/architecture/control/vendor/"
         "vera-control-plane/VERA_R10A0_PROJECT_SOURCE_MANIFEST_R10.json"
@@ -77,16 +81,9 @@ def main(argv: list[str]) -> int:
 
         missing = sorted(REQUIRED_FILES - name_set)
         if missing:
-            fail(
-                "wheel is missing required runtime/resource files: "
-                + ", ".join(missing)
-            )
+            fail("wheel is missing required runtime/resource files: " + ", ".join(missing))
 
-        metadata_names = sorted(
-            name
-            for name in names
-            if name.endswith(".dist-info/METADATA")
-        )
+        metadata_names = sorted(name for name in names if name.endswith(".dist-info/METADATA"))
         if len(metadata_names) != 1:
             fail("wheel must contain exactly one distribution METADATA file")
         metadata_text = archive.read(metadata_names[0]).decode("utf-8")
@@ -96,15 +93,9 @@ def main(argv: list[str]) -> int:
         if metadata.get("Version") != "0.1.0":
             fail("wheel METADATA carries unexpected version")
 
-        entry_point_names = sorted(
-            name
-            for name in names
-            if name.endswith(".dist-info/entry_points.txt")
-        )
+        entry_point_names = sorted(name for name in names if name.endswith(".dist-info/entry_points.txt"))
         if len(entry_point_names) != 1:
-            fail(
-                "wheel must contain exactly one distribution entry_points.txt"
-            )
+            fail("wheel must contain exactly one distribution entry_points.txt")
         entry_points = archive.read(entry_point_names[0]).decode("utf-8")
         if "[console_scripts]" not in entry_points:
             fail("wheel console script group is missing")
