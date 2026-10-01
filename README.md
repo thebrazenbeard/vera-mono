@@ -79,6 +79,44 @@ If an external dispatch becomes ambiguous, `EffectFence` records `ATTEMPTED_UNKN
 
 Independent falsification is deliberately different from internal assurance. Vera can contain DriftGuard-derived checking mechanisms while a separately executed DriftGuard remains useful specifically because it is outside Vera's own self-checking boundary.
 
+## PowerShell console
+
+From a Windows PowerShell terminal opened in a clone of this repository:
+
+```powershell
+.\vera.ps1
+```
+
+On first run the script creates a repository-local `.venv`, installs the current checkout into that environment, and opens the Vera Mono semantic console. No external LLM, model server, API key, or pretrained model is required.
+
+The console is deliberately semantics-first rather than generator-first. Raw text is preserved, then mapped conservatively into a typed semantic/pragmatic interaction envelope. Exact commands are available immediately:
+
+```text
+:status
+:tasks
+:context
+:identity
+:meaning maybe show me the runtime status
+:help
+:exit
+```
+
+Natural-language aliases such as `what is your status?` are accepted when the mapping is explicit. Unrecognized prose is retained as `UNRESOLVED` rather than being silently reclassified as a command. The interpreter's reading is candidate meaning only: it does not establish truth, canon, memory admission, authorization, or an external effect.
+
+A one-shot PowerShell call is also supported:
+
+```powershell
+.\vera.ps1 ":status"
+```
+
+Use `-Refresh` to reinstall the current checkout into the repository-local environment after source changes:
+
+```powershell
+.\vera.ps1 -Refresh ":identity"
+```
+
+Without state arguments the console is `SOURCE_ONLY`. The installed `vera-mono shell` command also supports explicit binding to an existing `VeraStateDirectory` with `--state-root`, `--project-id`, and `--identity-id`; all three are required together. State binding exposes read-only console inspection and does not mint protected-effect authority or silently write canonical memory.
+
 ## Status
 
 This is source architecture and local implementation. It does not, by source presence alone, claim deployment, provider activation, project installation, behavioral qualification, consciousness, phenomenology, or protected-effect authorization.
