@@ -212,6 +212,15 @@ class VeraConsole:
         )
         self._history.append(envelope)
 
+        if envelope.action_forbidden:
+            cues = ", ".join(envelope.negation_cues) or "negation"
+            return ConsoleResponse(
+                f"NOT DISPATCHED — the interpreted request contains an "
+                f"action-negating cue ({cues}). Target "
+                f"{envelope.target.value} was preserved without execution.",
+                envelope,
+            )
+
         if envelope.target is InteractionTarget.EXIT:
             return ConsoleResponse(
                 "Leaving Vera Mono console.",
