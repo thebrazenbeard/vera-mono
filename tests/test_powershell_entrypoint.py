@@ -33,3 +33,12 @@ def test_powershell_entrypoint_has_no_external_model_server_configuration():
 def test_local_console_environment_is_ignored_by_git():
     ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
     assert ".venv/" in ignore
+
+
+def test_powershell_entrypoint_exposes_runtime_binding_parameters():
+    text = (ROOT / "vera.ps1").read_text(encoding="utf-8")
+    for parameter in ("$StateRoot", "$ProjectId", "$IdentityId"):
+        assert parameter in text
+    for cli_flag in ("--state-root", "--project-id", "--identity-id"):
+        assert cli_flag in text
+    assert "$ForwardArgs" in text
