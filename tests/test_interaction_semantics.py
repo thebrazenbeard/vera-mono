@@ -67,3 +67,16 @@ def test_unknown_statement_preserves_raw_text_without_guessing_target():
 def test_identity_and_meaning_targets_are_recognized():
     assert interpret_utterance("who are you?").target is InteractionTarget.IDENTITY
     assert interpret_utterance(":meaning maybe show status").target is InteractionTarget.MEANING
+
+
+def test_negative_request_preserves_target_but_denies_dispatch():
+    env = interpret_utterance("do not show me the status")
+    assert env.target is InteractionTarget.STATUS
+    assert env.action_forbidden is True
+    assert env.action_requested is False
+    assert "do not" in env.negation_cues
+
+
+def test_embedded_colon_command_is_not_exact_control_syntax():
+    env = interpret_utterance("the string :status is an example")
+    assert env.fidelity is not TransferFidelity.EXACT
