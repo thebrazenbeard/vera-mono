@@ -7,6 +7,7 @@ from vera_core.external_provider_admission import (
     ExternalCapabilityClass,
     ExternalProviderAdmission,
     ExternalProviderKind,
+    ExternalSubstrateRole,
     validate_external_provider_catalog,
 )
 
@@ -202,3 +203,62 @@ def test_provider_admission_contract_and_manifest_are_bound():
     mesh = manifest["capability_mesh"]
     assert mesh["contract"] == "architecture/VERA_CAPABILITY_MESH_V1.json"
     assert mesh["semantic_owner_map_is_runtime_registry"] is False
+
+
+def test_host_execution_substrate_classification_does_not_promote_runtime_or_authority():
+    admission = ExternalProviderAdmission(
+        provider_id="pro-run",
+        capability_classes=(
+            ExternalCapabilityClass.COMPUTE_PROVIDER,
+            ExternalCapabilityClass.ACTION_PROVIDER,
+        ),
+        provider_kind=ExternalProviderKind.HOST_EXECUTION_SUBSTRATE,
+        substrate_role=ExternalSubstrateRole.HOST_EXECUTION,
+    )
+
+    assert admission.is_runtime_substrate is True
+    assert admission.core_runtime_dependency is False
+    assert admission.identity_authority == "NONE"
+    assert admission.source_authority == "NONE"
+    assert admission.effect_authorization == "EXTERNAL_DECISION_REQUIRED"
+
+
+def test_state_evidence_substrate_classification_does_not_become_memory_or_authority():
+    admission = ExternalProviderAdmission(
+        provider_id="external-state",
+        capability_classes=(
+            ExternalCapabilityClass.DATA_PROVIDER,
+            ExternalCapabilityClass.STORAGE_PROVIDER,
+        ),
+        provider_kind=ExternalProviderKind.STATE_EVIDENCE_SUBSTRATE,
+        substrate_role=ExternalSubstrateRole.STATE_EVIDENCE_COORDINATION,
+    )
+
+    assert admission.is_runtime_substrate is True
+    assert admission.core_runtime_dependency is False
+    assert admission.identity_authority == "NONE"
+    assert admission.source_authority == "NONE"
+
+
+@pytest.mark.parametrize(
+    ("provider_kind", "substrate_role"),
+    [
+        (ExternalProviderKind.HOST_EXECUTION_SUBSTRATE, ExternalSubstrateRole.NONE),
+        (
+            ExternalProviderKind.STATE_EVIDENCE_SUBSTRATE,
+            ExternalSubstrateRole.HOST_EXECUTION,
+        ),
+        (
+            ExternalProviderKind.EXTERNAL_CONNECTOR,
+            ExternalSubstrateRole.STATE_EVIDENCE_COORDINATION,
+        ),
+    ],
+)
+def test_substrate_role_must_match_provider_kind(provider_kind, substrate_role):
+    with pytest.raises(ValueError, match="substrate role"):
+        ExternalProviderAdmission(
+            provider_id="example",
+            capability_classes=(ExternalCapabilityClass.DATA_PROVIDER,),
+            provider_kind=provider_kind,
+            substrate_role=substrate_role,
+        )
