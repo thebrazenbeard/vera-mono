@@ -86,6 +86,7 @@ class VeraConsole:
             "  :status              source/runtime status\n"
             "  :tasks               task-ledger context when runtime-bound\n"
             "  :context             reconstructed runtime context when bound\n"
+            "  :capabilities        source-declared local capability registry\n"
             "  :identity            configured Vera identity\n"
             "  :meaning <text>      inspect candidate semantic/pragmatic reading\n"
             "  :help                show this help\n"
@@ -226,7 +227,7 @@ class VeraConsole:
                 InteractionTarget.UNKNOWN,
                 InteractionTarget.AMBIGUOUS,
             }
-            and envelope.speech_act is SpeechAct.ASSERTION
+            and not envelope.dispatch_permitted
         ):
             return ConsoleResponse(
                 f"NOT DISPATCHED — {envelope.target.value} was interpreted "
