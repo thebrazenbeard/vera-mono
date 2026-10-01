@@ -52,6 +52,7 @@ class InteractionEnvelope:
     resolved: bool
     action_requested: bool
     action_forbidden: bool
+    dispatch_permitted: bool
     truth_effect: str = "NONE"
     authorization_effect: str = "NONE"
     semantic_equivalence: str = "NOT_ESTABLISHED"
@@ -80,6 +81,7 @@ class InteractionEnvelope:
             "resolved": self.resolved,
             "action_requested": self.action_requested,
             "action_forbidden": self.action_forbidden,
+            "dispatch_permitted": self.dispatch_permitted,
             "truth_effect": self.truth_effect,
             "authorization_effect": self.authorization_effect,
             "semantic_equivalence": self.semantic_equivalence,
@@ -220,11 +222,14 @@ def _speech_act(
     text: str,
     *,
     target: InteractionTarget,
+    exact_control: bool,
 ) -> SpeechAct:
     if _CORRECTION_RE.search(text):
         return SpeechAct.CORRECTION
     if _GREETING_RE.match(text):
         return SpeechAct.GREETING
+    if exact_control:
+        return SpeechAct.REQUEST
     stripped = text.strip()
     if stripped.endswith("?") or re.match(
         r"^(?:what|who|where|when|why|how|is|are|do|does|can|could|would|will)\b",
@@ -232,9 +237,16 @@ def _speech_act(
         flags=re.I,
     ):
         return SpeechAct.QUESTION
-    if target not in {InteractionTarget.UNKNOWN, InteractionTarget.AMBIGUOUS}:
-        return SpeechAct.REQUEST
     if _REQUEST_RE.search(text):
+        return SpeechAct.REQUEST
+    if stripped.lower().rstrip(".!?") in {
+        "status",
+        "tasks",
+        "context",
+        "capabilities",
+        "help",
+        "identity",
+    }:
         return SpeechAct.REQUEST
     return SpeechAct.ASSERTION
 
@@ -278,7 +290,11 @@ def interpret_utterance(
         target = InteractionTarget.UNKNOWN
         resolved = False
 
-    act = _speech_act(normalized, target=target)
+    act = _speech_act(
+        normalized,
+        target=target,
+        exact_control=bool(exact),
+    )
     if act is SpeechAct.GREETING:
         resolved = True
         if target is InteractionTarget.UNKNOWN:
@@ -317,6 +333,18 @@ def interpret_utterance(
         }
         and not action_forbidden
     )
+    dispatch_permitted = (
+        target not in {
+            InteractionTarget.UNKNOWN,
+            InteractionTarget.AMBIGUOUS,
+        }
+        and act in {
+            SpeechAct.REQUEST,
+            SpeechAct.QUESTION,
+            SpeechAct.CORRECTION,
+        }
+        and not action_forbidden
+    )
 
     return InteractionEnvelope(
         interaction_id=_interaction_id(raw, previous_interaction_id),
@@ -333,4 +361,5 @@ def interpret_utterance(
         resolved=resolved,
         action_requested=action_requested,
         action_forbidden=action_forbidden,
+        dispatch_permitted=dispatch_permitted,
     )
