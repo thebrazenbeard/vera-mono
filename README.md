@@ -79,6 +79,21 @@ If an external dispatch becomes ambiguous, `EffectFence` records `ATTEMPTED_UNKN
 
 Independent falsification is deliberately different from internal assurance. Vera can contain DriftGuard-derived checking mechanisms while a separately executed DriftGuard remains useful specifically because it is outside Vera's own self-checking boundary.
 
+
+## Terminal chat
+
+The installed console entry point now has a conversational surface:
+
+```powershell
+vera-mono chat --base-url http://localhost:1234/v1 --model local-model
+```
+
+The command is shell-neutral and uses stdin/stdout, so the same interface works from PowerShell, Windows Terminal, cmd.exe, bash, zsh, and similar terminals. LM Studio, Ollama's OpenAI-compatible endpoint, or another compatible host can supply text generation. The generator is treated as an inference substrate, not as Vera identity/source/memory/effect authority.
+
+With no state arguments, the session runs in `SOURCE_ONLY` mode and loads the governed Vera identity and behavior resources from the installed package. To bind an existing local Vera runtime state, supply all three of `--state-root`, `--project-id`, and `--identity-id`; the command reconstructs `QualifiedVeraRuntime` and includes that exact resume context in the session prompt as `QUALIFIED_STATE_BOUND` evidence. State binding still does not mint protected-effect authority.
+
+Conversation history is process-local and ephemeral in V1. The terminal does not silently write canonical memory. A one-shot prompt can be supplied as a positional argument, and piped stdin is supported for scripting. Backend configuration can also come from `VERA_MODEL_BASE_URL`, `VERA_MODEL_NAME`, and `VERA_MODEL_API_KEY`; the API key is not persisted by the terminal interface.
+
 ## Status
 
 This is source architecture and local implementation. It does not, by source presence alone, claim deployment, provider activation, project installation, behavioral qualification, consciousness, phenomenology, or protected-effect authorization.
