@@ -15,20 +15,22 @@ $VeraExe = Join-Path $VenvRoot "Scripts\vera-mono.exe"
 if (-not (Test-Path $VenvPython)) {
     Write-Host "Creating local Vera Mono environment at $VenvRoot"
 
-    $py = Get-Command py -ErrorAction SilentlyContinue
-    if ($null -ne $py) {
-        & $py.Source -3.12 -m venv $VenvRoot
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    $pythonUsable = $false
+    if ($null -ne $python) {
+        & $python.Source -c "import sys; raise SystemExit(0 if sys.version_info >= (3,12) else 1)"
+        $pythonUsable = ($LASTEXITCODE -eq 0)
+    }
+
+    if ($pythonUsable) {
+        & $python.Source -m venv $VenvRoot
     }
     else {
-        $python = Get-Command python -ErrorAction SilentlyContinue
-        if ($null -eq $python) {
+        $py = Get-Command py -ErrorAction SilentlyContinue
+        if ($null -eq $py) {
             throw "Python 3.12+ is required. Install Python, then run .\vera.ps1 again."
         }
-        & $python.Source -c "import sys; raise SystemExit(0 if sys.version_info >= (3,12) else 1)"
-        if ($LASTEXITCODE -ne 0) {
-            throw "Python 3.12+ is required."
-        }
-        & $python.Source -m venv $VenvRoot
+        & $py.Source -3.12 -m venv $VenvRoot
     }
 
     if ($LASTEXITCODE -ne 0) {
