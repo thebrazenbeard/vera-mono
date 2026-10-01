@@ -2,7 +2,13 @@
 param(
     [switch]$Refresh,
 
-    [Parameter(ValueFromRemainingArguments = $true)]
+    [string]$StateRoot,
+
+    [string]$ProjectId,
+
+    [string]$IdentityId,
+
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$ConsoleArgs
 )
 
@@ -50,5 +56,22 @@ if (-not (Test-Path $VeraExe)) {
     throw "The Vera Mono console executable was not created at $VeraExe."
 }
 
-& $VeraExe shell @ConsoleArgs
+$ForwardArgs = @()
+if ($PSBoundParameters.ContainsKey("StateRoot")) {
+    $ForwardArgs += "--state-root"
+    $ForwardArgs += $StateRoot
+}
+if ($PSBoundParameters.ContainsKey("ProjectId")) {
+    $ForwardArgs += "--project-id"
+    $ForwardArgs += $ProjectId
+}
+if ($PSBoundParameters.ContainsKey("IdentityId")) {
+    $ForwardArgs += "--identity-id"
+    $ForwardArgs += $IdentityId
+}
+if ($null -ne $ConsoleArgs) {
+    $ForwardArgs += $ConsoleArgs
+}
+
+& $VeraExe shell @ForwardArgs
 exit $LASTEXITCODE
