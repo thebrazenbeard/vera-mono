@@ -69,3 +69,15 @@ def test_conflicting_targets_do_not_dispatch():
 def test_exit_sets_explicit_exit_flag():
     response = VeraConsole.source_only().dispatch(":exit")
     assert response.exit_requested is True
+
+
+def test_capabilities_reads_existing_repo_registry_without_runtime_claim():
+    response = VeraConsole.source_only().dispatch(":capabilities")
+    payload = json.loads(response.text)
+    ids = {item["capability_id"] for item in payload["capabilities"]}
+    assert "reasoning" in ids
+    assert "memory" in ids
+    assert all(
+        item["status"] == "SOURCE_DECLARED_NOT_RUNTIME_CONSUMPTION_PROOF"
+        for item in payload["capabilities"]
+    )
