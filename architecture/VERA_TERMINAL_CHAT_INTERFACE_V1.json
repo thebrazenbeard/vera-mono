@@ -3,37 +3,34 @@
   "status": "CANDIDATE_SOURCE_IMPLEMENTATION",
   "repository": "thebrazenbeard/vera-mono",
   "entrypoint": "vera-mono chat",
-  "purpose": "Provide a shell-neutral text interaction surface that presents Vera Mono as a conversational runtime while keeping the text-generation substrate separate from Vera identity, source authority, memory authority, and effect authority.",
+  "purpose": "Provide a shell-neutral text interaction surface driven by Vera Mono's own tokenizer, transformer weights, checkpoint loader, and next-token inference engine, with no external LLM text-generation backend.",
   "layers": {
     "interaction_surface": "vera_core.terminal_chat.TerminalChatSession",
     "governed_identity": "vera_identity resources",
     "runtime_state_optional": "vera_core.QualifiedVeraRuntime.resume_context",
-    "text_generation_substrate": "host-selected OpenAI-compatible chat-completions endpoint"
+    "text_generation_substrate": "vera_model.NativeTransformer"
   },
   "modes": {
     "SOURCE_ONLY": {
       "runtime_state_required": false,
-      "claims": "governed source identity and behavior only"
+      "claims": "governed source identity/behavior plus native checkpoint inference only"
     },
     "QUALIFIED_STATE_BOUND": {
       "runtime_state_required": true,
       "state_root": "existing VeraStateDirectory",
       "runtime_context": "reconstructed locally at session start",
-      "generator_projection": "privacy-bounded scalar metadata plus full-context digest only",
+      "model_projection": "privacy-bounded scalar metadata plus full-context digest only",
       "effect_authority_implied": false
     }
   },
-  "inference_substrate": {
-    "semantic_role": "COMPUTE_PROVIDER",
-    "identity_authority": "NONE",
-    "source_authority": "NONE",
-    "canonical_memory_authority": "NONE",
-    "effect_authority": "NONE",
-    "core_runtime_dependency": false,
-    "default_protocol": "OpenAI-compatible POST /chat/completions",
-    "api_key_persistence": false,
-    "api_key_default_source": "VERA_MODEL_API_KEY environment variable",
-    "raw_runtime_context_export": false
+  "native_model": {
+    "contract": "architecture/VERA_NATIVE_LANGUAGE_MODEL_V1.json",
+    "tokenizer": "VERA_NATIVE_BPE_TOKENIZER_V1",
+    "checkpoint": "VERA_NATIVE_TRANSFORMER_CHECKPOINT_V1",
+    "inference": "NumPy decoder-only causal transformer",
+    "external_llm_backend": false,
+    "external_model_server": false,
+    "pretrained_third_party_weights": false
   },
   "conversation": {
     "history": "EPHEMERAL_PROCESS_MEMORY",
@@ -57,11 +54,11 @@
     "other stdin/stdout terminals"
   ],
   "security": {
-    "credentials_in_command_line_required": false,
+    "credentials_required": false,
     "authorization_minted_by_chat": false,
     "protected_effect_execution": false,
-    "network_call_occurs_only_after_explicit_chat_invocation": true,
+    "network_required_for_generation": false,
     "durable_runtime_contents_implicitly_exported": false
   },
-  "claim_ceiling": "SOURCE_LEVEL_TERMINAL_INTERFACE_NOT_INSTALLATION_NOT_ROUTE_ACTIVATION_NOT_RUNTIME_CONSUMPTION_NOT_BEHAVIORAL_QUALIFICATION"
+  "claim_ceiling": "SOURCE_LEVEL_NATIVE_LANGUAGE_MODEL_AND_TERMINAL_WIRING_WITH_SMOKE_CHECKPOINT_NOT_USEFUL_LANGUAGE_COMPETENCE_NOT_INSTALLATION_NOT_ROUTE_ACTIVATION_NOT_RUNTIME_CONSUMPTION_NOT_BEHAVIORAL_QUALIFICATION"
 }
