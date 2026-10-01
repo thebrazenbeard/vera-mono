@@ -35,7 +35,7 @@ jobs:
           test "$(git check-attr eol -- packages/vera_control/src/vera_control/local_profile.py | awk '{print $3}')" = "lf"
           test "$(git check-attr eol -- packages/vera_runtime/src/runtime_cohesion/local_bindings.py | awk '{print $3}')" = "lf"
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip pytest jsonschema cryptography
+        run: python -m pip install --upgrade pip pytest jsonschema cryptography numpy
 
       - name: Run monorepo test suite
         run: python -m pytest -q
