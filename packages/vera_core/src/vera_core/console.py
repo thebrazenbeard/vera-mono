@@ -80,6 +80,28 @@ class VeraConsole:
         )
 
     @staticmethod
+    def _user_identity_text() -> str:
+        identity = load_json_resource(_IDENTITY_RESOURCE)
+        authority = identity.get("authority")
+        governed_by = (
+            authority.get("governed_by")
+            if isinstance(authority, dict)
+            else None
+        )
+        if isinstance(governed_by, str) and governed_by.strip():
+            return (
+                f"The governed Vera Mono source identifies you as "
+                f"{governed_by.strip()}, the human authority named by the "
+                "project. SOURCE_ONLY can report that source claim; it cannot "
+                "independently authenticate who is at the keyboard."
+            )
+        return (
+            "The governed Vera Mono source does not expose a usable human "
+            "identity name here. SOURCE_ONLY cannot independently authenticate "
+            "who is at the keyboard."
+        )
+
+    @staticmethod
     def _help_text() -> str:
         return (
             "Vera Mono console commands:\n"
@@ -91,6 +113,7 @@ class VeraConsole:
             "  :meaning <text>      inspect candidate semantic/pragmatic reading\n"
             "  :help                show this help\n"
             "  :exit                leave the console\n"
+            "  exit / quit / end / bye / /exit also leave the console\n"
             "Natural-language aliases such as 'what is your status?' are "
             "interpreted conservatively. Unrecognized language is preserved "
             "as unresolved rather than guessed."
@@ -246,6 +269,8 @@ class VeraConsole:
             return ConsoleResponse(self._help_text(), envelope)
         if envelope.target is InteractionTarget.IDENTITY:
             return ConsoleResponse(self._identity_text(), envelope)
+        if envelope.target is InteractionTarget.USER_IDENTITY:
+            return ConsoleResponse(self._user_identity_text(), envelope)
         if envelope.target is InteractionTarget.STATUS:
             return ConsoleResponse(self._status_text(), envelope)
         if envelope.target is InteractionTarget.TASKS:
@@ -273,6 +298,8 @@ class VeraConsole:
                 f"{targets}. Nothing was dispatched.",
                 envelope,
             )
+        if envelope.speech_act is SpeechAct.INVOCATION:
+            return ConsoleResponse("I'm here.", envelope)
         if envelope.speech_act is SpeechAct.GREETING:
             return ConsoleResponse(
                 "Hey. This is the Vera Mono repository-native console. "
