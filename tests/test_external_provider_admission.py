@@ -171,3 +171,34 @@ def test_capability_mesh_covers_required_semantic_domains_without_duplicate_owne
         assert domain["implementation"]
         assert domain["authority_owner"]
         assert domain["status"]
+
+
+def test_provider_admission_contract_and_manifest_are_bound():
+    root = Path(__file__).resolve().parents[1]
+    contract = json.loads(
+        (root / "architecture" / "VERA_EXTERNAL_PROVIDER_ADMISSION_V1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    manifest = json.loads(
+        (root / "architecture" / "VERA_MONO_MANIFEST_V1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert contract["implementation"] == (
+        "packages/vera_core/src/vera_core/external_provider_admission.py"
+    )
+    assert contract["composition"]["provider_specific_names_in_core_contract"] is False
+    assert contract["invariants"]["provider_admission_may_create_core_runtime_dependency"] is False
+    assert contract["invariants"]["availability_may_imply_effect_authority"] is False
+
+    provider = manifest["external_provider_admission"]
+    assert provider["contract"] == "architecture/VERA_EXTERNAL_PROVIDER_ADMISSION_V1.json"
+    assert provider["implementation"] == "vera_core.external_provider_admission"
+    assert provider["core_runtime_dependency_created_by_admission"] is False
+    assert provider["effect_authority_created_by_admission"] is False
+
+    mesh = manifest["capability_mesh"]
+    assert mesh["contract"] == "architecture/VERA_CAPABILITY_MESH_V1.json"
+    assert mesh["semantic_owner_map_is_runtime_registry"] is False
