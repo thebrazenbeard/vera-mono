@@ -12,25 +12,25 @@ $VenvRoot = Join-Path $RepoRoot ".venv"
 $VenvPython = Join-Path $VenvRoot "Scripts\python.exe"
 $VeraExe = Join-Path $VenvRoot "Scripts\vera-mono.exe"
 
-function Invoke-HostPython {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+if (-not (Test-Path $VenvPython)) {
+    Write-Host "Creating local Vera Mono environment at $VenvRoot"
 
     $py = Get-Command py -ErrorAction SilentlyContinue
     if ($null -ne $py) {
-        & $py.Source -3.12 @Arguments
-        return
+        & $py.Source -3.12 -m venv $VenvRoot
+    }
+    else {
+        $python = Get-Command python -ErrorAction SilentlyContinue
+        if ($null -eq $python) {
+            throw "Python 3.12+ is required. Install Python, then run .\vera.ps1 again."
+        }
+        & $python.Source -c "import sys; raise SystemExit(0 if sys.version_info >= (3,12) else 1)"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Python 3.12+ is required."
+        }
+        & $python.Source -m venv $VenvRoot
     }
 
-    $python = Get-Command python -ErrorAction SilentlyContinue
-    if ($null -eq $python) {
-        throw "Python 3.12+ is required. Install Python, then run .\vera.ps1 again."
-    }
-    & $python.Source @Arguments
-}
-
-if (-not (Test-Path $VenvPython)) {
-    Write-Host "Creating local Vera Mono environment at $VenvRoot"
-    Invoke-HostPython -m venv $VenvRoot
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to create the local Vera Mono virtual environment."
     }
