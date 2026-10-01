@@ -101,14 +101,15 @@ _EXACT_COMMANDS = {
 }
 
 _HEDGE_RE = re.compile(r"\b(maybe|perhaps|possibly|probably|might|could)\b", re.I)
+_HEDGE_PREFIX = r"(?:(?:maybe|perhaps|possibly|probably|might)\s+)?"
 _ACTION_VERBS = r"(?:show|list|tell|give|display|inspect|open|explain)"
 _DEONTIC_NEGATION_PATTERNS = (
     re.compile(
-        rf"^\s*(?:please\s+)?(?P<cue>do not|don't|dont|never)\s+{_ACTION_VERBS}\b",
+        rf"^\s*{_HEDGE_PREFIX}(?:please\s+)?(?P<cue>do not|don't|dont|never)\s+{_ACTION_VERBS}\b",
         re.I,
     ),
     re.compile(
-        rf"^\s*(?:can|could|would|will)\s+you\s+(?P<cue>not|never)\s+{_ACTION_VERBS}\b",
+        rf"^\s*{_HEDGE_PREFIX}(?:can|could|would|will)\s+you\s+(?P<cue>not|never)\s+{_ACTION_VERBS}\b",
         re.I,
     ),
 )
@@ -121,7 +122,7 @@ _GREETING_RE = re.compile(
     re.I,
 )
 _REQUEST_RE = re.compile(
-    r"^\s*(?:please\s+)?(?:show|list|tell|give|display|inspect|open|explain)\b",
+    rf"^\s*{_HEDGE_PREFIX}(?:please\s+)?{_ACTION_VERBS}\b",
     re.I,
 )
 
