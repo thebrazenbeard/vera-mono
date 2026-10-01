@@ -39,6 +39,7 @@
       ":status",
       ":tasks",
       ":context",
+      ":capabilities",
       ":identity",
       ":meaning <text>",
       ":help",
