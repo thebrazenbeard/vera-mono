@@ -106,3 +106,13 @@ def test_modal_action_negation_blocks_dispatch():
     assert env.negation_cues == ("not",)
     assert env.action_forbidden is True
     assert env.dispatch_permitted is False
+
+
+def test_hedged_modal_negation_preserves_prohibition_scope():
+    env = interpret_utterance("maybe can you not show me the status?")
+    assert env.target is InteractionTarget.STATUS
+    assert env.speech_act is SpeechAct.QUESTION
+    assert "maybe" in env.hedges
+    assert env.negation_cues == ("not",)
+    assert env.action_forbidden is True
+    assert env.dispatch_permitted is False
