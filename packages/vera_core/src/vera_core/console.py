@@ -221,6 +221,20 @@ class VeraConsole:
                 envelope,
             )
 
+        if (
+            envelope.target not in {
+                InteractionTarget.UNKNOWN,
+                InteractionTarget.AMBIGUOUS,
+            }
+            and envelope.speech_act is SpeechAct.ASSERTION
+        ):
+            return ConsoleResponse(
+                f"NOT DISPATCHED — {envelope.target.value} was interpreted "
+                "as a referenced subject inside an assertion, not as a "
+                "question, request, correction, or exact console command.",
+                envelope,
+            )
+
         if envelope.target is InteractionTarget.EXIT:
             return ConsoleResponse(
                 "Leaving Vera Mono console.",
