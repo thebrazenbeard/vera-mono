@@ -116,3 +116,58 @@ def test_provider_roles_must_be_exact_and_nonduplicated():
             provider_id="example",
             capability_classes=("DATA_PROVIDER",),  # type: ignore[arg-type]
         )
+
+
+def test_capability_mesh_covers_required_semantic_domains_without_duplicate_owners():
+    mesh_path = (
+        Path(__file__).resolve().parents[1]
+        / "architecture"
+        / "VERA_CAPABILITY_MESH_V1.json"
+    )
+    payload = json.loads(mesh_path.read_text(encoding="utf-8"))
+    ids = [item["id"] for item in payload["domains"]]
+
+    assert len(ids) == len(set(ids))
+    assert {
+        "identity_self_model",
+        "current_memory",
+        "deep_historical_memory",
+        "provenance",
+        "semantics",
+        "pragmatics",
+        "reasoning",
+        "metacognition",
+        "planning",
+        "salience_attention",
+        "affect",
+        "conation_motivation",
+        "homeostasis_interoception_analogues",
+        "temporal_state",
+        "learning_adaptation",
+        "continual_learning",
+        "behavior_generation",
+        "io",
+        "ingestion",
+        "coordination",
+        "recovery",
+        "runtime",
+        "authorization_effect_control",
+        "security",
+        "external_tools",
+        "workstation_interaction",
+        "multi_device_transport",
+        "databases_state_stores",
+        "model_provider_abstraction",
+        "qualification",
+        "regression_protection",
+        "error_correction",
+        "adversarial_review",
+        "evidence_custody",
+        "project_orchestration",
+    }.issubset(ids)
+
+    for domain in payload["domains"]:
+        assert domain["semantic_owner"]
+        assert domain["implementation"]
+        assert domain["authority_owner"]
+        assert domain["status"]
