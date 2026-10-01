@@ -7,7 +7,10 @@ name = "vera-mono"
 version = "0.1.0"
 requires-python = ">=3.12"
 description = "Self-contained Vera monorepo"
-dependencies = ["jsonschema>=4.0", "cryptography>=43.0"]
+dependencies = ["jsonschema>=4.0", "cryptography>=43.0", "numpy>=1.26"]
+
+[project.optional-dependencies]
+model-training = ["torch>=2.5"]
 
 [project.scripts]
 vera-mono = "vera_core.cli:main"
@@ -29,6 +32,7 @@ where = [
   "packages/vera_pc_connection/src",
   "packages/vera_control/src",
   "packages/vera_recovery/src",
+  "packages/vera_model/src",
 ]
 include = [
   "vera_core*",
@@ -46,6 +50,7 @@ include = [
   "vera_control*",
   "r8a0*",
   "vera_recovery*",
+  "vera_model*",
 ]
 
 [tool.setuptools.package-data]
@@ -69,5 +74,6 @@ pythonpath = [
   "packages/vera_pc_connection/src",
   "packages/vera_control/src",
   "packages/vera_recovery/src",
+  "packages/vera_model/src",
 ]
 testpaths = ["tests"]
