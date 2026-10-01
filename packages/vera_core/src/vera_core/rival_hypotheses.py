@@ -1,6 +1,6 @@
 """Evidence-bound rival-hypothesis resolution.
 
-Adapted from thebrazenbeard/voss@36a623d3a158e5aef521d42e378bafacd67d3de5.
+Adapted from the portfolio Voss forensic mechanism; exact donor binding lives in provenance.
 The mechanism keeps multiple live explanations explicit, deduplicates support
 by independence group, allows contradiction to eliminate a declared rival, and
 returns a concrete discrimination requirement instead of manufacturing closure.
