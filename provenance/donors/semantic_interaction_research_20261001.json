@@ -61,5 +61,12 @@
     "adopted_for_v1": false,
     "reason": "SPECIALIST_ROUTING_DOES_NOT_SOLVE_DIRECT_SEMANTIC_INTERACTION_AND_WOULD_ADD_AN_UNNECESSARY_CONTROL_LAYER"
   },
-  "authority_rule": "Research or interpretation cannot mint truth, canon, memory admission, runtime currentness, or protected-effect authority."
+  "authority_rule": "Research or interpretation cannot mint truth, canon, memory admission, runtime currentness, or protected-effect authority.",
+  "existing_vera_native_semantic_components": {
+    "semantic_knowledge": "packages/vera_identity/src/vera_identity/semantic_knowledge.py",
+    "contextual_interpretation": "packages/vera_identity/src/vera_identity/contextual_interpretation.py",
+    "semantic_transfer": "packages/vera_core/src/vera_core/semantic_transfer.py",
+    "reasoning_cascade": "packages/vera_core/src/vera_core/reasoning_cascade.py",
+    "integration_rule": "REUSE_AND_COMPOSE_EXISTING_VERA_NATIVE_MECHANISMS_DO_NOT_REIMPLEMENT_THEIR_AUTHORITY"
+  }
 }
