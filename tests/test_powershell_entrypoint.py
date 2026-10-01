@@ -28,3 +28,8 @@ def test_powershell_entrypoint_has_no_external_model_server_configuration():
     assert "--model" not in text
     assert "--base-url" not in text
     assert "api_key" not in text
+
+
+def test_local_console_environment_is_ignored_by_git():
+    ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert ".venv/" in ignore
