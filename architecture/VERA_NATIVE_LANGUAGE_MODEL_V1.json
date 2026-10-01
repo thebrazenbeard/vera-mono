@@ -1,0 +1,65 @@
+{
+  "schema": "VERA_NATIVE_LANGUAGE_MODEL_V1",
+  "status": "CANDIDATE_SOURCE_IMPLEMENTATION",
+  "repository": "thebrazenbeard/vera-mono",
+  "package": "vera_model",
+  "objective": "Make Vera Mono capable of next-token language generation from a Vera-owned tokenizer, architecture, checkpoint, and inference engine without delegating generation to another LLM.",
+  "tokenizer": {
+    "schema": "VERA_NATIVE_BPE_TOKENIZER_V1",
+    "family": "byte-level byte-pair encoding",
+    "base_byte_ids": 256,
+    "pretrained_vocabulary": false,
+    "arbitrary_utf8_roundtrip": true
+  },
+  "architecture": {
+    "family": "decoder-only causal transformer",
+    "token_embeddings": "learned",
+    "position_embeddings": "learned absolute",
+    "normalization": "pre-LayerNorm",
+    "attention": "causal multi-head self-attention",
+    "mlp": "GELU",
+    "residual_connections": true,
+    "language_head": "token-embedding tied"
+  },
+  "inference": {
+    "implementation": "packages/vera_model/src/vera_model/model.py",
+    "numerical_runtime": "NumPy",
+    "network_required": false,
+    "next_token_sampling": [
+      "greedy",
+      "temperature",
+      "top-k"
+    ],
+    "kv_cache": false,
+    "quantization": false
+  },
+  "training": {
+    "implementation": "packages/vera_model/src/vera_model/training.py",
+    "autograd_runtime": "optional PyTorch",
+    "pretrained_third_party_model": false,
+    "pretrained_third_party_weights": false,
+    "output_checkpoint": "safe NumPy .npz with allow_pickle=false",
+    "output_tokenizer": "VERA_NATIVE_BPE_TOKENIZER_V1 JSON"
+  },
+  "bootstrap_checkpoint": {
+    "purpose": "SMOKE_CHECKPOINT_ONLY",
+    "parameter_count": 620,
+    "vocab_size": 264,
+    "context_length": 16,
+    "n_layer": 1,
+    "n_head": 1,
+    "n_embd": 2,
+    "checkpoint_sha256": "87ed1e995a4df004cf9a6178418ccd0e5b2647332f7d075d02bcd236edf5f5cf",
+    "tokenizer_sha256": "24b1ce36234fa5011df07ac42c5600da3cc86d543fa2c1ce7a3fc46b8fe666c0",
+    "useful_language_competence_claimed": false,
+    "role": "prove package-resource loading, tokenizer/checkpoint compatibility, transformer execution, and autoregressive next-token generation"
+  },
+  "lifecycle_boundary": {
+    "source_presence_is_installation": false,
+    "installed_package_is_selected_route": false,
+    "selected_route_is_runtime_consumption": false,
+    "runtime_consumption_is_behavioral_qualification": false,
+    "model_output_is_identity_authority": false,
+    "model_output_is_effect_authority": false
+  }
+}
