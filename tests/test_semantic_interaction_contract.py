@@ -53,3 +53,12 @@ def test_interaction_layer_composes_existing_semantic_planes_without_replacing_t
     assert planes["contextual_interpretation"]["replaced_by_interaction_envelope"] is False
     assert planes["interaction_semantics"]["durable_semantic_authority"] is False
     assert planes["relationship"] == "COMPLEMENTARY_LAYERS_NOT_COMPETING_AUTHORITIES"
+
+
+def test_contract_records_basic_shell_dialogue_without_identity_overclaim():
+    contract = _load("architecture/VERA_SEMANTIC_INTERACTION_INTERFACE_V1.json")
+    console = contract["console"]
+    assert "exit" in console["shell_native_exit_aliases"]
+    assert "/exit" in console["shell_native_exit_aliases"]
+    assert console["direct_invocation"] == "vera"
+    assert console["user_identity_query"]["keyboard_identity_authenticated"] is False
