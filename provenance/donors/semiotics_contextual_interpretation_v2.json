@@ -1,0 +1,24 @@
+{
+  "schema": "VERA_MONO_DONOR_PROVENANCE_V1",
+  "donor_repository": "thebrazenbeard/semiotics",
+  "donor_exact_head": "37117a2097f7f2aa35968fc9db24eacf7240826e",
+  "donor_paths": [
+    "src/semiotics/model.py",
+    "src/semiotics/engine.py"
+  ],
+  "adapted_target": "packages/vera_core/src/vera_core/contextual_interpretation.py",
+  "mechanism": [
+    "source-bound competing readings",
+    "required and excluded context predicates",
+    "deterministic specificity ordering without confidence promotion",
+    "append-only supersession with cycle rejection",
+    "source-bound relation metadata that does not change matching"
+  ],
+  "adaptation_notes": [
+    "Vera-native subject_id replaces the donor sign registry to avoid duplicating semantic ownership",
+    "source_ref remains opaque provenance and is not promoted into truth or authority",
+    "no corpus content is copied"
+  ],
+  "runtime_dependency": false,
+  "claim_ceiling": "SOURCE_LEVEL_CONTEXTUAL_INTERPRETATION_PRIMITIVE_ONLY"
+}
