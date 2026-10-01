@@ -77,6 +77,8 @@ def test_negative_request_preserves_target_but_denies_dispatch():
     assert "do not" in env.negation_cues
 
 
-def test_embedded_colon_command_is_not_exact_control_syntax():
+def test_embedded_colon_command_is_not_exact_control_syntax_or_dispatch():
     env = interpret_utterance("the string :status is an example")
     assert env.fidelity is not TransferFidelity.EXACT
+    assert env.speech_act is SpeechAct.ASSERTION
+    assert env.dispatch_permitted is False
