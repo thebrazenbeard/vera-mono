@@ -57,7 +57,24 @@
     "natural_language_aliases": "BOUNDED_CONSERVATIVE",
     "ambiguous_control_input": "NO_DISPATCH",
     "unresolved_free_form_input": "PRESERVED_NO_GUESS",
-    "diagnostic_operand_isolation": true
+    "diagnostic_operand_isolation": true,
+    "shell_native_exit_aliases": [
+      "exit",
+      "quit",
+      "end",
+      "bye",
+      "/exit",
+      "/quit"
+    ],
+    "direct_invocation": "vera",
+    "user_identity_query": {
+      "examples": [
+        "Who am I?",
+        "what is my name?"
+      ],
+      "source": "VERA_PROJECT_IDENTITY_V1.authority.governed_by",
+      "keyboard_identity_authenticated": false
+    }
   },
   "runtime": {
     "preferred_boundary": "vera_core.QualifiedVeraRuntime",

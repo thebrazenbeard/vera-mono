@@ -116,3 +116,25 @@ def test_hedged_modal_negation_preserves_prohibition_scope():
     assert env.negation_cues == ("not",)
     assert env.action_forbidden is True
     assert env.dispatch_permitted is False
+
+
+def test_shell_native_exit_aliases_are_exact_controls():
+    for text in ("exit", "quit", "end", "bye", "/exit", "/quit", ":exit", ":quit"):
+        env = interpret_utterance(text)
+        assert env.target is InteractionTarget.EXIT, text
+        assert env.fidelity is TransferFidelity.EXACT, text
+        assert env.dispatch_permitted is True, text
+
+
+def test_vera_alone_is_an_invocation_not_unresolved_prose():
+    env = interpret_utterance("vera")
+    assert env.speech_act is SpeechAct.INVOCATION
+    assert env.resolved is True
+    assert env.target is InteractionTarget.UNKNOWN
+
+
+def test_who_am_i_targets_governed_user_identity():
+    env = interpret_utterance("Who am I?")
+    assert env.target is InteractionTarget.USER_IDENTITY
+    assert env.speech_act is SpeechAct.QUESTION
+    assert env.dispatch_permitted is True
