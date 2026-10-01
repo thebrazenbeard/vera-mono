@@ -20,42 +20,26 @@ MODULES = (
     "vera_control",
     "r8a0",
     "vera_recovery",
+    "vera_model",
+    "vera_model.model",
 )
 
 RESOURCES = (
-    (
-        "ingest",
-        "resources/schemas/ingest-record-v1.schema.json",
-    ),
+    ("ingest", "resources/schemas/ingest-record-v1.schema.json"),
     (
         "vera_control",
-        (
-            "resources/architecture/control/vendor/vera-control-plane/"
-            "VERA_R10A0_PROJECT_SOURCE_MANIFEST_R10.json"
-        ),
+        "resources/architecture/control/vendor/vera-control-plane/VERA_R10A0_PROJECT_SOURCE_MANIFEST_R10.json",
     ),
-    (
-        "vera_identity",
-        "resources/architecture/identity/VERA_PROJECT_IDENTITY_V1.json",
-    ),
+    ("vera_identity", "resources/architecture/identity/VERA_PROJECT_IDENTITY_V1.json"),
     (
         "vera_memory",
-        (
-            "resources/architecture/integration/"
-            "VERA_DEEP_MEMORY_ARCHIVE_INTEGRATION_V1.json"
-        ),
+        "resources/architecture/integration/VERA_DEEP_MEMORY_ARCHIVE_INTEGRATION_V1.json",
     ),
-    (
-        "runtime_cohesion",
-        "resources/ORGASM_RUNTIME_CONTRACT_V1.json",
-    ),
-    (
-        "vera_assurance",
-        (
-            "resources/architecture/"
-            "VERA_DRIFTGUARD_TRANSFERABILITY_V1.json"
-        ),
-    ),
+    ("runtime_cohesion", "resources/ORGASM_RUNTIME_CONTRACT_V1.json"),
+    ("vera_assurance", "resources/architecture/VERA_DRIFTGUARD_TRANSFERABILITY_V1.json"),
+    ("vera_model", "resources/bootstrap/tokenizer.json"),
+    ("vera_model", "resources/bootstrap/model.npz.b64.00"),
+    ("vera_model", "resources/bootstrap/TRAINING_RECEIPT.json"),
 )
 
 
@@ -64,22 +48,16 @@ def main() -> int:
     for module_name in MODULES:
         module = import_module(module_name)
         if not getattr(module, "__file__", None):
-            raise SystemExit(
-                f"installed bundle import has no file: {module_name}"
-            )
+            raise SystemExit(f"installed bundle import has no file: {module_name}")
         imported.append(module_name)
 
     checked = []
     for package, relative in RESOURCES:
         target = resources.files(package).joinpath(*relative.split("/"))
         if not target.is_file():
-            raise SystemExit(
-                f"installed bundle is missing resource: {package}/{relative}"
-            )
+            raise SystemExit(f"installed bundle is missing resource: {package}/{relative}")
         if not target.read_bytes():
-            raise SystemExit(
-                f"installed bundle resource is empty: {package}/{relative}"
-            )
+            raise SystemExit(f"installed bundle resource is empty: {package}/{relative}")
         checked.append(f"{package}/{relative}")
 
     print(
