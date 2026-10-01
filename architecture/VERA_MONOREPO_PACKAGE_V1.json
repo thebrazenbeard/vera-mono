@@ -24,7 +24,8 @@
     "pc_connection",
     "vera_control",
     "r8a0",
-    "vera_recovery"
+    "vera_recovery",
+    "vera_model"
   ],
   "resources": {
     "packaged": true,
@@ -34,7 +35,10 @@
       "vera_memory/resources/architecture/integration/VERA_DEEP_MEMORY_ARCHIVE_INTEGRATION_V1.json",
       "runtime_cohesion/resources/ORGASM_RUNTIME_CONTRACT_V1.json",
       "vera_assurance/resources/architecture/VERA_DRIFTGUARD_TRANSFERABILITY_V1.json",
-      "ingest/resources/schemas/ingest-record-v1.schema.json"
+      "ingest/resources/schemas/ingest-record-v1.schema.json",
+      "vera_model/resources/bootstrap/model.npz.b64.00",
+      "vera_model/resources/bootstrap/tokenizer.json",
+      "vera_model/resources/bootstrap/TRAINING_RECEIPT.json"
     ],
     "top_level_repository_architecture_docs_in_wheel": false
   },
@@ -59,9 +63,14 @@
     "code_from_local_package_roots": true,
     "external_python_dependency": [
       "jsonschema>=4.0",
-      "cryptography>=43.0"
+      "cryptography>=43.0",
+      "numpy>=1.26"
     ],
-    "external_provider_infrastructure_allowed_via_local_adapters": true
+    "external_provider_infrastructure_allowed_via_local_adapters": true,
+    "optional_training_dependency": [
+      "torch>=2.5"
+    ],
+    "pretrained_third_party_weights_required": false
   },
   "boundaries": {
     "wheel_build_pass_is_not_installation": true,
