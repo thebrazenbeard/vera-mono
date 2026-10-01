@@ -259,9 +259,9 @@
         "packages/vera_runtime/src/protocol/initiative_kernel.py",
         "packages/vera_runtime/src/runtime_cohesion/salience_control.py"
       ],
-      "state_owner": "runtime initiative/salience state",
-      "authority_owner": "initiative cannot grant protected-effect authority",
-      "status": "PARTIAL_NO_DEDICATED_CONATION_HISTORY_OWNER",
+      "state_owner": "present stance remains runtime-local; durable historical conation evidence stays external unless separately admitted through governed memory",
+      "authority_owner": "fresh generated/configured stance outranks historical records; history creates no consent, obligation, task, or effect authority",
+      "status": "PRESENT_STATE_RUNTIME_BOUND; HISTORICAL_CONATION_WORKSPACE_INTENTIONALLY_KEEP_SEPARATE",
       "strengtheners": [
         "conations",
         "meso-crct"
@@ -857,7 +857,14 @@
     "Draft PR #64 owns the current whole-portfolio V17 census and Voss rival-hypothesis adaptation.",
     "Draft PR #65 owns provider-neutral external connector admission and the dated V2 connector observation.",
     "WorkBridge/Commander remain external workstation transport/provider infrastructure; copying their transport implementation into Vera Mono would duplicate ownership.",
-    "Independent review remains outside Vera's internal assurance semantics even when verification adapters exist locally."
+    "Independent review remains outside Vera's internal assurance semantics even when verification adapters exist locally.",
+    "Fresh review of conations@51948aac796936f0e7c437722e6f52c883e544e9 confirms its append-only history is intentionally non-authoritative and mechanically overlaps vera_memory; no duplicate conation database is admitted."
   ],
-  "claim_ceiling": "SOURCE_TREE_CAPABILITY_OWNERSHIP_MAP_AND_CANDIDATE_STRENGTHENERS; NOT_LIVE_INSTALLATION; NOT_ROUTE; NOT_RUNTIME_CONSUMPTION; NOT_BEHAVIORAL_QUALIFICATION; NOT_DEPLOYMENT; NOT_CONSCIOUSNESS"
+  "claim_ceiling": "SOURCE_TREE_CAPABILITY_OWNERSHIP_MAP_AND_CANDIDATE_STRENGTHENERS; NOT_LIVE_INSTALLATION; NOT_ROUTE; NOT_RUNTIME_CONSUMPTION; NOT_BEHAVIORAL_QUALIFICATION; NOT_DEPLOYMENT; NOT_CONSCIOUSNESS",
+  "hostile_review": {
+    "subject": "CONATION_HISTORY_OWNERSHIP",
+    "objection": "Treating the absence of a dedicated Vera Mono conation ledger as a gap assumes persistence is beneficial even though conations explicitly forbids stored history from manufacturing present wants.",
+    "disposition": "ACCEPTED",
+    "resolution": "Keep present conation in runtime stance semantics; keep the conations repository as historical/domain evidence and reuse governed memory mechanics only when an explicit admission is independently justified. Do not create a second conation state store."
+  }
 }
