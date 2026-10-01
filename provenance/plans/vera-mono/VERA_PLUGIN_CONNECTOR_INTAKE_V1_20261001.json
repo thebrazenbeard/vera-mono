@@ -17,8 +17,10 @@
   },
   "implementation": [
     "packages/vera_core/src/vera_core/external_provider_admission.py",
+    "architecture/VERA_EXTERNAL_PROVIDER_ADMISSION_V1.json",
     "architecture/VERA_EXPOSED_PLUGIN_CONNECTOR_SURFACE_V2.json",
     "architecture/VERA_CAPABILITY_MESH_V1.json",
+    "architecture/VERA_MONO_MANIFEST_V1.json",
     "tests/test_external_provider_admission.py"
   ],
   "semantic_guards": [
@@ -47,11 +49,13 @@
     "destructive_state_change": false
   },
   "verification": {
-    "github_readback": "PASS through branch head 147f51b9930be6633013c4cf0dace279c89bf7a8 before this record update",
+    "github_readback": "PASS through branch commits preceding this provenance update",
+    "manifest_binding_test": "IMPLEMENTED",
+    "capability_mesh_coverage_test": "IMPLEMENTED",
     "ci": "RUNNING_ON_DRAFT_PR_65"
   },
   "claim_ceiling": "SOURCE_LEVEL_PROVIDER_ADMISSION_AND_DATED_CONNECTOR_CLASSIFICATION_ONLY; NOT_CONNECTION_HEALTH; NOT_RUNTIME_ACTIVATION; NOT_BEHAVIORAL_QUALIFICATION; NOT_INDEPENDENT_REVIEW; NOT_DEPLOYMENT",
-  "next_frontier": "If CI is green, inspect whether a concrete consumer justifies binding one provider. Otherwise keep providers external and use the capability mesh to select the next non-duplicative gap.",
+  "next_frontier": "Read latest exact-head CI. If green, this bounded provider/capability-mesh unit is source-verified enough to stop without inventing a provider consumer. Subsequent concrete provider bindings require an actual Vera consumer and separate runtime evidence.",
   "hostile_review_conation": {
     "source_repo": "thebrazenbeard/conations",
     "exact_main": "51948aac796936f0e7c437722e6f52c883e544e9",
