@@ -89,3 +89,20 @@ def test_meaning_operator_treats_remainder_as_diagnostic_operand():
     assert env.target is InteractionTarget.MEANING
     assert env.fidelity is TransferFidelity.EXACT
     assert env.resolved is True
+
+
+def test_epistemic_negation_does_not_become_deontic_prohibition():
+    env = interpret_utterance("I don't know your status")
+    assert env.target is InteractionTarget.STATUS
+    assert env.speech_act is SpeechAct.ASSERTION
+    assert env.negation_cues == ()
+    assert env.action_forbidden is False
+    assert env.dispatch_permitted is False
+
+
+def test_modal_action_negation_blocks_dispatch():
+    env = interpret_utterance("can you not show me the status?")
+    assert env.target is InteractionTarget.STATUS
+    assert env.negation_cues == ("not",)
+    assert env.action_forbidden is True
+    assert env.dispatch_permitted is False
