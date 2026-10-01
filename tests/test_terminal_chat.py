@@ -31,18 +31,21 @@ def test_source_only_prompt_loads_governed_identity_and_behavior():
     assert "Do not claim installation" in prompt
 
 
-def test_runtime_bound_prompt_preserves_evidence_boundary_and_digest():
+def test_runtime_bound_prompt_preserves_evidence_boundary_and_privacy():
     prompt = build_terminal_system_prompt(
         runtime_context={
             "status": "ACCEPTED_CURRENT",
             "accepted_runtime_id": "runtime-test",
+            "tasks": {"private_payload": "DO_NOT_EXPORT_THIS"},
         }
     )
 
     assert "terminal_mode=QUALIFIED_STATE_BOUND" in prompt
-    assert "runtime_context_sha256=" in prompt
+    assert '"full_context_sha256":"' in prompt
     assert '"status":"ACCEPTED_CURRENT"' in prompt
     assert "not as permission for new external effects" in prompt
+    assert "DO_NOT_EXPORT_THIS" not in prompt
+    assert "private_payload" not in prompt
 
 
 def test_terminal_session_keeps_ephemeral_history_and_clear():
