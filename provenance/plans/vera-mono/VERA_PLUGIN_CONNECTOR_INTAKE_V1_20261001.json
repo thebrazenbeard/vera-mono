@@ -1,0 +1,54 @@
+{
+  "schema": "VERA_PLUGIN_CONNECTOR_INTAKE_V1_20261001",
+  "status": "IMPLEMENTED_SOURCE_LEVEL_PENDING_CI",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "base_main": "413397e51bce35d0a36f00cf0ca2c876ca720b44",
+  "branch": "feature/external-provider-admission-v1-20261001",
+  "purpose": "Add a provider-neutral semantic admission boundary for external connectors and refresh the dated exposed connector/tool surface without creating runtime coupling or authority.",
+  "collision_check": {
+    "open_pr_64": "whole-portfolio census and rival-hypothesis resolution; overlapping vera_core/__init__.py intentionally avoided",
+    "open_pr_63": "wheel dependency ceiling; no overlapping paths",
+    "result": "NON_COLLIDING_PATH_SET"
+  },
+  "hostile_review": {
+    "objection": "Hard-coding ChatGPT plugins into Vera core would fossilize a fast-changing product surface and turn visibility into architecture.",
+    "disposition": "ACCEPTED",
+    "correction": "Keep the core implementation provider-neutral and immutable; keep named providers only in a dated observation catalog."
+  },
+  "implementation": [
+    "packages/vera_core/src/vera_core/external_provider_admission.py",
+    "architecture/VERA_EXPOSED_PLUGIN_CONNECTOR_SURFACE_V2.json",
+    "tests/test_external_provider_admission.py"
+  ],
+  "semantic_guards": [
+    "external provider cannot become Vera core runtime dependency",
+    "external provider cannot own Vera identity",
+    "external provider cannot become Vera source authority",
+    "provider visibility cannot imply effect authority",
+    "action capability classification is descriptive, not permission",
+    "duplicate provider identities are rejected deterministically"
+  ],
+  "observations": {
+    "live_exposed_tool_namespaces": 39,
+    "admission_records": 40,
+    "supplied_but_not_distinct_live_namespace": [
+      "Life Science Research"
+    ]
+  },
+  "protected_effects": {
+    "merge": false,
+    "deploy": false,
+    "install": false,
+    "activate_or_cutover": false,
+    "credential_or_permission_change": false,
+    "provider_mutation": false,
+    "paid_compute": false,
+    "destructive_state_change": false
+  },
+  "verification": {
+    "github_readback": "PASS at branch head 059267a9a955a8ef90273edf0ea38da27671b0e4 before this record commit",
+    "ci": "PENDING"
+  },
+  "claim_ceiling": "SOURCE_LEVEL_PROVIDER_ADMISSION_AND_DATED_CONNECTOR_CLASSIFICATION_ONLY; NOT_CONNECTION_HEALTH; NOT_RUNTIME_ACTIVATION; NOT_BEHAVIORAL_QUALIFICATION; NOT_INDEPENDENT_REVIEW; NOT_DEPLOYMENT",
+  "next_frontier": "After CI, bind specific providers only when a concrete Vera consumer requires them; do not add generic runtime adapters merely because a connector exists."
+}
