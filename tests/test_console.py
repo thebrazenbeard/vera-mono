@@ -81,3 +81,10 @@ def test_capabilities_reads_existing_repo_registry_without_runtime_claim():
         item["status"] == "SOURCE_DECLARED_NOT_RUNTIME_CONSUMPTION_PROOF"
         for item in payload["capabilities"]
     )
+
+
+def test_negated_status_request_does_not_dispatch_status():
+    response = VeraConsole.source_only().dispatch("do not show me the status")
+    assert response.envelope.action_forbidden is True
+    assert "NOT DISPATCHED" in response.text
+    assert "SOURCE_ONLY" not in response.text
