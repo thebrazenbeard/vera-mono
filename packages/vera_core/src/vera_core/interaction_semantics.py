@@ -137,8 +137,8 @@ _NATURAL_TARGET_RULES: tuple[
     (
         InteractionTarget.CAPABILITIES,
         (
-            ("capabilities", re.compile(r"\\bcapabilities\\b", re.I)),
-            ("what capabilities", re.compile(r"\\bwhat\\s+capabilities\\b", re.I)),
+            ("capabilities", re.compile(r"\bcapabilities\b", re.I)),
+            ("what capabilities", re.compile(r"\bwhat\s+capabilities\b", re.I)),
         ),
     ),
     (
@@ -168,7 +168,7 @@ def _interaction_id(raw_text: str, previous_interaction_id: str | None) -> str:
 
 def _exact_candidates(text: str) -> tuple[InterpretationCandidate, ...]:
     found = re.findall(
-        r"(?<!\\S):(status|tasks|context|capabilities|help|identity|meaning|exit|quit)\\b",
+        r"(?<!\S):(status|tasks|context|capabilities|help|identity|meaning|exit|quit)\b",
         text,
         flags=re.I,
     )
