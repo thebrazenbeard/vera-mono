@@ -746,6 +746,20 @@
     "identity_authority_created_by_admission": false,
     "source_authority_created_by_admission": false,
     "effect_authority_created_by_admission": false,
-    "provider_specific_binding_requires_concrete_consumer": true
+    "provider_specific_binding_requires_concrete_consumer": true,
+    "external_substrate_bindings": "architecture/VERA_EXTERNAL_SUBSTRATE_BINDINGS_V1.json",
+    "substrate_presence_is_runtime_consumption": false,
+    "durable_state_presence_is_canonical_memory": false
+  },
+  "external_substrate_bindings": {
+    "schema": "VERA_EXTERNAL_SUBSTRATE_BINDINGS_V1",
+    "contract": "architecture/VERA_EXTERNAL_SUBSTRATE_BINDINGS_V1.json",
+    "pre_active_role": "HOST_EXECUTION",
+    "supabase_vera_role": "STATE_EVIDENCE_COORDINATION",
+    "explicit_binding_required": true,
+    "substrate_presence_is_core_runtime_dependency": false,
+    "substrate_presence_is_runtime_consumption": false,
+    "substrate_presence_is_canonical_memory": false,
+    "substrate_presence_is_effect_authority": false
   }
 }

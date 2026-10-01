@@ -207,7 +207,7 @@ def test_provider_admission_contract_and_manifest_are_bound():
 
 def test_host_execution_substrate_classification_does_not_promote_runtime_or_authority():
     admission = ExternalProviderAdmission(
-        provider_id="pro-run",
+        provider_id="pre-active",
         capability_classes=(
             ExternalCapabilityClass.COMPUTE_PROVIDER,
             ExternalCapabilityClass.ACTION_PROVIDER,
@@ -216,7 +216,7 @@ def test_host_execution_substrate_classification_does_not_promote_runtime_or_aut
         substrate_role=ExternalSubstrateRole.HOST_EXECUTION,
     )
 
-    assert admission.is_runtime_substrate is True
+    assert admission.is_external_substrate is True
     assert admission.core_runtime_dependency is False
     assert admission.identity_authority == "NONE"
     assert admission.source_authority == "NONE"
@@ -234,7 +234,7 @@ def test_state_evidence_substrate_classification_does_not_become_memory_or_autho
         substrate_role=ExternalSubstrateRole.STATE_EVIDENCE_COORDINATION,
     )
 
-    assert admission.is_runtime_substrate is True
+    assert admission.is_external_substrate is True
     assert admission.core_runtime_dependency is False
     assert admission.identity_authority == "NONE"
     assert admission.source_authority == "NONE"
@@ -262,3 +262,43 @@ def test_substrate_role_must_match_provider_kind(provider_kind, substrate_role):
             provider_kind=provider_kind,
             substrate_role=substrate_role,
         )
+
+
+def test_external_substrate_observation_is_named_without_publishing_private_live_inventory():
+    root = Path(__file__).resolve().parents[1]
+    payload = json.loads(
+        (root / "architecture" / "VERA_EXTERNAL_SUBSTRATE_BINDINGS_V1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    bindings = {item["id"]: item for item in payload["bindings"]}
+
+    pre_active = bindings["pre-active"]
+    assert pre_active["role"] == "HOST_EXECUTION"
+    assert pre_active["repository"] == "thebrazenbeard/pre-active"
+    assert pre_active["exact_source_main"] == "0ffc95351db34afed091c3239614f57f371c04ad"
+    assert pre_active["qualified_vera_runtime_binding"] is False
+    assert pre_active["current_host_runtime_verified_by_this_record"] is False
+
+    supabase = bindings["supabase-vera"]
+    assert supabase["role"] == "STATE_EVIDENCE_COORDINATION"
+    assert supabase["live_project_observed"] is True
+    assert supabase["live_inventory_reproduced"] is False
+    assert "project_ref" not in supabase
+    assert supabase["canonical_memory_authority"] is False
+    assert supabase["runtime_activation"] is False
+
+
+def test_capability_mesh_keeps_external_substrates_separate_from_semantic_owners():
+    root = Path(__file__).resolve().parents[1]
+    payload = json.loads(
+        (root / "architecture" / "VERA_CAPABILITY_MESH_V1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    domains = {item["id"]: item for item in payload["domains"]}
+
+    assert "Pre-Active" in domains["runtime"]["external_substrates"]
+    assert domains["runtime"]["semantic_owner"] == ["vera_core"]
+    assert "Supabase Vera" in domains["databases_state_stores"]["external_substrates"]
+    assert "Supabase" not in domains["databases_state_stores"]["providers"]

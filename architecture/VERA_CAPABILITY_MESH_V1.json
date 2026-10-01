@@ -1,6 +1,6 @@
 {
   "schema": "VERA_CAPABILITY_MESH_V1",
-  "status": "SOURCE_LEVEL_CURRENT_MAIN_MAP_WITH_BRANCH_LOCAL_EXTERNAL_PROVIDER_ADMISSION",
+  "status": "SOURCE_LEVEL_CURRENT_MAIN_MAP_WITH_BRANCH_LOCAL_PROVIDER_AND_EXTERNAL_SUBSTRATE_ADMISSION",
   "observed_date": "2026-10-01",
   "repository": "thebrazenbeard/vera-mono",
   "current_main": "413397e51bce35d0a36f00cf0ca2c876ca720b44",
@@ -9,7 +9,10 @@
     "implementation_root": "vera-mono",
     "sibling_repo_runtime_dependencies": false,
     "connector_visibility_is_authority": false,
-    "independent_review_is_internal_assurance": false
+    "independent_review_is_internal_assurance": false,
+    "external_substrate_is_semantic_owner": false,
+    "external_substrate_presence_is_runtime_binding": false,
+    "durable_external_state_is_canonical_memory": false
   },
   "domains": [
     {
@@ -49,7 +52,11 @@
       "providers": [
         "Google Drive",
         "Microsoft SharePoint"
-      ]
+      ],
+      "external_substrates": [
+        "Supabase Vera"
+      ],
+      "external_substrate_note": "Observed external state/evidence persistence does not become canonical vera_memory admission by presence."
     },
     {
       "id": "deep_historical_memory",
@@ -71,7 +78,11 @@
       "providers": [
         "Google Drive",
         "Microsoft SharePoint"
-      ]
+      ],
+      "external_substrates": [
+        "Supabase Vera"
+      ],
+      "external_substrate_note": "Observed external evidence storage is not canonical historical-memory admission by presence."
     },
     {
       "id": "provenance",
@@ -205,13 +216,16 @@
       "status": "IMPLEMENTED_SOURCE",
       "strengtheners": [
         "project-runner",
-        "pro-run",
+        "pre-active",
         "wip"
       ],
       "providers": [
         "GitHub",
         "Linear",
         "Google Calendar"
+      ],
+      "external_substrates": [
+        "Pre-Active"
       ]
     },
     {
@@ -448,7 +462,11 @@
         "Slack",
         "Linear",
         "Workbridge Relay"
-      ]
+      ],
+      "external_substrates": [
+        "Supabase Vera"
+      ],
+      "external_substrate_note": "Observed external coordination state remains a separate evidence/substrate layer until an explicit Vera Mono binding exists."
     },
     {
       "id": "recovery",
@@ -466,9 +484,12 @@
       "status": "IMPLEMENTED_SOURCE",
       "strengtheners": [
         "wip",
-        "pro-run"
+        "pre-active"
       ],
-      "providers": []
+      "providers": [],
+      "external_substrates": [
+        "Pre-Active"
+      ]
     },
     {
       "id": "runtime",
@@ -486,7 +507,11 @@
         "vera",
         "vera-os"
       ],
-      "providers": []
+      "providers": [],
+      "external_substrates": [
+        "Pre-Active"
+      ],
+      "external_substrate_note": "Host execution substrate candidate only; source/history does not prove current installation, route selection, QualifiedVeraRuntime consumption, or behavior."
     },
     {
       "id": "authorization_effect_control",
@@ -617,16 +642,18 @@
         "packages/vera_coordination/src/coordination_bus/sqlite_repository.py",
         "packages/vera_core/src/vera_core/state.py"
       ],
-      "state_owner": "VeraStateDirectory and domain SQLite stores",
-      "authority_owner": "domain contracts; external DB is infrastructure only",
+      "state_owner": "VeraStateDirectory and domain SQLite stores; external state/evidence substrates only when explicitly bound",
+      "authority_owner": "domain contracts; external durable state is infrastructure/evidence and gains no canonical authority by presence",
       "status": "IMPLEMENTED_LOCAL_FIRST",
       "strengtheners": [
         "sql-connectome"
       ],
       "providers": [
-        "Supabase",
         "Aiven",
         "CData Connect AI"
+      ],
+      "external_substrates": [
+        "Supabase Vera"
       ]
     },
     {
@@ -786,7 +813,7 @@
       "status": "IMPLEMENTED_SOURCE",
       "strengtheners": [
         "project-runner",
-        "pro-run",
+        "pre-active",
         "wip"
       ],
       "providers": [
@@ -794,6 +821,9 @@
         "Linear",
         "Slack",
         "Google Calendar"
+      ],
+      "external_substrates": [
+        "Pre-Active"
       ]
     },
     {
@@ -830,7 +860,7 @@
       "status": "IMPLEMENTED_SOURCE_DISTINCT_EVIDENCE_LAYERS",
       "strengtheners": [
         "vera-os",
-        "pro-run"
+        "pre-active"
       ],
       "providers": []
     },
@@ -866,5 +896,6 @@
     "objection": "Treating the absence of a dedicated Vera Mono conation ledger as a gap assumes persistence is beneficial even though conations explicitly forbids stored history from manufacturing present wants.",
     "disposition": "ACCEPTED",
     "resolution": "Keep present conation in runtime stance semantics; keep the conations repository as historical/domain evidence and reuse governed memory mechanics only when an explicit admission is independently justified. Do not create a second conation state store."
-  }
+  },
+  "external_substrate_bindings": "architecture/VERA_EXTERNAL_SUBSTRATE_BINDINGS_V1.json"
 }
