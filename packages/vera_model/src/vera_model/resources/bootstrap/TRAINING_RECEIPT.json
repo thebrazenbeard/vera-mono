@@ -1,0 +1,27 @@
+{
+  "schema": "VERA_NATIVE_BOOTSTRAP_TRAINING_RECEIPT_V1",
+  "purpose": "SMOKE_CHECKPOINT_ONLY",
+  "capability_claim": "PROVES_NATIVE_TOKENIZER_CHECKPOINT_TRANSFORMER_AND_NEXT_TOKEN_INFERENCE_WIRING_NOT_USEFUL_LANGUAGE_COMPETENCE",
+  "checkpoint_sha256": "87ed1e995a4df004cf9a6178418ccd0e5b2647332f7d075d02bcd236edf5f5cf",
+  "tokenizer_sha256": "24b1ce36234fa5011df07ac42c5600da3cc86d543fa2c1ce7a3fc46b8fe666c0",
+  "config": {
+    "vocab_size": 264,
+    "context_length": 16,
+    "n_layer": 1,
+    "n_head": 1,
+    "n_embd": 2,
+    "mlp_ratio": 4,
+    "layer_norm_epsilon": 0.00001
+  },
+  "training": {
+    "steps": 3000,
+    "batch_size": 32,
+    "learning_rate": 0.003,
+    "seed": 20261001,
+    "corpus_repetitions": 24,
+    "corpus_tokens": 36408,
+    "final_loss": 3.3807766437530518
+  },
+  "pretrained_third_party_weights": false,
+  "external_llm_used_for_inference": false
+}
