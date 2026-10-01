@@ -96,3 +96,21 @@ def test_target_mention_in_assertion_does_not_dispatch():
     assert response.envelope.dispatch_permitted is False
     assert "NOT DISPATCHED" in response.text
     assert "SOURCE_ONLY" not in response.text
+
+
+def test_plain_exit_aliases_leave_console():
+    console = VeraConsole.source_only()
+    for text in ("exit", "/exit", "end", "bye"):
+        assert console.dispatch(text).exit_requested is True
+
+
+def test_vera_invocation_acknowledges_address():
+    response = VeraConsole.source_only().dispatch("vera")
+    assert response.text == "I'm here."
+
+
+def test_who_am_i_uses_governed_source_identity_with_authentication_ceiling():
+    response = VeraConsole.source_only().dispatch("Who am I?")
+    assert "Patrick" in response.text
+    assert "governed" in response.text.lower()
+    assert "authenticate" in response.text.lower()
