@@ -88,3 +88,11 @@ def test_negated_status_request_does_not_dispatch_status():
     assert response.envelope.action_forbidden is True
     assert "NOT DISPATCHED" in response.text
     assert "SOURCE_ONLY" not in response.text
+
+
+def test_target_mention_in_assertion_does_not_dispatch():
+    response = VeraConsole.source_only().dispatch("the string :status is an example")
+    assert response.envelope.speech_act.value == "ASSERTION"
+    assert response.envelope.dispatch_permitted is False
+    assert "NOT DISPATCHED" in response.text
+    assert "SOURCE_ONLY" not in response.text
