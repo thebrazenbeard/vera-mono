@@ -159,6 +159,34 @@ def _runtime_context_digest(runtime_context: dict[str, Any]) -> str:
     return hashlib.sha256(_canonical_json(runtime_context).encode("utf-8")).hexdigest()
 
 
+_SAFE_RUNTIME_CONTEXT_KEYS = (
+    "schema",
+    "status",
+    "project_id",
+    "identity_id",
+    "accepted_runtime_id",
+    "accepted_memory_head",
+    "accepted_checkpoint_digest",
+    "accepted_checkpoint_generation",
+    "accepted_currentness_digest",
+    "currentness_generation",
+)
+
+
+def _runtime_context_projection(
+    runtime_context: dict[str, Any],
+) -> dict[str, Any]:
+    projection: dict[str, Any] = {}
+    for key in _SAFE_RUNTIME_CONTEXT_KEYS:
+        if key not in runtime_context:
+            continue
+        value = runtime_context[key]
+        if value is None or type(value) in {str, int, float, bool}:
+            projection[key] = value
+    projection["full_context_sha256"] = _runtime_context_digest(runtime_context)
+    return projection
+
+
 def build_terminal_system_prompt(
     *,
     runtime_context: dict[str, Any] | None = None,
@@ -182,18 +210,19 @@ def build_terminal_system_prompt(
     else:
         if type(runtime_context) is not dict:
             raise TypeError("runtime_context must be None or an exact dict")
-        serialized = _canonical_json(runtime_context)
+        projection = _runtime_context_projection(runtime_context)
+        serialized = _canonical_json(projection)
         if len(serialized) > runtime_context_limit:
             raise ValueError(
-                "runtime resume context exceeds the terminal prompt limit; "
-                "increase the explicit limit or reduce durable runtime state"
+                "runtime metadata projection exceeds the terminal prompt limit"
             )
         mode = "QUALIFIED_STATE_BOUND"
         runtime_section = (
-            "The following runtime resume context was reconstructed locally from "
-            "the supplied VeraStateDirectory for this session. Treat it as runtime "
-            "evidence at session start, not as permission for new external effects.\n"
-            f"runtime_context_sha256={_runtime_context_digest(runtime_context)}\n"
+            "A VeraStateDirectory was reconstructed locally for this session. "
+            "Only the privacy-bounded metadata projection below is supplied to the "
+            "text generator; durable task, memory, trust, and effect contents are "
+            "not exported implicitly. Treat the projection as runtime evidence at "
+            "session start, not as permission for new external effects.\n"
             f"{serialized}"
         )
 
