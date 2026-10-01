@@ -92,5 +92,23 @@
     "lgcm": "context mismatch/switch/recall is a later adaptive layer, not V1 semantic authority",
     "mosaic": "not adopted as the interaction architecture"
   },
-  "claim_ceiling": "SOURCE_INTERACTION_MECHANISM_NOT_GENERAL_LANGUAGE_UNDERSTANDING_NOT_SEMANTIC_TRUTH_NOT_RUNTIME_CONSUMPTION_NOT_BEHAVIORAL_QUALIFICATION_NOT_PROTECTED_EFFECT_AUTHORITY"
+  "claim_ceiling": "SOURCE_INTERACTION_MECHANISM_NOT_GENERAL_LANGUAGE_UNDERSTANDING_NOT_SEMANTIC_TRUTH_NOT_RUNTIME_CONSUMPTION_NOT_BEHAVIORAL_QUALIFICATION_NOT_PROTECTED_EFFECT_AUTHORITY",
+  "existing_semantic_planes": {
+    "semantic_knowledge": {
+      "owner": "vera_identity.SemanticKnowledgeStore",
+      "role": "DURABLE_PROVENANCE_BOUND_SEMANTIC_OBJECTS",
+      "replaced_by_interaction_envelope": false
+    },
+    "contextual_interpretation": {
+      "owner": "vera_identity.ContextualInterpretationStore",
+      "role": "DURABLE_SOURCE_BOUND_COMPETING_REFERENT_INTERPRETATIONS",
+      "replaced_by_interaction_envelope": false
+    },
+    "interaction_semantics": {
+      "owner": "vera_core.interaction_semantics.InteractionEnvelope",
+      "role": "TRANSIENT_UTTERANCE_SPEECH_ACT_TARGET_AND_PRAGMATIC_SCOPE",
+      "durable_semantic_authority": false
+    },
+    "relationship": "COMPLEMENTARY_LAYERS_NOT_COMPETING_AUTHORITIES"
+  }
 }
