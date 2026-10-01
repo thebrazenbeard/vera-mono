@@ -5,74 +5,69 @@ import pytest
 import vera_core.cli as cli
 
 
-class FakeBackend:
-    descriptor = "fake-model @ http://local.test/v1"
-
-    def __init__(
-        self,
-        *,
-        base_url,
-        model,
-        api_key,
-        timeout_seconds,
-        temperature,
-    ):
-        self.base_url = base_url
-        self.model = model
-        self.api_key = api_key
-        self.timeout_seconds = timeout_seconds
-        self.temperature = temperature
-
-    def complete(self, messages):
-        assert messages[0].role == "system"
-        assert messages[-1].role == "user"
-        return "terminal reply"
-
-
-def test_chat_cli_one_shot_source_only(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "OpenAICompatibleBackend", FakeBackend)
-
+def test_chat_cli_uses_packaged_native_checkpoint_without_model_argument(capsys):
     result = cli.main(
         [
             "chat",
-            "--base-url",
-            "http://local.test/v1",
-            "--model",
-            "fake-model",
+            "--temperature",
+            "0",
+            "--max-new-tokens",
+            "1",
             "hello Vera",
         ]
     )
-
     assert result == 0
-    assert capsys.readouterr().out == "terminal reply\n"
+    assert capsys.readouterr().out.endswith("\n")
 
 
-def test_chat_cli_requires_complete_state_binding(monkeypatch, capsys, tmp_path):
-    monkeypatch.setattr(cli, "OpenAICompatibleBackend", FakeBackend)
-
+def test_chat_cli_rejects_old_external_model_flags(capsys):
     with pytest.raises(SystemExit) as exc:
         cli.main(
             [
                 "chat",
                 "--base-url",
-                "http://local.test/v1",
+                "http://localhost:1234/v1",
                 "--model",
-                "fake-model",
+                "anything",
+                "hello",
+            ]
+        )
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "unrecognized arguments" in err
+
+
+def test_chat_cli_requires_complete_state_binding(capsys, tmp_path):
+    with pytest.raises(SystemExit) as exc:
+        cli.main(
+            [
+                "chat",
                 "--state-root",
                 str(tmp_path),
                 "hello",
             ]
         )
-
     assert exc.value.code == 2
-    assert "requires --state-root, --project-id, and --identity-id together" in (
-        capsys.readouterr().err
-    )
+    assert "requires --state-root, --project-id, and --identity-id together" in capsys.readouterr().err
 
 
-def test_chat_cli_requires_explicit_generator(capsys):
+def test_chat_cli_requires_checkpoint_and_tokenizer_together(capsys, tmp_path):
     with pytest.raises(SystemExit) as exc:
-        cli.main(["chat", "hello"])
-
+        cli.main(
+            [
+                "chat",
+                "--checkpoint",
+                str(tmp_path / "model.npz"),
+                "hello",
+            ]
+        )
     assert exc.value.code == 2
-    assert "requires --base-url or VERA_MODEL_BASE_URL" in capsys.readouterr().err
+    assert "--checkpoint and --tokenizer must be supplied together" in capsys.readouterr().err
+
+
+def test_model_inspect_reports_bootstrap_as_smoke_checkpoint(capsys):
+    result = cli.main(["model", "inspect"])
+    assert result == 0
+    payload = capsys.readouterr().out
+    assert "PACKAGED_BOOTSTRAP_SMOKE_CHECKPOINT" in payload
+    assert "SMOKE_CHECKPOINT_NOT_USEFUL_LANGUAGE_COMPETENCE" in payload
