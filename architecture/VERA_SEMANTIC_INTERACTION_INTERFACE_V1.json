@@ -28,7 +28,10 @@
     "interpretation_is_truth": false,
     "interpretation_is_canon": false,
     "interpretation_is_authority": false,
-    "semantic_equivalence_automatically_established": false
+    "semantic_equivalence_automatically_established": false,
+    "deontic_negation_preserved": true,
+    "target_mention_is_dispatch": false,
+    "dispatch_requires": "QUESTION_OR_REQUEST_OR_CORRECTION_OR_EXACT_CONTROL"
   },
   "console": {
     "implementation": "vera_core.console.VeraConsole",
@@ -47,7 +50,8 @@
     ],
     "natural_language_aliases": "BOUNDED_CONSERVATIVE",
     "ambiguous_control_input": "NO_DISPATCH",
-    "unresolved_free_form_input": "PRESERVED_NO_GUESS"
+    "unresolved_free_form_input": "PRESERVED_NO_GUESS",
+    "diagnostic_operand_isolation": true
   },
   "runtime": {
     "preferred_boundary": "vera_core.QualifiedVeraRuntime",
