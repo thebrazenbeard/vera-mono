@@ -7,7 +7,12 @@
     "powershell": ".\\vera.ps1",
     "cli": "vera-mono shell",
     "source_only_default": true,
-    "qualified_state_binding_optional": true
+    "qualified_state_binding_optional": true,
+    "powershell_state_parameters": [
+      "-StateRoot",
+      "-ProjectId",
+      "-IdentityId"
+    ]
   },
   "semantics": {
     "implementation": "vera_core.interaction_semantics",
