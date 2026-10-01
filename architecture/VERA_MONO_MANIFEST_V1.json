@@ -762,4 +762,17 @@
     "substrate_presence_is_canonical_memory": false,
     "substrate_presence_is_effect_authority": false
   }
+,
+  "terminal_chat_interface": {
+    "schema": "VERA_MONO_TERMINAL_CHAT_INTERFACE_V1",
+    "contract": "architecture/VERA_TERMINAL_CHAT_INTERFACE_V1.json",
+    "entrypoint": "vera-mono chat",
+    "session": "vera_core.terminal_chat.TerminalChatSession",
+    "generator_transport": "vera_core.terminal_chat.OpenAICompatibleBackend",
+    "source_only_mode": true,
+    "qualified_state_bound_mode": true,
+    "canonical_memory_write": false,
+    "protected_effect_authority": false,
+    "inference_substrate_identity_authority": false
+  }
 }
