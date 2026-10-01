@@ -1,0 +1,901 @@
+{
+  "schema": "VERA_CAPABILITY_MESH_V1",
+  "status": "SOURCE_LEVEL_CURRENT_MAIN_MAP_WITH_BRANCH_LOCAL_PROVIDER_AND_EXTERNAL_SUBSTRATE_ADMISSION",
+  "observed_date": "2026-10-01",
+  "repository": "thebrazenbeard/vera-mono",
+  "current_main": "413397e51bce35d0a36f00cf0ca2c876ca720b44",
+  "working_branch": "feature/external-provider-admission-v1-20261001",
+  "principles": {
+    "implementation_root": "vera-mono",
+    "sibling_repo_runtime_dependencies": false,
+    "connector_visibility_is_authority": false,
+    "independent_review_is_internal_assurance": false,
+    "external_substrate_is_semantic_owner": false,
+    "external_substrate_presence_is_runtime_binding": false,
+    "durable_external_state_is_canonical_memory": false
+  },
+  "domains": [
+    {
+      "id": "identity_self_model",
+      "semantic_owner": [
+        "vera_identity"
+      ],
+      "implementation": [
+        "packages/vera_identity/src/vera_identity/loader.py",
+        "packages/vera_identity/src/vera_identity/resources/architecture/identity"
+      ],
+      "state_owner": "governed identity resources / host-selected binding",
+      "authority_owner": "current Vera identity binding rules",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "empathy",
+        "personification",
+        "Attune"
+      ],
+      "providers": []
+    },
+    {
+      "id": "current_memory",
+      "semantic_owner": [
+        "vera_memory"
+      ],
+      "implementation": [
+        "packages/vera_memory/src/vera_memory/ledger.py"
+      ],
+      "state_owner": "vera_memory CAS ledger",
+      "authority_owner": "memory admission rules",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "deepmemorystorage",
+        "roots"
+      ],
+      "providers": [
+        "Google Drive",
+        "Microsoft SharePoint"
+      ],
+      "external_substrates": [
+        "Supabase Vera"
+      ],
+      "external_substrate_note": "Observed external state/evidence persistence does not become canonical vera_memory admission by presence."
+    },
+    {
+      "id": "deep_historical_memory",
+      "semantic_owner": [
+        "vera_memory"
+      ],
+      "implementation": [
+        "packages/vera_memory/src/vera_memory/historical_evidence.py",
+        "packages/vera_memory/src/vera_memory/resources/architecture/integration/VERA_DEEP_MEMORY_ARCHIVE_INTEGRATION_V1.json"
+      ],
+      "state_owner": "vera_memory historical evidence plane",
+      "authority_owner": "memory evidence/admission rules",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "deepmemorystorage",
+        "roots",
+        "firesafe"
+      ],
+      "providers": [
+        "Google Drive",
+        "Microsoft SharePoint"
+      ],
+      "external_substrates": [
+        "Supabase Vera"
+      ],
+      "external_substrate_note": "Observed external evidence storage is not canonical historical-memory admission by presence."
+    },
+    {
+      "id": "provenance",
+      "semantic_owner": [
+        "vera_ingest",
+        "vera_memory",
+        "portfolio_runtime.roots"
+      ],
+      "implementation": [
+        "packages/vera_ingest/src/ingest",
+        "packages/portfolio_runtime/src/portfolio_runtime/roots",
+        "packages/vera_core/src/vera_core/outbound_audit.py"
+      ],
+      "state_owner": "intake receipts + governed memory/effect ledgers",
+      "authority_owner": "source/evidence admission and lifecycle gates",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "ingest",
+        "roots",
+        "firesafe"
+      ],
+      "providers": [
+        "GitHub",
+        "Files"
+      ]
+    },
+    {
+      "id": "semantics",
+      "semantic_owner": [
+        "vera_identity",
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_identity/src/vera_identity/semantic_knowledge.py",
+        "packages/vera_identity/src/vera_identity/contextual_interpretation.py",
+        "packages/vera_core/src/vera_core/semantic_transfer.py"
+      ],
+      "state_owner": "semantic knowledge/context stores where instantiated",
+      "authority_owner": "source-bound interpretation and transfer contracts",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "semanticatlas",
+        "semiotics",
+        "spm",
+        "sql-connectome",
+        "unvtrslr"
+      ],
+      "providers": [
+        "Wolfram",
+        "SciSpace",
+        "Parallel Search"
+      ]
+    },
+    {
+      "id": "pragmatics",
+      "semantic_owner": [
+        "vera_runtime",
+        "vera_control"
+      ],
+      "implementation": [
+        "packages/vera_runtime/src/protocol/initiative_kernel.py",
+        "packages/vera_control/src/vera_control/resources/architecture/control/vendor/vera-control-plane/VCP_ISSUE18_BEHAVIORAL_PRAGMATIC_POLICY_V1.json"
+      ],
+      "state_owner": "runtime/control context",
+      "authority_owner": "workflow precedence and effect gates",
+      "status": "PARTIAL_IMPLEMENTATION_PLUS_CONTROL_RESOURCE",
+      "strengtheners": [
+        "spm",
+        "semiotics",
+        "Attune"
+      ],
+      "providers": []
+    },
+    {
+      "id": "reasoning",
+      "semantic_owner": [
+        "rezon",
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/rezon/src/rezon",
+        "packages/vera_core/src/vera_core/reasoning_cascade.py"
+      ],
+      "state_owner": "request/trace/evidence objects",
+      "authority_owner": "reasoning admission does not own effects",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "rezon",
+        "voss"
+      ],
+      "providers": [
+        "Wolfram",
+        "SciSpace",
+        "Parallel Search"
+      ]
+    },
+    {
+      "id": "metacognition",
+      "semantic_owner": [
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/prequential_evaluation.py",
+        "packages/vera_core/src/vera_core/agi_qualification.py",
+        "packages/vera_core/src/vera_core/agi_ambiguity_probe.py"
+      ],
+      "state_owner": "evaluation artifacts/tasks",
+      "authority_owner": "qualification contracts",
+      "status": "RESEARCH_AND_QUALIFICATION_PRIMITIVES",
+      "strengtheners": [
+        "lgcm",
+        "voss",
+        "driftguard"
+      ],
+      "providers": [
+        "MCP Conduct Register",
+        "Neura Relay MCP"
+      ]
+    },
+    {
+      "id": "planning",
+      "semantic_owner": [
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/long_horizon_plan.py",
+        "packages/vera_core/src/vera_core/task_execution.py"
+      ],
+      "state_owner": "TaskExecutionLedger / plan state",
+      "authority_owner": "task/delegation/effect gates",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "project-runner",
+        "pre-active",
+        "wip"
+      ],
+      "providers": [
+        "GitHub",
+        "Linear",
+        "Google Calendar"
+      ],
+      "external_substrates": [
+        "Pre-Active"
+      ]
+    },
+    {
+      "id": "salience_attention",
+      "semantic_owner": [
+        "vera_runtime"
+      ],
+      "implementation": [
+        "packages/vera_runtime/src/runtime_cohesion/salience_control.py"
+      ],
+      "state_owner": "runtime salience state",
+      "authority_owner": "pre-action focus only; no effect authority",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "meso-crct"
+      ],
+      "providers": []
+    },
+    {
+      "id": "affect",
+      "semantic_owner": [
+        "vera_runtime"
+      ],
+      "implementation": [
+        "packages/vera_runtime/src/runtime_cohesion/affect_cycle.py",
+        "packages/vera_runtime/src/runtime_cohesion/affect_persistence.py",
+        "packages/vera_runtime/src/runtime_cohesion/affect_authority.py"
+      ],
+      "state_owner": "runtime affect persistence",
+      "authority_owner": "affect authority contract / effect boundary",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "empathy",
+        "meso-crct",
+        "sexuality"
+      ],
+      "providers": []
+    },
+    {
+      "id": "conation_motivation",
+      "semantic_owner": [
+        "vera_runtime"
+      ],
+      "implementation": [
+        "packages/vera_runtime/src/protocol/initiative_kernel.py",
+        "packages/vera_runtime/src/runtime_cohesion/salience_control.py"
+      ],
+      "state_owner": "present stance remains runtime-local; durable historical conation evidence stays external unless separately admitted through governed memory",
+      "authority_owner": "fresh generated/configured stance outranks historical records; history creates no consent, obligation, task, or effect authority",
+      "status": "PRESENT_STATE_RUNTIME_BOUND; HISTORICAL_CONATION_WORKSPACE_INTENTIONALLY_KEEP_SEPARATE",
+      "strengtheners": [
+        "conations",
+        "meso-crct"
+      ],
+      "providers": []
+    },
+    {
+      "id": "homeostasis_interoception_analogues",
+      "semantic_owner": [
+        "vera_runtime"
+      ],
+      "implementation": [
+        "packages/vera_runtime/src/runtime_cohesion/affect_cycle.py",
+        "packages/vera_runtime/src/runtime_cohesion/salience_control.py"
+      ],
+      "state_owner": "runtime bounded state",
+      "authority_owner": "none beyond runtime policy",
+      "status": "PARTIAL_ANALOGUES_ONLY",
+      "strengtheners": [
+        "meso-crct",
+        "hc-brain"
+      ],
+      "providers": []
+    },
+    {
+      "id": "temporal_state",
+      "semantic_owner": [
+        "vera_core",
+        "vera_coordination",
+        "vera_recovery",
+        "vera_runtime"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/chronology.py",
+        "packages/vera_coordination/src/coordination_bus/verified_temporal.py",
+        "packages/vera_recovery/src/r8a0/temporal.py",
+        "packages/vera_runtime/src/protocol/temporal_enforcement.py"
+      ],
+      "state_owner": "domain-specific ledgers/checkpoints",
+      "authority_owner": "lifecycle/task/coordination contracts",
+      "status": "IMPLEMENTED_DISTRIBUTED_BY_DOMAIN",
+      "strengtheners": [
+        "temporal"
+      ],
+      "providers": [
+        "Google Calendar"
+      ]
+    },
+    {
+      "id": "learning_adaptation",
+      "semantic_owner": [
+        "vera_core",
+        "vera_memory"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/adaptive_linear.py",
+        "packages/vera_core/src/vera_core/corrective_learning.py",
+        "packages/vera_memory/src/vera_memory/learned_influence.py"
+      ],
+      "state_owner": "bounded learning/evidence records",
+      "authority_owner": "admission and learned-influence gates",
+      "status": "IMPLEMENTED_BOUNDED",
+      "strengtheners": [
+        "lgcm",
+        "fuckup",
+        "meso-crct"
+      ],
+      "providers": [
+        "Hugging Face"
+      ]
+    },
+    {
+      "id": "continual_learning",
+      "semantic_owner": [
+        "vera_core",
+        "vera_memory"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/prequential_evaluation.py",
+        "packages/vera_memory/src/vera_memory/learned_influence.py"
+      ],
+      "state_owner": "governed evidence/memory; no claim of continuous model-weight training",
+      "authority_owner": "learning/admission gates",
+      "status": "BOUNDED_EVIDENCE_AND_ADAPTATION_NOT_GENERAL_WEIGHT_TRAINING",
+      "strengtheners": [
+        "lgcm"
+      ],
+      "providers": [
+        "Hugging Face"
+      ]
+    },
+    {
+      "id": "behavior_generation",
+      "semantic_owner": [
+        "vera_runtime",
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_runtime/src/runtime_cohesion/executor.py",
+        "packages/vera_runtime/src/protocol/initiative_kernel.py",
+        "packages/vera_core/src/vera_core/qualified_runtime.py"
+      ],
+      "state_owner": "runtime/task state",
+      "authority_owner": "QualifiedVeraRuntime + effect gates",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "Attune",
+        "personification"
+      ],
+      "providers": []
+    },
+    {
+      "id": "io",
+      "semantic_owner": [
+        "vera_ingest",
+        "vera_core",
+        "vera_pc_connection"
+      ],
+      "implementation": [
+        "packages/vera_ingest/src/ingest/adapters",
+        "packages/vera_core/src/vera_core/execution_adapters.py",
+        "packages/vera_pc_connection/src/pc_connection"
+      ],
+      "state_owner": "intake + execution bindings/journals",
+      "authority_owner": "qualified runtime/effect boundary",
+      "status": "IMPLEMENTED_PROVIDER_NEUTRAL_BOUNDARIES",
+      "strengtheners": [
+        "workbridge",
+        "workbridgecommander",
+        "vera-mesh"
+      ],
+      "providers": [
+        "Files",
+        "GitHub",
+        "Gmail",
+        "Slack",
+        "TinyFish",
+        "Workbridge Commander MCP",
+        "Workbridge Relay"
+      ]
+    },
+    {
+      "id": "ingestion",
+      "semantic_owner": [
+        "vera_ingest"
+      ],
+      "implementation": [
+        "packages/vera_ingest/src/ingest/pipeline.py",
+        "packages/vera_ingest/src/ingest/storage.py"
+      ],
+      "state_owner": "vera_core state root intake path",
+      "authority_owner": "intake is not truth/currentness/authority/memory admission",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "ingest"
+      ],
+      "providers": [
+        "Files",
+        "GitHub",
+        "Google Drive",
+        "Microsoft SharePoint",
+        "TinyFish"
+      ]
+    },
+    {
+      "id": "coordination",
+      "semantic_owner": [
+        "vera_coordination",
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_coordination/src/coordination_bus",
+        "packages/vera_core/src/vera_core/coordination_command_journal.py"
+      ],
+      "state_owner": "SQLite coordination repository and command journal",
+      "authority_owner": "lifecycle-bound coordination gateway",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "ccb-core",
+        "intranel",
+        "project-runner"
+      ],
+      "providers": [
+        "Slack",
+        "Linear",
+        "Workbridge Relay"
+      ],
+      "external_substrates": [
+        "Supabase Vera"
+      ],
+      "external_substrate_note": "Observed external coordination state remains a separate evidence/substrate layer until an explicit Vera Mono binding exists."
+    },
+    {
+      "id": "recovery",
+      "semantic_owner": [
+        "vera_recovery",
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_recovery/src/vera_recovery/native.py",
+        "packages/vera_core/src/vera_core/work_checkpoint.py",
+        "packages/vera_core/src/vera_core/effect_recovery.py"
+      ],
+      "state_owner": "VeraStateDirectory recovery/checkpoint/effect state",
+      "authority_owner": "lifecycle and reconciliation verifier boundary",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "wip",
+        "pre-active"
+      ],
+      "providers": [],
+      "external_substrates": [
+        "Pre-Active"
+      ]
+    },
+    {
+      "id": "runtime",
+      "semantic_owner": [
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/qualified_runtime.py",
+        "packages/vera_core/src/vera_core/state.py"
+      ],
+      "state_owner": "VeraStateDirectory",
+      "authority_owner": "QualifiedVeraRuntime host-composed boundary",
+      "status": "IMPLEMENTED_SOURCE_NOT_PROOF_OF_LIVE_INSTALLATION",
+      "strengtheners": [
+        "vera",
+        "vera-os"
+      ],
+      "providers": [],
+      "external_substrates": [
+        "Pre-Active"
+      ],
+      "external_substrate_note": "Host execution substrate candidate only; source/history does not prove current installation, route selection, QualifiedVeraRuntime consumption, or behavior."
+    },
+    {
+      "id": "authorization_effect_control",
+      "semantic_owner": [
+        "vera_core",
+        "vera_assurance"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/action_gate.py",
+        "packages/vera_core/src/vera_core/outbound_authority.py",
+        "packages/vera_core/src/vera_core/outbound_trust.py",
+        "packages/vera_assurance/src/vera_assurance/effect_fence.py"
+      ],
+      "state_owner": "trust/audit/fence ledgers",
+      "authority_owner": "external exact authority + lifecycle gates",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "project-achilles",
+        "freerowcochkar",
+        "Neura Relay MCP"
+      ],
+      "providers": [
+        "Neura Relay MCP"
+      ]
+    },
+    {
+      "id": "security",
+      "semantic_owner": [
+        "vera_assurance",
+        "vera_core",
+        "vera_pc_connection"
+      ],
+      "implementation": [
+        "packages/vera_assurance/src/vera_assurance/policy_constraints.py",
+        "packages/vera_core/src/vera_core/resource_lease.py",
+        "packages/vera_pc_connection/src/pc_connection/path_policy.py"
+      ],
+      "state_owner": "policy/trust/lease/journal state",
+      "authority_owner": "effect and trust boundaries",
+      "status": "IMPLEMENTED_BOUNDED",
+      "strengtheners": [
+        "project-achilles",
+        "freerowcochkar",
+        "skeletonkey"
+      ],
+      "providers": [
+        "Soluvery",
+        "MCP Conduct Register"
+      ]
+    },
+    {
+      "id": "external_tools",
+      "semantic_owner": [
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/execution_adapters.py",
+        "packages/vera_core/src/vera_core/provider_execution_binding.py",
+        "packages/vera_core/src/vera_core/external_provider_admission.py"
+      ],
+      "state_owner": "provider execution bindings when used; named provider catalog is dated observation only",
+      "authority_owner": "provider authority verifier + effect gateway",
+      "status": "BRANCH_IMPLEMENTED_PROVIDER_ADMISSION_PENDING_CI",
+      "strengtheners": [
+        "workbridge",
+        "workbridgecommander"
+      ],
+      "providers": [
+        "architecture/VERA_EXPOSED_PLUGIN_CONNECTOR_SURFACE_V2.json"
+      ]
+    },
+    {
+      "id": "workstation_interaction",
+      "semantic_owner": [
+        "vera_pc_connection",
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_pc_connection/src/pc_connection",
+        "packages/vera_core/src/vera_core/qualified_pc.py"
+      ],
+      "state_owner": "PC execution binding/journal state",
+      "authority_owner": "PC authorization envelope + trusted verifier + effect fence",
+      "status": "IMPLEMENTED_PROVIDER_BOUNDARY_NOT_LIVE_HOST_PROOF",
+      "strengtheners": [
+        "workbridge",
+        "workbridgecommander",
+        "skeletonkey"
+      ],
+      "providers": [
+        "Lappy Desktop Commander",
+        "Lappy Desktop Commander V2",
+        "Workbridge Commander MCP",
+        "Remote Desktop Commander"
+      ]
+    },
+    {
+      "id": "multi_device_transport",
+      "semantic_owner": [
+        "vera_core",
+        "vera_coordination"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/resource_lease.py",
+        "packages/vera_core/src/vera_core/execution_adapters.py",
+        "packages/vera_coordination/src/coordination_bus"
+      ],
+      "state_owner": "local lease/coordination/binding state",
+      "authority_owner": "qualified transport/effect boundary",
+      "status": "PARTIAL_LOCAL_ABSTRACTIONS_EXTERNAL_TRANSPORT_REMAINS_EXTERNAL",
+      "strengtheners": [
+        "vera-mesh",
+        "workbridge",
+        "vera-synology"
+      ],
+      "providers": [
+        "Workbridge Relay",
+        "Workbridge Commander MCP"
+      ]
+    },
+    {
+      "id": "databases_state_stores",
+      "semantic_owner": [
+        "domain packages"
+      ],
+      "implementation": [
+        "packages/vera_memory/src/vera_memory/ledger.py",
+        "packages/vera_coordination/src/coordination_bus/sqlite_repository.py",
+        "packages/vera_core/src/vera_core/state.py"
+      ],
+      "state_owner": "VeraStateDirectory and domain SQLite stores; external state/evidence substrates only when explicitly bound",
+      "authority_owner": "domain contracts; external durable state is infrastructure/evidence and gains no canonical authority by presence",
+      "status": "IMPLEMENTED_LOCAL_FIRST",
+      "strengtheners": [
+        "sql-connectome"
+      ],
+      "providers": [
+        "Aiven",
+        "CData Connect AI"
+      ],
+      "external_substrates": [
+        "Supabase Vera"
+      ]
+    },
+    {
+      "id": "model_provider_abstraction",
+      "semantic_owner": [
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/execution_adapters.py",
+        "packages/vera_core/src/vera_core/provider_execution_binding.py"
+      ],
+      "state_owner": "provider bindings; verifier secrets host-injected",
+      "authority_owner": "trusted provider authority verifier/effect gateway",
+      "status": "GENERIC_PROVIDER_EFFECT_ABSTRACTION_NO_MODEL_IDENTITY_COUPLING",
+      "strengtheners": [
+        "mosaic",
+        "vera_model_training"
+      ],
+      "providers": [
+        "Hugging Face",
+        "OpenAI Platform"
+      ]
+    },
+    {
+      "id": "qualification",
+      "semantic_owner": [
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/behavior_effect_verification.py",
+        "packages/vera_core/src/vera_core/behavior_attestation.py",
+        "packages/vera_core/src/vera_core/independent_behavior_review.py"
+      ],
+      "state_owner": "verification/attestation/review ledgers",
+      "authority_owner": "exact evidence-layer contracts",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "driftguard",
+        "voss"
+      ],
+      "providers": [
+        "MCP Conduct Register",
+        "Neura Relay MCP"
+      ]
+    },
+    {
+      "id": "regression_protection",
+      "semantic_owner": [
+        "vera_assurance",
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_assurance/src/vera_assurance/drift.py",
+        "packages/vera_core/src/vera_core/source_verification.py",
+        ".github/workflows/tests.yml"
+      ],
+      "state_owner": "assurance/source verification records + CI evidence",
+      "authority_owner": "admission/closeout contracts",
+      "status": "IMPLEMENTED_INTERNAL_PLUS_CI",
+      "strengtheners": [
+        "driftguard",
+        "masamune",
+        "bugops"
+      ],
+      "providers": [
+        "GitHub"
+      ]
+    },
+    {
+      "id": "error_correction",
+      "semantic_owner": [
+        "vera_core",
+        "vera_assurance"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/corrective_learning.py",
+        "packages/vera_core/src/vera_core/repair_case.py",
+        "packages/vera_assurance/src/vera_assurance/corrective_effectiveness.py"
+      ],
+      "state_owner": "corrective/repair evidence records",
+      "authority_owner": "correction/admission contracts",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "fuckup",
+        "RepairTracker",
+        "bugops",
+        "masamune"
+      ],
+      "providers": [
+        "GitHub",
+        "Linear"
+      ]
+    },
+    {
+      "id": "adversarial_review",
+      "semantic_owner": [
+        "rezon",
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/rezon/src/rezon/hostile.py",
+        "packages/vera_core/src/vera_core/independent_behavior_review.py"
+      ],
+      "state_owner": "review evidence only when explicitly persisted",
+      "authority_owner": "internal hostile review != independent review",
+      "status": "IMPLEMENTED_INTERNAL_AND_EXTERNAL_REVIEW_BOUNDARY",
+      "strengtheners": [
+        "voss",
+        "driftguard",
+        "masamune",
+        "freerowcochkar"
+      ],
+      "providers": [
+        "MCP Conduct Register",
+        "Neura Relay MCP"
+      ]
+    },
+    {
+      "id": "evidence_custody",
+      "semantic_owner": [
+        "vera_ingest",
+        "vera_memory",
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_ingest/src/ingest",
+        "packages/vera_memory/src/vera_memory",
+        "packages/vera_core/src/vera_core/outbound_audit.py"
+      ],
+      "state_owner": "intake/memory/audit/verification ledgers",
+      "authority_owner": "evidence class and currentness contracts",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "roots",
+        "firesafe",
+        "deepmemorystorage"
+      ],
+      "providers": [
+        "Files",
+        "GitHub",
+        "Google Drive",
+        "Microsoft SharePoint"
+      ]
+    },
+    {
+      "id": "project_orchestration",
+      "semantic_owner": [
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/task_execution.py",
+        "packages/vera_core/src/vera_core/resource_lease.py",
+        "packages/vera_core/src/vera_core/task_wake_scheduler.py"
+      ],
+      "state_owner": "TaskExecutionLedger + resource leases",
+      "authority_owner": "task delegation/effect boundaries",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "project-runner",
+        "pre-active",
+        "wip"
+      ],
+      "providers": [
+        "GitHub",
+        "Linear",
+        "Slack",
+        "Google Calendar"
+      ],
+      "external_substrates": [
+        "Pre-Active"
+      ]
+    },
+    {
+      "id": "source_mutation",
+      "semantic_owner": [
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/source_mutation.py",
+        "packages/vera_core/src/vera_core/github_source_transport.py"
+      ],
+      "state_owner": "source mutation bindings/outcomes",
+      "authority_owner": "exact repository/ref scope + provider authority + CAS",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "project-runner"
+      ],
+      "providers": [
+        "GitHub"
+      ]
+    },
+    {
+      "id": "installation_route_runtime_truth",
+      "semantic_owner": [
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/installation_verification.py",
+        "packages/vera_core/src/vera_core/route_verification.py",
+        "packages/vera_core/src/vera_core/runtime_consumption.py"
+      ],
+      "state_owner": "separate verification ledgers",
+      "authority_owner": "layer-specific host observers",
+      "status": "IMPLEMENTED_SOURCE_DISTINCT_EVIDENCE_LAYERS",
+      "strengtheners": [
+        "vera-os",
+        "pre-active"
+      ],
+      "providers": []
+    },
+    {
+      "id": "simulation_boundary",
+      "semantic_owner": [
+        "vera_core"
+      ],
+      "implementation": [
+        "packages/vera_core/src/vera_core/simulation_boundary.py"
+      ],
+      "state_owner": "simulation state/receipts",
+      "authority_owner": "simulation mutation does not imply external authority",
+      "status": "IMPLEMENTED_SOURCE",
+      "strengtheners": [
+        "vera-habitat",
+        "god-brain"
+      ],
+      "providers": []
+    }
+  ],
+  "collision_and_duplication_notes": [
+    "Current main already absorbs substantial donor mechanisms; repository names are not admission reasons.",
+    "Draft PR #64 owns the current whole-portfolio V17 census and Voss rival-hypothesis adaptation.",
+    "Draft PR #65 owns provider-neutral external connector admission and the dated V2 connector observation.",
+    "WorkBridge/Commander remain external workstation transport/provider infrastructure; copying their transport implementation into Vera Mono would duplicate ownership.",
+    "Independent review remains outside Vera's internal assurance semantics even when verification adapters exist locally.",
+    "Fresh review of conations@51948aac796936f0e7c437722e6f52c883e544e9 confirms its append-only history is intentionally non-authoritative and mechanically overlaps vera_memory; no duplicate conation database is admitted."
+  ],
+  "claim_ceiling": "SOURCE_TREE_CAPABILITY_OWNERSHIP_MAP_AND_CANDIDATE_STRENGTHENERS; NOT_LIVE_INSTALLATION; NOT_ROUTE; NOT_RUNTIME_CONSUMPTION; NOT_BEHAVIORAL_QUALIFICATION; NOT_DEPLOYMENT; NOT_CONSCIOUSNESS",
+  "hostile_review": {
+    "subject": "CONATION_HISTORY_OWNERSHIP",
+    "objection": "Treating the absence of a dedicated Vera Mono conation ledger as a gap assumes persistence is beneficial even though conations explicitly forbids stored history from manufacturing present wants.",
+    "disposition": "ACCEPTED",
+    "resolution": "Keep present conation in runtime stance semantics; keep the conations repository as historical/domain evidence and reuse governed memory mechanics only when an explicit admission is independently justified. Do not create a second conation state store."
+  },
+  "external_substrate_bindings": "architecture/VERA_EXTERNAL_SUBSTRATE_BINDINGS_V1.json"
+}

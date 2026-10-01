@@ -1,0 +1,88 @@
+{
+  "schema": "VERA_PLUGIN_CONNECTOR_INTAKE_V1_20261001",
+  "status": "IMPLEMENTED_SOURCE_LEVEL_CI_PENDING_AFTER_SUBSTRATE_CORRECTION",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "base_main": "413397e51bce35d0a36f00cf0ca2c876ca720b44",
+  "branch": "feature/external-provider-admission-v1-20261001",
+  "purpose": "Add provider-neutral connector admission while separately modeling external host-execution and state/evidence/coordination substrates without creating runtime coupling, canonical-memory authority, or effect authority.",
+  "collision_check": {
+    "open_pr_64": "whole-portfolio census and rival-hypothesis resolution; overlapping vera_core/__init__.py intentionally avoided",
+    "open_pr_63": "wheel dependency ceiling; no overlapping paths",
+    "result": "NON_COLLIDING_PATH_SET"
+  },
+  "hostile_review": {
+    "objection": "Hard-coding ChatGPT plugins into Vera core would fossilize a fast-changing product surface and turn visibility into architecture.",
+    "disposition": "ACCEPTED",
+    "correction": "Keep the core implementation provider-neutral and immutable; keep named providers only in a dated observation catalog."
+  },
+  "implementation": [
+    "packages/vera_core/src/vera_core/external_provider_admission.py",
+    "architecture/VERA_EXTERNAL_PROVIDER_ADMISSION_V1.json",
+    "architecture/VERA_EXPOSED_PLUGIN_CONNECTOR_SURFACE_V2.json",
+    "architecture/VERA_CAPABILITY_MESH_V1.json",
+    "architecture/VERA_MONO_MANIFEST_V1.json",
+    "tests/test_external_provider_admission.py",
+    "architecture/VERA_EXTERNAL_SUBSTRATE_BINDINGS_V1.json"
+  ],
+  "semantic_guards": [
+    "external provider cannot become Vera core runtime dependency",
+    "external provider cannot own Vera identity",
+    "external provider cannot become Vera source authority",
+    "provider visibility cannot imply effect authority",
+    "action capability classification is descriptive, not permission",
+    "duplicate provider identities are rejected deterministically",
+    "host execution substrate presence is not QualifiedVeraRuntime consumption",
+    "external durable state presence is not canonical Vera memory",
+    "state/evidence substrate presence is not source or effect authority"
+  ],
+  "observations": {
+    "live_exposed_tool_namespaces": 39,
+    "admission_records": 40,
+    "supplied_but_not_distinct_live_namespace": [
+      "Life Science Research"
+    ],
+    "pre_active": {
+      "repository": "thebrazenbeard/pre-active",
+      "exact_main": "0ffc95351db34afed091c3239614f57f371c04ad",
+      "classification": "HOST_EXECUTION_SUBSTRATE_CANDIDATE",
+      "current_host_runtime_verified_by_this_intake": false
+    },
+    "supabase_vera": {
+      "dedicated_live_project_observed": true,
+      "classification": "STATE_EVIDENCE_COORDINATION_SUBSTRATE",
+      "live_inventory_published": false,
+      "specific_project_identifier_published": false
+    }
+  },
+  "protected_effects": {
+    "merge": false,
+    "deploy": false,
+    "install": false,
+    "activate_or_cutover": false,
+    "credential_or_permission_change": false,
+    "provider_mutation": false,
+    "paid_compute": false,
+    "destructive_state_change": false
+  },
+  "verification": {
+    "github_readback": "PASS through branch commits preceding this provenance update",
+    "manifest_binding_test": "IMPLEMENTED",
+    "capability_mesh_coverage_test": "IMPLEMENTED",
+    "ci": "PENDING_ON_CORRECTED_EXACT_HEAD"
+  },
+  "claim_ceiling": "SOURCE_LEVEL_PROVIDER_AND_EXTERNAL_SUBSTRATE_ADMISSION_ONLY; NOT_CURRENT_HOST_RUNTIME; NOT_RUNTIME_CONSUMPTION; NOT_CANONICAL_MEMORY; NOT_BEHAVIORAL_QUALIFICATION; NOT_INDEPENDENT_REVIEW; NOT_DEPLOYMENT",
+  "next_frontier": "Verify corrected exact-head CI and keep Draft. Any concrete Pre-Active host binding or Supabase Vera state binding requires a separate explicit consumer/binding contract and live evidence at the relevant lifecycle layer.",
+  "hostile_review_conation": {
+    "source_repo": "thebrazenbeard/conations",
+    "exact_main": "51948aac796936f0e7c437722e6f52c883e544e9",
+    "prior_vera_disposition": "DOMAIN_OR_CONTENT_SPECIFIC_NO_CORE_INGEST",
+    "objection": "A new conation ledger would duplicate vera_memory lifecycle/provenance mechanics and risk converting historical evidence into present desire.",
+    "disposition": "ACCEPTED_KEEP_SEPARATE",
+    "consequence": "Capability mesh corrected; no new conation database or currentness projection was implemented."
+  },
+  "hostile_review_external_substrates": {
+    "objection": "Treating Pre-Active and the live Supabase Vera project as ordinary providers—or calling both runtime substrates—collapses execution, persistence, semantic ownership, runtime consumption, and authority into one category.",
+    "disposition": "ACCEPTED",
+    "correction": "Model a neutral external-substrate layer with distinct HOST_EXECUTION and STATE_EVIDENCE_COORDINATION roles. Neither role becomes Vera identity, source authority, canonical memory, runtime consumption, or effect authority by presence."
+  }
+}

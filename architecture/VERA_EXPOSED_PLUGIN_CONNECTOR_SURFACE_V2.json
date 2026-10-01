@@ -1,0 +1,461 @@
+{
+  "schema": "VERA_EXPOSED_PLUGIN_CONNECTOR_SURFACE_V2",
+  "status": "DATED_EXPOSURE_AND_SEMANTIC_ADMISSION_OBSERVATION_NOT_RUNTIME_ACTIVATION_PROOF",
+  "observed_date": "2026-10-01",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "base_main": "413397e51bce35d0a36f00cf0ca2c876ca720b44",
+  "purpose": "Classify the currently exposed ChatGPT tool/provider namespaces and the supplied connector universe without turning visibility into Vera identity, source authority, core runtime dependency, connection health, or effect authorization.",
+  "invariants": [
+    "CAPABILITY_AVAILABLE != CAPABILITY_AUTHORIZED",
+    "PLUGIN_CONNECTED != VERA_DEPENDENT_ON_PLUGIN",
+    "EXPOSED_NAMESPACE != ACCOUNT_CONNECTION",
+    "PROVIDER_CLASSIFICATION != RUNTIME_ACTIVATION",
+    "ACTION_CAPABILITY != EFFECT_AUTHORITY"
+  ],
+  "live_exposed_namespace_count": 39,
+  "admission_count": 40,
+  "admissions": [
+    {
+      "provider_id": "aiven",
+      "display_name": "Aiven",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "COMPUTE_PROVIDER",
+        "STORAGE_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "cdata_connect_ai",
+      "display_name": "CData Connect AI",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "canva",
+      "display_name": "Canva",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DESIGN_PROVIDER",
+        "ACTION_PROVIDER",
+        "STORAGE_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "figma",
+      "display_name": "Figma",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DESIGN_PROVIDER",
+        "DATA_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "finances",
+      "display_name": "Finances",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "github",
+      "display_name": "GitHub",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "STORAGE_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "gmail",
+      "display_name": "Gmail",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "COMMUNICATION_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "google_calendar",
+      "display_name": "Google Calendar",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "google_contacts",
+      "display_name": "Google Contacts",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "google_drive",
+      "display_name": "Google Drive",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "STORAGE_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "hugging_face",
+      "display_name": "Hugging Face",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "RESEARCH_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "lappy_desktop_commander",
+      "display_name": "Lappy Desktop Commander",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "OBSERVATION_SOURCE",
+        "WORKSTATION_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "lappy_desktop_commander_v2",
+      "display_name": "Lappy Desktop Commander V2",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "OBSERVATION_SOURCE",
+        "WORKSTATION_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "linear",
+      "display_name": "Linear",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "lovable",
+      "display_name": "Lovable",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DESIGN_PROVIDER",
+        "COMPUTE_PROVIDER",
+        "DEPLOYMENT_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "mcp_conduct_register",
+      "display_name": "MCP Conduct Register",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "REVIEW_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "metricool",
+      "display_name": "Metricool",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "COMMUNICATION_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "microsoft_sharepoint",
+      "display_name": "Microsoft SharePoint",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "STORAGE_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "neura_relay_mcp",
+      "display_name": "Neura Relay MCP",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "REVIEW_PROVIDER",
+        "DATA_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "openai_platform",
+      "display_name": "OpenAI Platform",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "COMPUTE_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "parallel_search",
+      "display_name": "Parallel Search",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "OBSERVATION_SOURCE",
+        "RESEARCH_PROVIDER",
+        "DATA_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "plugin_creator",
+      "display_name": "Plugin Creator",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DESIGN_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "plugin_management",
+      "display_name": "Plugin Management",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "remote_desktop_commander",
+      "display_name": "Remote Desktop Commander",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "OBSERVATION_SOURCE",
+        "WORKSTATION_PROVIDER",
+        "ACTION_PROVIDER"
+      ],
+      "use_policy": "DO_NOT_USE_RATE_LIMITED_BY_EXISTING_REPOSITORY_POLICY_UNTIL_REAUTHORIZED"
+    },
+    {
+      "provider_id": "replit",
+      "display_name": "Replit",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "COMPUTE_PROVIDER",
+        "DESIGN_PROVIDER",
+        "DEPLOYMENT_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "scispace",
+      "display_name": "SciSpace",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "RESEARCH_PROVIDER",
+        "DATA_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "slack",
+      "display_name": "Slack",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "COMMUNICATION_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "soluvery",
+      "display_name": "Soluvery",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "REVIEW_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "spotify",
+      "display_name": "Spotify",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "supabase",
+      "display_name": "Supabase",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "STORAGE_PROVIDER",
+        "COMPUTE_PROVIDER",
+        "DEPLOYMENT_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "tinyfish",
+      "display_name": "TinyFish",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "OBSERVATION_SOURCE",
+        "RESEARCH_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "vercel",
+      "display_name": "Vercel",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "COMPUTE_PROVIDER",
+        "DEPLOYMENT_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "wolfram",
+      "display_name": "Wolfram",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "RESEARCH_PROVIDER",
+        "COMPUTE_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "workbridge_commander_mcp",
+      "display_name": "Workbridge Commander MCP",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "OBSERVATION_SOURCE",
+        "WORKSTATION_PROVIDER",
+        "ACTION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "workbridge_relay",
+      "display_name": "Workbridge Relay",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "OBSERVATION_SOURCE",
+        "COMMUNICATION_PROVIDER",
+        "WORKSTATION_PROVIDER"
+      ]
+    },
+    {
+      "provider_id": "writing_style",
+      "display_name": "Writing Style",
+      "provider_kind": "EXTERNAL_CONNECTOR",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "OPTIONAL_AUXILIARY"
+      ]
+    },
+    {
+      "provider_id": "files",
+      "display_name": "Files",
+      "provider_kind": "INTERNAL_SUPPORT",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "STORAGE_PROVIDER",
+        "OPTIONAL_AUXILIARY"
+      ]
+    },
+    {
+      "provider_id": "skills",
+      "display_name": "Skills",
+      "provider_kind": "INTERNAL_SUPPORT",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "OPTIONAL_AUXILIARY"
+      ]
+    },
+    {
+      "provider_id": "user_settings",
+      "display_name": "User Settings",
+      "provider_kind": "INTERNAL_SUPPORT",
+      "exposure": "EXPOSED",
+      "capability_classes": [
+        "DATA_PROVIDER",
+        "ACTION_PROVIDER",
+        "OPTIONAL_AUXILIARY"
+      ]
+    },
+    {
+      "provider_id": "life_science_research",
+      "display_name": "Life Science Research",
+      "provider_kind": "SUPPLIED_CANDIDATE",
+      "exposure": "SUPPLIED_NOT_OBSERVED_AS_DISTINCT_LIVE_NAMESPACE",
+      "capability_classes": [
+        "RESEARCH_PROVIDER",
+        "DATA_PROVIDER"
+      ]
+    }
+  ],
+  "default_admission": {
+    "core_runtime_dependency": false,
+    "identity_authority": "NONE",
+    "source_authority": "NONE",
+    "availability_implies_authority": false,
+    "effect_authorization": "EXTERNAL_DECISION_REQUIRED"
+  },
+  "runtime_rule": "Provider-specific adapters may be host-composed behind existing Vera execution/observation boundaries only when a real consumer exists. This catalog itself causes no activation, account access, provider binding, or external effect.",
+  "provenance": {
+    "user_supplied_universe": "Pasted task VERA_MONO::ROOT_AND_INTEGRATE::PORTFOLIO_MESH_V1",
+    "live_observation": "Current ChatGPT tool namespaces visible on 2026-10-01",
+    "predecessor": "architecture/VERA_EXPOSED_PLUGIN_CONNECTOR_SURFACE_V1.json"
+  },
+  "claim_ceiling": "SOURCE_LEVEL_PROVIDER_CLASSIFICATION_AND_DATED_EXPOSURE_OBSERVATION_ONLY; NOT_CONNECTION_HEALTH; NOT_RUNTIME_ACTIVATION; NOT_EFFECT_AUTHORITY; NOT_DEPLOYMENT"
+}

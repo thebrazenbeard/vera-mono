@@ -1,0 +1,54 @@
+{
+  "schema": "VERA_EXTERNAL_SUBSTRATE_BINDINGS_V1",
+  "status": "DATED_EXTERNAL_SUBSTRATE_OBSERVATION",
+  "observed_date": "2026-10-01",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "purpose": "Record architecturally relevant external execution and durable-state substrates without promoting them into Vera semantic ownership, runtime consumption, canonical memory, or effect authority.",
+  "bindings": [
+    {
+      "id": "pre-active",
+      "role": "HOST_EXECUTION",
+      "repository": "thebrazenbeard/pre-active",
+      "exact_source_main": "0ffc95351db34afed091c3239614f57f371c04ad",
+      "evidence_class": "REPOSITORY_SOURCE",
+      "source_capability": "durable host-side execution, scheduling, model/tool loop, effect fencing, and recovery",
+      "historical_host_qualification_recorded_in_source": true,
+      "qualified_vera_runtime_binding": false,
+      "current_host_runtime_verified_by_this_record": false,
+      "core_runtime_dependency": false,
+      "identity_authority": false,
+      "source_authority": false,
+      "effect_authority": false
+    },
+    {
+      "id": "supabase-vera",
+      "role": "STATE_EVIDENCE_COORDINATION",
+      "provider": "Supabase",
+      "evidence_class": "RUNTIME_OBSERVATION",
+      "live_project_observed": true,
+      "observed_role_summary": "Vera-specific durable state, evidence, memory-adjacent, coordination, and runtime-adjacent persistence surfaces exist in the connected project.",
+      "live_inventory_reproduced": false,
+      "specific_project_identifier_published": false,
+      "canonical_memory_authority": false,
+      "runtime_activation": false,
+      "core_runtime_dependency": false,
+      "identity_authority": false,
+      "source_authority": false,
+      "effect_authority": false
+    }
+  ],
+  "non_promotions": [
+    "HOST_EXECUTION_SUBSTRATE != QUALIFIED_VERA_RUNTIME",
+    "HOST_PROCESS_RUNNING != VERA_RUNTIME_CONSUMPTION",
+    "STATE_EVIDENCE_SUBSTRATE != CANONICAL_MEMORY",
+    "DURABLE_STATE_PRESENT != CURRENT_TRUTH",
+    "EXTERNAL_SUBSTRATE_PRESENT != CORE_RUNTIME_DEPENDENCY",
+    "EXTERNAL_SUBSTRATE_CAPABILITY != EFFECT_AUTHORITY"
+  ],
+  "privacy": {
+    "live_provider_inventory_published": false,
+    "credentials_or_secrets_published": false,
+    "exact_private_project_identifier_published": false
+  },
+  "claim_ceiling": "DATED_SOURCE_AND_RUNTIME_OBSERVATION_CLASSIFICATION_ONLY; NOT_BINDING; NOT_INSTALLATION; NOT_ROUTE; NOT_RUNTIME_CONSUMPTION; NOT_BEHAVIOR; NOT_EFFECT_AUTHORITY"
+}

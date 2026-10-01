@@ -1,0 +1,75 @@
+{
+  "schema": "VERA_MONO_EXTERNAL_PROVIDER_ADMISSION_V1",
+  "status": "SOURCE_LEVEL_PROVIDER_AND_SUBSTRATE_NEUTRAL_BOUNDARY",
+  "owner_repository": "thebrazenbeard/vera-mono",
+  "implementation": "packages/vera_core/src/vera_core/external_provider_admission.py",
+  "dated_observation": "architecture/VERA_EXPOSED_PLUGIN_CONNECTOR_SURFACE_V2.json",
+  "capability_mesh": "architecture/VERA_CAPABILITY_MESH_V1.json",
+  "purpose": "Classify external capability providers and external host/state substrates without converting exposure, connection, persistence, or execution capability into Vera identity, source authority, core runtime dependency, runtime activation, canonical memory authority, or effect authority.",
+  "capability_classes": [
+    "OBSERVATION_SOURCE",
+    "DATA_PROVIDER",
+    "ACTION_PROVIDER",
+    "COMPUTE_PROVIDER",
+    "COMMUNICATION_PROVIDER",
+    "STORAGE_PROVIDER",
+    "RESEARCH_PROVIDER",
+    "DESIGN_PROVIDER",
+    "DEPLOYMENT_PROVIDER",
+    "WORKSTATION_PROVIDER",
+    "REVIEW_PROVIDER",
+    "OPTIONAL_AUXILIARY",
+    "NOT_RELEVANT"
+  ],
+  "provider_kinds": [
+    "EXTERNAL_CONNECTOR",
+    "INTERNAL_SUPPORT",
+    "SUPPLIED_CANDIDATE",
+    "HOST_EXECUTION_SUBSTRATE",
+    "STATE_EVIDENCE_SUBSTRATE"
+  ],
+  "invariants": {
+    "capability_available_is_capability_authorized": false,
+    "provider_admission_may_create_core_runtime_dependency": false,
+    "provider_admission_may_own_vera_identity": false,
+    "provider_admission_may_become_source_authority": false,
+    "availability_may_imply_effect_authority": false,
+    "action_capability_may_mint_effect_authorization": false,
+    "substrate_presence_may_establish_runtime_consumption": false,
+    "durable_state_presence_may_become_canonical_memory": false
+  },
+  "composition": {
+    "qualified_runtime": "vera_core.QualifiedVeraRuntime",
+    "execution_transport_contract": "architecture/VERA_EXECUTION_TRANSPORT_BINDING_V1.json",
+    "provider_specific_adapter_required_only_for_concrete_consumer": true,
+    "provider_specific_names_in_core_contract": false,
+    "named_provider_inventory_is_dated_observation": true,
+    "host_execution_substrate_may_host_qualified_runtime": true,
+    "host_execution_substrate_is_qualified_runtime_by_presence": false,
+    "state_evidence_substrate_is_canonical_memory_by_presence": false,
+    "external_substrate_requires_explicit_binding": true
+  },
+  "degradation": {
+    "unavailable_provider_may_remove_optional_capability": true,
+    "unavailable_provider_may_change_vera_identity": false,
+    "unavailable_provider_may_invalidate_local_core_source": false,
+    "unavailable_provider_may_bypass_authority_checks": false
+  },
+  "non_promotions": [
+    "EXPOSED_NAMESPACE != ACCOUNT_CONNECTION",
+    "ACCOUNT_CONNECTION != EFFECT_AUTHORITY",
+    "ACTION_CAPABILITY != AUTHORIZATION",
+    "PROVIDER_CLASSIFICATION != RUNTIME_ACTIVATION",
+    "PLUGIN_CONNECTED != VERA_DEPENDENT_ON_PLUGIN",
+    "HOST_PROCESS_RUNNING != VERA_RUNTIME_CONSUMPTION",
+    "DURABLE_STATE_PRESENT != CANONICAL_MEMORY",
+    "EXTERNAL_SUBSTRATE_PRESENT != VERA_CORE_RUNTIME_DEPENDENCY"
+  ],
+  "claim_ceiling": "SOURCE_LEVEL_PROVIDER_AND_EXTERNAL_SUBSTRATE_ADMISSION_CONTRACT; NOT_CONNECTION_HEALTH; NOT_CURRENT_HOST_RUNTIME; NOT_RUNTIME_CONSUMPTION; NOT_CANONICAL_MEMORY; NOT_EFFECT_AUTHORITY; NOT_DEPLOYMENT",
+  "external_substrate_bindings": "architecture/VERA_EXTERNAL_SUBSTRATE_BINDINGS_V1.json",
+  "substrate_roles": [
+    "NONE",
+    "HOST_EXECUTION",
+    "STATE_EVIDENCE_COORDINATION"
+  ]
+}
