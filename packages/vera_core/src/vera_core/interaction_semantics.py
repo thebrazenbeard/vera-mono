@@ -174,11 +174,27 @@ def _interaction_id(raw_text: str, previous_interaction_id: str | None) -> str:
 
 
 def _exact_candidates(text: str) -> tuple[InterpretationCandidate, ...]:
-    if not text.lstrip().startswith(":"):
+    stripped = text.lstrip()
+    if not stripped.startswith(":"):
         return ()
+    first = re.match(
+        r"^:(status|tasks|context|capabilities|help|identity|meaning|exit|quit)\b",
+        stripped,
+        flags=re.I,
+    )
+    if first is None:
+        return ()
+    if first.group(1).lower() == "meaning":
+        return (
+            InterpretationCandidate(
+                target=InteractionTarget.MEANING,
+                evidence_cues=(":meaning",),
+                specificity=100,
+            ),
+        )
     found = re.findall(
-        r"(?<!\S):(status|tasks|context|capabilities|help|identity|meaning|exit|quit)\b",
-        text,
+        r"(?<!\S):(status|tasks|context|capabilities|help|identity|exit|quit)\b",
+        stripped,
         flags=re.I,
     )
     candidates: list[InterpretationCandidate] = []
