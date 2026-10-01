@@ -46,10 +46,12 @@ class InteractionEnvelope:
     candidates: tuple[InterpretationCandidate, ...]
     evidence_cues: tuple[str, ...]
     hedges: tuple[str, ...]
+    negation_cues: tuple[str, ...]
     corrects_interaction_id: str | None
     fidelity: TransferFidelity
     resolved: bool
     action_requested: bool
+    action_forbidden: bool
     truth_effect: str = "NONE"
     authorization_effect: str = "NONE"
     semantic_equivalence: str = "NOT_ESTABLISHED"
@@ -72,10 +74,12 @@ class InteractionEnvelope:
             ],
             "evidence_cues": list(self.evidence_cues),
             "hedges": list(self.hedges),
+            "negation_cues": list(self.negation_cues),
             "corrects_interaction_id": self.corrects_interaction_id,
             "fidelity": self.fidelity.value,
             "resolved": self.resolved,
             "action_requested": self.action_requested,
+            "action_forbidden": self.action_forbidden,
             "truth_effect": self.truth_effect,
             "authorization_effect": self.authorization_effect,
             "semantic_equivalence": self.semantic_equivalence,
@@ -95,6 +99,7 @@ _EXACT_COMMANDS = {
 }
 
 _HEDGE_RE = re.compile(r"\b(maybe|perhaps|possibly|probably|might|could)\b", re.I)
+_NEGATION_RE = re.compile(r"\b(do not|don't|dont|never)\b", re.I)
 _CORRECTION_RE = re.compile(
     r"^\s*(?:no\b|correction\b|actually\b|i\s+meant\b|not\s+that\b)",
     re.I,
@@ -167,6 +172,8 @@ def _interaction_id(raw_text: str, previous_interaction_id: str | None) -> str:
 
 
 def _exact_candidates(text: str) -> tuple[InterpretationCandidate, ...]:
+    if not text.lstrip().startswith(":"):
+        return ()
     found = re.findall(
         r"(?<!\S):(status|tasks|context|capabilities|help|identity|meaning|exit|quit)\b",
         text,
@@ -280,6 +287,9 @@ def interpret_utterance(
     hedges = tuple(
         dict.fromkeys(match.group(1).lower() for match in _HEDGE_RE.finditer(normalized))
     )
+    negation_cues = tuple(
+        dict.fromkeys(match.group(1).lower() for match in _NEGATION_RE.finditer(normalized))
+    )
     cues = tuple(
         cue
         for candidate in candidates
@@ -290,12 +300,22 @@ def interpret_utterance(
         if act is SpeechAct.CORRECTION
         else None
     )
+    action_forbidden = (
+        bool(negation_cues)
+        and target not in {
+            InteractionTarget.UNKNOWN,
+            InteractionTarget.AMBIGUOUS,
+            InteractionTarget.HELP,
+            InteractionTarget.MEANING,
+        }
+    )
     action_requested = (
         act in {SpeechAct.REQUEST, SpeechAct.CORRECTION}
         and target not in {
             InteractionTarget.UNKNOWN,
             InteractionTarget.AMBIGUOUS,
         }
+        and not action_forbidden
     )
 
     return InteractionEnvelope(
@@ -307,8 +327,10 @@ def interpret_utterance(
         candidates=candidates,
         evidence_cues=cues,
         hedges=hedges,
+        negation_cues=negation_cues,
         corrects_interaction_id=corrects,
         fidelity=fidelity,
         resolved=resolved,
         action_requested=action_requested,
+        action_forbidden=action_forbidden,
     )
