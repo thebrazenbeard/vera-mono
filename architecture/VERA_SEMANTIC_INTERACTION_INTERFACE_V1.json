@@ -31,7 +31,8 @@
     "semantic_equivalence_automatically_established": false,
     "deontic_negation_preserved": true,
     "target_mention_is_dispatch": false,
-    "dispatch_requires": "QUESTION_OR_REQUEST_OR_CORRECTION_OR_EXACT_CONTROL"
+    "dispatch_requires": "QUESTION_OR_REQUEST_OR_CORRECTION_OR_EXACT_CONTROL",
+    "deontic_negation_scope": "ACTION_LOCAL_NOT_GLOBAL_LEXICAL_NEGATION"
   },
   "console": {
     "implementation": "vera_core.console.VeraConsole",
@@ -91,5 +92,5 @@
     "lgcm": "context mismatch/switch/recall is a later adaptive layer, not V1 semantic authority",
     "mosaic": "not adopted as the interaction architecture"
   },
-  "claim_ceiling": "SOURCE_AND_CI_VERIFIED_INTERACTION_MECHANISM_ONLY_NOT_GENERAL_LANGUAGE_UNDERSTANDING_NOT_SEMANTIC_TRUTH_NOT_RUNTIME_CONSUMPTION_NOT_BEHAVIORAL_QUALIFICATION_NOT_PROTECTED_EFFECT_AUTHORITY"
+  "claim_ceiling": "SOURCE_INTERACTION_MECHANISM_NOT_GENERAL_LANGUAGE_UNDERSTANDING_NOT_SEMANTIC_TRUTH_NOT_RUNTIME_CONSUMPTION_NOT_BEHAVIORAL_QUALIFICATION_NOT_PROTECTED_EFFECT_AUTHORITY"
 }
