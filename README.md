@@ -95,6 +95,7 @@ The console is deliberately semantics-first rather than generator-first. Raw tex
 :status
 :tasks
 :context
+:capabilities
 :identity
 :meaning maybe show me the runtime status
 :help
