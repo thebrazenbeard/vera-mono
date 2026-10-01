@@ -101,7 +101,17 @@ _EXACT_COMMANDS = {
 }
 
 _HEDGE_RE = re.compile(r"\b(maybe|perhaps|possibly|probably|might|could)\b", re.I)
-_NEGATION_RE = re.compile(r"\b(do not|don't|dont|never)\b", re.I)
+_ACTION_VERBS = r"(?:show|list|tell|give|display|inspect|open|explain)"
+_DEONTIC_NEGATION_PATTERNS = (
+    re.compile(
+        rf"^\s*(?:please\s+)?(?P<cue>do not|don't|dont|never)\s+{_ACTION_VERBS}\b",
+        re.I,
+    ),
+    re.compile(
+        rf"^\s*(?:can|could|would|will)\s+you\s+(?P<cue>not|never)\s+{_ACTION_VERBS}\b",
+        re.I,
+    ),
+)
 _CORRECTION_RE = re.compile(
     r"^\s*(?:no\b|correction\b|actually\b|i\s+meant\b|not\s+that\b)",
     re.I,
@@ -320,7 +330,11 @@ def interpret_utterance(
         dict.fromkeys(match.group(1).lower() for match in _HEDGE_RE.finditer(normalized))
     )
     negation_cues = tuple(
-        dict.fromkeys(match.group(1).lower() for match in _NEGATION_RE.finditer(normalized))
+        dict.fromkeys(
+            match.group("cue").lower()
+            for pattern in _DEONTIC_NEGATION_PATTERNS
+            for match in pattern.finditer(normalized)
+        )
     )
     cues = tuple(
         cue
