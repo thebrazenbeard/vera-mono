@@ -18,7 +18,8 @@
     "QUALIFIED_STATE_BOUND": {
       "runtime_state_required": true,
       "state_root": "existing VeraStateDirectory",
-      "runtime_context": "reconstructed at session start",
+      "runtime_context": "reconstructed locally at session start",
+      "generator_projection": "privacy-bounded scalar metadata plus full-context digest only",
       "effect_authority_implied": false
     }
   },
@@ -31,7 +32,8 @@
     "core_runtime_dependency": false,
     "default_protocol": "OpenAI-compatible POST /chat/completions",
     "api_key_persistence": false,
-    "api_key_default_source": "VERA_MODEL_API_KEY environment variable"
+    "api_key_default_source": "VERA_MODEL_API_KEY environment variable",
+    "raw_runtime_context_export": false
   },
   "conversation": {
     "history": "EPHEMERAL_PROCESS_MEMORY",
@@ -58,7 +60,8 @@
     "credentials_in_command_line_required": false,
     "authorization_minted_by_chat": false,
     "protected_effect_execution": false,
-    "network_call_occurs_only_after_explicit chat invocation"
+    "network_call_occurs_only_after_explicit_chat_invocation": true,
+    "durable_runtime_contents_implicitly_exported": false
   },
   "claim_ceiling": "SOURCE_LEVEL_TERMINAL_INTERFACE_NOT_INSTALLATION_NOT_ROUTE_ACTIVATION_NOT_RUNTIME_CONSUMPTION_NOT_BEHAVIORAL_QUALIFICATION"
 }
