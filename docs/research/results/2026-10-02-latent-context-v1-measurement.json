@@ -1,0 +1,97 @@
+{
+  "case_count": 7,
+  "cases": [
+    {
+      "active_bytes": 68,
+      "case_id": "late_color",
+      "exact_recovered": true,
+      "false_reconstruction": false,
+      "reason": null,
+      "rehydration_bytes": 68,
+      "rehydration_count": 1,
+      "representation_bytes": 53,
+      "source_bytes": 68,
+      "status": "EXACT_REHYDRATED"
+    },
+    {
+      "active_bytes": 75,
+      "case_id": "late_number",
+      "exact_recovered": true,
+      "false_reconstruction": false,
+      "reason": null,
+      "rehydration_bytes": 75,
+      "rehydration_count": 1,
+      "representation_bytes": 55,
+      "source_bytes": 75,
+      "status": "EXACT_REHYDRATED"
+    },
+    {
+      "active_bytes": 90,
+      "case_id": "late_code_identifier",
+      "exact_recovered": true,
+      "false_reconstruction": false,
+      "reason": null,
+      "rehydration_bytes": 90,
+      "rehydration_count": 1,
+      "representation_bytes": 52,
+      "source_bytes": 90,
+      "status": "EXACT_REHYDRATED"
+    },
+    {
+      "active_bytes": 83,
+      "case_id": "correction_supersession",
+      "exact_recovered": true,
+      "false_reconstruction": false,
+      "reason": null,
+      "rehydration_bytes": 83,
+      "rehydration_count": 1,
+      "representation_bytes": 59,
+      "source_bytes": 83,
+      "status": "EXACT_REHYDRATED"
+    },
+    {
+      "active_bytes": 74,
+      "case_id": "conflicting_sources",
+      "exact_recovered": false,
+      "false_reconstruction": false,
+      "reason": null,
+      "rehydration_bytes": 0,
+      "rehydration_count": 0,
+      "representation_bytes": 74,
+      "source_bytes": 97,
+      "status": "COMPACT"
+    },
+    {
+      "active_bytes": 0,
+      "case_id": "missing_backing",
+      "exact_recovered": false,
+      "false_reconstruction": false,
+      "reason": "FileNotFoundError",
+      "rehydration_bytes": 0,
+      "rehydration_count": 0,
+      "representation_bytes": 34,
+      "source_bytes": 53,
+      "status": "INSUFFICIENT_FIDELITY"
+    },
+    {
+      "active_bytes": 25,
+      "case_id": "irrelevant_bulk",
+      "exact_recovered": false,
+      "false_reconstruction": false,
+      "reason": null,
+      "rehydration_bytes": 0,
+      "rehydration_count": 0,
+      "representation_bytes": 25,
+      "source_bytes": 207,
+      "status": "COMPACT"
+    }
+  ],
+  "claim_ceiling": "VERA_MANAGED_CONTEXT_ONLY_NOT_GPU_VRAM",
+  "failed_exact_case_count": 1,
+  "false_reconstruction_count": 0,
+  "schema": "VERA_MONO_LATENT_CONTEXT_MEASUREMENT_V1",
+  "successful_active_bytes": 415,
+  "successful_case_count": 6,
+  "successful_context_reduction_ratio": 1.493976,
+  "successful_source_bytes": 620
+}

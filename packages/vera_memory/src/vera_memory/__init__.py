@@ -29,6 +29,13 @@ from .learned_influence import (
     LearnedRevision,
     ReviewDisposition,
 )
+from .latent import (
+    LatentBlock,
+    LatentMemoryError,
+    LatentMemoryStore,
+    LossClass,
+    Resolution,
+)
 
 __all__ = [
     "AdmissionRequest",
@@ -52,4 +59,9 @@ __all__ = [
     "LearnedInfluenceStale",
     "LearnedRevision",
     "ReviewDisposition",
+    "LatentBlock",
+    "LatentMemoryError",
+    "LatentMemoryStore",
+    "LossClass",
+    "Resolution",
 ]

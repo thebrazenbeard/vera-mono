@@ -73,6 +73,23 @@ from .runtime import (
     build_retrieval_plan,
     evaluate_abstract_proposition_admission,
 )
+from .latent_context import (
+    ContextAssemblyReceipt,
+    ContextCandidate,
+    ContextItem,
+    LatentContextError,
+    RehydrationRequest,
+    RehydrationResult,
+    assemble_context,
+    rehydrate_exact,
+)
+from .resolution_binding import (
+    BoundResolutionRoute,
+    BoundRouteStatus,
+    ResolutionBindingError,
+    ResolutionRouteBinding,
+    resolve_resolution_route,
+)
 
 # Public package-level admission is provider-strict. Lightweight policy fixtures
 # remain available only through the explicitly named abstract evaluator.
@@ -141,4 +158,17 @@ __all__ = [
     "evaluate_proposition_admission",
     "evaluate_provider_proposition_admission",
     "evaluate_abstract_proposition_admission",
+    "ContextAssemblyReceipt",
+    "ContextCandidate",
+    "ContextItem",
+    "LatentContextError",
+    "RehydrationRequest",
+    "RehydrationResult",
+    "assemble_context",
+    "rehydrate_exact",
+    "BoundResolutionRoute",
+    "BoundRouteStatus",
+    "ResolutionBindingError",
+    "ResolutionRouteBinding",
+    "resolve_resolution_route",
 ]

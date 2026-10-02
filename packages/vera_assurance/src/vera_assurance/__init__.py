@@ -58,6 +58,12 @@ from .effect_fence import (
     EffectReceipt,
     EffectState,
 )
+from .latent_memory import (
+    LatentAssuranceFinding,
+    LatentAssuranceReport,
+    audit_context_receipt,
+    audit_latent_blocks,
+)
 
 __all__ = [
     "CausalSpecificityReceipt",
@@ -102,6 +108,10 @@ __all__ = [
     "Snapshot",
     "audit_policy_constraints",
     "compare_snapshots",
+    "LatentAssuranceFinding",
+    "LatentAssuranceReport",
+    "audit_context_receipt",
+    "audit_latent_blocks",
     "ResidencyEnvelope",
     "ResidencyFeasibilityError",
     "ResidencyFeasibilityReport",

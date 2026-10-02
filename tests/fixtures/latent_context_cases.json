@@ -1,0 +1,56 @@
+[
+  {
+    "case_id": "late_color",
+    "source": "At 3:17 PM Patrick bought a red screwdriver from the hardware store.",
+    "representation": "Patrick bought a screwdriver from the hardware store.",
+    "exactness_required": true,
+    "backing_available": true,
+    "expected_exact_fragment": "red"
+  },
+  {
+    "case_id": "late_number",
+    "source": "The maintenance log recorded bearing serial number 74219 during inspection.",
+    "representation": "A bearing serial number was recorded during inspection.",
+    "exactness_required": true,
+    "backing_available": true,
+    "expected_exact_fragment": "74219"
+  },
+  {
+    "case_id": "late_code_identifier",
+    "source": "The exact callback identifier is route_user_v2__fallback_17 and it must not be normalized.",
+    "representation": "A routing fallback callback identifier was recorded.",
+    "exactness_required": true,
+    "backing_available": true,
+    "expected_exact_fragment": "route_user_v2__fallback_17"
+  },
+  {
+    "case_id": "correction_supersession",
+    "source": "Correction: the current gate code is 8842; 1129 is superseded and must not be used.",
+    "representation": "The gate code was corrected and the prior value superseded.",
+    "exactness_required": true,
+    "backing_available": true,
+    "expected_exact_fragment": "8842"
+  },
+  {
+    "case_id": "conflicting_sources",
+    "source": "Source A reports valve V-17 OPEN. Source B reports valve V-17 CLOSED. The conflict is unresolved.",
+    "representation": "Two sources disagree about valve V-17 and the conflict remains unresolved.",
+    "exactness_required": false,
+    "backing_available": true
+  },
+  {
+    "case_id": "missing_backing",
+    "source": "The exact calibration offset was -0.0375 millimeters.",
+    "representation": "A calibration offset was recorded.",
+    "exactness_required": true,
+    "backing_available": false,
+    "expected_exact_fragment": "-0.0375"
+  },
+  {
+    "case_id": "irrelevant_bulk",
+    "source": "Routine status unchanged. Routine status unchanged. Routine status unchanged. Routine status unchanged. Routine status unchanged. Routine status unchanged. Routine status unchanged. Routine status unchanged.",
+    "representation": "Routine status unchanged.",
+    "exactness_required": false,
+    "backing_available": true
+  }
+]
