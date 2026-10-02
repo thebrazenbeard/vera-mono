@@ -683,6 +683,7 @@ class QualifiedVeraRuntime:
         independent_behavior_review_head = (
             self.independent_behavior_reviews.verify_chain()
         )
+        latent_memory_context = self.latent_memory.context()
         body = {
             "schema": "VERA_MONO_TASK_RUNTIME_EVIDENCE_V1",
             "project_id": self.lifecycle.project_id,
@@ -712,6 +713,9 @@ class QualifiedVeraRuntime:
             ),
             "independent_behavior_review_head_digest": (
                 independent_behavior_review_head
+            ),
+            "latent_memory_projection_digest": (
+                latent_memory_context["projection_digest"]
             ),
         }
         return sha256_hex(canonical_json_bytes(body))

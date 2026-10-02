@@ -1289,3 +1289,31 @@ def test_qualified_runtime_composes_latent_context_without_changing_lifecycle(tm
     assert receipt.items[0].exact is True
     assert runtime.lifecycle.memory.current_head == lifecycle_head
     assert runtime.resume_context()["latent_memory"]["block_count"] == 1
+
+
+def test_task_runtime_evidence_digest_binds_latent_projection(tmp_path):
+    from hashlib import sha256
+
+    from vera_memory import LatentBlock, LossClass, Resolution
+
+    state = accepted_state(tmp_path)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    before = runtime._task_runtime_evidence_digest()
+    source = b"exact latent evidence"
+    block = LatentBlock.create(
+        source_refs=("source:latent-evidence",),
+        source_digest=sha256(source).hexdigest(),
+        resolution=Resolution.L2_SEMANTIC_LATENT,
+        codec_id="test-codec",
+        codec_version="1",
+        representation=b"compact latent evidence",
+        loss_class=LossClass.LOSSY,
+        exact_recoverable=True,
+        provenance=("test:fixture",),
+        created_at="2026-10-02T12:00:00Z",
+    )
+
+    runtime.latent_memory.put(block)
+    after = runtime._task_runtime_evidence_digest()
+
+    assert before != after

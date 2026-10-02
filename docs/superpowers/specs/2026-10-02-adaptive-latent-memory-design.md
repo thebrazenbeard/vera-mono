@@ -52,6 +52,7 @@ Required properties:
 
 - block identity is deterministic over source identity, codec identity/version, resolution, and representation bytes;
 - every non-L0 block carries source/provenance references;
+- V1 accepts exactly one `source_ref` per latent block because `source_digest` is singular; multi-source blocks remain deferred until the contract binds per-source digests or an explicit composite-source identity;
 - `exact_recoverable=true` means Vera retains a verified route to exact backing evidence, not that the latent representation is lossless;
 - codecs are explicit/versioned and cannot silently change semantics.
 
@@ -183,10 +184,11 @@ These establish nearby mechanisms, not novelty of this combined architecture.
 3. Context assembly obeys an explicit active budget and returns a deterministic receipt.
 4. Rehydration promotes only requested/required blocks.
 5. Codec/version/source digests participate in deterministic identity and stale-state checks.
-6. A test corpus demonstrates measurable active-context reduction while preserving required exact-answer recovery.
-7. Tests include adversarial cases where a lossy representation omits a detail later requested exactly.
-8. No test or documentation claims provider-internal KV/VRAM reduction without a measured local-model experiment.
-9. Existing memory authority, lifecycle, effect, and provider boundaries are unchanged unless separately specified and tested.
+6. Durable latent-store context exposes a deterministic membership projection digest, and qualified task runtime evidence binds that digest so latent-state mutation changes the task evidence subject.
+7. A test corpus demonstrates measurable active-context reduction while preserving required exact-answer recovery.
+8. Tests include adversarial cases where a lossy representation omits a detail later requested exactly.
+9. No test or documentation claims provider-internal KV/VRAM reduction without a measured local-model experiment.
+10. Existing memory authority, lifecycle, effect, and provider boundaries are unchanged unless separately specified and tested.
 
 ## Non-goals for V1
 

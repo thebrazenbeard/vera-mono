@@ -112,7 +112,11 @@ class LatentBlock:
         provenance: tuple[str, ...],
         created_at: str,
     ) -> "LatentBlock":
-        _require_refs(source_refs, "source_refs")
+        bound_sources = _require_refs(source_refs, "source_refs")
+        if len(bound_sources) != 1:
+            raise LatentMemoryError(
+                "V1 latent blocks require exactly one source_ref"
+            )
         digest = _require_digest(source_digest, "source_digest")
         if type(resolution) is not Resolution:
             raise LatentMemoryError("resolution must be an exact Resolution")
@@ -128,7 +132,7 @@ class LatentBlock:
         observed_at = _require_text(created_at, "created_at")
         representation_digest = sha256_hex(representation)
         material = cls._identity_material(
-            source_refs=source_refs,
+            source_refs=bound_sources,
             source_digest=digest,
             resolution=resolution,
             codec_id=codec,
@@ -140,7 +144,7 @@ class LatentBlock:
         )
         return cls(
             block_id=sha256_hex(canonical_json_bytes(material)),
-            source_refs=source_refs,
+            source_refs=bound_sources,
             source_digest=digest,
             resolution=resolution,
             codec_id=codec,
@@ -302,8 +306,17 @@ class LatentMemoryStore:
             by_resolution[block.resolution.value] = (
                 by_resolution.get(block.resolution.value, 0) + 1
             )
+        projection_digest = sha256_hex(
+            canonical_json_bytes(
+                {
+                    "schema": "VERA_MONO_LATENT_MEMORY_PROJECTION_V1",
+                    "block_ids": [block.block_id for block in blocks],
+                }
+            )
+        )
         return {
             "schema": "VERA_MONO_LATENT_MEMORY_CONTEXT_V1",
+            "projection_digest": projection_digest,
             "block_count": len(blocks),
             "exact_recoverable_count": sum(
                 1 for block in blocks if block.exact_recoverable

@@ -88,3 +88,36 @@ def test_latent_block_rejects_non_bytes_representation():
 
     with pytest.raises(module.LatentMemoryError, match="representation"):
         _make_block(module, representation="not-bytes")
+
+
+def test_v1_latent_block_rejects_ambiguous_multi_source_binding():
+    module = _latent()
+
+    with pytest.raises(module.LatentMemoryError, match="exactly one source_ref"):
+        _make_block(
+            module,
+            source_refs=("source:a", "source:b"),
+        )
+
+
+def test_latent_store_projection_digest_changes_with_membership(tmp_path):
+    module = _latent()
+    path = tmp_path / "latent.sqlite"
+    store = module.LatentMemoryStore(path)
+    first = _make_block(module)
+    second = _make_block(
+        module,
+        source_refs=("source:b",),
+        source_digest="b" * 64,
+        representation=b"different compact representation",
+    )
+
+    empty_digest = store.context()["projection_digest"]
+    store.put(first)
+    first_digest = store.context()["projection_digest"]
+    store.put(second)
+    second_digest = store.context()["projection_digest"]
+
+    assert empty_digest != first_digest
+    assert first_digest != second_digest
+    assert module.LatentMemoryStore(path).context()["projection_digest"] == second_digest
