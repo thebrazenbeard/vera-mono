@@ -83,6 +83,13 @@ from .latent_context import (
     assemble_context,
     rehydrate_exact,
 )
+from .resolution_binding import (
+    BoundResolutionRoute,
+    BoundRouteStatus,
+    ResolutionBindingError,
+    ResolutionRouteBinding,
+    resolve_resolution_route,
+)
 
 # Public package-level admission is provider-strict. Lightweight policy fixtures
 # remain available only through the explicitly named abstract evaluator.
@@ -159,4 +166,9 @@ __all__ = [
     "RehydrationResult",
     "assemble_context",
     "rehydrate_exact",
+    "BoundResolutionRoute",
+    "BoundRouteStatus",
+    "ResolutionBindingError",
+    "ResolutionRouteBinding",
+    "resolve_resolution_route",
 ]
