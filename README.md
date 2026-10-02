@@ -21,6 +21,12 @@ Vera's implementation lives here. External repositories are research labs, donor
 - `packages/vera_pc_connection` â€” local PC-connection contracts, path policy, journal, envelopes, and state machine.
 - `packages/portfolio_runtime` â€” absorbed reusable mechanisms from Lantern, Roots, SkeletonKey, Attune, Intranel, and Vera Works.
 
+## Adaptive multi-resolution context research
+
+The draft adaptive-latent-memory work adds an exact-backed representation substrate with L0/L1/L2/L3 resolution classes, deterministic context budgeting, and selective exact rehydration. Lossy compact state is never treated as exact evidence. Initial deterministic corpus measurement reduced successful Vera-managed active context from 620 source bytes to 415 active bytes (1.493976x) while recovering all four late-relevance exact cases; one missing-backing exact case failed closed. The claim ceiling is `VERA_MANAGED_CONTEXT_ONLY_NOT_GPU_VRAM`: this does not establish provider-internal KV-cache or GPU-memory reduction.
+
+See `docs/research/results/2026-10-02-latent-context-v1-measurement.json` and the design/implementation-plan documents under `docs/superpowers/`.
+
 ## Boundary
 
 Donor references are preserved under `provenance/` and inside historical source artifacts. Their presence records where mechanisms came from; it does not make those repositories runtime dependencies.
