@@ -7,7 +7,13 @@ from typing import Any, Callable, Mapping, TypeVar
 
 from coordination_bus import CoordinationBus
 from portfolio_runtime.lantern.canonical import canonical_json_bytes, sha256_hex
+from runtime_cohesion import (
+    ContextAssemblyReceipt,
+    ContextCandidate,
+    assemble_context,
+)
 from vera_assurance import EffectFence, EffectReceipt, EffectState
+from vera_memory import LatentMemoryStore
 from pc_connection.envelopes import AuthorizationEnvelope, JobEnvelope
 
 from .action_gate import LifecycleBoundCoordinationBus, LifecycleEffectGateway
@@ -197,6 +203,7 @@ class QualifiedVeraRuntime:
     ]
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
+    latent_memory: LatentMemoryStore
 
     @classmethod
     def from_state_directory(
@@ -283,6 +290,7 @@ class QualifiedVeraRuntime:
         independent_behavior_reviews.verify_chain()
         coordination_commands = state.coordination_command_journal()
         tasks = state.task_execution_ledger()
+        latent_memory = state.latent_memory_store()
 
         if pc_authority_verifier is not None:
             outbound_trust.assert_current(
@@ -615,6 +623,20 @@ class QualifiedVeraRuntime:
             independent_behavior_review_transports=review_transports,
             coordination_commands=coordination_commands,
             tasks=tasks,
+            latent_memory=latent_memory,
+        )
+
+    def assemble_latent_context(
+        self,
+        candidates: tuple[ContextCandidate, ...],
+        *,
+        active_budget_bytes: int,
+        backing_loader: Callable[[str], bytes],
+    ) -> ContextAssemblyReceipt:
+        return assemble_context(
+            candidates,
+            active_budget_bytes=active_budget_bytes,
+            backing_loader=backing_loader,
         )
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
@@ -2938,6 +2960,7 @@ class QualifiedVeraRuntime:
 
     def resume_context(self) -> dict[str, Any]:
         context = self.lifecycle.reconstruct().as_resume_context()
+        context["latent_memory"] = self.latent_memory.context()
         context["outbound_trust"] = self.outbound_trust.context()
         context["outbound_audit"] = self.audit.context()
         integrity = self.audit.verify_fence_consistency(self.fence)

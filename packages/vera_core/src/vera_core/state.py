@@ -8,7 +8,7 @@ from ingest import FileSystemStore, Ingestor
 from coordination_bus import SQLiteCoordinationRepository
 from r8a0.trust import configure_provisioning_root
 from vera_assurance import AtomicCurrentnessStore, EffectFence
-from vera_memory import MemoryLedger
+from vera_memory import LatentMemoryStore, MemoryLedger
 from vera_recovery import NativeRecoveryCheckpointStore
 
 from .behavior_effect_verification import BehaviorEffectVerificationStore
@@ -36,6 +36,7 @@ class VeraStatePaths:
     root: Path
     intake: Path
     memory: Path
+    latent_memory: Path
     recovery: Path
     currentness: Path
     lifecycle_journal: Path
@@ -89,6 +90,7 @@ class VeraStateDirectory:
             root=candidate,
             intake=candidate / "intake",
             memory=candidate / "memory" / "memory.sqlite",
+            latent_memory=candidate / "memory" / "latent.sqlite",
             recovery=candidate / "recovery" / "checkpoints.sqlite",
             currentness=candidate / "control" / "currentness.sqlite",
             lifecycle_journal=candidate / "lifecycle" / "journal.sqlite",
@@ -184,6 +186,9 @@ class VeraStateDirectory:
 
     def ingestor(self) -> Ingestor:
         return Ingestor(self.intake_store())
+
+    def latent_memory_store(self) -> LatentMemoryStore:
+        return LatentMemoryStore(self.paths.latent_memory)
 
     def effect_fence(self) -> EffectFence:
         return EffectFence(self.paths.effects)
@@ -283,6 +288,7 @@ class VeraStateDirectory:
     def resume_context(self) -> dict:
         lifecycle = self.open()
         context = lifecycle.reconstruct().as_resume_context()
+        context["latent_memory"] = self.latent_memory_store().context()
         context["outbound_trust"] = self.outbound_trust_registry().context()
         audit = self.outbound_execution_audit()
         fence = lifecycle.effect_fence or self.effect_fence()
