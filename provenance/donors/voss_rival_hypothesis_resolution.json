@@ -1,0 +1,24 @@
+{
+  "schema": "VERA_MONO_DONOR_PROVENANCE_V1",
+  "donor_repository": "thebrazenbeard/voss",
+  "donor_exact_head": "36a623d3a158e5aef521d42e378bafacd67d3de5",
+  "donor_paths": [
+    "voss_core/rivals.py",
+    "voss_core/case.py"
+  ],
+  "adapted_target": "packages/vera_core/src/vera_core/rival_hypotheses.py",
+  "mechanism": [
+    "explicit rival hypotheses",
+    "independence-group deduplication of support",
+    "contradiction-based elimination",
+    "unresolved state when multiple rivals survive",
+    "explicit discriminating-evidence need rather than manufactured closure"
+  ],
+  "adaptation_notes": [
+    "Vera-native primitive does not import the Voss case ontology or runtime",
+    "admissibility is supplied by the caller so existing Vera evidence/currentness layers retain ownership",
+    "resolution does not grant action authority or independent-review status"
+  ],
+  "runtime_dependency": false,
+  "claim_ceiling": "SOURCE_LEVEL_EVIDENCE_REASONING_PRIMITIVE_ONLY"
+}

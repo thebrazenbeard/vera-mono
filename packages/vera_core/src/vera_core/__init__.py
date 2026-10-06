@@ -249,6 +249,15 @@ from .reuse_admission import (
     ReuseConsumer,
     ReusePromotionError,
 )
+from .rival_hypotheses import (
+    RivalEvidence,
+    RivalHypothesis,
+    RivalHypothesisAssessment,
+    RivalHypothesisError,
+    RivalResolution,
+    RivalResolutionState,
+    resolve_rival_hypotheses,
+)
 from .resource_lease import (
     CapabilityDenied,
     ClaimMode,
@@ -653,6 +662,13 @@ __all__ = [
     "ResourceLeaseNotFound",
     "ResourceLeaseRegistry",
     "StaleResourceFence",
+    "RivalEvidence",
+    "RivalHypothesis",
+    "RivalHypothesisAssessment",
+    "RivalHypothesisError",
+    "RivalResolution",
+    "RivalResolutionState",
+    "resolve_rival_hypotheses",
     "HostileReview",
     "ReuseCandidate",
     "ReuseCandidateState",
