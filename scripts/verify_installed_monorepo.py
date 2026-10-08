@@ -1,6 +1,15 @@
 from __future__ import annotations
 
 from importlib import import_module, resources
+import os
+
+from portfolio_runtime.vera_works.contracts import load_states
+from runtime_cohesion.local_bindings import (
+    PACKAGED_PROVENANCE_ENV,
+    build_local_affective_binding,
+    load_local_affective_contract,
+    validate_local_affective_source_binding,
+)
 
 
 MODULES = (
@@ -84,9 +93,23 @@ def main() -> int:
             )
         checked.append(f"{package}/{relative}")
 
+    states = load_states()
+    if not isinstance(states.get("states"), dict) or not states["states"]:
+        raise SystemExit("installed Vera Works state contract is unavailable")
+
+    if not os.environ.get(PACKAGED_PROVENANCE_ENV):
+        raise SystemExit("installed bundle verification requires packaged provenance")
+    contract_text = load_local_affective_contract()
+    binding = build_local_affective_binding()
+    validate_local_affective_source_binding(binding, contract_text)
+    if binding.get("source_verification_mode") != "PACKAGED_MANIFEST_EXECUTING_BYTES":
+        raise SystemExit("installed bundle did not use packaged provenance")
+
     print(
         "VERA_MONO_INSTALLED_BUNDLE_PASS "
-        f"imports={len(imported)} resources={len(checked)}"
+        f"imports={len(imported)} resources={len(checked)} "
+        f"vera_works_states={len(states['states'])} "
+        "packaged_provenance=true"
     )
     return 0
 

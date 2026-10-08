@@ -18,6 +18,8 @@ REQUIRED_FILES = {
     "ingest/resources/schemas/ingest-record-v1.schema.json",
     "rezon/__init__.py",
     "portfolio_runtime/__init__.py",
+    "portfolio_runtime/contracts/states-v1.json",
+    "portfolio_runtime/vera_works/contracts/states-v1.json",
     "protocol/__init__.py",
     "runtime_cohesion/__init__.py",
     "tul_fixture/__init__.py",

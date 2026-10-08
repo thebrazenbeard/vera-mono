@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 from typing import Any, Iterable, Mapping
 
 
 MONOREPO_REPOSITORY = "thebrazenbeard/vera-mono"
+PACKAGED_PROVENANCE_ENV = "VERA_MONO_PACKAGED_PROVENANCE"
+PACKAGED_PROVENANCE_SCHEMA = "VERA_MONO_PACKAGED_PROVENANCE_V1"
 RUNTIME_PACKAGE_REPO_PREFIX = "packages/vera_runtime/src"
 AFFECTIVE_CONTRACT_LOGICAL_PATH = "runtime_cohesion/resources/ORGASM_RUNTIME_CONTRACT_V1.json"
 AFFECTIVE_CONTRACT_REPO_PATH = f"{RUNTIME_PACKAGE_REPO_PREFIX}/{AFFECTIVE_CONTRACT_LOGICAL_PATH}"
@@ -71,6 +74,130 @@ def _require_git_sha(value: Any, *, label: str) -> str:
     return value
 
 
+def packaged_provenance_required_paths() -> frozenset[str]:
+    runtime_paths = {
+        f"{RUNTIME_PACKAGE_REPO_PREFIX}/{logical_path}"
+        for logical_path in (AFFECTIVE_RUNTIME_PATHS | COHESION_INTEGRATION_PATHS)
+    }
+    runtime_paths.add(AFFECTIVE_CONTRACT_REPO_PATH)
+    return frozenset(runtime_paths)
+
+
+def _packaged_provenance(root: Path | str | None = None) -> dict[str, Any] | None:
+    if root is not None:
+        return None
+    raw_path = os.environ.get(PACKAGED_PROVENANCE_ENV)
+    if raw_path is None:
+        return None
+    path = Path(raw_path).expanduser().resolve()
+    if not path.is_file():
+        raise LocalBindingError("packaged provenance manifest is unavailable")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise LocalBindingError("packaged provenance manifest is unreadable") from exc
+    if not isinstance(payload, Mapping):
+        raise LocalBindingError("packaged provenance manifest must be a mapping")
+    if payload.get("schema") != PACKAGED_PROVENANCE_SCHEMA:
+        raise LocalBindingError("packaged provenance schema mismatch")
+    if payload.get("repository") != MONOREPO_REPOSITORY:
+        raise LocalBindingError("packaged provenance repository mismatch")
+    source_commit = _require_git_sha(
+        payload.get("source_commit"),
+        label="packaged provenance source commit",
+    )
+    if (
+        payload.get("source_commit_verification")
+        != "LOCAL_GIT_OBJECTS_AT_GENERATION"
+    ):
+        raise LocalBindingError(
+            "packaged provenance source verification mode mismatch"
+        )
+    if payload.get("protected_effect_authority") is not False:
+        raise LocalBindingError(
+            "packaged provenance cannot grant protected-effect authority"
+        )
+    files = payload.get("files")
+    if not isinstance(files, Mapping):
+        raise LocalBindingError("packaged provenance files must be a mapping")
+    expected_paths = packaged_provenance_required_paths()
+    if set(files) != expected_paths:
+        raise LocalBindingError("packaged provenance file set mismatch")
+    normalized_files: dict[str, str] = {}
+    for repo_path in sorted(expected_paths):
+        normalized_files[repo_path] = _require_git_sha(
+            files.get(repo_path),
+            label=f"packaged provenance blob for {repo_path}",
+        )
+    return {
+        "schema": PACKAGED_PROVENANCE_SCHEMA,
+        "repository": MONOREPO_REPOSITORY,
+        "source_commit": source_commit,
+        "source_commit_verification": "LOCAL_GIT_OBJECTS_AT_GENERATION",
+        "protected_effect_authority": False,
+        "files": normalized_files,
+    }
+
+
+def _source_verification_mode(root: Path | str | None = None) -> str:
+    return (
+        "PACKAGED_MANIFEST_EXECUTING_BYTES"
+        if _packaged_provenance(root) is not None
+        else "LOCAL_GIT_OBJECTS"
+    )
+
+
+def _installed_runtime_path(repo_path: str) -> Path:
+    prefix = RUNTIME_PACKAGE_REPO_PREFIX + "/"
+    if not repo_path.startswith(prefix):
+        raise LocalBindingError("packaged provenance path is outside vera_runtime")
+    logical = repo_path[len(prefix) :]
+    root = Path(__file__).resolve().parent.parent
+    path = (root / logical).resolve()
+    if path != root and root not in path.parents:
+        raise LocalBindingError("packaged runtime path escapes installed source root")
+    if not path.is_file():
+        raise LocalBindingError(f"packaged runtime file is missing: {repo_path}")
+    return path
+
+
+def _repo_file_path(
+    repo_path: str,
+    root: Path | str | None = None,
+) -> Path:
+    packaged = _packaged_provenance(root)
+    if packaged is not None:
+        return _installed_runtime_path(repo_path)
+    repo = monorepo_root(root)
+    path = (repo / repo_path).resolve()
+    if path != repo and repo not in path.parents:
+        raise LocalBindingError("repository path escapes vera-mono root")
+    if not path.is_file():
+        raise LocalBindingError(f"local runtime file is missing: {repo_path}")
+    return path
+
+
+def _committed_blob(
+    repo_path: str,
+    root: Path | str | None = None,
+) -> str:
+    packaged = _packaged_provenance(root)
+    if packaged is not None:
+        expected = str(packaged["files"][repo_path])
+        live = git_blob_sha(_repo_file_path(repo_path, root).read_bytes())
+        if live != expected:
+            raise LocalBindingError(
+                f"packaged runtime bytes differ from bound blob: {repo_path}"
+            )
+        return expected
+    repo = monorepo_root(root)
+    commit = current_commit(repo)
+    return _require_git_sha(
+        _git(repo, "rev-parse", f"{commit}:{repo_path}"),
+        label=f"committed blob for {repo_path}",
+    )
+
+
 def monorepo_root(start: Path | str | None = None) -> Path:
     current = Path(start) if start is not None else Path(__file__)
     current = current.resolve()
@@ -96,11 +223,17 @@ def _git(root: Path, *args: str) -> str:
 
 
 def current_commit(root: Path | str | None = None) -> str:
+    packaged = _packaged_provenance(root)
+    if packaged is not None:
+        return str(packaged["source_commit"])
     repo = monorepo_root(root)
     return _require_git_sha(_git(repo, "rev-parse", "HEAD"), label="monorepo commit")
 
 
 def local_affective_contract_path(root: Path | str | None = None) -> Path:
+    packaged = _packaged_provenance(root)
+    if packaged is not None:
+        return _repo_file_path(AFFECTIVE_CONTRACT_REPO_PATH, root)
     repo = monorepo_root(root)
     path = (repo / AFFECTIVE_CONTRACT_REPO_PATH).resolve()
     try:
@@ -124,11 +257,10 @@ def load_local_affective_contract(root: Path | str | None = None) -> str:
 def build_local_affective_source_binding(
     root: Path | str | None = None,
 ) -> dict[str, Any]:
-    repo = monorepo_root(root)
-    commit = current_commit(repo)
-    observed = _git(repo, "rev-parse", f"{commit}:{AFFECTIVE_CONTRACT_REPO_PATH}")
+    commit = current_commit(root)
+    observed = _committed_blob(AFFECTIVE_CONTRACT_REPO_PATH, root)
     if observed != AFFECTIVE_CONTRACT_BLOB:
-        raise LocalBindingError("current monorepo commit does not bind the admitted affective contract")
+        raise LocalBindingError("current source cut does not bind the admitted affective contract")
     return {
         "schema": "VERA_ORGASM_RUNTIME_BINDING_V1",
         "subject": "vera",
@@ -137,6 +269,7 @@ def build_local_affective_source_binding(
         "source_commit": commit,
         "source_path": AFFECTIVE_CONTRACT_REPO_PATH,
         "source_blob_sha": AFFECTIVE_CONTRACT_BLOB,
+        "source_verification_mode": _source_verification_mode(root),
         "availability_implies_activation": False,
     }
 
@@ -163,14 +296,22 @@ def validate_local_affective_source_binding(
             raise LocalBindingError(f"local affective source mismatch: {key}")
 
     commit = _require_git_sha(binding.get("source_commit"), label="local affective source commit")
-    repo = monorepo_root(root)
-    if _git(repo, "rev-parse", f"{commit}:{AFFECTIVE_CONTRACT_REPO_PATH}") != AFFECTIVE_CONTRACT_BLOB:
+    mode = _source_verification_mode(root)
+    observed_mode = binding.get("source_verification_mode")
+    if observed_mode is None and mode == "LOCAL_GIT_OBJECTS":
+        observed_mode = mode
+    if observed_mode != mode:
+        raise LocalBindingError("local affective source verification mode mismatch")
+    if current_commit(root) != commit:
+        raise LocalBindingError("local affective source commit does not match current source cut")
+    if _committed_blob(AFFECTIVE_CONTRACT_REPO_PATH, root) != AFFECTIVE_CONTRACT_BLOB:
         raise LocalBindingError("local affective source commit does not resolve admitted contract blob")
     if git_blob_sha(contract_text.encode("utf-8")) != AFFECTIVE_CONTRACT_BLOB:
         raise LocalBindingError("supplied affective contract text does not match admitted local blob")
 
     normalized = dict(binding)
     normalized["source_commit"] = commit
+    normalized["source_verification_mode"] = mode
     return normalized
 
 
@@ -191,8 +332,9 @@ def validate_local_affective_provenance(
         if source.get(key) != value:
             raise LocalBindingError(f"local affective provenance mismatch: {key}")
     commit = _require_git_sha(source.get("source_commit"), label="local affective provenance commit")
-    repo = monorepo_root(root)
-    if _git(repo, "rev-parse", f"{commit}:{AFFECTIVE_CONTRACT_REPO_PATH}") != AFFECTIVE_CONTRACT_BLOB:
+    if current_commit(root) != commit:
+        raise LocalBindingError("local affective provenance commit does not match current source cut")
+    if _committed_blob(AFFECTIVE_CONTRACT_REPO_PATH, root) != AFFECTIVE_CONTRACT_BLOB:
         raise LocalBindingError("local affective provenance commit does not bind admitted contract")
     normalized = dict(source)
     normalized["source_commit"] = commit
@@ -206,18 +348,15 @@ def build_local_implementation_cut(
     semantics: str | None = None,
     root: Path | str | None = None,
 ) -> dict[str, Any]:
-    repo = monorepo_root(root)
-    commit = current_commit(repo)
+    commit = current_commit(root)
     modules: dict[str, str] = {}
     for logical_path in sorted(set(logical_paths)):
         repo_path = f"{RUNTIME_PACKAGE_REPO_PREFIX}/{logical_path}"
-        file_path = (repo / repo_path).resolve()
-        if not file_path.is_file():
-            raise LocalBindingError(f"local runtime module is missing: {logical_path}")
+        file_path = _repo_file_path(repo_path, root)
         live_blob = git_blob_sha(file_path.read_bytes())
-        committed_blob = _git(repo, "rev-parse", f"{commit}:{repo_path}")
+        committed_blob = _committed_blob(repo_path, root)
         if committed_blob != live_blob:
-            raise LocalBindingError(f"live runtime bytes differ from current commit: {logical_path}")
+            raise LocalBindingError(f"live runtime bytes differ from current source cut: {logical_path}")
         modules[logical_path] = live_blob
     cut: dict[str, Any] = {
         "schema": schema,
@@ -258,18 +397,17 @@ def validate_local_implementation_cut(
     if not isinstance(modules, Mapping) or set(modules) != expected_paths:
         raise LocalBindingError("implementation cut module set mismatch")
 
-    repo = monorepo_root(root)
+    if current_commit(root) != commit:
+        raise LocalBindingError("implementation cut commit does not match current source cut")
     normalized: dict[str, str] = {}
     for logical_path in sorted(expected_paths):
         blob = _require_git_sha(modules.get(logical_path), label=f"implementation blob for {logical_path}")
         repo_path = f"{RUNTIME_PACKAGE_REPO_PREFIX}/{logical_path}"
-        live = (repo / repo_path).resolve()
-        if not live.is_file():
-            raise LocalBindingError(f"implementation file is missing: {logical_path}")
+        live = _repo_file_path(repo_path, root)
         if git_blob_sha(live.read_bytes()) != blob:
             raise LocalBindingError(f"executing bytes do not match implementation cut: {logical_path}")
-        if _git(repo, "rev-parse", f"{commit}:{repo_path}") != blob:
-            raise LocalBindingError(f"commit resolves different implementation blob: {logical_path}")
+        if _committed_blob(repo_path, root) != blob:
+            raise LocalBindingError(f"source cut resolves different implementation blob: {logical_path}")
         normalized[logical_path] = blob
 
     result: dict[str, Any] = {
@@ -285,10 +423,16 @@ def validate_local_implementation_cut(
 
 def build_local_affective_binding(root: Path | str | None = None) -> dict[str, Any]:
     source = build_local_affective_source_binding(root)
+    mode = _source_verification_mode(root)
+    semantics = (
+        "Exact vera-mono Git object and executing-byte provenance for the local affective runtime core."
+        if mode == "LOCAL_GIT_OBJECTS"
+        else "Host-packaged source-head provenance plus exact executing-byte verification for the installed affective runtime core; Git-object resolution occurred at manifest generation, not locally."
+    )
     runtime_cut = build_local_implementation_cut(
         schema="VERA_AFFECTIVE_RUNTIME_IMPLEMENTATION_CUT_V1",
         logical_paths=AFFECTIVE_RUNTIME_PATHS,
-        semantics="Exact vera-mono Git object and executing-byte provenance for the local affective runtime core.",
+        semantics=semantics,
         root=root,
     )
     integration_cut = build_local_implementation_cut(
@@ -301,7 +445,11 @@ def build_local_affective_binding(root: Path | str | None = None) -> dict[str, A
         raise LocalBindingError("runtime and integration cuts are not one monorepo generation")
     return {
         **source,
-        "status": "MONOREPO_LOCAL_SOURCE_BOUND_NOT_BEHAVIORALLY_QUALIFIED",
+        "status": (
+            "MONOREPO_LOCAL_SOURCE_BOUND_NOT_BEHAVIORALLY_QUALIFIED"
+            if mode == "LOCAL_GIT_OBJECTS"
+            else "PACKAGED_SOURCE_BOUND_EXECUTING_BYTES_VERIFIED_NOT_BEHAVIORALLY_QUALIFIED"
+        ),
         "runtime_repository": MONOREPO_REPOSITORY,
         "runtime_module": f"{RUNTIME_PACKAGE_REPO_PREFIX}/runtime_cohesion/orgasm.py",
         "runtime_implementation_cut": runtime_cut,

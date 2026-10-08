@@ -54,6 +54,10 @@ include = [
   "resources/**/**/*",
   "resources/**/**/**/*",
 ]
+"portfolio_runtime" = [
+  "contracts/*.json",
+  "vera_works/contracts/*.json",
+]
 
 [tool.pytest.ini_options]
 pythonpath = [
