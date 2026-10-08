@@ -35,6 +35,10 @@ def test_monorepo_package_contract_matches_root_distribution_configuration():
             for pattern in configured_patterns
         )
 
+    package_data = pyproject["tool"]["setuptools"]["package-data"]
+    assert "contracts/*.json" in package_data["portfolio_runtime"]
+    assert "vera_works/contracts/*.json" in package_data["portfolio_runtime"]
+
     manifest_package = manifest["monorepo_package"]
     assert manifest_package["contract"] == (
         "architecture/VERA_MONOREPO_PACKAGE_V1.json"
@@ -61,3 +65,14 @@ def test_monorepo_package_contract_keeps_build_install_runtime_separate():
         is True
     )
     assert boundaries["package_build_is_not_deployment"] is True
+    assert (
+        boundaries["packaged_provenance_is_not_local_git_object_reverification"]
+        is True
+    )
+    assert boundaries["packaged_provenance_is_not_independent_attestation"] is True
+
+    packaged = contract["self_containment"]["installed_local_binding_provenance"]
+    assert packaged["schema"] == "VERA_MONO_PACKAGED_PROVENANCE_V1"
+    assert packaged["source_commit_verification"] == "LOCAL_GIT_OBJECTS_AT_GENERATION"
+    assert packaged["runtime_verification"] == "PACKAGED_MANIFEST_EXECUTING_BYTES"
+    assert packaged["protected_effect_authority"] is False
