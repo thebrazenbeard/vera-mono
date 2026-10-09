@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from importlib import import_module, resources
 import os
+from pathlib import Path
 
 from portfolio_runtime.vera_works.contracts import load_states
 from runtime_cohesion.local_bindings import (
@@ -70,6 +71,18 @@ RESOURCES = (
 )
 
 
+def require_single_install_root(runtime_file: str | Path, module_files: dict[str, str | Path]) -> Path:
+    """Reject mixed source-checkout imports in a purported installed wheel."""
+    root = Path(runtime_file).resolve().parent.parent
+    for module_name, module_file in module_files.items():
+        resolved = Path(module_file).resolve()
+        if root not in resolved.parents:
+            raise ValueError(
+                f"installed bundle import escapes runtime installation root: {module_name}"
+            )
+    return root
+
+
 def main() -> int:
     imported = []
     for module_name in MODULES:
@@ -79,6 +92,11 @@ def main() -> int:
                 f"installed bundle import has no file: {module_name}"
             )
         imported.append(module_name)
+
+    require_single_install_root(
+        import_module("runtime_cohesion").__file__,
+        {name: import_module(name).__file__ for name in imported},
+    )
 
     checked = []
     for package, relative in RESOURCES:
