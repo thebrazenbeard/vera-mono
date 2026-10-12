@@ -149,7 +149,9 @@ class CoordinationBusHostileTests(unittest.TestCase):
     def test_system_classification_fields_are_not_constructor_overridable(self):
         row = self.stored_row("workstream/memory")
         event = CoordinationEvent.from_row(row)
-        with self.assertRaises(ValueError):
+        # Python 3.14 raises TypeError for dataclasses.replace(init=False);
+        # older releases may raise ValueError. Both reject reclassification.
+        with self.assertRaises((TypeError, ValueError)):
             replace(event, record_class="CANONICAL_MEMORY")
 
     def test_public_package_exposes_only_one_coordination_bus(self):
