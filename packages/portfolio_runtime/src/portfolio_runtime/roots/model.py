@@ -183,6 +183,25 @@ class SourceAttempt:
     source: str
     status: str
     detail: str | None = None
+    # Explicit claims from the source adapter, never inferred from a ZIP name,
+    # a metadata search result, or a prior assistant's description of a file.
+    content_verified: bool = False
+    scope_exhausted: bool = False
+
+    def __post_init__(self) -> None:
+        if type(self.content_verified) is not bool or type(self.scope_exhausted) is not bool:
+            raise TypeError("source verification flags must be exact booleans")
+        # Status remains descriptive; reject contradictions for common negative
+        # statuses without pretending this is a globally normative vocabulary.
+        negative_content = {"METADATA_ONLY", "ACCESS_DENIED", "UNAVAILABLE",
+                            "NOT_FOUND", "FAILED", "ERROR", "UNKNOWN"}
+        negative_scope = {"ACCESS_DENIED", "UNAVAILABLE", "FAILED", "ERROR",
+                          "UNKNOWN", "PARTIAL"}
+        status = self.status.strip().upper()
+        if (self.content_verified and status in negative_content) or (
+            self.scope_exhausted and status in negative_scope
+        ):
+            raise ValueError("source verification flags contradict source status")
 
 
 @dataclass(frozen=True, slots=True)
