@@ -124,3 +124,30 @@ def test_bad_task_or_effect_cannot_be_minted_from_forged_packet(tmp_path):
     forged["request_digest"]=sha256_hex(canonical_json_bytes({k:v for k,v in forged.items() if k!="request_digest"}))
     with pytest.raises(TaskExecutionError,match="unsupported"):
         verify_portal_route_assessment(ledger,forged,assessment(forged))
+
+
+def test_independent_golden_wire_vector(tmp_path):
+    """Can verify the exact PORTAL response without importing PORTAL code."""
+    import json
+    from pathlib import Path
+
+    fixture=json.loads(
+        (Path(__file__).parent/"fixtures/vera_portal_task_route_v1.json").read_text(encoding="utf-8")
+    )
+    ledger=TaskExecutionLedger(tmp_path/"golden-tasks.sqlite")
+    body=fixture["task_packet"]
+    source=TaskPacket(
+        **{key:tuple(value) if isinstance(value,list) else value for key,value in body.items()}
+    )
+    ledger.open_task(
+        fixture["task_id"],source,
+        lifecycle_evidence_digest=fixture["lifecycle_evidence_digest"],
+    )
+    generated=export_portal_route_request(
+        ledger,fixture["task_id"],node_id="repo-native",
+        target_kind="repository",target_id="thebrazenbeard/portal",
+        required_capabilities=("repository_read",),
+    )
+    assert generated==fixture["request"]
+    assert verify_portal_route_assessment(ledger,generated,fixture["proposed"])["state"]=="ROUTE_PROPOSED"
+    assert verify_portal_route_assessment(ledger,generated,fixture["held"])["state"]=="HELD"
