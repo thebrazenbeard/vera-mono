@@ -131,9 +131,9 @@ def reserve_source_trial(ledger: Any, intake: dict, assessment: dict,
     return {"reservation_head": after[-1].event_digest, "seed": seed}
 
 
-def _source(store: Any, intake: dict, route_id: str):
-    """Inspect only the existing exact Pre-Active event/run and singular route."""
-    dedup = "veraos-text:" + intake["message_id"]
+def _source_snapshot(store: Any, intake: dict, route_id: str):
+    """Inspect one exact Pre-Active event/run and singular route in a snapshot."""
+    dedup = "veraos-text:" + intake["task_id"]
     events = store.connection.execute(
         "SELECT id,kind,status,payload_json,dedup_key FROM events WHERE dedup_key=?",
         (dedup,),
@@ -183,6 +183,18 @@ def _source(store: Any, intake: dict, route_id: str):
             "text": r["final_text"], "synthetic": True,
             "model_authenticated": False, "accepted_as_task_result": False,
             "display_authorized": False, "protected_effect_authority": False}
+
+
+def _source(store: Any, intake: dict, route_id: str):
+    """One consistent Pre-Active SQLite read transaction; no cross-store atomicity."""
+    conn = store.connection
+    if conn.in_transaction:
+        raise ConversationError("cannot establish independent source read snapshot")
+    conn.execute("BEGIN")
+    try:
+        return _source_snapshot(store, intake, route_id)
+    finally:
+        conn.rollback()
 
 
 def recover_message(ledger: Any, store: Any, intake: dict) -> dict:
@@ -267,3 +279,61 @@ def conversation_history(ledger: Any, conversation_id: str) -> list[dict]:
                        "task_id": task.task_id, "text": task.packet.subject,
                        "closed": task.closed, "task_journal_head": task.journal_head_digest})
     return result
+
+def recover_conversation(ledger: Any, store: Any, conversation_id: str) -> list[dict]:
+    """Cold, read-only context of actual task openers; never memory admission.
+
+    Each entry is a ledger-backed USER INPUT, not a verified experience.
+    Observations are only named by digest and never silently made dialogue.
+    """
+    _ids(conversation_id, "probe")
+    found = []
+    for item in conversation_history(ledger, conversation_id):
+        events = ledger.events(item["task_id"])
+        state = ledger.read(item["task_id"])
+        if not events or events[0].event_type != "TASK_OPENED":
+            raise ConversationError("conversation history has no opener")
+        source_digest = _digest({
+            "schema": "VERAOS_LOCAL_UI_INTAKE_SOURCE_V1",
+            "conversation_id": conversation_id,
+            "message_id": item["message_id"], "text": item["text"],
+        })
+        if (events[0].payload.get("lifecycle_evidence_digest") != source_digest
+                or state.opened_lifecycle_evidence_digest != source_digest
+                or events[0].payload.get("packet_digest") != state.packet.packet_digest):
+            raise ConversationError("original conversation opener substituted")
+        intake = {
+            "task_id": item["task_id"], "text": item["text"],
+            "source_digest": source_digest,
+            "packet_digest": state.packet.packet_digest,
+            "opened_head": events[0].event_digest,
+            "message_id": item["message_id"],
+            "conversation_id": conversation_id,
+        }
+
+        record = {
+            "conversation_id": conversation_id, "message_id": item["message_id"],
+            "task_id": item["task_id"], "text": item["text"],
+            "source_digest": source_digest,
+            "opened_sequence": events[0].sequence,
+            "task_journal_head": state.journal_head_digest,
+            "source_kind": "UNTRUSTED_USER_INPUT",
+            "accepted_as_task_result": False,
+            "display_authorized": False,
+            "memory_admitted": False,
+        }
+        if state.closed or state.active_dependencies or state.unresolved_correction_ids:
+            record["status"] = "HELD_TASK_INVALIDATED"
+        else:
+            try:
+                outcome = recover_message(ledger, store, intake)
+                record["status"] = outcome["status"]
+                if outcome.get("observation_digest"):
+                    record["observation_digest"] = outcome["observation_digest"]
+            except (ConversationError, ValueError, KeyError, TypeError):
+                record["status"] = "HELD_EVIDENCE_CONTRADICTION"
+        if (ledger.read(item["task_id"]).journal_head_digest
+                != record["task_journal_head"]):
+            record["status"] = "HELD_TASK_CHANGED"
+        found.append(record)
+    return sorted(found, key=lambda row: row["opened_sequence"])
