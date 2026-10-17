@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import json
 import sqlite3
+from contextlib import contextmanager
 from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
 from portfolio_runtime.lantern.canonical import (
@@ -510,10 +511,18 @@ class BehaviorAttestationStore:
                     (self.GENESIS_HEAD,),
                 )
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
+        # sqlite3.Connection.__exit__ commits/rolls back but DOES NOT close.
+        # On Win32 an unclosed attestation.sqlite blocks deterministic
+        # replacement/reopening without relying on CPython garbage collection.
         db = sqlite3.connect(self.path)
         db.row_factory = sqlite3.Row
-        return db
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     @staticmethod
     def _meta(db: sqlite3.Connection) -> tuple[int, str]:

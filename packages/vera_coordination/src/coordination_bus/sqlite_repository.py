@@ -1,6 +1,7 @@
 """Portable persistent coordination repository for the Vera monorepo."""
 
 from __future__ import annotations
+from contextlib import contextmanager
 
 from datetime import datetime, timezone
 import json
@@ -90,13 +91,18 @@ class SQLiteCoordinationRepository:
                 )
         self.verify_integrity()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA synchronous=FULL")
-        return db
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     @staticmethod
     def _json(value: Mapping[str, Any]) -> str:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import closing
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -67,7 +68,7 @@ class CoordinationCommandJournal:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             db.executescript(
                 """
@@ -242,7 +243,7 @@ class CoordinationCommandJournal:
         )
 
     def verify_integrity(self) -> str:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             observed = db.execute(
                 """
@@ -347,7 +348,7 @@ class CoordinationCommandJournal:
             request_digest=request_digest,
             binding_digest=digest,
         )
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("PRAGMA foreign_keys=ON")
             db.execute("BEGIN IMMEDIATE")
@@ -465,7 +466,7 @@ class CoordinationCommandJournal:
             event_sequence=event_sequence,
             result_record_digest=digest,
         )
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("PRAGMA foreign_keys=ON")
             db.execute("BEGIN IMMEDIATE")
@@ -507,7 +508,7 @@ class CoordinationCommandJournal:
         self,
         command_id: str,
     ) -> CoordinationCommandBinding:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute(
                 "SELECT * FROM command_bindings WHERE command_id=?",
@@ -536,7 +537,7 @@ class CoordinationCommandJournal:
         command_id: str,
     ) -> CoordinationCommandResult | None:
         binding = self.read_binding(command_id)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute(
                 "SELECT * FROM command_results WHERE command_id=?",
@@ -560,7 +561,7 @@ class CoordinationCommandJournal:
         return result
 
     def bindings(self) -> tuple[CoordinationCommandBinding, ...]:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             rows = db.execute(
                 "SELECT command_id FROM command_bindings ORDER BY command_id"
             ).fetchall()

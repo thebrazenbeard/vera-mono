@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -421,10 +422,15 @@ class IndependentBehaviorReviewStore:
             """)
             db.execute("INSERT OR IGNORE INTO meta(key,value) VALUES('head',?)", (self.GENESIS_HEAD,))
 
+    @contextmanager
     def _connect(self):
         db = sqlite3.connect(self.path)
         db.row_factory = sqlite3.Row
-        return db
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     @staticmethod
     def _status(requirement, behavior_requirement, behavior_receipt, observation) -> str:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -90,11 +91,16 @@ class NativeRecoveryCheckpointStore:
             raise NativeCheckpointError(f"{label} must be a tuple of non-empty exact strings")
         return value
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         db = sqlite3.connect(self.path)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
-        return db
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     @classmethod
     def genesis_head(cls) -> str:
