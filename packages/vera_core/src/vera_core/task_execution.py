@@ -480,6 +480,7 @@ class TaskExecutionLedger:
         task_id: str,
         event_type: str,
         payload: Mapping[str, Any],
+        expected_head: str | None = None,
     ) -> TaskEvent:
         _require_text(event_id, "event_id")
         _require_text(task_id, "task_id")
@@ -490,9 +491,16 @@ class TaskExecutionLedger:
         if not isinstance(payload, Mapping):
             raise TaskExecutionError("task event payload must be a mapping")
         payload_json = canonical_json(dict(payload))
+        if expected_head is not None:
+            self._require_digest(expected_head, "expected task journal head")
 
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            sequence, predecessor = self._meta(db)
+            # Atomic expected-head CAS using the canonical Mono event journal.
+            # Even exact event-ID replay cannot resurrect a stale acceptance.
+            if expected_head is not None and predecessor != expected_head:
+                raise TaskExecutionError("stale expected task journal head")
             replay = db.execute(
                 "SELECT * FROM events WHERE event_id=?",
                 (event_id,),
@@ -510,7 +518,6 @@ class TaskExecutionLedger:
                 db.commit()
                 return existing
 
-            sequence, predecessor = self._meta(db)
             next_sequence = sequence + 1
             body = {
                 "schema": "VERA_MONO_TASK_EXECUTION_EVENT_V1",
@@ -1115,6 +1122,7 @@ class TaskExecutionLedger:
         method_change: str | None = None,
         regression_guard: str | None = None,
         blocker_classification: str | None = None,
+        expected_head: str | None = None,
     ) -> TaskState:
         state = self.read(task_id)
         if state.closed:
@@ -1167,6 +1175,7 @@ class TaskExecutionLedger:
             event_id=f"{task_id}:CHECKPOINT:{checkpoint_id}",
             task_id=task_id,
             event_type="TASK_CHECKPOINT",
+            expected_head=expected_head,
             payload={
                 "schema": "VERA_MONO_TASK_CHECKPOINT_V1",
                 "subject": state.packet.subject,
