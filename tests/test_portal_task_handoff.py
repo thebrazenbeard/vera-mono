@@ -151,3 +151,57 @@ def test_independent_golden_wire_vector(tmp_path):
     assert generated==fixture["request"]
     assert verify_portal_route_assessment(ledger,generated,fixture["proposed"])["state"]=="ROUTE_PROPOSED"
     assert verify_portal_route_assessment(ledger,generated,fixture["held"])["state"]=="HELD"
+
+
+def test_task_route_checkpoint_requires_atomic_expected_head(tmp_path):
+    """The existing Mono task journal must own no-effect acceptance.
+    A verified PORTAL advisory alone cannot become a dispatch permit.
+    """
+    ledger=opened(tmp_path)
+    req=request(ledger)
+    verified=verify_portal_route_assessment(ledger,req,assessment(req))
+    assert verified["state"]=="ROUTE_PROPOSED"
+    original_head=req["task_journal_head"]
+    # Another real Mono writer makes the advisory stale before adoption.
+    ledger.bind_dependency(
+        "task-001","dependency:late",
+        kind="COORDINATION_COMMAND",target_id="command:late",
+    )
+    with pytest.raises(TaskExecutionError,match="expected.*head|stale"):
+        ledger.checkpoint(
+            "task-001","fixture-advisory-only",
+            completed_evidence=(),
+            blockers=("provider admission remains held",),
+            protected_effects_still_gated=("COGNITION_TURN",),
+            next_frontier="source-only, no-effect resident fixture",
+            lifecycle_evidence_digest="b"*64,
+            expected_head=original_head,
+        )
+    assert ledger.read("task-001").latest_checkpoint is None
+
+
+def test_task_route_checkpoint_cas_serializes_competing_real_writers(tmp_path):
+    import concurrent.futures
+    ledger=opened(tmp_path)
+    expected=ledger.head
+    def claim(identity):
+        return ledger.checkpoint(
+            "task-001",f"fixture-{identity}",
+            completed_evidence=(),
+            blockers=("trusted resident admission not granted",),
+            protected_effects_still_gated=("COGNITION_TURN",),
+            next_frontier="only a synthetic route fixture is eligible",
+            lifecycle_evidence_digest="c"*64,
+            expected_head=expected,
+        )
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        futures=[pool.submit(claim,i) for i in (1,2)]
+        outcomes=[]
+        for f in futures:
+            try: outcomes.append(("ok",f.result()))
+            except TaskExecutionError as exc: outcomes.append(("held",str(exc)))
+    assert sorted(x[0] for x in outcomes)==["held","ok"]
+    reopened=TaskExecutionLedger(ledger.path)
+    assert reopened.verify_chain()==reopened.head
+    assert len([x for x in reopened.events("task-001")
+                if x.event_type=="TASK_CHECKPOINT"])==1
