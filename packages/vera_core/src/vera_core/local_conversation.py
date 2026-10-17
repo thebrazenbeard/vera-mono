@@ -22,6 +22,10 @@ class ConversationError(ValueError):
     pass
 
 
+class SourceObservationConflict(ConversationError):
+    """Persisted source contradicts a task-bound reservation or observation."""
+
+
 def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
 
@@ -141,7 +145,7 @@ def _source_snapshot(store: Any, intake: dict, route_id: str):
     if not events:
         return None
     if len(events) != 1:
-        raise ConversationError("duplicate dedup identities")
+        raise SourceObservationConflict("duplicate dedup identities")
     e = events[0]
     runs = store.connection.execute(
         """SELECT id,task,status,capabilities_json,final_text,last_error,
@@ -149,16 +153,16 @@ def _source_snapshot(store: Any, intake: dict, route_id: str):
            WHERE source_event_id=?""", (e["id"],),
     ).fetchall()
     if len(runs) > 1:
-        raise ConversationError("multiple runs from one request")
+        raise SourceObservationConflict("multiple runs from one request")
     if (e["kind"] != "task.requested" or e["dedup_key"] != dedup
             or json.loads(e["payload_json"]) != {"task": intake["text"], "capabilities": []}):
-        raise ConversationError("forged Pre-Active task source")
+        raise SourceObservationConflict("forged Pre-Active task source")
     if not runs:
         return None
     r = runs[0]
     if (e["status"] != "DONE" or r["status"] != "COMPLETED"):
         if r["status"] == "COMPLETED" or e["status"] == "DONE":
-            raise ConversationError("terminal event and run disagree")
+            raise SourceObservationConflict("terminal event and run disagree")
         return None
     routes = store.connection.execute(
         """SELECT payload_json FROM journal
@@ -175,7 +179,7 @@ def _source_snapshot(store: Any, intake: dict, route_id: str):
             or r["last_error"] is not None or r["failed_event_id"] is not None
             or r["control_action"] is not None or len(routes) != 1
             or json.loads(routes[0]["payload_json"]) != expected):
-        raise ConversationError("unattributable or altered Pre-Active observation")
+        raise SourceObservationConflict("unattributable or altered Pre-Active observation")
     return {"schema": "VERAOS_SYNTHETIC_SOURCE_OBSERVATION_V1",
             "task_id": intake["task_id"], "conversation_id": intake["conversation_id"],
             "message_id": intake["message_id"], "source_digest": intake["source_digest"],
@@ -189,7 +193,7 @@ def _source(store: Any, intake: dict, route_id: str):
     """One consistent Pre-Active SQLite read transaction; no cross-store atomicity."""
     conn = store.connection
     if conn.in_transaction:
-        raise ConversationError("cannot establish independent source read snapshot")
+        raise SourceObservationConflict("cannot establish independent source read snapshot")
     conn.execute("BEGIN")
     try:
         return _source_snapshot(store, intake, route_id)
@@ -215,7 +219,7 @@ def recover_message(ledger: Any, store: Any, intake: dict) -> dict:
             or seed.get("effect") != _ROUTE or seed.get("model_admitted") is not False
             or seed.get("dispatch_authorized") is not False
             or events[1].payload.get("lifecycle_evidence_digest") != _digest(seed)):
-        raise ConversationError("forged or stale reservation")
+        raise SourceObservationConflict("forged or stale reservation")
     observed = _source(store, intake, seed["route_id"])
     if observed is None:
         return {"status": "OUTCOME_UNKNOWN_NO_REDISPATCH", "task_id": intake["task_id"]}
@@ -228,7 +232,7 @@ def recover_message(ledger: Any, store: Any, intake: dict) -> dict:
                 if isinstance(x, str) and x.startswith("source-observation-sha256:")]
     if (len(evidence) != 1 or evidence[0] != "source-observation-sha256:" + fingerprint
             or events[2].payload.get("lifecycle_evidence_digest") != fingerprint):
-        raise ConversationError("persistent stores disagree on source result")
+        raise SourceObservationConflict("persistent stores disagree on source result")
     return {"status": "SOURCE_OBSERVATION_REVALIDATED", "task_id": intake["task_id"],
             "observation_digest": fingerprint, "source": observed,
             "accepted_as_task_result": False, "display_authorized": False}
