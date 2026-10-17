@@ -1840,6 +1840,9 @@ class TaskExecutionLedger:
 
     def verify_chain(self) -> str:
         with self._connect() as db:
+            # Explicit read transaction: SELECT of events and metadata must
+            # observe ONE SQLite snapshot while another task appends.
+            db.execute("BEGIN")
             rows = db.execute(
                 "SELECT * FROM events ORDER BY sequence"
             ).fetchall()
