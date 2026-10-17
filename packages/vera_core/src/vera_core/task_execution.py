@@ -430,15 +430,27 @@ class TaskExecutionLedger:
                 );
                 """
             )
-            if db.execute(
-                "SELECT 1 FROM meta WHERE key='sequence'"
-            ).fetchone() is None:
+            # Schema DDL has finished. Hold a write reservation across
+            # BOTH genesis rows and their inspection: two first-openers must
+            # not each observe missing keys and race at INSERT on Windows.
+            db.execute("BEGIN IMMEDIATE")
+            meta = {
+                str(row["key"]): str(row["value"])
+                for row in db.execute(
+                    "SELECT key,value FROM meta WHERE key IN ('sequence','head')"
+                )
+            }
+            if not meta:
                 db.execute(
                     "INSERT INTO meta(key,value) VALUES('sequence','0')"
                 )
                 db.execute(
                     "INSERT INTO meta(key,value) VALUES('head',?)",
                     (self.GENESIS_HEAD,),
+                )
+            elif set(meta) != {"sequence", "head"}:
+                raise TaskExecutionError(
+                    "incomplete task journal genesis metadata"
                 )
 
     def _connect(self) -> sqlite3.Connection:
@@ -480,6 +492,8 @@ class TaskExecutionLedger:
         task_id: str,
         event_type: str,
         payload: Mapping[str, Any],
+        expected_head: str | None = None,
+        expected_task_head: str | None = None,
     ) -> TaskEvent:
         _require_text(event_id, "event_id")
         _require_text(task_id, "task_id")
@@ -490,9 +504,29 @@ class TaskExecutionLedger:
         if not isinstance(payload, Mapping):
             raise TaskExecutionError("task event payload must be a mapping")
         payload_json = canonical_json(dict(payload))
+        if expected_head is not None:
+            self._require_digest(expected_head, "expected task journal head")
+        if expected_task_head is not None:
+            self._require_digest(expected_task_head, "expected task-scoped journal head")
 
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            sequence, predecessor = self._meta(db)
+            # Atomic expected-head CAS using the canonical Mono event journal.
+            # Even exact event-ID replay cannot resurrect a stale acceptance.
+            if expected_head is not None and predecessor != expected_head:
+                raise TaskExecutionError("stale expected task journal head")
+            if expected_task_head is not None:
+                last_task = db.execute(
+                    "SELECT event_digest FROM events WHERE task_id=? "
+                    "ORDER BY sequence DESC LIMIT 1",
+                    (task_id,),
+                ).fetchone()
+                actual_task_head = (
+                    str(last_task["event_digest"]) if last_task else self.GENESIS_HEAD
+                )
+                if actual_task_head != expected_task_head:
+                    raise TaskExecutionError("stale expected task-scoped journal head")
             replay = db.execute(
                 "SELECT * FROM events WHERE event_id=?",
                 (event_id,),
@@ -510,7 +544,6 @@ class TaskExecutionLedger:
                 db.commit()
                 return existing
 
-            sequence, predecessor = self._meta(db)
             next_sequence = sequence + 1
             body = {
                 "schema": "VERA_MONO_TASK_EXECUTION_EVENT_V1",
@@ -1115,6 +1148,8 @@ class TaskExecutionLedger:
         method_change: str | None = None,
         regression_guard: str | None = None,
         blocker_classification: str | None = None,
+        expected_head: str | None = None,
+        expected_task_head: str | None = None,
     ) -> TaskState:
         state = self.read(task_id)
         if state.closed:
@@ -1167,6 +1202,8 @@ class TaskExecutionLedger:
             event_id=f"{task_id}:CHECKPOINT:{checkpoint_id}",
             task_id=task_id,
             event_type="TASK_CHECKPOINT",
+            expected_head=expected_head,
+            expected_task_head=expected_task_head,
             payload={
                 "schema": "VERA_MONO_TASK_CHECKPOINT_V1",
                 "subject": state.packet.subject,
@@ -1803,6 +1840,9 @@ class TaskExecutionLedger:
 
     def verify_chain(self) -> str:
         with self._connect() as db:
+            # Explicit read transaction: SELECT of events and metadata must
+            # observe ONE SQLite snapshot while another task appends.
+            db.execute("BEGIN")
             rows = db.execute(
                 "SELECT * FROM events ORDER BY sequence"
             ).fetchall()
