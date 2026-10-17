@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 
 from dataclasses import dataclass
 from functools import wraps
@@ -99,10 +100,15 @@ class OutboundTrustRegistry:
                 db.execute("INSERT INTO meta(key,value) VALUES('generation','0')")
                 db.execute("INSERT INTO meta(key,value) VALUES('head',?)", (self.GENESIS_HEAD,))
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         db = sqlite3.connect(self.path)
         db.row_factory = sqlite3.Row
-        return db
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def action_lock(self) -> PortableFileLock:
         return PortableFileLock(

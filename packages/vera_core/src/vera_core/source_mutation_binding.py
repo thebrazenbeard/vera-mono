@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import closing
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,7 +70,7 @@ class SourceMutationBindingStore:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS source_mutation_bindings (
@@ -178,7 +179,7 @@ class SourceMutationBindingStore:
         payload_json = _exact_json(payload)
         digest = sha256_hex(payload_json.encode("utf-8"))
         mutation_id = str(payload["mutation_id"])
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -213,7 +214,7 @@ class SourceMutationBindingStore:
         return self._decode(digest, payload_json)
 
     def read(self, mutation_id: str) -> SourceMutationBinding:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute(
                 """
@@ -230,7 +231,7 @@ class SourceMutationBindingStore:
         )
 
     def all(self) -> tuple[SourceMutationBinding, ...]:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             rows = db.execute(
                 """

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import closing
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -77,7 +78,7 @@ class PCExecutionBindingStore:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS pc_execution_bindings (
@@ -147,7 +148,7 @@ class PCExecutionBindingStore:
         payload = self._payload(prepared, lease)
         payload_json = _exact_json(payload)
         digest = sha256_hex(payload_json.encode("utf-8"))
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -191,7 +192,7 @@ class PCExecutionBindingStore:
         job_id: str,
         attempt_id: str,
     ) -> PCExecutionBinding:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute(
                 """
@@ -208,7 +209,7 @@ class PCExecutionBindingStore:
         )
 
     def all(self) -> tuple[PCExecutionBinding, ...]:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             rows = db.execute(
                 """

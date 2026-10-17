@@ -1,4 +1,6 @@
 from __future__ import annotations
+from contextlib import closing
+from contextlib import contextmanager
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -70,10 +72,15 @@ class EffectFence:
                     "ALTER TABLE effects ADD COLUMN reconciliation_evidence_digest TEXT"
                 )
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         db = sqlite3.connect(self.path)
         db.row_factory = sqlite3.Row
-        return db
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     @staticmethod
     def _require_digest(value: str, label: str) -> str:
@@ -376,7 +383,7 @@ class AtomicCurrentnessStore:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS currentness (
@@ -406,7 +413,7 @@ class AtomicCurrentnessStore:
             raise ValueError("subject_id must be a non-empty exact string")
         payload_json = canonical_json(payload)
         payload_digest = sha256_hex(payload_json.encode("utf-8"))
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -449,7 +456,7 @@ class AtomicCurrentnessStore:
             return CurrentnessSnapshot(subject_id, generation, snapshot_digest, payload_digest)
 
     def read(self, subject_id: str) -> CurrentnessSnapshot:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute("SELECT * FROM currentness WHERE subject_id=?", (subject_id,)).fetchone()
         if row is None:
@@ -475,7 +482,7 @@ class AtomicCurrentnessStore:
         )
 
     def read_payload(self, subject_id: str) -> object:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute(
                 "SELECT payload_json,payload_digest FROM currentness WHERE subject_id=?",
