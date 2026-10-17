@@ -220,3 +220,47 @@ def test_parallel_first_open_is_one_atomic_genesis_without_meta_collision(tmp_pa
         rows=dict(db.execute("SELECT key,value FROM meta").fetchall())
     assert rows["sequence"]=="0"
     assert rows["head"]==ledger.GENESIS_HEAD
+
+
+def test_task_scoped_expected_head_permits_unrelated_task_journal_progress(tmp_path):
+    ledger=opened(tmp_path)
+    original=ledger.read("task-001").journal_head_digest
+    ledger.open_task("task-002",packet(),lifecycle_evidence_digest="b"*64)
+    later_global=ledger.head
+    assert later_global!=original
+    state=ledger.checkpoint(
+        "task-001","source-cognition-fixture",completed_evidence=(),
+        blockers=("resident admission remains held",),
+        protected_effects_still_gated=("COGNITION_TURN",),
+        next_frontier="source-only synthetic observation",
+        lifecycle_evidence_digest="c"*64,
+        expected_task_head=original,
+    )
+    assert state.latest_checkpoint is not None
+    with pytest.raises(TaskExecutionError,match="task.*head|stale"):
+        ledger.checkpoint(
+            "task-001","duplicate-source",completed_evidence=(),
+            blockers=("pending operator admission",),
+            protected_effects_still_gated=("COGNITION_TURN",),
+            next_frontier="held",lifecycle_evidence_digest="d"*64,
+            expected_task_head=original,
+        )
+    assert len([x for x in ledger.events("task-001")
+                if x.event_type=="TASK_CHECKPOINT"])==1
+
+
+def test_task_scoped_head_rejects_real_injected_dependency(tmp_path):
+    ledger=opened(tmp_path)
+    initial=ledger.read("task-001").journal_head_digest
+    ledger.bind_dependency(
+        "task-001", "dependency:changed",
+        kind="COORDINATION_COMMAND",target_id="command:changed",
+    )
+    with pytest.raises(TaskExecutionError,match="task.*head|stale"):
+        ledger.checkpoint(
+            "task-001","stale-fixture",completed_evidence=(),
+            blockers=("changed task dependency",),
+            protected_effects_still_gated=("COGNITION_TURN",),
+            next_frontier="held",lifecycle_evidence_digest="e"*64,
+            expected_task_head=initial,
+        )
