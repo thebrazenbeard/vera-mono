@@ -430,15 +430,27 @@ class TaskExecutionLedger:
                 );
                 """
             )
-            if db.execute(
-                "SELECT 1 FROM meta WHERE key='sequence'"
-            ).fetchone() is None:
+            # Schema DDL has finished. Hold a write reservation across
+            # BOTH genesis rows and their inspection: two first-openers must
+            # not each observe missing keys and race at INSERT on Windows.
+            db.execute("BEGIN IMMEDIATE")
+            meta = {
+                str(row["key"]): str(row["value"])
+                for row in db.execute(
+                    "SELECT key,value FROM meta WHERE key IN ('sequence','head')"
+                )
+            }
+            if not meta:
                 db.execute(
                     "INSERT INTO meta(key,value) VALUES('sequence','0')"
                 )
                 db.execute(
                     "INSERT INTO meta(key,value) VALUES('head',?)",
                     (self.GENESIS_HEAD,),
+                )
+            elif set(meta) != {"sequence", "head"}:
+                raise TaskExecutionError(
+                    "incomplete task journal genesis metadata"
                 )
 
     def _connect(self) -> sqlite3.Connection:

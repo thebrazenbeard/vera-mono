@@ -205,3 +205,18 @@ def test_task_route_checkpoint_cas_serializes_competing_real_writers(tmp_path):
     assert reopened.verify_chain()==reopened.head
     assert len([x for x in reopened.events("task-001")
                 if x.event_type=="TASK_CHECKPOINT"])==1
+
+
+def test_parallel_first_open_is_one_atomic_genesis_without_meta_collision(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    path=tmp_path/"cold-concurrent-mono.sqlite3"
+    def open_again(i):
+        return TaskExecutionLedger(path).head
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        heads=list(pool.map(open_again, range(24)))
+    assert set(heads)=={TaskExecutionLedger.GENESIS_HEAD}
+    ledger=TaskExecutionLedger(path)
+    with ledger._connect() as db:
+        rows=dict(db.execute("SELECT key,value FROM meta").fetchall())
+    assert rows["sequence"]=="0"
+    assert rows["head"]==ledger.GENESIS_HEAD
