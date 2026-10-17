@@ -493,6 +493,7 @@ class TaskExecutionLedger:
         event_type: str,
         payload: Mapping[str, Any],
         expected_head: str | None = None,
+        expected_task_head: str | None = None,
     ) -> TaskEvent:
         _require_text(event_id, "event_id")
         _require_text(task_id, "task_id")
@@ -505,6 +506,8 @@ class TaskExecutionLedger:
         payload_json = canonical_json(dict(payload))
         if expected_head is not None:
             self._require_digest(expected_head, "expected task journal head")
+        if expected_task_head is not None:
+            self._require_digest(expected_task_head, "expected task-scoped journal head")
 
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -513,6 +516,17 @@ class TaskExecutionLedger:
             # Even exact event-ID replay cannot resurrect a stale acceptance.
             if expected_head is not None and predecessor != expected_head:
                 raise TaskExecutionError("stale expected task journal head")
+            if expected_task_head is not None:
+                last_task = db.execute(
+                    "SELECT event_digest FROM events WHERE task_id=? "
+                    "ORDER BY sequence DESC LIMIT 1",
+                    (task_id,),
+                ).fetchone()
+                actual_task_head = (
+                    str(last_task["event_digest"]) if last_task else self.GENESIS_HEAD
+                )
+                if actual_task_head != expected_task_head:
+                    raise TaskExecutionError("stale expected task-scoped journal head")
             replay = db.execute(
                 "SELECT * FROM events WHERE event_id=?",
                 (event_id,),
@@ -1135,6 +1149,7 @@ class TaskExecutionLedger:
         regression_guard: str | None = None,
         blocker_classification: str | None = None,
         expected_head: str | None = None,
+        expected_task_head: str | None = None,
     ) -> TaskState:
         state = self.read(task_id)
         if state.closed:
@@ -1188,6 +1203,7 @@ class TaskExecutionLedger:
             task_id=task_id,
             event_type="TASK_CHECKPOINT",
             expected_head=expected_head,
+            expected_task_head=expected_task_head,
             payload={
                 "schema": "VERA_MONO_TASK_CHECKPOINT_V1",
                 "subject": state.packet.subject,
