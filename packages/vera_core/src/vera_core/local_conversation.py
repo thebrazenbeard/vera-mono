@@ -281,7 +281,8 @@ def conversation_history(ledger: Any, conversation_id: str) -> list[dict]:
             raise ConversationError("conversation history task identity differs")
         result.append({"conversation_id": conversation_id, "message_id": message_id,
                        "task_id": task.task_id, "text": task.packet.subject,
-                       "closed": task.closed, "task_journal_head": task.journal_head_digest})
+                       "closed": task.closed,
+                       "task_journal_head": ledger.events(task.task_id)[-1].event_digest})
     return result
 
 def recover_conversation(ledger: Any, store: Any, conversation_id: str) -> list[dict]:
@@ -320,7 +321,8 @@ def recover_conversation(ledger: Any, store: Any, conversation_id: str) -> list[
             "task_id": item["task_id"], "text": item["text"],
             "source_digest": source_digest,
             "opened_sequence": events[0].sequence,
-            "task_journal_head": state.journal_head_digest,
+            # Task-local currentness; state.journal_head_digest verifies the GLOBAL chain.
+            "task_journal_head": events[-1].event_digest,
             "source_kind": "UNTRUSTED_USER_INPUT",
             "accepted_as_task_result": False,
             "display_authorized": False,
@@ -336,7 +338,8 @@ def recover_conversation(ledger: Any, store: Any, conversation_id: str) -> list[
                     record["observation_digest"] = outcome["observation_digest"]
             except (ConversationError, ValueError, KeyError, TypeError):
                 record["status"] = "HELD_EVIDENCE_CONTRADICTION"
-        if (ledger.read(item["task_id"]).journal_head_digest
+        if (item["task_journal_head"] != record["task_journal_head"]
+                or ledger.events(item["task_id"])[-1].event_digest
                 != record["task_journal_head"]):
             record["status"] = "HELD_TASK_CHANGED"
         found.append(record)
