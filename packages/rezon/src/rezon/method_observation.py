@@ -8,9 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
-import marshal
 import os
-from types import FunctionType
+from types import CodeType, FunctionType
 from typing import Literal
 
 from .cascade import LayerResult, LayerSpec, ReasoningRequest
@@ -24,10 +23,32 @@ def _hash(value: object) -> str:
 
 
 def measured_function_bytecode_sha256(fn: FunctionType) -> str:
-    """A limited code-object measurement, NOT dependency/closure attestation."""
+    """Hash stable logical CPython code fields, not adaptive quickened caches.
+
+    This deliberately excludes globals, defaults, closure cells, dependencies,
+    mutable state, tools, providers and interpreter behavior.
+    """
     if not isinstance(fn, FunctionType):
         raise TypeError("research adapter requires an ordinary Python function")
-    return hashlib.sha256(marshal.dumps(fn.__code__)).hexdigest()
+
+    def encode(value: object) -> object:
+        if isinstance(value, CodeType):
+            return {
+                "code": value.co_code.hex(), "consts": [encode(x) for x in value.co_consts],
+                "names": value.co_names, "varnames": value.co_varnames,
+                "freevars": value.co_freevars, "cellvars": value.co_cellvars,
+                "argcount": value.co_argcount, "posonly": value.co_posonlyargcount,
+                "kwonly": value.co_kwonlyargcount, "flags": value.co_flags,
+            }
+        if value is None or type(value) in (bool, int, float, str, bytes):
+            return {"bytes": value.hex()} if isinstance(value, bytes) else value
+        if isinstance(value, tuple):
+            return [encode(x) for x in value]
+        if isinstance(value, frozenset):
+            return sorted((encode(x) for x in value), key=repr)
+        raise TypeError("unsupported code constant type")
+
+    return _hash(encode(fn.__code__))
 
 
 @dataclass(frozen=True)
