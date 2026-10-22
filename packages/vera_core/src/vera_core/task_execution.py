@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -453,10 +454,15 @@ class TaskExecutionLedger:
                     "incomplete task journal genesis metadata"
                 )
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         db = sqlite3.connect(self.path)
         db.row_factory = sqlite3.Row
-        return db
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def action_lock(self) -> PortableFileLock:
         """Serialize qualified task mutation with task-scoped outbound work."""

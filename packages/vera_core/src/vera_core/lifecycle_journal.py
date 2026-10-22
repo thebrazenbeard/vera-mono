@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,10 +33,15 @@ class LifecycleJournal:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         db = sqlite3.connect(self.path)
         db.row_factory = sqlite3.Row
-        return db
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def _init_db(self) -> None:
         with self._connect() as db:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 
 from dataclasses import asdict, dataclass
 from enum import StrEnum
@@ -111,11 +112,16 @@ class MemoryLedger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
-        return connection
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def _init_db(self) -> None:
         with self._connect() as db:

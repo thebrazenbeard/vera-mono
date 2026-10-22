@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import closing
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -80,7 +81,7 @@ class ProviderExecutionBindingStore:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS provider_execution_bindings (
@@ -126,7 +127,7 @@ class ProviderExecutionBindingStore:
         payload = self._payload(prepared)
         payload_json = _exact_json(payload)
         digest = sha256_hex(payload_json.encode("utf-8"))
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -174,7 +175,7 @@ class ProviderExecutionBindingStore:
         )
 
     def read(self, effect_id: str) -> ProviderExecutionBinding:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute(
                 """
@@ -191,7 +192,7 @@ class ProviderExecutionBindingStore:
         )
 
     def all(self) -> tuple[ProviderExecutionBinding, ...]:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             rows = db.execute(
                 """
