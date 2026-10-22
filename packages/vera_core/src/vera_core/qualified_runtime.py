@@ -111,8 +111,8 @@ from .runtime_consumption_adapter import (
     RuntimeConsumptionAssessment,
 )
 from .state import VeraStateDirectory
-from .local_cognition import InferencePermit, LocalTextReceipt
-from .local_cognition_journal import LocalCognitionJournal
+from .local_cognition import InferencePermit, LocalTextReceipt, EXACT_TEST_SCOPE
+from .local_cognition_journal import LocalCognitionJournal, ID as COGNITION_ROUTE_ID
 import hashlib
 from pathlib import Path
 from .source_mutation import (
@@ -593,17 +593,17 @@ class QualifiedVeraRuntime:
                 audit=audit,
             )
         )
+        if local_cognition_transport is not None and (
+            type(local_cognition_route_ref) is not str
+            or COGNITION_ROUTE_ID.fullmatch(local_cognition_route_ref) is None
+        ):
+            raise ValueError("local cognition transport requires a bounded route ref")
         cognition_path = state.paths.root / "cognition" / "local-inference.sqlite"
         cognition_journal = (
             LocalCognitionJournal(cognition_path)
             if local_cognition_transport is not None or cognition_path.exists()
             else None
         )
-        if local_cognition_transport is not None and (
-            type(local_cognition_route_ref) is not str
-            or not local_cognition_route_ref
-        ):
-            raise ValueError("local cognition transport requires an explicit route ref")
         return cls(
             lifecycle=lifecycle,
             fence=fence,
@@ -657,6 +657,8 @@ class QualifiedVeraRuntime:
             raise RuntimeError("local cognition transport is not selected")
         if self.local_cognition_route_ref is None:
             raise RuntimeError("local cognition route is unbound")
+        if type(permit) is not InferencePermit or permit.scope != EXACT_TEST_SCOPE:
+            raise RuntimeError("exact synthetic local cognition permit required")
         journal = self.local_cognition_journal
         journal.require_unused(invocation_id)
         result = self.local_cognition_transport.generate(
