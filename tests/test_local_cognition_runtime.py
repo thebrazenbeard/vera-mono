@@ -107,6 +107,44 @@ class LocalCognitionRuntimeTests(unittest.TestCase):
             )
         self.assertEqual(runtime.local_cognition_history(), [])
 
+    def test_malformed_permit_does_not_invoke_even_fake_transport(self):
+        fake = SyntheticModel()
+        runtime = self.construct(fake)
+        with self.assertRaises(RuntimeError):
+            runtime.consume_local_cognition(
+                "hello", permit="not-a-permit", invocation_id="inv-invalid",
+            )
+        self.assertEqual(fake.calls, [])
+        self.assertEqual(runtime.local_cognition_history(), [])
+
+    def test_invalid_route_ref_rejected_before_inference(self):
+        state = VeraStateDirectory(
+            self.root, project_id="synthetic-model-consumer",
+            identity_id="synthetic-vera",
+        )
+        with self.assertRaises(ValueError):
+            QualifiedVeraRuntime.from_state_directory(
+                state, local_cognition_transport=SyntheticModel(),
+                local_cognition_route_ref="../other-system",
+            )
+
+    def test_wrong_response_model_never_persisted(self):
+        class Swapped(SyntheticModel):
+            def generate(self, prompt, *, permit=None, max_tokens=64):
+                from dataclasses import replace
+                return replace(
+                    super().generate(prompt, permit=permit, max_tokens=max_tokens),
+                    model="vera-local:latest",
+                )
+        fake = Swapped()
+        runtime = self.construct(fake)
+        with self.assertRaises(RuntimeError):
+            runtime.consume_local_cognition(
+                "hello", permit=self.permit, invocation_id="inv-swap",
+            )
+        self.assertEqual(len(fake.calls), 1)
+        self.assertEqual(runtime.local_cognition_history(), [])
+
     def test_corrupt_persistent_receipt_is_rejected(self):
         runtime = self.construct(SyntheticModel())
         runtime.consume_local_cognition(
