@@ -1,0 +1,29 @@
+# QVR local cognition Integration acceptance evidence — October 22, 2026
+
+Status: **ISOLATED SOURCE + TEST HOST EVIDENCE; NOT ACTIVE VERA MONO WINDOWS SERVICE CUTOVER**.
+
+## Subject
+
+- `thebrazenbeard/vera-mono` baseline `main@16a2828dfa7fb7e6c0e19004f014bc68fc47badf`, Integration isolated branch `integration/local-cognition-consumer-20261022`.
+- PORTAL donor is #79 exact `1e5c75d0f166b39c25297034af923f8d91781f25`; copied local_cognition.py into `vera_core` (NO sibling repo runtime dependency). `QualifiedVeraRuntime.from_state_directory` now optionally injects transport and a named test route. `QualifiedVeraRuntime.consume_local_cognition` invokes it and persistently records metadata under `VeraStateDirectory.paths.root/cognition/local-inference.sqlite`. A default runtime without a transport remains DISARMED. Retrieval of existing journal requires no transport/model invocation.
+- Persistence: SQLite append-only logical hash-chain; per-invocation model tag, Ollama reported digest, parent observer/child-reported PID, route ref, prompt/response SHA256, UTC, entry digest. **No raw prompt or generated text persisted.** Same-host journal digest is not immutable independent attestation; crashes between model reply and append may produce an unrecorded attempt; concurrent identical invocation IDs need an in-flight reservation for strong exactly-once behavior.
+- Cognition and external tool transport are separate; no PC/provider/source transports or outbound authority configured.
+
+## Source and test evidence
+
+- Initial integration test RED occurred as missing `vera_core.local_cognition` module; stricter policy test RED at `f1198741465c4ff2503b79e2367527ab5e98118c` explicitly demonstrated malformed permit still invoked fake and unsafe route ref was accepted (2 focused failing assertions). Corrected `QualifiedVeraRuntime` head `a6baebf6ca701c57cd242bf68a60a556f4d7ee71`, runtime Git blob `ba5a5a3d0ed601341617d1dae9d9c492baded5aa`.
+- Final physical Lappy Python3.12 test: `pytest -q tests/test_local_cognition_runtime.py` **9 PASS**; `pytest -q tests/test_qualified_runtime.py` **22 PASS**; `pytest -q tests/test_state_directory_restart.py` **2 PASS**, all exit0. Initial Windows temporary-test cleanup failed because QVR held native SQLite connections; test fixture was corrected to retain isolated temporary data until process exit. This is not a code fix for QVR's lifetime handling.
+- Physical Lappy offline `pip --no-index --no-deps --no-build-isolation --target` installed Integration branch source to `D:\VERA\.scratch\qvr-cognition-real-20261022-v2\installed`; verified installed `vera_core/qualified_runtime.py` exact Git blob. The route manifest in `D:\VERA\.scratch\qvr-cognition-real-20261022-v2\selected-local-cognition-route.json` named `qwen3:4b-instruct`, expected reported digest `0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0`, exact synthetic-test scope. This did not change any model registry or the existing `VeraMonoPilot`.
+- First new Windows subprocess PID **34480**, OS-observed Python3.12 executable, loaded explicitly installed QVR, invoked `QualifiedVeraRuntime.consume_local_cognition`, made genuine loopback Ollama `GET /api/tags` and `POST /api/generate`, bounded prompt `Reply with exactly the word READY.`, max output tokens 16, no keep-alive, zero outbound tool effect authority. Ollama returned a successful text receipt: `LOCAL_MODEL_TEXT_UNTRUSTED`. Persistent invocation ID `lappy-model-inference-001`, entry digest `45e91c0f1175a8204c94be7894ef0017b7ffc02e827b126b1a606b8c3b297180`, response SHA256 `c2e3ac47f4a325469c1a2d5f117e463ec943c721986d5d9f09ac4540b7d80526`.
+- Second distinct Windows process PID **32124** loaded same installed QVR with **no local inference transport attached**, and `local_cognition_history()` reopened identical model tag, reported digest, response and entry digest. Parent SQLite query independently counted **exactly 1** durable invocation and checked row model, digest, PID=34480. Both child processes successfully exited; no resident pilot activation occurred.
+- Physical VN2 Linux read exact donor/journal blobs from GitHub and demonstrated hostile fake `GET /api/tags` / `POST /api/generate` could self-report expected digest and return malicious-looking text; `authorized_tool_effect=False` and `model_byte_identity_verified=False` held. VN2 mutated journal response SHA256 and `history()` rejected corrupt hash chain. This is owner-directed second-host testing, NOT independently delegated VN1 review.
+
+## Claim limits
+
+**VERIFIED:** real explicitly selected **test QVR process** invoked a local model server under a pinned model **registry tag** and persisted the invocation identity metadata across a separate process cold reopen.
+
+**UNVERIFIED:** true model weight byte identity at execution; atomic tag-to-generation identity; evaluator-independent model ability; safe autonomous cognition; exhaustive invocation recording across crashes/races; immutable transitive Python dependency identity; independent VN1 review; active Windows `VeraMonoPilot` consuming this branch; production provider/credential/effect authority or offline service boot.
+
+At this turn's initial physical host readback `VeraMonoPilot` existed as Windows Manual/LocalService but was **Stopped**; last heartbeat with `model_provider=NONE` was stale. This work intentionally did not restart, upgrade, reconfigure, or modify that service or its noncanonical state.
+
+Next: Integration review exact source/test cut and, only with explicit identified host/service provider-cutover authority, package/select/test in the real `VeraMonoPilot` Windows Service Manager route. VN1 independent adversarial check must challenge receipt omission/crash window, forged Ollama identity, swapped runtime dependency and in-flight concurrency.
