@@ -32,9 +32,9 @@ class SyntheticModel:
 
 class LocalCognitionRuntimeTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name) / "state"
+        # Native Vera stores retain SQLite handles for the lifetime of the runtime.
+        # On Windows they cannot be removed before those objects are closed.
+        self.root = Path(tempfile.mkdtemp(prefix="qvr-cognition-test-")) / "state"
         self.permit = InferencePermit(model=MODEL, digest=DIGEST, scope=SCOPE)
 
     def construct(self, transport=None):
