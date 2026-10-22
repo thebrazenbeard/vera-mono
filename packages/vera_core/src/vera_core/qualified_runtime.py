@@ -111,6 +111,10 @@ from .runtime_consumption_adapter import (
     RuntimeConsumptionAssessment,
 )
 from .state import VeraStateDirectory
+from .local_cognition import InferencePermit, LocalTextReceipt
+from .local_cognition_journal import LocalCognitionJournal
+import hashlib
+from pathlib import Path
 from .source_mutation import (
     QualifiedSourceMutationAdapter,
     SourceMutationRecoveryAssessment,
@@ -197,6 +201,9 @@ class QualifiedVeraRuntime:
     ]
     coordination_commands: CoordinationCommandJournal
     tasks: TaskExecutionLedger
+    local_cognition_transport: Any | None = None
+    local_cognition_journal: LocalCognitionJournal | None = None
+    local_cognition_route_ref: str | None = None
 
     @classmethod
     def from_state_directory(
@@ -238,6 +245,8 @@ class QualifiedVeraRuntime:
         ] | None = None,
         coordination_bus: Any | None = None,
         clock: Callable[[], datetime] | None = None,
+        local_cognition_transport: Any | None = None,
+        local_cognition_route_ref: str | None = None,
     ) -> "QualifiedVeraRuntime":
         if type(state) is not VeraStateDirectory:
             raise TypeError("state must be an exact VeraStateDirectory")
@@ -584,6 +593,17 @@ class QualifiedVeraRuntime:
                 audit=audit,
             )
         )
+        cognition_path = state.paths.root / "cognition" / "local-inference.sqlite"
+        cognition_journal = (
+            LocalCognitionJournal(cognition_path)
+            if local_cognition_transport is not None or cognition_path.exists()
+            else None
+        )
+        if local_cognition_transport is not None and (
+            type(local_cognition_route_ref) is not str
+            or not local_cognition_route_ref
+        ):
+            raise ValueError("local cognition transport requires an explicit route ref")
         return cls(
             lifecycle=lifecycle,
             fence=fence,
@@ -615,7 +635,56 @@ class QualifiedVeraRuntime:
             independent_behavior_review_transports=review_transports,
             coordination_commands=coordination_commands,
             tasks=tasks,
+            local_cognition_transport=local_cognition_transport,
+            local_cognition_journal=cognition_journal,
+            local_cognition_route_ref=local_cognition_route_ref,
         )
+
+    def consume_local_cognition(
+        self,
+        prompt: str,
+        *,
+        permit: InferencePermit,
+        invocation_id: str,
+        max_tokens: int = 64,
+    ) -> LocalTextReceipt:
+        """Invoke only the explicit local text transport; journal selected consumer.
+
+        The text remains untrusted. This creates no outbound-effect authority,
+        and caller-supplied route/model identities are not external attestations.
+        """
+        if self.local_cognition_transport is None or self.local_cognition_journal is None:
+            raise RuntimeError("local cognition transport is not selected")
+        if self.local_cognition_route_ref is None:
+            raise RuntimeError("local cognition route is unbound")
+        journal = self.local_cognition_journal
+        journal.require_unused(invocation_id)
+        result = self.local_cognition_transport.generate(
+            prompt, permit=permit, max_tokens=max_tokens,
+        )
+        if type(result) is not LocalTextReceipt:
+            raise RuntimeError("local cognition transport returned an invalid receipt")
+        if (type(permit) is not InferencePermit
+                or result.model != permit.model
+                or result.reported_model_digest != permit.digest
+                or result.prompt_sha256 != hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+                or result.response_sha256 != hashlib.sha256(result.text.encode("utf-8")).hexdigest()):
+            raise RuntimeError("local cognition model or receipt mismatch")
+        journal.append(
+            invocation_id=invocation_id,
+            route_ref=self.local_cognition_route_ref,
+            model=result.model,
+            reported_model_digest=result.reported_model_digest,
+            prompt_sha256=result.prompt_sha256,
+            response_sha256=result.response_sha256,
+        )
+        return result
+
+    def local_cognition_history(self) -> list[dict]:
+        """Reopen self-reported, metadata-only observed invocations."""
+        if self.local_cognition_journal is None:
+            return []
+        return self.local_cognition_journal.history()
 
     def accepted_permit(self) -> AcceptedLifecyclePermit:
         return self.lifecycle.accepted_action_permit()
