@@ -79,8 +79,8 @@ def restart(db: Path) -> None:
         client.close()
 
 
-def issue(db: Path, phase: str) -> dict[str, object]:
-    result = call(db, {"op": "issue", "phase": phase})
+def issue(db: Path) -> dict[str, object]:
+    result = call(db, {"op": "issue"})
     if not result.get("ok"):
         raise AssertionError(result)
     return result
@@ -117,13 +117,16 @@ class CustodianProcessTests(unittest.TestCase):
     def test_public_challenge_is_opaque_and_feedback_requires_prior_commit(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "private-controller.sqlite"
-            challenge = issue(db, "train")
+            challenge = issue(db)
             self.assertEqual(set(challenge), {"ok", "challenge_id", "features"})
             self.assertNotIn("label", challenge)
             self.assertNotIn("expected_label", challenge)
             self.assertNotIn("phase", challenge)
             self.assertNotIn("split", challenge)
             self.assertNotIn("rule_version", challenge)
+            caller_selected_split = call(db, {"op": "issue", "phase": "holdout"})
+            self.assertFalse(caller_selected_split["ok"])
+            self.assertIn("request fields", str(caller_selected_split["error"]))
 
             early = call(db, {"op": "feedback", "challenge_id": challenge["challenge_id"]})
             self.assertFalse(early["ok"])
@@ -150,7 +153,7 @@ class CustodianProcessTests(unittest.TestCase):
     def test_one_use_commit_feedback_and_candidate_identity_survive_process_restarts(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "private-controller.sqlite"
-            first = issue(db, "train")
+            first = issue(db)
             self.assertTrue(commit(db, first, "candidate-1", "A")["ok"])
             restart(db)  # the replay attempt is issued by a distinct OS process
 
@@ -163,25 +166,30 @@ class CustodianProcessTests(unittest.TestCase):
             replay_feedback = call(db, {"op": "feedback", "challenge_id": first["challenge_id"]})
             self.assertFalse(replay_feedback["ok"])
 
-            second = issue(db, "train")
+            second = issue(db)
             rotated = commit(db, second, "candidate-rotated", "A")
             self.assertFalse(rotated["ok"])
             self.assertIn("identity is fixed", str(rotated["error"]))
             self.assertTrue(commit(db, second, "candidate-1", "A")["ok"])
 
-    def test_holdout_is_blocked_until_training_feedback_is_consumed(self):
+    def test_controller_owns_phase_order_and_blocks_progress_without_feedback(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "private-controller.sqlite"
-            blocked = call(db, {"op": "issue", "phase": "holdout"})
+            first = issue(db)
+            self.assertTrue(commit(db, first, "candidate", "A")["ok"])
+            blocked = call(db, {"op": "issue"})
             self.assertFalse(blocked["ok"])
             self.assertIn("training feedback", str(blocked["error"]))
+            self.assertTrue(call(db, {"op": "feedback", "challenge_id": first["challenge_id"]})["ok"])
+            next_challenge = issue(db)
+            self.assertNotEqual(first["challenge_id"], next_challenge["challenge_id"])
 
     def test_train_and_holdout_features_are_disjoint_and_hidden_from_issue_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "private-controller.sqlite"
             training_features = []
             for _ in range(4):
-                challenge = issue(db, "train")
+                challenge = issue(db)
                 training_features.extend(challenge["features"])
                 receipt = commit(db, challenge, "candidate", "A")
                 self.assertTrue(receipt["ok"])
@@ -189,7 +197,7 @@ class CustodianProcessTests(unittest.TestCase):
 
             holdout_features = []
             for _ in range(4):
-                challenge = issue(db, "holdout")
+                challenge = issue(db)
                 holdout_features.extend(challenge["features"])
                 self.assertEqual(set(challenge), {"ok", "challenge_id", "features"})
                 self.assertTrue(commit(db, challenge, "candidate", "A")["ok"])
@@ -201,11 +209,11 @@ class CustodianProcessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "private-controller.sqlite"
             for _ in range(4):
-                challenge = issue(db, "train")
+                challenge = issue(db)
                 self.assertTrue(commit(db, challenge, "candidate", "A", 0.99)["ok"])
                 self.assertTrue(call(db, {"op": "feedback", "challenge_id": challenge["challenge_id"]})["ok"])
             for _ in range(4):
-                challenge = issue(db, "holdout")
+                challenge = issue(db)
                 self.assertTrue(commit(db, challenge, "candidate", "A", 0.99)["ok"])
 
             score = call(db, {"op": "score_holdout"})
@@ -222,11 +230,11 @@ class CustodianProcessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "private-controller.sqlite"
             for _ in range(4):
-                challenge = issue(db, "train")
+                challenge = issue(db)
                 self.assertTrue(commit(db, challenge, "candidate", "ABSTAIN", 0.5)["ok"])
                 self.assertTrue(call(db, {"op": "feedback", "challenge_id": challenge["challenge_id"]})["ok"])
             for _ in range(4):
-                challenge = issue(db, "holdout")
+                challenge = issue(db)
                 self.assertTrue(commit(db, challenge, "candidate", "ABSTAIN", 0.5)["ok"])
             score = call(db, {"op": "score_holdout"})
             self.assertEqual(score["accuracy"], 0.0)
@@ -237,22 +245,22 @@ class CustodianProcessTests(unittest.TestCase):
     def test_truth_store_tampering_is_detected_after_restart(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "private-controller.sqlite"
-            issue(db, "train")
+            issue(db)
             restart(db)
             with closing(sqlite3.connect(db)) as connection, connection:
                 connection.execute("UPDATE challenge SET expected_label=CASE expected_label WHEN 'A' THEN 'B' ELSE 'A' END WHERE ordinal=0")
-            result = call(db, {"op": "issue", "phase": "train"})
+            result = call(db, {"op": "issue"})
             self.assertFalse(result["ok"])
             self.assertIn("truth-store integrity", str(result["error"]))
 
     def test_event_journal_tampering_is_detected_after_restart(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "private-controller.sqlite"
-            issue(db, "train")
+            issue(db)
             restart(db)
             with closing(sqlite3.connect(db)) as connection, connection:
                 connection.execute("UPDATE event SET digest=? WHERE seq=1", ("0" * 64,))
-            result = call(db, {"op": "issue", "phase": "train"})
+            result = call(db, {"op": "issue"})
             self.assertFalse(result["ok"])
             self.assertIn("event-journal integrity", str(result["error"]))
 
@@ -264,7 +272,7 @@ class CustodianProcessTests(unittest.TestCase):
                 training: list[tuple[str, str]] = []
                 memorized: dict[str, str] = {}
                 for _ in range(4):
-                    challenge = issue(db, "train")
+                    challenge = issue(db)
                     bits = str(challenge["features"][0]).split(":", 1)[1]
                     self.assertTrue(commit(db, challenge, arm, "A", 0.5)["ok"])
                     response = call(db, {"op": "feedback", "challenge_id": challenge["challenge_id"]})
@@ -276,7 +284,7 @@ class CustodianProcessTests(unittest.TestCase):
                 fit_data = list(reversed(training)) if arm == "shuffled" else training
                 bias, weights = fit_parity(fit_data)
                 for _ in range(4):
-                    challenge = issue(db, "holdout")
+                    challenge = issue(db)
                     bits = str(challenge["features"][0]).split(":", 1)[1]
                     if arm == "adaptive":
                         prediction = parity_prediction(bits, bias, weights)

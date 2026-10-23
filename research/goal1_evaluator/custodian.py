@@ -101,7 +101,7 @@ def validate_request(request: object) -> dict[str, Any]:
         raise ValueError("request must be an object with string op")
     op = request["op"]
     allowed = {
-        "issue": {"op", "phase"},
+        "issue": {"op"},
         "commit": {"op", "challenge_id", "candidate_id", "prediction", "p_a"},
         "feedback": {"op", "challenge_id"},
         "score_holdout": {"op"},
@@ -110,8 +110,6 @@ def validate_request(request: object) -> dict[str, Any]:
         raise ValueError("unknown operation")
     if set(request) != allowed[op]:
         raise ValueError("unexpected or missing request fields")
-    if op == "issue" and request["phase"] not in ("train", "holdout"):
-        raise ValueError("phase must be train or holdout")
     if op in ("commit", "feedback"):
         if type(request["challenge_id"]) is not str or not request["challenge_id"]:
             raise ValueError("challenge_id must be a non-empty string")
@@ -154,17 +152,39 @@ def handle(db_path: str | Path, raw_request: object, *, test_seed: int | None = 
         op = request["op"]
 
         if op == "issue":
-            phase = request["phase"]
-            if phase == "holdout":
-                remaining_train = db.execute("SELECT COUNT(*) FROM challenge WHERE phase='train' AND state!='FEEDBACK'").fetchone()[0]
-                if remaining_train:
-                    raise ValueError("holdout issuance is blocked until all training feedback has been consumed")
-            row = db.execute(
-                "SELECT * FROM challenge WHERE phase=? AND state IN ('ISSUED','NEW') ORDER BY ordinal LIMIT 1",
-                (phase,),
+            # The controller, not the caller, owns phase order. Do not issue a
+            # second training case until the prior case's feedback is consumed.
+            pending_train = db.execute(
+                "SELECT * FROM challenge WHERE phase='train' AND state IN ('ISSUED','COMMITTED') ORDER BY ordinal LIMIT 1"
             ).fetchone()
+            if pending_train is not None:
+                if pending_train["state"] == "COMMITTED":
+                    raise ValueError("training feedback must be consumed before the next challenge")
+                row = pending_train
+                phase = "train"
+            else:
+                remaining_train = db.execute(
+                    "SELECT COUNT(*) FROM challenge WHERE phase='train' AND state!='FEEDBACK'"
+                ).fetchone()[0]
+                if remaining_train:
+                    row = db.execute(
+                        "SELECT * FROM challenge WHERE phase='train' AND state='NEW' ORDER BY ordinal LIMIT 1"
+                    ).fetchone()
+                    phase = "train"
+                else:
+                    pending_holdout = db.execute(
+                        "SELECT * FROM challenge WHERE phase='holdout' AND state='ISSUED' ORDER BY ordinal LIMIT 1"
+                    ).fetchone()
+                    if pending_holdout is not None:
+                        row = pending_holdout
+                        phase = "holdout"
+                    else:
+                        row = db.execute(
+                            "SELECT * FROM challenge WHERE phase='holdout' AND state='NEW' ORDER BY ordinal LIMIT 1"
+                        ).fetchone()
+                        phase = "holdout"
             if row is None:
-                raise ValueError("no unused challenge remains for this phase")
+                raise ValueError("no unused challenge remains")
             if row["state"] == "NEW":
                 append_event(db, {"kind": "challenge_issued", "challenge_id": row["challenge_id"], "phase": phase})
                 db.execute("UPDATE challenge SET state='ISSUED' WHERE challenge_id=?", (row["challenge_id"],))

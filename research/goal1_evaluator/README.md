@@ -55,3 +55,6 @@ python -m unittest discover -s tests/research -p 'test_goal1_*.py' -v
 The original in-process `Evaluator` remains deliberately unsafe for adversarial custody: the new exploit test reads `evaluator._Evaluator__answer_key` directly and scores a perfect result, and the `PublicCase` objects returned by `public_cases()` still expose `.split` and `.rule_version` even though `learner_view()` omits them. Therefore only the controller's feature-only protocol response should cross into a learner process; never pass the `Evaluator` object or full `PublicCase` instances to an untrusted learner.
 
 The controller now recomputes its unkeyed event chain and a truth-store digest on every request, and tests verify that casual edits to the event digest or stored labels fail closed after process restart. These checks detect corruption only while the expected digests remain trustworthy. A same-privilege attacker can alter truth and recompute the unkeyed digest; this remains a diagnostic integrity check, not authenticated custody.
+
+
+The minimum external trust boundary, JSON/API contract, durable state machine, negative-transfer controls, budget metering requirements, and cold-restart qualification criteria are specified in `INDEPENDENT_CUSTODY_CONTRACT.md`. This is a design contract, not an implemented remote service.
