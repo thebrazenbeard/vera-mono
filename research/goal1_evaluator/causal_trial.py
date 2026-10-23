@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 import re
+import uuid
 
 ARMS = ("LEARNED", "FROZEN", "PLACEBO", "SHUFFLED")
 TRAIN = (("bits:100", "A"), ("bits:010", "B"), ("bits:001", "B"), ("bits:111", "A"))
@@ -58,6 +59,7 @@ class CausalTrialController:
         if not suite_id:
             raise ValueError("suite_id required")
         self.suite_id = suite_id
+        self.run_id = uuid.uuid4().hex
         if dispatch_evidence_verifier is not None:
             from research.goal1_evaluator.dispatch_attestation import Ed25519DispatchEvidenceVerifier
             if not isinstance(dispatch_evidence_verifier, Ed25519DispatchEvidenceVerifier):
@@ -80,6 +82,7 @@ class CausalTrialController:
         self.budgets_frozen = {"units_per_prediction": BUDGET_PER_PREDICTION, "max_attempts_per_arm_case": MAX_ATTEMPTS_PER_ARM_CASE}
         self.stopping_rule_frozen = f"stop after all 4 holdout cases are committed for each arm; {STOP_AFTER_HOLDOUT_CASES} cases/arm"
         self._predictions: dict[tuple[str, str], dict[str, object]] = {}
+        self._reservations: dict[str, dict[str, str]] = {}
         self._feedback_released: set[tuple[str, str]] = set()
         self._seq = 0
         self._closed = False
@@ -89,6 +92,56 @@ class CausalTrialController:
         if phase not in ("train", "holdout"):
             raise ValueError("invalid phase")
         return tuple(c.learner_view() for c in self._challenges.values() if c.phase == phase)
+
+    def reserve_invocation(
+        self, *, arm: str, challenge_id: str,
+        challenge_view_digest: str, model_prompt_sha256: str,
+    ) -> dict[str, str]:
+        """Issue and durably persist a one-use reservation before model dispatch.
+
+        The adapter must present this reservation to the separately controlled
+        gateway before it invokes a model. The gateway must enforce that ordering;
+        a local reservation record alone cannot attest external dispatch chronology.
+        """
+        if self._closed:
+            raise ValueError("trial is closed")
+        if self._dispatch_evidence_verifier is None:
+            raise ValueError("independent dispatch verifier required before reservation")
+        if arm not in ARMS:
+            raise ValueError("unknown arm")
+        challenge = self._challenges.get(challenge_id)
+        if challenge is None:
+            raise ValueError("unknown challenge")
+        expected_view_digest = digest(challenge.learner_view())
+        if challenge_view_digest != expected_view_digest:
+            raise ValueError("challenge view digest mismatch")
+        _require_sha256(model_prompt_sha256, "model_prompt_sha256")
+        key = (arm, challenge_id)
+        if key in self._predictions or any(
+            item["arm"] == arm and item["challenge_id"] == challenge_id
+            for item in self._reservations.values()
+        ):
+            raise ValueError("duplicate attempt or arm/case reservation")
+        reservation_id = uuid.uuid4().hex
+        self._dispatch_evidence_verifier.reserve_invocation(
+            reservation_id=reservation_id, run_id=self.run_id, arm=arm,
+            challenge_id=challenge_id, challenge_view_digest=expected_view_digest,
+            model_prompt_sha256=model_prompt_sha256,
+            expected_model_identity=self._expected_model_identity,
+            expected_model_artifact_sha256=self._expected_model_artifact_sha256,
+        )
+        reservation = {
+            "reservation_id": reservation_id,
+            "run_id": self.run_id,
+            "arm": arm,
+            "challenge_id": challenge_id,
+            "challenge_view_digest": expected_view_digest,
+            "model_prompt_sha256": model_prompt_sha256,
+            "model_identity": self._expected_model_identity,
+            "model_artifact_sha256": self._expected_model_artifact_sha256,
+        }
+        self._reservations[reservation_id] = reservation
+        return dict(reservation)
 
     def commit_prediction(
         self, *, arm: str, challenge_id: str, prediction: str,
@@ -163,6 +216,22 @@ class CausalTrialController:
         # The verifier must authenticate an attestation from a separately controlled
         # dispatch gateway/observer. A same-host caller-created record is not enough.
         verifier = self._dispatch_evidence_verifier
+        reservation = self._reservations.get(evidence["reservation_id"])
+        if reservation is None:
+            raise ValueError("controller-issued pre-dispatch reservation required")
+        expected_reservation_fields = {
+            "run_id": self.run_id,
+            "arm": arm,
+            "challenge_id": challenge_id,
+            "challenge_view_digest": challenge_view_digest,
+            "model_prompt_sha256": prompt_sha256,
+            "model_identity": self._expected_model_identity,
+            "model_artifact_sha256": self._expected_model_artifact_sha256,
+        }
+        if any(reservation.get(field) != value for field, value in expected_reservation_fields.items()):
+            raise ValueError("controller reservation binding mismatch")
+        if any(evidence.get(field) != value for field, value in expected_reservation_fields.items()):
+            raise ValueError("dispatch evidence binding mismatch")
         if evidence["witness_kind"] != "independent_dispatch_gateway":
             raise ValueError("independent dispatch witness required")
         if (evidence["arm"] != arm or evidence["challenge_id"] != challenge_id
@@ -188,6 +257,7 @@ class CausalTrialController:
             raise ValueError("dispatch attestation verification failed") from exc
         if verified is not True:
             raise ValueError("dispatch attestation verification failed")
+        self._reservations.pop(evidence["reservation_id"], None)
         return evidence
 
     def release_feedback(self, *, arm: str, challenge_id: str) -> str:

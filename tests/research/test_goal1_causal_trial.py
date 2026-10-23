@@ -33,7 +33,6 @@ def controller():
         expected_model_artifact_sha256="a" * 64,
     )
     c._test_private_key = private
-    c._test_run_id = "test-run-" + uuid.uuid4().hex
     return c
 
 
@@ -64,13 +63,17 @@ def commit(c, arm, case, prediction="A", prompt=None, response="model response",
         )
     if dispatch_evidence is None:
         reservation_id = f"test-reservation-{uuid.uuid4().hex}"
+        reservation = c.reserve_invocation(
+            arm=arm, challenge_id=case["challenge_id"],
+            challenge_view_digest=challenge_hash, model_prompt_sha256=prompt_hash,
+        )
         evidence = {
             "witness_kind": "independent_dispatch_gateway",
             "gateway_id": "test-gateway",
             "attestation_id": f"test-attestation-{_invocation_counter}-{uuid.uuid4().hex}",
             "invocation_id": f"test-invocation-{_invocation_counter}-{uuid.uuid4().hex}",
-            "reservation_id": reservation_id,
-            "run_id": c._test_run_id,
+            "reservation_id": reservation["reservation_id"],
+            "run_id": reservation["run_id"],
             "arm": arm,
             "challenge_id": case["challenge_id"],
             "challenge_view_digest": challenge_hash,
@@ -83,12 +86,6 @@ def commit(c, arm, case, prediction="A", prompt=None, response="model response",
             "outcome_status": "COMPLETED",
             "resource_usage": {"input_tokens": 8, "output_tokens": 2, "wall_time_ms": 100},
         }
-        c._dispatch_evidence_verifier.reserve_invocation(
-            reservation_id=reservation_id, run_id=evidence["run_id"], arm=arm,
-            challenge_id=case["challenge_id"], challenge_view_digest=challenge_hash,
-            model_prompt_sha256=prompt_hash, expected_model_identity=evidence["model_identity"],
-            expected_model_artifact_sha256=evidence["model_artifact_sha256"],
-        )
         evidence["signature"] = base64.b64encode(
             c._test_private_key.sign(canonical_attestation_bytes(evidence))
         ).decode()
@@ -328,3 +325,64 @@ def test_boolean_fake_verifier_cannot_be_injected_as_dispatch_authority():
 
     with pytest.raises(TypeError, match="boolean verifier stubs are forbidden"):
         CausalTrialController("fake-verifier", dispatch_evidence_verifier=FakeVerifier())
+
+
+def test_controller_issues_unique_pre_dispatch_reservation_bound_to_run_and_prompt():
+    c = controller()
+    case = c.issue("train")[0]
+    prompt_hash = sha256("the exact candidate prompt")
+    reservation = c.reserve_invocation(
+        arm="LEARNED", challenge_id=case["challenge_id"],
+        challenge_view_digest=digest(case), model_prompt_sha256=prompt_hash,
+    )
+    assert reservation["run_id"] == c.run_id
+    assert reservation["arm"] == "LEARNED"
+    assert reservation["challenge_id"] == case["challenge_id"]
+    assert reservation["challenge_view_digest"] == digest(case)
+    assert reservation["model_prompt_sha256"] == prompt_hash
+    assert "answer" not in reservation and "label" not in reservation
+    with pytest.raises(ValueError, match="duplicate attempt"):
+        c.reserve_invocation(
+            arm="LEARNED", challenge_id=case["challenge_id"],
+            challenge_view_digest=digest(case), model_prompt_sha256=prompt_hash,
+        )
+
+
+def test_signed_receipt_cannot_substitute_another_run_after_reservation():
+    c = controller()
+    case = c.issue("train")[0]
+    prompt = "exact candidate prompt"
+    prompt_hash = sha256(prompt)
+    response_hash = sha256("model response")
+    reservation = c.reserve_invocation(
+        arm="LEARNED", challenge_id=case["challenge_id"],
+        challenge_view_digest=digest(case), model_prompt_sha256=prompt_hash,
+    )
+    fields = {
+        "witness_kind": "independent_dispatch_gateway",
+        "gateway_id": "test-gateway",
+        "attestation_id": "wrong-run-attestation",
+        "invocation_id": "wrong-run-invocation",
+        "reservation_id": reservation["reservation_id"],
+        "run_id": "substituted-run",
+        "arm": "LEARNED",
+        "challenge_id": case["challenge_id"],
+        "challenge_view_digest": digest(case),
+        "model_prompt_sha256": prompt_hash,
+        "model_response_sha256": response_hash,
+        "model_identity": "synthetic-test-model",
+        "model_artifact_sha256": "a" * 64,
+        "dispatch_monotonic_ns": 100,
+        "response_monotonic_ns": 200,
+        "outcome_status": "COMPLETED",
+        "resource_usage": {"input_tokens": 8, "output_tokens": 2, "wall_time_ms": 100},
+    }
+    fields["signature"] = base64.b64encode(
+        c._test_private_key.sign(canonical_attestation_bytes(fields))
+    ).decode()
+    with pytest.raises(ValueError, match="dispatch evidence binding mismatch"):
+        c.commit_prediction(
+            arm="LEARNED", challenge_id=case["challenge_id"], prediction="A",
+            challenge_view_digest=digest(case), model_prompt_sha256=prompt_hash,
+            model_response_sha256=response_hash, budget_units=1, dispatch_evidence=fields,
+        )
