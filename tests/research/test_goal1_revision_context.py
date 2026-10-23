@@ -159,6 +159,22 @@ class RevisionContextTests(unittest.TestCase):
             trial(revision=RULE,correction_ledger=ledger,
                   influence_gate=self.gate,use="synthetic:qual-B")
 
+    def test_invalid_oversized_prompt_cannot_spend_later_use_cue(self):
+        ledger=complete_ledger(self.ledgerpath)
+        admitted(self.gate)
+        cue="later:oversized-cue"
+        use="synthetic:later-oversize"
+        with self.assertRaisesRegex(ValueError, "bounded byte budget"):
+            prepare_trial_prompt(
+                condition="REVISED", task_prompt="é"*1024,
+                case_id="heldout:case-oversized", cue_event_id=cue,
+                revision=RULE, correction_ledger=ledger,
+                influence_gate=self.gate, later_use_evidence_id=use,
+            )
+        valid=trial(revision=RULE, correction_ledger=ledger,
+                    influence_gate=self.gate, cue=cue, use=use)
+        self.assertEqual(valid.revision_id,RULE.revision_id)
+
     def test_no_frozen_influence_and_reject_bad_rule_content(self):
         with self.assertRaises(ValueError):
             prepare_trial_prompt(
