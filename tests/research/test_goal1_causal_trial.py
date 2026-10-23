@@ -1,3 +1,5 @@
+import hashlib
+
 import pytest
 
 from research.goal1_evaluator.causal_trial import (
@@ -9,10 +11,21 @@ def controller():
     return CausalTrialController("GOAL1-LIVE-20261023-02")
 
 
-def commit(c, arm, case, prediction="A", budget=1):
+def sha256(text):
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def commit(c, arm, case, prediction="A", prompt=None, response="model response", budget=1, challenge_view_digest=None):
+    # Prompt and response hashes describe actual submitted/returned bytes. The
+    # challenge-view digest is a separate controller-issued-case identity.
     return c.commit_prediction(
-        arm=arm, challenge_id=case["challenge_id"], prediction=prediction,
-        prompt_digest=digest(case), budget_units=budget,
+        arm=arm,
+        challenge_id=case["challenge_id"],
+        prediction=prediction,
+        challenge_view_digest=challenge_view_digest or digest(case),
+        model_prompt_sha256=sha256(prompt if prompt is not None else f"QVR prompt for {arm}: {case}"),
+        model_response_sha256=sha256(response),
+        budget_units=budget,
     )
 
 
@@ -53,17 +66,48 @@ def test_four_arms_have_distinct_feedback_policies():
         c.release_feedback(arm="FROZEN", challenge_id=cases[0]["challenge_id"])
 
 
-def test_duplicate_attempt_reused_case_and_prompt_mismatch_rejected():
+def test_different_honest_arm_prompts_are_accepted_for_same_public_challenge():
     c = controller()
     case = c.issue("train")[0]
-    commit(c, "LEARNED", case)
+    learned_prompt = f"Use revised rule context. Case={case['features']}"
+    frozen_prompt = f"Use frozen baseline only. Case={case['features']}"
+    learned = commit(c, "LEARNED", case, "A", prompt=learned_prompt, response="A")
+    frozen = commit(c, "FROZEN", case, "B", prompt=frozen_prompt, response="B")
+    assert learned["challenge_view_digest"] == frozen["challenge_view_digest"] == digest(case)
+    assert learned["model_prompt_sha256"] == sha256(learned_prompt)
+    assert frozen["model_prompt_sha256"] == sha256(frozen_prompt)
+    assert learned["model_prompt_sha256"] != frozen["model_prompt_sha256"]
+    assert learned["model_response_sha256"] == sha256("A")
+    assert frozen["model_response_sha256"] == sha256("B")
+    assert learned["sequence"] < frozen["sequence"]
+
+
+def test_incorrect_challenge_binding_rejected():
+    c = controller()
+    case, other = c.issue("train")[:2]
+    with pytest.raises(ValueError, match="challenge view digest mismatch"):
+        commit(c, "LEARNED", case, challenge_view_digest=digest(other))
+
+
+def test_duplicate_attempt_and_reused_arm_case_rejected():
+    c = controller()
+    case = c.issue("train")[0]
+    first = commit(c, "LEARNED", case, "A")
+    assert first["prediction"] == "A"
     with pytest.raises(ValueError, match="duplicate attempt"):
         commit(c, "LEARNED", case, "B")
+
+
+def test_prediction_and_receipt_fields_are_immutable_after_commit():
+    c = controller()
+    case = c.issue("train")[0]
+    receipt = commit(c, "LEARNED", case, "A", response="first response")
+    before = c.audit_receipts()
+    # A later alternate answer cannot overwrite the first committed prediction.
     with pytest.raises(ValueError, match="duplicate attempt"):
-        commit(c, "LEARNED", c.issue("train")[0])
-    with pytest.raises(ValueError, match="prompt digest"):
-        c.commit_prediction(arm="FROZEN", challenge_id=case["challenge_id"], prediction="A",
-                            prompt_digest="0" * 64, budget_units=1)
+        commit(c, "LEARNED", case, "B", response="changed response")
+    assert c.audit_receipts() == before
+    assert receipt["prediction"] == "A"
 
 
 def test_budget_mismatch_and_invalid_prediction_rejected():
@@ -75,12 +119,25 @@ def test_budget_mismatch_and_invalid_prediction_rejected():
         commit(c, "LEARNED", case, prediction="C")
 
 
+def test_nominal_budget_is_not_measured_resource_usage():
+    c = controller()
+    case = c.issue("train")[0]
+    receipt = commit(c, "LEARNED", case)
+    assert receipt["budget_units"] == 1
+    assert receipt["budget_kind"] == "protocol_counter_not_measured_usage"
+    assert receipt["resource_usage_measured"] is False
+
+
 def test_forged_order_not_accepted_as_client_input():
     c = controller()
     case = c.issue("train")[0]
     with pytest.raises(TypeError):
-        c.commit_prediction(arm="LEARNED", challenge_id=case["challenge_id"], prediction="A",
-                            prompt_digest=digest(case), budget_units=1, sequence=999)
+        c.commit_prediction(
+            arm="LEARNED", challenge_id=case["challenge_id"], prediction="A",
+            challenge_view_digest=digest(case),
+            model_prompt_sha256=sha256("prompt"), model_response_sha256=sha256("response"),
+            budget_units=1, sequence=999,
+        )
     receipt = commit(c, "LEARNED", case)
     assert receipt["sequence"] == 1
 
@@ -106,5 +163,18 @@ def test_all_four_arms_score_only_after_complete_holdout_batch():
     scores = c.score()
     assert set(scores) == set(ARMS)
     assert all(row["scored_cases"] == 4 and row["budget_units"] == 4 for row in scores.values())
+    assert all(row["resource_usage_measured"] is False for row in scores.values())
     with pytest.raises(ValueError, match="closed"):
         commit(c, "LEARNED", holdout[0], "B")
+
+
+def test_heldout_truth_is_never_released_as_feedback():
+    c = controller()
+    case = c.issue("holdout")[0]
+    # No receipt is needed to establish the split restriction; even after a
+    # valid held-out prediction, feedback remains forbidden.
+    with pytest.raises(ValueError, match="training cases"):
+        c.release_feedback(arm="LEARNED", challenge_id=case["challenge_id"])
+    commit(c, "LEARNED", case, "A")
+    with pytest.raises(ValueError, match="training cases"):
+        c.release_feedback(arm="LEARNED", challenge_id=case["challenge_id"])

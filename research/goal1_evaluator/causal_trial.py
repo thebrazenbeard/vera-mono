@@ -1,15 +1,16 @@
 """Four-arm causal-learning protocol prototype (synthetic, evaluator-controlled).
 
-No model is invoked here. This module tests protocol ordering and the distinction
-between prompt/correction state and measured held-out behavior. It is not an
-independent security boundary against a process with the same OS privileges.
+No model is invoked here. This module binds caller-reported model prompt/response
+hashes to a controller-assigned pre-feedback receipt. Hashes are not independent
+proof of dispatch or model execution; this is not an independent security boundary
+against a process with the same OS privileges.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
 import json
-from typing import Mapping
+import re
 
 ARMS = ("LEARNED", "FROZEN", "PLACEBO", "SHUFFLED")
 TRAIN = (("bits:100", "A"), ("bits:010", "B"), ("bits:001", "B"), ("bits:111", "A"))
@@ -17,6 +18,7 @@ HOLDOUT = (("bits:110", "B"), ("bits:101", "B"), ("bits:011", "A"), ("bits:000",
 BUDGET_PER_PREDICTION = 1
 MAX_ATTEMPTS_PER_ARM_CASE = 1
 STOP_AFTER_HOLDOUT_CASES = 4
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def canonical(value: object) -> bytes:
@@ -25,6 +27,11 @@ def canonical(value: object) -> bytes:
 
 def digest(value: object) -> str:
     return hashlib.sha256(canonical(value)).hexdigest()
+
+
+def _require_sha256(value: str, field: str) -> None:
+    if not isinstance(value, str) or not _SHA256_RE.fullmatch(value):
+        raise ValueError(f"{field} must be a lowercase SHA-256 hex digest")
 
 
 @dataclass(frozen=True)
@@ -67,7 +74,18 @@ class CausalTrialController:
             raise ValueError("invalid phase")
         return tuple(c.learner_view() for c in self._challenges.values() if c.phase == phase)
 
-    def commit_prediction(self, *, arm: str, challenge_id: str, prediction: str, prompt_digest: str, budget_units: int) -> dict[str, object]:
+    def commit_prediction(
+        self, *, arm: str, challenge_id: str, prediction: str,
+        challenge_view_digest: str, model_prompt_sha256: str,
+        model_response_sha256: str, budget_units: int,
+    ) -> dict[str, object]:
+        """Commit prediction plus distinct challenge, prompt, and response identities.
+
+        model_prompt_sha256/model_response_sha256 are caller-reported hashes of the
+        exact prompt/response bytes. This function cannot prove those bytes were
+        actually submitted/returned; the host adapter must obtain them from the
+        model transport and provide independent dispatch evidence if required.
+        """
         if self._closed:
             raise ValueError("trial is closed")
         if arm not in ARMS:
@@ -79,15 +97,27 @@ class CausalTrialController:
             raise ValueError("invalid prediction")
         if type(budget_units) is not int or budget_units != BUDGET_PER_PREDICTION:
             raise ValueError("budget mismatch")
-        expected_prompt = digest(challenge.learner_view())
-        if prompt_digest != expected_prompt:
-            raise ValueError("prompt digest mismatch")
+        expected_view_digest = digest(challenge.learner_view())
+        if challenge_view_digest != expected_view_digest:
+            raise ValueError("challenge view digest mismatch")
+        _require_sha256(model_prompt_sha256, "model_prompt_sha256")
+        _require_sha256(model_response_sha256, "model_response_sha256")
         key = (arm, challenge_id)
         if key in self._predictions:
             raise ValueError("duplicate attempt or reused case for arm")
         self._seq += 1
-        body = {"arm": arm, "challenge_id": challenge_id, "prediction": prediction,
-                "prompt_digest": prompt_digest, "budget_units": budget_units, "sequence": self._seq}
+        body = {
+            "arm": arm,
+            "challenge_id": challenge_id,
+            "challenge_view_digest": expected_view_digest,
+            "prediction": prediction,
+            "model_prompt_sha256": model_prompt_sha256,
+            "model_response_sha256": model_response_sha256,
+            "sequence": self._seq,
+            "budget_units": budget_units,
+            "budget_kind": "protocol_counter_not_measured_usage",
+            "resource_usage_measured": False,
+        }
         receipt = dict(body, receipt_digest=digest(body))
         self._predictions[key] = receipt
         return dict(receipt)
@@ -101,10 +131,11 @@ class CausalTrialController:
             raise ValueError("prediction must be committed before feedback")
         if key in self._feedback_released:
             raise ValueError("feedback is one-use")
+        if arm == "FROZEN":
+            # Do not consume a feedback token when feedback is disallowed.
+            raise ValueError("FROZEN arm receives no feedback")
         self._feedback_released.add(key)
         truth = self._truth[challenge_id]
-        if arm == "FROZEN":
-            raise ValueError("FROZEN arm receives no feedback")
         if arm == "PLACEBO":
             return "A"  # Deliberately non-informative fixed feedback.
         if arm == "SHUFFLED":
@@ -128,8 +159,14 @@ class CausalTrialController:
         for arm in ARMS:
             rows = [self._predictions[(arm, cid)] for cid in holdout_ids]
             correct = sum(row["prediction"] == self._truth[row["challenge_id"]] for row in rows)
-            result[arm] = {"scored_cases": len(rows), "correct": correct, "accuracy": correct / len(rows),
-                           "budget_units": sum(row["budget_units"] for row in rows)}
+            result[arm] = {
+                "scored_cases": len(rows),
+                "correct": correct,
+                "accuracy": correct / len(rows),
+                "budget_units": sum(row["budget_units"] for row in rows),
+                "budget_kind": "protocol_counter_not_measured_usage",
+                "resource_usage_measured": False,
+            }
         self._closed = True
         return result
 
