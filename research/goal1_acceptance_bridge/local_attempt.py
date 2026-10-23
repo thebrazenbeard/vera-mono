@@ -174,7 +174,7 @@ class LocalAttemptStore:
                 "recovery_class": recovery_class,
                 "automatic_retry_permitted": False,
                 "independent_reconciliation_required": True,
-                "independent_attestation": bool(item["independent_attestation"]),
+                "independent_attestation": False,  # Local row is never an independent witness.
             })
         return rows
 
