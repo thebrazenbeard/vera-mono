@@ -46,3 +46,18 @@ It generates a new short-lived **same-process disposable** Ed25519 signer/public
 5. Only then proceed to learner #86's matched FROZEN/LEARNED/PLACEBO/SHUFFLED unseen tasks, negative transfer, measured resource control and independent-process cold restart, scored by hidden evaluator truth.
 
 No protected installation, credential/trust, endpoint ingress, production provider change, canonical memory write, or merge was performed. Source remains Draft/HOLD.
+
+
+## 2026-10-23 strict cross-owner signed-schema gate
+
+After Integration #90 `5758bdd07f3ef0020f8e7318f8b277ab7da6c72c` published, the exact-source `gateway_evaluator_contract_probe.py` observed gateway-signed `COMPLETED` and `OUTCOME_UNKNOWN` envelopes both rejected by Malaphor #87's exact verifier. Its normal diagnostic CLI intentionally returns exit 0 with machine-readable `verdict=BLOCKED_DIFFERENT_SIGNED_TERMINAL_SCHEMAS` when it successfully reproduces that mismatch. **Diagnostic success is not acceptance success.**
+
+New optional `--require-compatible` mode returns **exit 2** and stderr `GOAL1_TERMINAL_SCHEMA_GATE=BLOCKED_INCOMPATIBLE` while this exact mismatch exists. The strict gate requires both distinct terminal cases, direct acceptance by exact evaluator source, no locally asserted independent-attestation or learning claims, and an explicitly reviewed compatible-schema verdict. It does not accept a verdict string alone. This is **source-schema compatibility**, not independently authenticated inference qualification, even when a future version eventually passes.
+
+The actual invocation uses **locally pinned exact source copies** from #90 `sole_route.py` and #87 `reservation_status_contract.py` and `dispatch_attestation.py` staged below `--source-root`; SHA256 pins are validated before any result is claimed. An owner commit changing source bytes intentionally forces fresh review rather than automatically accepting a new interface.
+
+Physical Lappy Windows verification: TDD RED `ImportError` (missing `compatibility_exit_code`) before implementation; GREEN **5/5 focused unit tests**. Same-source direct CLI invoked in separate processes: diagnostic exit **0**, strict exit **2**, both terminal cases enumerated, exact `BLOCKED_INCOMPATIBLE` marker. Full selected Goal 1 suite on Lappy: **36/36 PASS** and Python compilation PASS. Physical VN2 recheck was blocked by host safety controls; **no fresh VN2 strict-gate result is claimed**. Earlier VN2 31/31 and exact-source interop mismatch remain prior-cut evidence only.
+
+**Reviewer objection accepted:** Green source unit tests plus a deliberately red interoperability gate are consistent. The test suite verifies that the guard refuses proof promotion; it does not indicate the terminal interface is working or that any authenticated endpoint or sole-route learner is installed.
+
+Integration #90 acknowledged the incompatible schemas in Issue #85 comment `6376878908`, and requires Malaphor #87's reviewed terminal V2 decision. Preserve the existing signed bytes; do not translate or re-sign terminal results downstream. Once a new frozen contract is agreed, update the source pins and tests, verify signed COMPLETED and honestly UNKNOWN, and **independently** establish signer custody, authenticated claim-ledger linkage and learner OS access restrictions.
