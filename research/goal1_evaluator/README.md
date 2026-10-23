@@ -31,3 +31,27 @@ The receipt's SHA-256 field is an **unkeyed self-consistency digest**, not a cry
 The event journal rejects non-finite JSON values but remains mutable by a same-privilege writer who can rewrite the SQLite file and recompute the hash chain. Duplicate sequence values within a batch are rejected, but `commit_sequence` is still caller-supplied; it is not an externally attested clock or trusted event sequence. Budget units are also caller-reported metadata, not actual host-side metering, and can be underreported. In-process Python object privacy is not isolation. Replay state is in memory and does not provide durable cross-process nonce consumption. The restart test proves only that journal records survive a separate-process reopen, not that learned behavior survives restart.
 
 This scaffold does **not** invoke QVR or a model, apply a correction, implement an adaptive learner, establish hidden-answer secrecy against a malicious host, compare learned/frozen/placebo/shuffled candidates, quantify statistical confidence, or qualify transfer. Those are explicit next gates, not implied capabilities. Private evaluator truth and credentials must not be committed here.
+
+
+## Process-isolated challenge-custodian prototype
+
+`research/goal1_evaluator/custodian.py` adds a JSON-line controller prototype intended to be run as a separate process. It generates a synthetic hidden affine/parity rule, issues opaque challenge IDs with feature-only prompts, assigns commit sequence numbers itself, releases training labels only after a prediction commit, blocks held-out issuance until training feedback has been consumed, and scores the held-out set only after every held-out prediction is committed. SQLite state makes challenge use, candidate identity, and feedback one-use across process restarts. The held-out result is aggregate-only and reports accuracy, coverage, selective accuracy, Brier score, and controller-counted prediction slots.
+
+The accompanying tests use separate OS processes for controller calls and compare a synthetic rule-inference arm with frozen, placebo, shuffled-feedback, and exact-example memorizer controls. All arms receive the same eight prediction slots (four training and four held-out). This is a **protocol/mechanism test on a tiny synthetic task**, not an evaluation of QVR or a language model, not statistical evidence of general transfer, and not a claim that Vera learned. The "adaptive" arm is a hand-coded parity solver used to validate that the protocol can distinguish a rule inferred from feedback from a frozen policy; it is not Vera.
+
+Run the isolated Windows/Linux-compatible tests from the repository root:
+
+```sh
+python -m unittest discover -s tests/research -p 'test_goal1_*.py' -v
+```
+
+`--test-seed` is accepted only when `VERA_EVAL_TEST_MODE=1` and exists solely for deterministic synthetic tests. Real runs must omit it. Controller-reported budget units count prediction slots, **not** model tokens, wall-clock latency, GPU time, or total compute; a real adapter must independently meter those costs.
+
+**Custody limit:** the process boundary and SQLite one-use state resist accidental replay and ordinary protocol misuse across restarts, but the controller and database on one Windows host are not independent custody. A malicious process running as the same user can read/modify the database, inspect code, or alter the controller. The unkeyed event hash chain is not tamper-proof. For a real held-out qualification run, place the truth custodian on a separately administered host/security principal, restrict learner access to a narrow authenticated API, keep truth and audit keys outside the learner's control, and preserve externally witnessed append-only receipts. No such remote trust boundary is established by this PR.
+
+
+## Additional hostile boundary result
+
+The original in-process `Evaluator` remains deliberately unsafe for adversarial custody: the new exploit test reads `evaluator._Evaluator__answer_key` directly and scores a perfect result, and the `PublicCase` objects returned by `public_cases()` still expose `.split` and `.rule_version` even though `learner_view()` omits them. Therefore only the controller's feature-only protocol response should cross into a learner process; never pass the `Evaluator` object or full `PublicCase` instances to an untrusted learner.
+
+The controller now recomputes its unkeyed event chain and a truth-store digest on every request, and tests verify that casual edits to the event digest or stored labels fail closed after process restart. These checks detect corruption only while the expected digests remain trustworthy. A same-privilege attacker can alter truth and recompute the unkeyed digest; this remains a diagnostic integrity check, not authenticated custody.

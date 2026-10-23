@@ -25,6 +25,15 @@ class EvaluatorFalsificationTests(unittest.TestCase):
             self.assertFalse(any(part in case.case_id for part in ("calibration", "qualification", "reversal")))
             self.assertNotIn(self.truth[case.case_id], view.values())
 
+    def test_python_name_mangled_answer_key_is_not_hidden_from_same_process(self):
+        # Intentional exploit: Python name-mangling is not a secrecy boundary.
+        truth = self.evaluator._Evaluator__answer_key
+        cases = self.evaluator.public_cases(split="qualification")
+        rows = self.receipts(cases, predict=lambda case: truth[case.case_id])
+        self.assertEqual(self.evaluator.score(rows, outcome_sequence=99).accuracy, 1.0)
+        self.assertTrue(hasattr(cases[0], "split"))
+        self.assertTrue(hasattr(cases[0], "rule_version"))
+
     def test_scorer_uses_controller_truth_not_candidate_supplied_labels(self):
         cases = self.evaluator.public_cases(split="qualification")
         rows = self.receipts(cases, predict=lambda c: "poisoned-label")
