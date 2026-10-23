@@ -386,3 +386,28 @@ def test_signed_receipt_cannot_substitute_another_run_after_reservation():
             challenge_view_digest=digest(case), model_prompt_sha256=prompt_hash,
             model_response_sha256=response_hash, budget_units=1, dispatch_evidence=fields,
         )
+
+
+def test_qvr_local_journal_boolean_flags_do_not_authenticate_dispatch():
+    c = controller()
+    case = c.issue("train")[0]
+    legacy_qvr_journal_row = {
+        "invocation_id": "local-inv-1",
+        "route_ref": "LOCAL_QVR_TEST",
+        "runtime_pid": 1234,
+        "model": "synthetic-test-model",
+        "reported_model_digest": "a" * 64,
+        "prompt_sha256": sha256("prompt"),
+        "response_sha256": sha256("response"),
+        "observed_utc": "2026-10-23T00:00:00Z",
+        "model_byte_identity_verified": True,
+        "independent_attestation": True,
+        "entry_digest": "b" * 64,
+    }
+    with pytest.raises(ValueError, match="dispatch evidence fields missing"):
+        c.commit_prediction(
+            arm="LEARNED", challenge_id=case["challenge_id"], prediction="A",
+            challenge_view_digest=digest(case), model_prompt_sha256=sha256("prompt"),
+            model_response_sha256=sha256("response"), budget_units=1,
+            dispatch_evidence=legacy_qvr_journal_row,
+        )
