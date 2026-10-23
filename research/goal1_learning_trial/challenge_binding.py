@@ -47,7 +47,8 @@ def format_case_task(challenge_view: dict[str, str]) -> str:
     if (not _strict_text(cid, 100) or _ID.fullmatch(cid) is None
             or not _strict_text(features, 400)):
         raise ValueError("invalid public case identifier/features")
-    return f"Challenge id={cid}. Visible features: {features}. Predict A, B, or ABSTAIN."
+    return (f"Challenge id={cid}. Visible features: {features}. "
+            "Return ONLY the literal token A, B, or ABSTAIN. No explanation or other text.")
 
 @dataclass(frozen=True, slots=True)
 class BoundTrialPrediction:
