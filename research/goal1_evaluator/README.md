@@ -7,7 +7,8 @@ Status: **research-only scaffold; not independent evaluator custody, not a QVR i
 - Learner-facing cases omit the answer label.
 - Prediction receipts bind candidate, challenge, prediction, prompt digest, commit sequence, and budget into a SHA-256 commitment.
 - The scorer takes predictions but no caller-supplied outcome labels; it scores against its own answer-key map.
-- It rejects a structurally post-outcome commit, receipt/prompt tampering, incomplete qualification batches, and same-instance replay.
+- It rejects malformed receipt fields, a structurally post-outcome commit, receipt/prompt tampering, incomplete qualification batches, per-call scoring-split substitution, and same-instance replay.
+- The scoring split is configured when the evaluator is constructed, rather than selected on each scoring call; this only helps if evaluator construction/configuration is controlled independently.
 - A SQLite event journal can be reopened by a distinct OS process and checks a local hash chain.
 - A tiny synthetic rule-reversal fixture demonstrates that a stale policy can fail after the rule flips.
 
@@ -19,7 +20,7 @@ From repository root:
 python -m unittest discover -s tests/research -p 'test_goal1_evaluator.py' -v
 ```
 
-The initial isolated local run on 2026-10-23 produced **10 tests, 10 passed** (Python stdlib only). This is local source-level verification of this scaffold, not a run of the full repository suite.
+The initial isolated local run on 2026-10-23 produced **10 tests, 10 passed** before the subsequent adversarial hardening. The current branch adds malformed-receipt, scoring-split-substitution, and chronology-forgery cases; those additions are not locally rerun in this session and require current-head CI confirmation. This is source-level verification of a synthetic scaffold, not a run of the full repository suite.
 
 ## Deliberate counterexample and limits
 
