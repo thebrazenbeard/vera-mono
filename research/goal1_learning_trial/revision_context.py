@@ -99,7 +99,10 @@ def prepare_trial_prompt(
             or type(influence_gate) is not DurableLearnedInfluenceGate
             or not _text(later_use_evidence_id, maximum=128)):
         raise LearnedInfluenceBlocked("reviewed revision, ledger and fresh use identity required")
-    state = correction_ledger.state(revision.correction_id)
+    try:
+        state = correction_ledger.state(revision.correction_id)
+    except KeyError as exc:
+        raise LearnedInfluenceBlocked("correction not recorded") from exc
     if (not state.completed or state.failure_signature_id != revision.failure_signature_id
             or not state.events[-1].guardrail_refs
             or not state.events[-1].verification_refs):
