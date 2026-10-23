@@ -183,3 +183,50 @@ def bind_observed_trial_prediction(
         registry_reported_model_digest=observed_record["reported_model_digest"],
         subject_digest=digest,
     )
+
+
+def controller_commit_parameters(binding: BoundTrialPrediction) -> dict[str, object]:
+    """Untrusted, minimal candidate parameters for evaluator #87.
+
+    This does not dispatch a model, reserve a transport attempt, release
+    feedback, authenticate identity, or attest pre-feedback chronology.
+    The separately controlled evaluator must validate the public challenge,
+    uniqueness, sequencing, actual transport witness and feedback custody.
+    budget_units=1 is a protocol counter, NOT measured model usage.
+    """
+    if type(binding) is not BoundTrialPrediction:
+        raise ValueError("exact untrusted binding required")
+    if (
+        binding.authorization_effect != "NONE"
+        or binding.independently_attested
+        or binding.model_bytes_verified
+        or binding.model_consumption_independently_verified
+        or binding.pre_feedback_order_verified
+        or binding.learning_verified
+        or binding.evidence_class != "CALLER_SUPPLIED_QVR_JOURNAL"
+    ):
+        raise ValueError("cannot promote unsupported evidence claims")
+    if (
+        type(binding.challenge_id) is not str
+        or _ID.fullmatch(binding.challenge_id) is None
+        or binding.arm not in ("LEARNED", "FROZEN")
+        or binding.prediction not in ("A", "B", "ABSTAIN")
+    ):
+        raise ValueError("invalid challenge arm or prediction")
+    for digest in (
+        binding.challenge_view_digest,
+        binding.model_prompt_sha256,
+        binding.model_response_sha256,
+        binding.subject_digest,
+    ):
+        if type(digest) is not str or _HEX.fullmatch(digest) is None:
+            raise ValueError("invalid binding digest")
+    return {
+        "arm": binding.arm,
+        "challenge_id": binding.challenge_id,
+        "prediction": binding.prediction,
+        "challenge_view_digest": binding.challenge_view_digest,
+        "model_prompt_sha256": binding.model_prompt_sha256,
+        "model_response_sha256": binding.model_response_sha256,
+        "budget_units": 1,
+    }
