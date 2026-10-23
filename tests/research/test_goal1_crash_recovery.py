@@ -6,6 +6,7 @@ No real provider, verifier, credentials or private label is contacted.
 from __future__ import annotations
 
 import os
+import sqlite3
 from pathlib import Path
 import subprocess
 import sys
@@ -119,6 +120,22 @@ class TestHardCrashRecovery(unittest.TestCase):
                             route_ref=raw["route_ref"], model=raw["model"],
                             reported_model_digest=raw["reported_model_digest"],
                             prompt_sha256=raw["prompt_sha256"], max_tokens=8)
+
+    def test_forged_local_attestation_bit_cannot_promote_recovery_report(self):
+        store = LocalAttemptStore(self.base / "attempts.sqlite")
+        h = "a" * 64
+        store.reserve(invocation_id="forged-1", reservation_id="res-forged",
+            run_id="run-forged", arm="FROZEN", challenge_id="case-forged",
+            challenge_view_digest=h, route_ref="TEST", model="model",
+            reported_model_digest=h, prompt_sha256=h, max_tokens=8)
+        # Deliberate same-user SQLite tampering. Local flags are not witnesses.
+        with sqlite3.connect(store.path) as db:
+            db.execute("UPDATE attempts SET independent_attestation=1")
+        self.assertTrue(store.history()[0]["independent_attestation"])
+        report = LocalAttemptStore(store.path).recovery_report()
+        self.assertFalse(report[0]["independent_attestation"])
+        self.assertEqual(report[0]["recovery_class"], "RESERVED_REMOTE_CLAIM_UNKNOWN")
+        self.assertTrue(report[0]["independent_reconciliation_required"])
 
     def test_completed_and_unknown_locals_never_pretend_to_be_attested(self):
         store = LocalAttemptStore(self.base / "attempts.sqlite")
