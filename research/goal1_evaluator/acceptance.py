@@ -8,6 +8,7 @@ requires a separate controller/host security boundary.
 """
 from __future__ import annotations
 from dataclasses import dataclass
+from contextlib import closing
 import hashlib, json, sqlite3
 from pathlib import Path
 from typing import Iterable, Mapping
@@ -140,13 +141,13 @@ class EventJournal:
     """
     def __init__(self, path: str | Path):
         self.path = str(path)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY, event_json TEXT NOT NULL, previous_digest TEXT NOT NULL, digest TEXT NOT NULL)")
         self.read_all()
 
     def append(self, event: Mapping[str, object]) -> dict[str, object]:
         event_json = _canonical(dict(event)).decode("utf-8")
-        with sqlite3.connect(self.path, timeout=5) as db:
+        with closing(sqlite3.connect(self.path, timeout=5)) as db, db:
             db.execute("BEGIN IMMEDIATE")
             last = db.execute("SELECT seq, digest FROM events ORDER BY seq DESC LIMIT 1").fetchone()
             seq = 1 if last is None else last[0] + 1
@@ -157,7 +158,7 @@ class EventJournal:
         return {"seq": seq, "event": json.loads(event_json), "previous_digest": prior, "digest": digest}
 
     def read_all(self) -> list[dict[str, object]]:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             rows = db.execute("SELECT seq,event_json,previous_digest,digest FROM events ORDER BY seq").fetchall()
         prior = "0" * 64
         output = []
