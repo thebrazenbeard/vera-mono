@@ -20,7 +20,7 @@ From repository root:
 python -m unittest discover -s tests/research -p 'test_goal1_evaluator.py' -v
 ```
 
-The initial isolated local run on 2026-10-23 produced **10 tests, 10 passed** before the subsequent adversarial hardening. The current branch adds metadata/split leakage, malformed-receipt, duplicate-sequence, non-finite JSON, scoring-split-substitution, chronology-forgery, candidate-ID replay-rotation, and budget-underreporting cases; those additions are not locally rerun in this session and require current-head CI confirmation. This is source-level verification of a synthetic scaffold, not a run of the full repository suite.
+The initial isolated local run on 2026-10-23 produced **10 tests, 10 passed** before the subsequent adversarial hardening. On the current work session's Windows x64 host (Python 3.14.5), the focused evaluator/custodian suite was rerun after each hardening increment; at head `4c5e6c61028b28962c749595277f027fb60cb3d2`, **29 tests passed** locally, with Python compilation and `git diff --check` passing. Exact-head GitHub Actions was still running the Ubuntu/Windows monorepo suite when last checked; do not infer CI success from local tests or a predecessor commit. This is source-level verification of a synthetic scaffold, not a run of the full repository suite.
 
 ## Deliberate counterexample and limits
 
@@ -30,7 +30,7 @@ The receipt's SHA-256 field is an **unkeyed self-consistency digest**, not a cry
 
 The event journal rejects non-finite JSON values but remains mutable by a same-privilege writer who can rewrite the SQLite file and recompute the hash chain. Duplicate sequence values within a batch are rejected, but `commit_sequence` is still caller-supplied; it is not an externally attested clock or trusted event sequence. Budget units are also caller-reported metadata, not actual host-side metering, and can be underreported. In-process Python object privacy is not isolation. Replay state is in memory and does not provide durable cross-process nonce consumption. The restart test proves only that journal records survive a separate-process reopen, not that learned behavior survives restart.
 
-This scaffold does **not** invoke QVR or a model, apply a correction, implement an adaptive learner, establish hidden-answer secrecy against a malicious host, compare learned/frozen/placebo/shuffled candidates, quantify statistical confidence, or qualify transfer. Those are explicit next gates, not implied capabilities. Private evaluator truth and credentials must not be committed here.
+This scaffold does **not** invoke QVR or a model, apply a correction, implement an adaptive language-model learner, establish hidden-answer secrecy against a malicious host, compare actual Vera/QVR learned/frozen/placebo/shuffled candidates, quantify statistical confidence, or qualify transfer. The hand-coded synthetic arms only test the controller mechanism. Those are explicit next gates, not implied capabilities. Private evaluator truth and credentials must not be committed here.
 
 
 ## Process-isolated challenge-custodian prototype
@@ -54,7 +54,7 @@ python -m unittest discover -s tests/research -p 'test_goal1_*.py' -v
 
 The original in-process `Evaluator` remains deliberately unsafe for adversarial custody: the new exploit test reads `evaluator._Evaluator__answer_key` directly and scores a perfect result, and the `PublicCase` objects returned by `public_cases()` still expose `.split` and `.rule_version` even though `learner_view()` omits them. Therefore only the controller's feature-only protocol response should cross into a learner process; never pass the `Evaluator` object or full `PublicCase` instances to an untrusted learner.
 
-The controller now recomputes its unkeyed event chain and a truth-store digest on every request, and tests verify that casual edits to the event digest or stored labels fail closed after process restart. These checks detect corruption only while the expected digests remain trustworthy. A same-privilege attacker can alter truth and recompute the unkeyed digest; this remains a diagnostic integrity check, not authenticated custody.
+The controller now recomputes its unkeyed event chain and a truth-store digest over challenge ID, ordinal, phase, feature vector, and label on every request. Tests verify that casual edits to the event digest, stored labels, or challenge metadata fail closed after process restart. These checks detect corruption only while the expected digests remain trustworthy. A same-privilege attacker can alter truth/metadata and recompute the unkeyed digest; this remains a diagnostic integrity check, not authenticated custody.
 
 
 The minimum external trust boundary, JSON/API contract, durable state machine, negative-transfer controls, budget metering requirements, and cold-restart qualification criteria are specified in `INDEPENDENT_CUSTODY_CONTRACT.md`. This is a design contract, not an implemented remote service.
