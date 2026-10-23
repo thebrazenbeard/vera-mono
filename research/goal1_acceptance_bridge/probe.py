@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
+import gc
 import hashlib
 import importlib.util
 import json
@@ -183,6 +184,10 @@ def inspect_contracts(journal_path: Path, revision_path: Path,
             ),
         )
         simulation_ok = bool(simulated.get("dispatch_evidence_verified"))
+        # #82 uses sqlite3 connection context managers without closing them;
+        # explicitly release references and collect before Windows temp cleanup.
+        del journal, reopened
+        gc.collect()
 
     return {
         "schema": "GOAL1_CROSSBRANCH_SOURCE_PROBE_V1",
