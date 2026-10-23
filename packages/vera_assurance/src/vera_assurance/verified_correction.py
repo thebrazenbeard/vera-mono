@@ -13,6 +13,7 @@ from enum import StrEnum
 
 from .evaluation_commitment import (
     CommittedComparison,
+    ComparisonConditions,
     PredictionCommitment,
     compare_committed_predictions,
 )
@@ -33,6 +34,7 @@ class CorrectionEvidenceState(StrEnum):
 @dataclass(frozen=True, slots=True)
 class PairedOutcome:
     comparison: CommittedComparison
+    issued_conditions: ComparisonConditions
     learner: PredictionCommitment
     frozen: PredictionCommitment
     case_id: str
@@ -105,6 +107,7 @@ def assess_correction_evidence(
         if type(row) is not PairedOutcome:
             raise TypeError("observations must contain exact PairedOutcome values")
         if (type(row.comparison) is not CommittedComparison
+                or type(row.issued_conditions) is not ComparisonConditions
                 or type(row.learner) is not PredictionCommitment
                 or type(row.frozen) is not PredictionCommitment
                 or type(row.split) is not EvidenceSplit):
@@ -119,7 +122,9 @@ def assess_correction_evidence(
             raise ValueError("duplicate evaluator reference")
         if row.learner.step in steps:
             raise ValueError("duplicate prediction step across cases")
-        opportunity = row.comparison.conditions.opportunity_condition_id
+        if row.comparison.conditions != row.issued_conditions:
+            raise ValueError("comparison conditions differ from issued trial conditions")
+        opportunity = row.issued_conditions.opportunity_condition_id
         if opportunity in opportunities:
             raise ValueError("duplicate opportunity across cases")
         cases.add(case_id)
@@ -128,7 +133,7 @@ def assess_correction_evidence(
         opportunities.add(opportunity)
 
         verified = compare_committed_predictions(
-            row.learner, row.frozen, conditions=row.comparison.conditions,
+            row.learner, row.frozen, conditions=row.issued_conditions,
         )
         if verified != row.comparison:
             raise ValueError("comparison differs from bound pre-outcome tickets")
@@ -137,8 +142,8 @@ def assess_correction_evidence(
             consistent_candidates = names
         elif names != consistent_candidates:
             raise ValueError("candidate identity changed during evaluation")
-        resources = (row.comparison.conditions.resource_condition_id,
-                     row.comparison.conditions.representation_version)
+        resources = (row.issued_conditions.resource_condition_id,
+                     row.issued_conditions.representation_version)
         if consistent_resources is None:
             consistent_resources = resources
         elif resources != consistent_resources:
