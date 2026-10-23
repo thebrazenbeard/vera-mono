@@ -47,12 +47,19 @@ class EvaluatorFalsificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "commit_sequence"):
             self.evaluator.score((replace(rows[0], commit_sequence=True), rows[1]), outcome_sequence=99)
 
+    def test_duplicate_commit_sequences_are_rejected(self):
+        cases = self.evaluator.public_cases(split="qualification")
+        rows = tuple(commit_prediction(case=case, candidate_id="same-sequence", prediction="A",
+                                       commit_sequence=1, budget_units=1) for case in cases)
+        with self.assertRaisesRegex(ValueError, "duplicate commit sequence"):
+            self.evaluator.score(rows, outcome_sequence=99)
+
     def test_receipt_created_after_observed_outcome_can_claim_earlier_sequence(self):
         # Intentional exploit: model the outcome being observed first, then
         # create receipts afterward with a caller-chosen earlier sequence.
         observed_outcome = {"sequence": 3, "label": "A"}
         rows = self.receipts(self.evaluator.public_cases(split="qualification"), start=1)
-        self.assertEqual(observed_outcome["sequence"], 2)
+        self.assertEqual(observed_outcome["sequence"], 3)
         self.assertEqual(self.evaluator.score(rows, outcome_sequence=observed_outcome["sequence"]).scored_cases, 2)
 
     def test_replay_guard_can_be_bypassed_by_rotating_untrusted_candidate_id(self):
@@ -115,9 +122,22 @@ class EvaluatorFalsificationTests(unittest.TestCase):
             self.assertEqual(json.loads(child.stdout), before)
             self.assertEqual(json.loads(child.stdout)[-1]["event"]["kind"], "outcome_scored")
 
-    def test_budget_is_measured_not_assumed(self):
+    def test_reported_budget_units_are_summed(self):
         rows = self.receipts(self.evaluator.public_cases(split="qualification"), budget=7)
         self.assertEqual(self.evaluator.score(rows, outcome_sequence=99).budget_units, 14)
+
+    def test_candidate_can_underreport_unmeasured_budget(self):
+        # Intentional exploit: budget_units is candidate-authored metadata,
+        # not metering from a model/runtime host.
+        rows = self.receipts(self.evaluator.public_cases(split="qualification"), budget=0)
+        self.assertEqual(self.evaluator.score(rows, outcome_sequence=99).budget_units, 0)
+
+    def test_event_journal_rejects_non_finite_json_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            journal = EventJournal(Path(directory) / "events.sqlite")
+            with self.assertRaises(ValueError):
+                journal.append({"kind": "outcome", "score": float("nan")})
+            self.assertEqual(journal.read_all(), [])
 
 
 if __name__ == "__main__":
