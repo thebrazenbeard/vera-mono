@@ -11,6 +11,14 @@ import unittest
 from research.goal1_acceptance_bridge.probe import inspect_contracts
 
 
+EXPECTED_SOURCE_SHA256 = {
+    "qvr_journal": "4bff14c593c58dd5e328a02ad00d4f583dac4a04f6b55aa1ccebbe8adbee5351",
+    "revision_receipt": "0db8df1d4710189c8c0d8feccd253b5d533cad9241315c7a2a5c4363cf258acb",
+    "learner_binding": "4b8bd97330a81fa2ae32f6296c1db2fa7cc19a730316839ad2ba26b0e6e9d07d",
+    "evaluator_controller": "99237cfd9c07c6b064538649b97fbcb23b301da36424c648706687fd443554f7",
+}
+
+
 class Goal1CrossBranchProbeTests(unittest.TestCase):
     paths = None
 
@@ -21,6 +29,9 @@ class Goal1CrossBranchProbeTests(unittest.TestCase):
 
     def report(self):
         return inspect_contracts(*self.paths)
+
+    def test_exact_pr_source_cut_is_pinned(self):
+        self.assertEqual(self.report()["source_sha256"], EXPECTED_SOURCE_SHA256)
 
     def test_actual_binder_packet_reaches_actual_controller_and_fails_without_witness(self):
         report = self.report()
