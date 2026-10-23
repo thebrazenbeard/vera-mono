@@ -107,6 +107,15 @@ def prepare_trial_prompt(
             or not state.events[-1].guardrail_refs
             or not state.events[-1].verification_refs):
         raise LearnedInfluenceBlocked("correction must finish PREVENT with guard and verification")
+    # Build and byte-check the prompt BEFORE the durable one-use admission.
+    # A rejected oversized prompt must not consume a valid future cue.
+    prompt = (
+        "Predict a label for this synthetic case using only its visible evidence. "
+        "A prior correction has provisionally supplied this rule; treat it as a testable "
+        "hypothesis, not a guaranteed truth: " + revision.rule_text + " Case: " + task_prompt
+    )
+    if len(prompt.encode("utf-8")) > 2048:
+        raise ValueError("revised prompt exceeds bounded byte budget")
     receipt = influence_gate.consume(
         LearnedRevision(revision.association_id, revision.revision_id),
         cue_event_id=cue_event_id,
@@ -115,13 +124,6 @@ def prepare_trial_prompt(
     if (receipt.review_disposition is not ReviewDisposition.ADMITTED
             or not receipt.evidence_split_qualified):
         raise LearnedInfluenceBlocked("unqualified revision cannot influence later-use prompt")
-    prompt = (
-        "Predict a label for this synthetic case using only its visible evidence. "
-        "A prior correction has provisionally supplied this rule; treat it as a testable "
-        "hypothesis, not a guaranteed truth: " + revision.rule_text + " Case: " + task_prompt
-    )
-    if len(prompt.encode("utf-8")) > 2048:
-        raise ValueError("revised prompt exceeds bounded byte budget")
     return TrialPromptReceipt(
         prompt=prompt, prompt_sha256=hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
         condition=condition, case_id=case_id, cue_event_id=cue_event_id,
