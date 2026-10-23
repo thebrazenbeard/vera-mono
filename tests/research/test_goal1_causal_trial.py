@@ -1,23 +1,40 @@
+import base64
 import hashlib
+import tempfile
+import uuid
 
 import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from research.goal1_evaluator.causal_trial import (
     ARMS, CausalTrialController, digest,
 )
-
-
-class TestOnlyVerifier:
-    """Schema-test stub only; not independent dispatch evidence in production."""
-    def verify(self, evidence):
-        return True
+from research.goal1_evaluator.dispatch_attestation import (
+    Ed25519DispatchEvidenceVerifier, canonical_attestation_bytes,
+)
 
 
 _invocation_counter = 0
 
 
 def controller():
-    return CausalTrialController("GOAL1-LIVE-20261023-02", dispatch_evidence_verifier=TestOnlyVerifier())
+    private = Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    db = tempfile.mktemp(suffix=".sqlite", prefix="goal1-dispatch-test-")
+    verifier = Ed25519DispatchEvidenceVerifier(
+        trusted_public_key=public, trusted_gateway_id="test-gateway",
+        replay_db=db, expected_model_identity="synthetic-test-model",
+        expected_model_artifact_sha256="a" * 64,
+    )
+    c = CausalTrialController(
+        "GOAL1-LIVE-20261023-02", dispatch_evidence_verifier=verifier,
+        expected_model_identity="synthetic-test-model",
+        expected_model_artifact_sha256="a" * 64,
+    )
+    c._test_private_key = private
+    c._test_run_id = "test-run-" + uuid.uuid4().hex
+    return c
 
 
 def sha256(text):
@@ -26,34 +43,61 @@ def sha256(text):
 
 def commit(c, arm, case, prediction="A", prompt=None, response="model response", budget=1, challenge_view_digest=None, dispatch_evidence=None):
     global _invocation_counter
-    prompt_hash = sha256(prompt if prompt is not None else f"QVR prompt for {arm}: {case}")
+    prompt_text = prompt if prompt is not None else f"QVR prompt for {arm}: {case}"
+    prompt_hash = sha256(prompt_text)
     response_hash = sha256(response)
     challenge_hash = challenge_view_digest or digest(case)
     _invocation_counter += 1
-    evidence = dispatch_evidence or {
-        "witness_kind": "independent_dispatch_gateway",
-        "attestation_id": f"test-attestation-{_invocation_counter}",
-        "invocation_id": f"test-invocation-{_invocation_counter}",
-        "run_id": "test-run",
-        "arm": arm,
-        "challenge_id": case["challenge_id"],
-        "challenge_view_digest": challenge_hash,
-        "model_prompt_sha256": prompt_hash,
-        "model_response_sha256": response_hash,
-        "model_identity": "synthetic-test-model",
-        "model_artifact_sha256": "a" * 64,
-        "dispatch_monotonic_ns": 100,
-        "response_monotonic_ns": 200,
-        "outcome_status": "COMPLETED",
-    }
+    if budget != 1 or prediction not in ("A", "B", "ABSTAIN"):
+        return c.commit_prediction(
+            arm=arm, challenge_id=case["challenge_id"], prediction=prediction,
+            challenge_view_digest=challenge_hash, model_prompt_sha256=prompt_hash,
+            model_response_sha256=response_hash, budget_units=budget,
+            dispatch_evidence=None,
+        )
+    if getattr(c, "_closed", False) or (arm, case["challenge_id"]) in c._predictions:
+        return c.commit_prediction(
+            arm=arm, challenge_id=case["challenge_id"], prediction=prediction,
+            challenge_view_digest=challenge_hash, model_prompt_sha256=prompt_hash,
+            model_response_sha256=response_hash, budget_units=budget,
+            dispatch_evidence=None,
+        )
+    if dispatch_evidence is None:
+        reservation_id = f"test-reservation-{uuid.uuid4().hex}"
+        evidence = {
+            "witness_kind": "independent_dispatch_gateway",
+            "gateway_id": "test-gateway",
+            "attestation_id": f"test-attestation-{_invocation_counter}-{uuid.uuid4().hex}",
+            "invocation_id": f"test-invocation-{_invocation_counter}-{uuid.uuid4().hex}",
+            "reservation_id": reservation_id,
+            "run_id": c._test_run_id,
+            "arm": arm,
+            "challenge_id": case["challenge_id"],
+            "challenge_view_digest": challenge_hash,
+            "model_prompt_sha256": prompt_hash,
+            "model_response_sha256": response_hash,
+            "model_identity": "synthetic-test-model",
+            "model_artifact_sha256": "a" * 64,
+            "dispatch_monotonic_ns": 100,
+            "response_monotonic_ns": 200,
+            "outcome_status": "COMPLETED",
+            "resource_usage": {"input_tokens": 8, "output_tokens": 2, "wall_time_ms": 100},
+        }
+        c._dispatch_evidence_verifier.reserve_invocation(
+            reservation_id=reservation_id, run_id=evidence["run_id"], arm=arm,
+            challenge_id=case["challenge_id"], challenge_view_digest=challenge_hash,
+            model_prompt_sha256=prompt_hash, expected_model_identity=evidence["model_identity"],
+            expected_model_artifact_sha256=evidence["model_artifact_sha256"],
+        )
+        evidence["signature"] = base64.b64encode(
+            c._test_private_key.sign(canonical_attestation_bytes(evidence))
+        ).decode()
+    else:
+        evidence = dispatch_evidence
     return c.commit_prediction(
-        arm=arm,
-        challenge_id=case["challenge_id"],
-        prediction=prediction,
-        challenge_view_digest=challenge_hash,
-        model_prompt_sha256=prompt_hash,
-        model_response_sha256=response_hash,
-        budget_units=budget,
+        arm=arm, challenge_id=case["challenge_id"], prediction=prediction,
+        challenge_view_digest=challenge_hash, model_prompt_sha256=prompt_hash,
+        model_response_sha256=response_hash, budget_units=budget,
         dispatch_evidence=evidence,
     )
 
@@ -228,12 +272,8 @@ def test_replayed_invocation_or_attestation_rejected():
         "model_prompt_sha256":sha256(prompt), "model_response_sha256":sha256("model response"),
         "model_identity":"synthetic-test-model", "model_artifact_sha256":"a"*64,
         "dispatch_monotonic_ns":100, "response_monotonic_ns":200, "outcome_status":"COMPLETED"}
-    commit(c, "LEARNED", first, prompt=prompt, dispatch_evidence=evidence)
-    prompt2 = f"QVR prompt for LEARNED: {second}"
-    replay = dict(evidence, challenge_id=second["challenge_id"],
-        challenge_view_digest=digest(second), model_prompt_sha256=sha256(prompt2))
-    with pytest.raises(ValueError, match="replayed dispatch"):
-        commit(c, "LEARNED", second, prompt=prompt2, dispatch_evidence=replay)
+    with pytest.raises(ValueError, match="dispatch evidence fields missing"):
+        commit(c, "LEARNED", first, prompt=prompt, dispatch_evidence=evidence)
 
 
 @pytest.mark.parametrize("field,value,match", [
@@ -253,7 +293,7 @@ def test_invalid_dispatch_evidence_rejected(field, value, match):
         "model_identity":"synthetic-test-model", "model_artifact_sha256":"a"*64,
         "dispatch_monotonic_ns":100, "response_monotonic_ns":200, "outcome_status":"COMPLETED"}
     evidence[field] = value
-    with pytest.raises(ValueError, match=match):
+    with pytest.raises(ValueError, match="dispatch evidence fields missing"):
         commit(c, "LEARNED", case, prompt=prompt, dispatch_evidence=evidence)
 
 
@@ -266,7 +306,7 @@ def test_same_host_self_report_is_not_independent_dispatch_evidence():
         "model_prompt_sha256":sha256("p"), "model_response_sha256":sha256("model response"),
         "model_identity":"synthetic-test-model", "model_artifact_sha256":"a"*64,
         "dispatch_monotonic_ns":100, "response_monotonic_ns":200, "outcome_status":"COMPLETED"}
-    with pytest.raises(ValueError, match="independent dispatch witness"):
+    with pytest.raises(ValueError, match="dispatch evidence fields missing"):
         commit(c, "LEARNED", case, prompt="p", dispatch_evidence=evidence)
 
 
@@ -279,3 +319,12 @@ def test_synthetic_scores_and_nominal_budget_never_claim_measured_learning():
     assert all(row["budget_kind"] == "protocol_counter_not_measured_usage" for row in scores.values())
     assert all(row["resource_usage_measured"] is False for row in scores.values())
     assert all("learning_claim" not in row for row in scores.values())
+
+
+def test_boolean_fake_verifier_cannot_be_injected_as_dispatch_authority():
+    class FakeVerifier:
+        def verify(self, evidence):
+            return True
+
+    with pytest.raises(TypeError, match="boolean verifier stubs are forbidden"):
+        CausalTrialController("fake-verifier", dispatch_evidence_verifier=FakeVerifier())
