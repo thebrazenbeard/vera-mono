@@ -6,6 +6,7 @@ No real provider, verifier, credentials or private label is contacted.
 from __future__ import annotations
 
 import os
+from contextlib import closing
 import sqlite3
 from pathlib import Path
 import subprocess
@@ -129,7 +130,7 @@ class TestHardCrashRecovery(unittest.TestCase):
             challenge_view_digest=h, route_ref="TEST", model="model",
             reported_model_digest=h, prompt_sha256=h, max_tokens=8)
         # Deliberate same-user SQLite tampering. Local flags are not witnesses.
-        with sqlite3.connect(store.path) as db:
+        with closing(sqlite3.connect(store.path)) as db, db:
             db.execute("UPDATE attempts SET independent_attestation=1")
         self.assertTrue(store.history()[0]["independent_attestation"])
         report = LocalAttemptStore(store.path).recovery_report()
