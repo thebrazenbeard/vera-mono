@@ -97,7 +97,7 @@ class Evaluator:
         # Receipt objects are untrusted inputs. Do not rely on the helper or
         # dataclass annotations to have validated their fields.
         for row in rows:
-            if not isinstance(row, PredictionReceipt):
+            if type(row) is not PredictionReceipt:
                 raise ValueError("every receipt must be a PredictionReceipt")
             for name in ("case_id", "candidate_id", "prediction", "prompt_digest", "commitment_sha256"):
                 value = getattr(row, name)
