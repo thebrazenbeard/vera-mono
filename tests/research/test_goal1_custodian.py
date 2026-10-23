@@ -11,6 +11,8 @@ import sys
 import tempfile
 import unittest
 
+from research.goal1_evaluator.custodian import parse_request_json
+
 ROOT = Path(__file__).resolve().parents[2]
 MODULE = "research.goal1_evaluator.custodian"
 TEST_SEED = "1"
@@ -109,6 +111,10 @@ def parity_prediction(bits: str, bias: int, weights: list[int]) -> str:
 
 
 class CustodianProcessTests(unittest.TestCase):
+    def test_duplicate_json_keys_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "duplicate JSON key"):
+            parse_request_json('{"op":"issue","op":"score_holdout"}')
+
     def tearDown(self) -> None:
         for key in list(SESSIONS):
             client = SESSIONS.pop(key)

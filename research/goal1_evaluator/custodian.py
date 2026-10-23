@@ -96,6 +96,19 @@ def initialize_if_empty(db: sqlite3.Connection, test_seed: int | None) -> None:
     append_event(db, {"kind": "suite_initialized", "challenge_count": len(specs), "truth_digest": truth_digest})
 
 
+def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def parse_request_json(line: str) -> object:
+    return json.loads(line, object_pairs_hook=reject_duplicate_keys)
+
+
 def validate_request(request: object) -> dict[str, Any]:
     if type(request) is not dict or type(request.get("op")) is not str:
         raise ValueError("request must be an object with string op")
@@ -246,7 +259,7 @@ def main() -> int:
         if not line.strip():
             continue
         try:
-            request = json.loads(line)
+            request = parse_request_json(line)
             result = handle(args.db, request, test_seed=args.test_seed)
         except (ValueError, TypeError, KeyError, json.JSONDecodeError, sqlite3.Error) as exc:
             result = {"ok": False, "error": str(exc)}
