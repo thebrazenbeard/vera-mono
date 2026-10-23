@@ -105,6 +105,16 @@ class ControllerEnvelopeBindingTests(unittest.TestCase):
         self.assert_pre_dispatch_rejection(reservation={**envelope(), "model_identity": "other"})
         self.assert_pre_dispatch_rejection(reservation={**envelope(), "model_artifact_sha256": "0" * 64})
 
+    def test_structurally_valid_forgery_still_dispatches_without_authentication(self):
+        # Deliberate LIMIT demonstration, not a success against a hostile client:
+        # there is no controller cryptographic authorization in this local path.
+        forged = envelope()
+        forged["reservation_id"] = "f" * 32
+        row, _ = self.run_candidate(reservation=forged)
+        self.assertEqual(self.transport.calls, 1)
+        self.assertEqual(row["reservation_id"], "f" * 32)
+        self.assertFalse(row["independent_attestation"])
+
     def test_unissued_blank_or_malformed_id_rejected(self):
         self.assert_pre_dispatch_rejection(reservation={**envelope(), "reservation_id": ""})
         self.assert_pre_dispatch_rejection(reservation={**envelope(), "run_id": None})
