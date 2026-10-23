@@ -18,7 +18,7 @@ def h(value):
 
 def params(invocation="inv-test-1", case="case-001", prompt="An unseen question"):
     return dict(
-        invocation_id=invocation, run_id="research-run-001",
+        invocation_id=invocation, reservation_id="res-"+invocation, run_id="research-run-001",
         arm="FROZEN", challenge_id=case,
         challenge_view_digest=h("public features"),
         route_ref="LAPPY_RESEARCH_ONLY", model="qwen3:4b-instruct",
@@ -61,6 +61,7 @@ class TestLocalAttemptStore(unittest.TestCase):
         self.assertEqual(fake.calls, 1)
         self.assertEqual(text, "ALPHA SECRET OUTPUT")
         self.assertEqual(receipt["status"], "COMPLETED")
+        self.assertEqual(receipt["reservation_id"], "res-inv-test-1")
         self.assertEqual(receipt["response_sha256"], h(text))
         self.assertEqual(receipt["model_identity_level"], "REGISTRY_SELF_REPORTED")
         self.assertEqual(receipt["independent_attestation"], False)
@@ -72,6 +73,19 @@ class TestLocalAttemptStore(unittest.TestCase):
             reopened.execute(**params(), prompt="An unseen question",
                              transport=fake, permit=object())
         self.assertEqual(fake.calls, 1)
+
+    def test_transport_observes_already_durable_reservation(self):
+        store = self.store
+        class InspectingTransport(FakeModel):
+            def generate(self, prompt, *, permit, max_tokens):
+                records = LocalAttemptStore(store.path).history()
+                assert len(records) == 1 and records[0]["status"] == "RESERVED"
+                assert records[0]["reservation_id"] == "res-inv-test-1"
+                return super().generate(prompt, permit=permit, max_tokens=max_tokens)
+        transport = InspectingTransport()
+        receipt, _ = store.execute(
+            **params(), prompt="An unseen question", transport=transport, permit=object())
+        self.assertEqual(receipt["status"], "COMPLETED")
 
     def test_timeout_is_durable_unknown_with_no_same_id_retry(self):
         fake = FakeModel(failure=TimeoutError("response timeout"))
@@ -115,7 +129,7 @@ class TestLocalAttemptStore(unittest.TestCase):
             "import hashlib,sys;"
             "h=lambda x:hashlib.sha256(x.encode()).hexdigest();"
             "s=LocalAttemptStore(sys.argv[1]);"
-            "s.reserve(invocation_id='inv-proc',run_id='run-proc',arm='FROZEN',"
+            "s.reserve(invocation_id='inv-proc',reservation_id='res-proc',run_id='run-proc',arm='FROZEN',"
             "challenge_id='case-proc',challenge_view_digest=h('view'),"
             "route_ref='RESEARCH',model='qwen3:4b-instruct',"
             "reported_model_digest='a'*64,prompt_sha256=h('prompt'),max_tokens=16)"
