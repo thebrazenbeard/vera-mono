@@ -49,6 +49,9 @@ class EvaluatorFalsificationTests(unittest.TestCase):
         self.evaluator.score(rows, outcome_sequence=99)
         with self.assertRaisesRegex(ValueError, "replay"):
             self.evaluator.score(rows, outcome_sequence=100)
+        # Distinct baselines must be able to score the same held-out cases.
+        baseline = self.receipts(self.evaluator.public_cases(split="qualification"), candidate="frozen-v1", predict=lambda c: "B")
+        self.assertEqual(self.evaluator.score(baseline, outcome_sequence=100).scored_cases, 2)
 
     def test_compromised_truth_custodian_can_still_fabricate_a_win(self):
         cases = self.evaluator.public_cases(split="qualification")
