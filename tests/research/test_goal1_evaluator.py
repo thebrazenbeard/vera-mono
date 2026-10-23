@@ -42,13 +42,21 @@ class EvaluatorFalsificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "commit_sequence"):
             self.evaluator.score((replace(rows[0], commit_sequence=True), rows[1]), outcome_sequence=99)
 
-    def test_caller_can_forge_chronology_with_unkeyed_receipt_digest(self):
-        # This is an intentional exploit demonstration: the receipt helper is
-        # called here after the fact, but its caller chooses sequence=1 and
-        # passes outcome_sequence=2. No trusted clock/append-only controller
-        # receipt proves that the prediction existed before the outcome.
+    def test_receipt_created_after_observed_outcome_can_claim_earlier_sequence(self):
+        # Intentional exploit: model the outcome being observed first, then
+        # create receipts afterward with a caller-chosen earlier sequence.
+        observed_outcome = {"sequence": 2, "label": "A"}
         rows = self.receipts(self.evaluator.public_cases(split="qualification"), start=1)
-        self.assertEqual(self.evaluator.score(rows, outcome_sequence=2).scored_cases, 2)
+        self.assertEqual(observed_outcome["sequence"], 2)
+        self.assertEqual(self.evaluator.score(rows, outcome_sequence=observed_outcome["sequence"]).scored_cases, 2)
+
+    def test_replay_guard_can_be_bypassed_by_rotating_untrusted_candidate_id(self):
+        # Intentional exploit: candidate_id is caller-authored, not attested.
+        cases = self.evaluator.public_cases(split="qualification")
+        first = self.receipts(cases, candidate="candidate-identity-1", predict=lambda c: "A")
+        second = self.receipts(cases, candidate="candidate-identity-2", predict=lambda c: "A")
+        self.evaluator.score(first, outcome_sequence=99)
+        self.assertEqual(self.evaluator.score(second, outcome_sequence=100).accuracy, 0.5)
 
     def test_tampered_prediction_is_rejected(self):
         rows = self.receipts(self.evaluator.public_cases(split="qualification"))
