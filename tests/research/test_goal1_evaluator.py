@@ -30,6 +30,21 @@ class EvaluatorFalsificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "before scoring"):
             self.evaluator.score(rows, outcome_sequence=50)
 
+    def test_scorer_revalidates_untrusted_receipt_fields(self):
+        rows = self.receipts(self.evaluator.public_cases(split="qualification"))
+        with self.assertRaisesRegex(ValueError, "budget_units"):
+            self.evaluator.score((replace(rows[0], budget_units=-1), rows[1]), outcome_sequence=99)
+        with self.assertRaisesRegex(ValueError, "commit_sequence"):
+            self.evaluator.score((replace(rows[0], commit_sequence=True), rows[1]), outcome_sequence=99)
+
+    def test_caller_can_forge_chronology_with_unkeyed_receipt_digest(self):
+        # This is an intentional exploit demonstration: the receipt helper is
+        # called here after the fact, but its caller chooses sequence=1 and
+        # passes outcome_sequence=2. No trusted clock/append-only controller
+        # receipt proves that the prediction existed before the outcome.
+        rows = self.receipts(self.evaluator.public_cases(split="qualification"), start=1)
+        self.assertEqual(self.evaluator.score(rows, outcome_sequence=2).scored_cases, 2)
+
     def test_tampered_prediction_is_rejected(self):
         rows = self.receipts(self.evaluator.public_cases(split="qualification"))
         forged = replace(rows[0], prediction="forged-answer")
