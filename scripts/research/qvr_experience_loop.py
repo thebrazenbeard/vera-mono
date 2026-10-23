@@ -157,14 +157,27 @@ def _evaluator_loop() -> None:
         print(json.dumps(result,sort_keys=True,separators=(",",":")),flush=True)
 
 
+def validate_lab_state_root(candidate: Path) -> Path:
+    """Reject canonical/foreign state roots before any QVR or provider access."""
+    candidate=Path(candidate)
+    parent=candidate.parent
+    expected_parent=Path(tempfile.gettempdir()).resolve()
+    if (candidate.name!="isolated-state" or candidate.is_symlink()
+            or not candidate.is_dir() or parent.is_symlink()
+            or parent.parent.resolve()!=expected_parent
+            or not parent.name.startswith("vera-goal1-self-learning-")
+            or parent.resolve()!=parent.absolute()):
+        raise ValueError("refusing non-synthetic state path")
+    return candidate.resolve()
+
+
 def _qvr_setup(state_dir: Path):
     repo=Path(__file__).resolve().parents[2]
     for path in sorted((repo/"packages").glob("*/src")):
         if str(path) not in sys.path:sys.path.insert(0,str(path))
     from vera_core import QualifiedVeraRuntime,VeraStateDirectory
     from vera_core.local_cognition import LocalCognitionGate,InferencePermit,EXACT_TEST_SCOPE
-    if state_dir.parent.parent.name.startswith("vera-goal1-self-learning-") is False:
-        raise ValueError("refusing non-synthetic state path")
+    state_dir=validate_lab_state_root(state_dir)
     with urlopen("http://127.0.0.1:11434/api/tags",timeout=6) as response:
         entries=json.load(response)["models"]
     matches=[m for m in entries if m.get("name")==MODEL_TAG]
