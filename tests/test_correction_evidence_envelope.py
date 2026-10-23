@@ -155,6 +155,15 @@ def test_same_labeled_process_is_not_independent_evaluator():
         check(v, same, requirement, forged)
 
 
+
+def test_untyped_split_fails_with_clear_validation_error():
+    _, packet, _, _ = fixture()
+    bad = replace(packet.observations[0], split="CALIBRATION")
+    altered = replace(packet, observations=(bad,) + packet.observations[1:])
+    with pytest.raises(ValueError, match="split"):
+        correction_envelope_subject(altered)
+
+
 def test_blank_or_invalid_signature_is_not_a_receipt():
     v, p, requirement, _ = fixture()
     for signature in ("", "not-a-signature", "0" * 64):
