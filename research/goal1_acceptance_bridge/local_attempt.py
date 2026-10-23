@@ -55,6 +55,7 @@ class LocalAttemptStore:
                 CREATE TABLE IF NOT EXISTS attempts (
                     sequence INTEGER PRIMARY KEY AUTOINCREMENT,
                     invocation_id TEXT NOT NULL UNIQUE,
+                    reservation_id TEXT NOT NULL UNIQUE,
                     run_id TEXT NOT NULL, arm TEXT NOT NULL,
                     challenge_id TEXT NOT NULL,
                     challenge_view_digest TEXT NOT NULL,
@@ -76,12 +77,12 @@ class LocalAttemptStore:
         db.execute("PRAGMA busy_timeout=10000")
         return db
 
-    def reserve(self, *, invocation_id: str, run_id: str, arm: str,
+    def reserve(self, *, invocation_id: str, reservation_id: str, run_id: str, arm: str,
                 challenge_id: str, challenge_view_digest: str, route_ref: str,
                 model: str, reported_model_digest: str,
                 prompt_sha256: str, max_tokens: int) -> dict:
         for name, value in (
-            ("invocation_id", invocation_id), ("run_id", run_id),
+            ("invocation_id", invocation_id), ("reservation_id", reservation_id), ("run_id", run_id),
             ("challenge_id", challenge_id), ("route_ref", route_ref),
             ("model", model),
         ):
@@ -98,12 +99,12 @@ class LocalAttemptStore:
                 db.execute("BEGIN IMMEDIATE")
                 db.execute("""
                     INSERT INTO attempts
-                    (invocation_id,run_id,arm,challenge_id,challenge_view_digest,
+                    (invocation_id,reservation_id,run_id,arm,challenge_id,challenge_view_digest,
                      route_ref,model,reported_model_digest,prompt_sha256,
                      max_tokens,status,reserved_utc,model_identity_level)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,'RESERVED',?,
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,'RESERVED',?,
                             'REGISTRY_SELF_REPORTED')
-                """, (invocation_id,run_id,arm,challenge_id,challenge_view_digest,
+                """, (invocation_id,reservation_id,run_id,arm,challenge_id,challenge_view_digest,
                       route_ref,model,reported_model_digest,prompt_sha256,
                       max_tokens,_now()))
         except sqlite3.IntegrityError as exc:
@@ -155,7 +156,7 @@ class LocalAttemptStore:
                 raise ValueError("attempt not in RESERVED; terminal replay denied")
         return self._one(invocation_id)
 
-    def execute(self, *, invocation_id: str, run_id: str, arm: str,
+    def execute(self, *, invocation_id: str, reservation_id: str, run_id: str, arm: str,
                 challenge_id: str, challenge_view_digest: str,
                 route_ref: str, model: str, reported_model_digest: str,
                 prompt_sha256: str, max_tokens: int, prompt: str,
@@ -172,7 +173,7 @@ class LocalAttemptStore:
         if not callable(getattr(transport, "generate", None)):
             raise ValueError("invalid transport")
         self.reserve(
-            invocation_id=invocation_id, run_id=run_id, arm=arm,
+            invocation_id=invocation_id, reservation_id=reservation_id, run_id=run_id, arm=arm,
             challenge_id=challenge_id, challenge_view_digest=challenge_view_digest,
             route_ref=route_ref, model=model,
             reported_model_digest=reported_model_digest,
