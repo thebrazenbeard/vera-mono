@@ -13,7 +13,8 @@
 
 1. Remove the `runOn: folderOpen` task definition from `.vscode/tasks.json`.
 2. Set `task.allowAutomaticTasks` to `false` and remove the secondary `tasks` auto-run object from `.vscode/settings.json`.
-3. Preserve original suspicious payload in Git history and source pending offline static analysis; this proposal does not certify safety of the repo or any existing checkout.
+3. Remove `public/fonts/fa-solid.lkf` from the proposed working tree (its exact original Git blob `31ce18eddf4c96c1a705dbceaec4304f953d4dc3` remains preserved in Git history for controlled offline analysis).
+4. Add `tests/test_workspace_startup_safety.py` verifying neither automatic execution path nor the checked-out disguised executable can reappear unnoticed. VN2 source-specific RED: 1 failed/2 passed with the asset present; after isolated draft removal GREEN: 3 passed. This does not certify safety of the repo or any existing checkout.
 
 **Do not merge as a substitute for incident response.** Existing workspaces might already have executed the task, or could have other unsafe startup paths. Establish whether a trusted editor ever opened an affected checkout, and inspect authorized host process logs and credential exposure indicators separately without opening/triggering the workspace. Review provenance of commits, packaging, and external source imports. Do not assume attribution or compromise from source shape alone.
 
