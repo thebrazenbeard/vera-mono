@@ -155,6 +155,16 @@ def verify_integrity(db: sqlite3.Connection) -> None:
     stored = db.execute("SELECT value FROM meta WHERE key='truth_digest'").fetchone()
     if stored is None or stored["value"] != actual_truth_digest:
         raise ValueError("controller truth-store integrity failure")
+    initialization = db.execute("SELECT event_json FROM event WHERE seq=1").fetchone()
+    if initialization is None:
+        raise ValueError("controller initialization event missing")
+    initialization_event = json.loads(initialization["event_json"])
+    if (
+        initialization_event.get("kind") != "suite_initialized"
+        or initialization_event.get("truth_digest") != stored["value"]
+        or initialization_event.get("challenge_count") != len(truth_rows)
+    ):
+        raise ValueError("controller initialization/truth commitment mismatch")
 
 
 def handle(db_path: str | Path, raw_request: object, *, test_seed: int | None = None) -> dict[str, Any]:

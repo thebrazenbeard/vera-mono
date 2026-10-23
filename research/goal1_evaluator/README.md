@@ -20,7 +20,7 @@ From repository root:
 python -m unittest discover -s tests/research -p 'test_goal1_evaluator.py' -v
 ```
 
-The initial isolated local run on 2026-10-23 produced **10 tests, 10 passed** before the subsequent adversarial hardening. On the current work session's Windows x64 host (Python 3.14.5), the focused evaluator/custodian suite was rerun after each hardening increment; at head `4c5e6c61028b28962c749595277f027fb60cb3d2`, **29 tests passed** locally, with Python compilation and `git diff --check` passing. Exact-head GitHub Actions was still running the Ubuntu/Windows monorepo suite when last checked; do not infer CI success from local tests or a predecessor commit. This is source-level verification of a synthetic scaffold, not a run of the full repository suite.
+The initial isolated local run on 2026-10-23 produced **10 tests, 10 passed** before the subsequent adversarial hardening. On the current work session's Windows x64 host (Python 3.14.5), the focused evaluator/custodian suite was rerun after each hardening increment; the latest local rerun produced **30 tests passed**, with Python compilation and `git diff --check` passing. Exact-head GitHub Actions was still running the Ubuntu/Windows monorepo suite when last checked; do not infer CI success from local tests or a predecessor commit. This is source-level verification of a synthetic scaffold, not a run of the full repository suite.
 
 ## Deliberate counterexample and limits
 

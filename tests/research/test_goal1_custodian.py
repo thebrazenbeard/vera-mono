@@ -1,6 +1,7 @@
 """Adversarial tests for the process-isolated synthetic challenge custodian."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from contextlib import closing
@@ -11,7 +12,7 @@ import sys
 import tempfile
 import unittest
 
-from research.goal1_evaluator.custodian import parse_request_json
+from research.goal1_evaluator.custodian import canonical, parse_request_json
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULE = "research.goal1_evaluator.custodian"
@@ -258,6 +259,24 @@ class CustodianProcessTests(unittest.TestCase):
             result = call(db, {"op": "issue"})
             self.assertFalse(result["ok"])
             self.assertIn("truth-store integrity", str(result["error"]))
+
+    def test_truth_and_meta_digest_tampering_without_event_rewrite_is_detected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "private-controller.sqlite"
+            issue(db)
+            restart(db)
+            with closing(sqlite3.connect(db)) as connection, connection:
+                connection.execute(
+                    "UPDATE challenge SET expected_label=CASE expected_label WHEN 'A' THEN 'B' ELSE 'A' END WHERE ordinal=0"
+                )
+                rows = connection.execute(
+                    "SELECT challenge_id,ordinal,phase,feature_bits,expected_label FROM challenge ORDER BY challenge_id"
+                ).fetchall()
+                new_digest = hashlib.sha256(canonical(sorted(rows))).hexdigest()
+                connection.execute("UPDATE meta SET value=? WHERE key='truth_digest'", (new_digest,))
+            result = call(db, {"op": "issue"})
+            self.assertFalse(result["ok"])
+            self.assertIn("initialization/truth commitment", str(result["error"]))
 
     def test_challenge_metadata_tampering_is_detected_after_restart(self):
         with tempfile.TemporaryDirectory() as directory:
