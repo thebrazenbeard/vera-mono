@@ -23,7 +23,14 @@ PYTHONPATH=. python research/goal1_acceptance_bridge/test_probe.py \
   --controller /absolute/path/causal_trial.py
 ```
 
-The test includes an exact SHA-256 pin, so replacing any source with a newer/older version fails until an explicit new evidence cut is reviewed. `probe.py` AST-extracts **only** the actual #86 `TrialPromptReceipt` dataclass, avoiding unrelated package initialization; it executes #86 binder and #87 controller as provided. This does **not** test the full QVR composition root, actual revised-rule gate, or any local model.
+The test includes an exact SHA-256 pin, so replacing any source with a newer/older version fails until an explicit new evidence cut is reviewed.
+
+### Explicit qualification-gate check
+
+The ordinary command exiting 0 means **only that its source-contract diagnostics behaved as tested**. It does not mean the learning experiment passed. To assert actual Goal 1 qualification, rerun the same command with `--require-qualified`. This **intentionally exits status 2** and prints `GOAL1_QUALIFICATION_GATE=BLOCKED_SOURCE_ONLY` even when all four protocol tests are green. This flag is a permanently red sentinel in the present source-only probe; it must not be made green by a caller-supplied JSON or by the synthetic `FakeVerifier`. Replace this sentinel with independently reviewed evidence-consuming integration only after the true witness, hidden evaluator, matched controls and restart experiment exist.
+
+Physical host verification at the updated `test_probe.py` source head `bc45b3c5a6275474c8911e85764de2b5ca394899`: Lappy Windows Python 3.14.5 and VN2 Linux Python 3.12.3 both observed diagnostic exit 0 (4/4 tests) and explicit qualification exit **2**, with the red gate marker. No live model inference occurred.
+ `probe.py` AST-extracts **only** the actual #86 `TrialPromptReceipt` dataclass, avoiding unrelated package initialization; it executes #86 binder and #87 controller as provided. This does **not** test the full QVR composition root, actual revised-rule gate, or any local model.
 
 ## Observed behavior
 
