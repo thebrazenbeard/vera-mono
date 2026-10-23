@@ -14,6 +14,7 @@ from typing import Protocol
 from .evaluation_commitment import ComparisonConditions, compare_committed_predictions
 from .verified_correction import (
     CorrectionEvidenceAssessment,
+    EvidenceSplit,
     PairedOutcome,
     assess_correction_evidence,
 )
@@ -94,7 +95,7 @@ def _serialize_observation(row: PairedOutcome) -> dict[str, object]:
     )
     if verified != row.comparison:
         raise ValueError("signed comparison is inconsistent with prediction tickets")
-    if type(row.split) is not type(row.split) or row.split.value not in {"CALIBRATION", "QUALIFICATION"}:
+    if type(row.split) is not EvidenceSplit:
         raise ValueError("invalid observation split")
     for name, value in (
         ("case_id", row.case_id),
