@@ -67,11 +67,17 @@ class LocalAttemptStore:
                        ('RESERVED', 'COMPLETED', 'OUTCOME_UNKNOWN')),
                     reserved_utc TEXT NOT NULL, finished_utc TEXT,
                     response_sha256 TEXT, elapsed_ms INTEGER,
+                    claim_id TEXT,
                     model_identity_level TEXT NOT NULL,
                     independent_attestation INTEGER NOT NULL DEFAULT 0,
                     UNIQUE(run_id, arm, challenge_id)
                 )
             """)
+            # Existing isolated research DBs predate claim_id. Preserve
+            # completed/unknown attempts without destructive schema reset.
+            columns = {row[1] for row in db.execute("PRAGMA table_info(attempts)")}
+            if "claim_id" not in columns:
+                db.execute("ALTER TABLE attempts ADD COLUMN claim_id TEXT")
 
     def _db(self):
         db = sqlite3.connect(self.path, timeout=10, isolation_level="DEFERRED")
@@ -134,6 +140,24 @@ class LocalAttemptStore:
             record["independent_attestation"] = bool(record["independent_attestation"])
             result.append(record)
         return result
+
+    def record_claim(self, invocation_id: str, claim_id: str) -> dict:
+        """Write remote claim identity to the local fence before model dispatch.
+
+        This journal is not an authenticated record of the remote endpoint.
+        The independent endpoint must enforce one-use claims separately.
+        """
+        _id(invocation_id, "invocation_id")
+        _id(claim_id, "claim_id")
+        with closing(self._db()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            updated = db.execute("""
+                UPDATE attempts SET claim_id=?
+                WHERE invocation_id=? AND status='RESERVED' AND claim_id IS NULL
+            """, (claim_id, invocation_id))
+            if updated.rowcount != 1:
+                raise ValueError("claim replay or unreserved invocation")
+        return self._one(invocation_id)
 
     def _finish(self, invocation_id: str, *, status: str,
                 response_sha256: str | None = None, elapsed_ms: int | None = None):
