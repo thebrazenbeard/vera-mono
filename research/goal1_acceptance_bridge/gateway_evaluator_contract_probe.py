@@ -16,6 +16,7 @@ from pathlib import Path
 import runpy
 import sqlite3
 import tempfile
+import sys
 
 GATEWAY_SOURCE_SHA256 = "27f6f7832d4ea5f2da0f8616fe4f475d6953861910bd2f0e1328d22d35d970ce"
 CLAIM_SOURCE_SHA256 = "eeabe42d304515f0c068c30145230209af3f395ee49890ee6f5fba451772b2bc"
@@ -181,7 +182,47 @@ def run(source_root: Path) -> dict:
     }
 
 
+def compatibility_exit_code(report: dict, *, require_compatible: bool) -> int:
+    """Diagnostic output and strict source-schema result are separate.
+
+    A green strict result, after a future reviewed source update, would only
+    mean the frozen source schemas directly interoperate in this synthetic
+    test. It would NOT establish independent signer custody, authenticated
+    endpoint/claim, restricted model route, or actual learning.
+    """
+    if not require_compatible:
+        return 0
+    if type(report) is not dict or report.get("verdict") != "SOURCE_SCHEMA_DIRECTLY_COMPATIBLE":
+        return 2
+    if report.get("test_key_custody") not in (None, "SAME_PROCESS_EPHEMERAL_NOT_INDEPENDENT"):
+        return 2
+    cases = report.get("terminal_cases")
+    if type(cases) is not list or len(cases) != 2:
+        return 2
+    if {case.get("gateway_status") for case in cases if type(case) is dict} != {
+        "COMPLETED", "OUTCOME_UNKNOWN",
+    }:
+        return 2
+    if any(
+        type(case) is not dict
+        or case.get("malaphor_evaluator_directly_accepted_terminal") is not True
+        or case.get("independent_attestation", False) is not False
+        or case.get("learning_qualified", False) is not False
+        for case in cases
+    ):
+        return 2
+    return 0
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--source-root", type=Path, required=True)
-    print(json.dumps(run(p.parse_args().source_root), sort_keys=True))
+    p.add_argument("--require-compatible", action="store_true",
+                   help="exit 2 while exact signed terminal formats do not interoperate")
+    args = p.parse_args()
+    report = run(args.source_root)
+    print(json.dumps(report, sort_keys=True))
+    outcome = compatibility_exit_code(report, require_compatible=args.require_compatible)
+    if outcome:
+        print("GOAL1_TERMINAL_SCHEMA_GATE=BLOCKED_INCOMPATIBLE", file=sys.stderr)
+    raise SystemExit(outcome)
