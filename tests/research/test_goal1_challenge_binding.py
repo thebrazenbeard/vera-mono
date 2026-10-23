@@ -6,6 +6,7 @@ import unittest
 
 from research.goal1_learning_trial.challenge_binding import (
     bind_observed_trial_prediction, format_case_task,
+    controller_commit_parameters,
 )
 from research.goal1_learning_trial.revision_context import TrialPromptReceipt
 
@@ -129,6 +130,36 @@ class ChallengeBindingTests(unittest.TestCase):
         self.assertFalse(result.independently_attested)
         self.assertFalse(result.model_bytes_verified)
         self.assertFalse(result.model_consumption_independently_verified)
+
+    def test_controller_parameters_export_only_public_prediction_fields(self):
+        result = bind(trial(condition="REVISED"))
+        params = controller_commit_parameters(result)
+        self.assertEqual(set(params), {
+            "arm", "challenge_id", "prediction", "challenge_view_digest",
+            "model_prompt_sha256", "model_response_sha256", "budget_units",
+        })
+        self.assertEqual(params["arm"], "LEARNED")
+        self.assertEqual(params["challenge_id"], CASE["challenge_id"])
+        self.assertEqual(params["model_prompt_sha256"], result.model_prompt_sha256)
+        self.assertEqual(params["model_response_sha256"], result.model_response_sha256)
+        self.assertEqual(params["budget_units"], 1)
+        self.assertNotIn("revision_id", params)
+        self.assertNotIn("independently_attested", params)
+        self.assertNotIn("qvr_journal_entry_digest", params)
+        self.assertNotIn("feedback", params)
+        self.assertNotIn("label", params)
+
+    def test_controller_parameters_cannot_promote_claims(self):
+        result = bind()
+        self.assertFalse(result.pre_feedback_order_verified)
+        with self.assertRaises(ValueError):
+            controller_commit_parameters(replace(result, independently_attested=True))
+        with self.assertRaises(ValueError):
+            controller_commit_parameters(replace(result, learning_verified=True))
+        with self.assertRaises(ValueError):
+            controller_commit_parameters(replace(result, authorization_effect="DISPATCH"))
+        with self.assertRaises(ValueError):
+            controller_commit_parameters(replace(result, challenge_view_digest="0"*64))
 
     def test_pure_binding_does_not_prevent_replayed_receipt(self):
         r1=bind();r2=bind()
