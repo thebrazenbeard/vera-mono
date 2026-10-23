@@ -1,3 +1,5 @@
+> **RETIRED / HISTORICAL, NOT SELECTED (2026-10-23).** Malaphor's authoritative #87 design decision at `b9fcd93b4d9a7668369aa71e507ac7bfe4598ff6` selects an independently authenticated *gateway-pulled atomic reservation claim endpoint*, not signed bearer tickets. The experimental `reservation_auth.py` and `test_goal1_signed_dispatch.py` were therefore removed from the current PR #89 tree. All observations below refer to those former source commits, not present runtime/source capability. See `ENDPOINT_CLAIM_INTEGRATION_20261023.md` for the selected candidate. No deployed endpoint is claimed.
+
 # Goal 1 opt-in signed dispatch authorization candidate — 2026-10-23
 
 **Claim ceiling: SOURCE-LEVEL GUARDED DISPATCH + SAME-HOST TEST KEY. This is not a configured or deployed gateway, independent witness, production authorization, QVR-selected route, model-weight verification, measured-token attestation, or learning result.**
