@@ -122,6 +122,18 @@ class ClaimDispatchTests(unittest.TestCase):
         self.assertEqual(self.store.history()[0]["status"], "OUTCOME_UNKNOWN")
         self.assertIsNone(self.store.history()[0]["claim_id"])
 
+    def test_denied_claim_blocks_new_invocation_for_same_arm_case(self):
+        self.endpoint.denial = ValueError("not claimable")
+        with self.assertRaises(ValueError):
+            self.attempt()
+        self.endpoint.denial = None
+        with self.assertRaises(ValueError):
+            self.attempt(invocation_id="inv-002",
+                         reservation={**reservation(), "reservation_id": "res-new"})
+        self.assertEqual(self.endpoint.calls, 1)
+        self.assertEqual(self.model.calls, 0)
+        self.assertEqual(self.store.history()[0]["status"], "OUTCOME_UNKNOWN")
+
     def test_endpoint_timeout_never_retries_inference(self):
         self.endpoint.denial = TimeoutError("outcome ambiguous")
         with self.assertRaises(TimeoutError):
