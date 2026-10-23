@@ -68,11 +68,16 @@ class Evaluator:
     Python object privacy is not a security boundary against same-privilege
     hostile code. Do not represent this scaffold as independent custody.
     """
-    def __init__(self, cases: Iterable[PublicCase], answer_key: Mapping[str, str]):
+    def __init__(self, cases: Iterable[PublicCase], answer_key: Mapping[str, str], *, qualification_split: str = "qualification"):
         case_list = tuple(cases)
         self._cases = {case.case_id: case for case in case_list}
         if len(self._cases) != len(case_list) or not self._cases:
             raise ValueError("case IDs must be unique and non-empty")
+        if type(qualification_split) is not str or not qualification_split:
+            raise ValueError("qualification_split must be a non-empty exact string")
+        if not any(case.split == qualification_split for case in case_list):
+            raise ValueError("qualification_split must identify at least one evaluator-owned case")
+        self.__qualification_split = qualification_split
         if set(answer_key) != set(self._cases):
             raise ValueError("answer key must exactly cover evaluator-owned cases")
         if any(type(v) is not str or not v for v in answer_key.values()):
@@ -83,7 +88,7 @@ class Evaluator:
     def public_cases(self, *, split: str) -> tuple[PublicCase, ...]:
         return tuple(c for c in self._cases.values() if c.split == split)
 
-    def score(self, receipts: Iterable[PredictionReceipt], *, outcome_sequence: int, required_split: str = "qualification") -> CandidateScore:
+    def score(self, receipts: Iterable[PredictionReceipt], *, outcome_sequence: int) -> CandidateScore:
         rows = tuple(receipts)
         if not rows:
             raise ValueError("at least one prediction receipt is required")
@@ -107,6 +112,7 @@ class Evaluator:
             raise ValueError("one candidate per score batch")
         if len({r.case_id for r in rows}) != len(rows):
             raise ValueError("duplicate case/replay in score batch")
+        required_split = self.__qualification_split
         expected_cases = {c.case_id for c in self.public_cases(split=required_split)}
         if {r.case_id for r in rows} != expected_cases:
             raise ValueError("score batch must exactly cover evaluator's required split")
