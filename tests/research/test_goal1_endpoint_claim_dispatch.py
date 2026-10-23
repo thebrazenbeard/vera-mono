@@ -104,6 +104,7 @@ class ClaimDispatchTests(unittest.TestCase):
         row,text = self.attempt()
         self.assertEqual(text, "A")
         self.assertEqual(row["status"], "COMPLETED")
+        self.assertEqual(row["claim_id"], "claim-001")
         self.assertFalse(row["independent_attestation"])
         self.assertEqual(self.endpoint.calls, 1)
         self.assertEqual(self.model.calls, 1)
@@ -119,6 +120,7 @@ class ClaimDispatchTests(unittest.TestCase):
         self.assertEqual(self.endpoint.calls, 1)
         self.assertEqual(self.model.calls, 0)
         self.assertEqual(self.store.history()[0]["status"], "OUTCOME_UNKNOWN")
+        self.assertIsNone(self.store.history()[0]["claim_id"])
 
     def test_endpoint_timeout_never_retries_inference(self):
         self.endpoint.denial = TimeoutError("outcome ambiguous")
@@ -129,6 +131,7 @@ class ClaimDispatchTests(unittest.TestCase):
         self.assertEqual(self.endpoint.calls, 1)
         self.assertEqual(self.model.calls, 0)
         self.assertEqual(self.store.history()[0]["status"], "OUTCOME_UNKNOWN")
+        self.assertIsNone(self.store.history()[0]["claim_id"])
 
     def test_changed_prompt_rejected_even_before_remote_claim(self):
         with self.assertRaises(ValueError):
