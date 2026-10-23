@@ -25,6 +25,11 @@ class EvaluatorFalsificationTests(unittest.TestCase):
         rows = self.receipts(cases, predict=lambda c: "poisoned-label")
         self.assertEqual(self.evaluator.score(rows, outcome_sequence=99).accuracy, 0.0)
 
+    def test_candidate_cannot_select_scoring_split_per_call(self):
+        rows = self.receipts(self.evaluator.public_cases(split="calibration"))
+        with self.assertRaises(TypeError):
+            self.evaluator.score(rows, outcome_sequence=99, required_split="calibration")
+
     def test_post_outcome_prediction_is_rejected(self):
         rows = self.receipts(self.evaluator.public_cases(split="qualification"), start=100)
         with self.assertRaisesRegex(ValueError, "before scoring"):
@@ -80,7 +85,8 @@ class EvaluatorFalsificationTests(unittest.TestCase):
     def test_rule_reversal_defeats_stale_policy(self):
         cases = self.evaluator.public_cases(split="reversal")
         stale = self.receipts(cases, candidate="stale-v1", predict=lambda c: "A" if c.features[0] == "circle" else "B")
-        self.assertEqual(self.evaluator.score(stale, outcome_sequence=99, required_split="reversal").accuracy, 0.0)
+        reversal_evaluator = Evaluator(self.cases, self.truth, qualification_split="reversal")
+        self.assertEqual(reversal_evaluator.score(stale, outcome_sequence=99).accuracy, 0.0)
 
     def test_event_journal_survives_distinct_process_reopen(self):
         with tempfile.TemporaryDirectory() as directory:
