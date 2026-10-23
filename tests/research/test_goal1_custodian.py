@@ -1,6 +1,7 @@
 """Adversarial tests for the process-isolated synthetic challenge custodian."""
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -178,6 +179,28 @@ class CustodianProcessTests(unittest.TestCase):
             self.assertFalse(rotated["ok"])
             self.assertIn("identity is fixed", str(rotated["error"]))
             self.assertTrue(commit(db, second, "candidate-1", "A")["ok"])
+
+    def test_concurrent_duplicate_commits_have_exactly_one_winner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "private-controller.sqlite"
+            challenge = issue(db)
+            restart(db)
+            request = {
+                "op": "commit",
+                "challenge_id": challenge["challenge_id"],
+                "candidate_id": "candidate",
+                "prediction": "A",
+                "p_a": 0.5,
+            }
+            clients = [ControllerClient(db), ControllerClient(db)]
+            try:
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    responses = list(pool.map(lambda client: client.send(request), clients))
+            finally:
+                for client in clients:
+                    client.close()
+            self.assertEqual(sum(response["ok"] is True for response in responses), 1)
+            self.assertEqual(sum(response["ok"] is False for response in responses), 1)
 
     def test_controller_owns_phase_order_and_blocks_progress_without_feedback(self):
         with tempfile.TemporaryDirectory() as directory:
