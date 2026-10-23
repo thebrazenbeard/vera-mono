@@ -259,6 +259,17 @@ class CustodianProcessTests(unittest.TestCase):
             self.assertFalse(result["ok"])
             self.assertIn("truth-store integrity", str(result["error"]))
 
+    def test_challenge_metadata_tampering_is_detected_after_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "private-controller.sqlite"
+            issue(db)
+            restart(db)
+            with closing(sqlite3.connect(db)) as connection, connection:
+                connection.execute("UPDATE challenge SET feature_bits='111' WHERE ordinal=0")
+            result = call(db, {"op": "issue"})
+            self.assertFalse(result["ok"])
+            self.assertIn("truth-store integrity", str(result["error"]))
+
     def test_event_journal_tampering_is_detected_after_restart(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "private-controller.sqlite"

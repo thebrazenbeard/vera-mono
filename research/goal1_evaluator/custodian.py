@@ -90,7 +90,7 @@ def initialize_if_empty(db: sqlite3.Connection, test_seed: int | None) -> None:
             "INSERT INTO challenge(challenge_id,ordinal,phase,feature_bits,expected_label,state) VALUES(?,?,?,?,?,'NEW')",
             (challenge_id, ordinal, phase, bits, label),
         )
-        truth_digest_rows.append((challenge_id, label))
+        truth_digest_rows.append((challenge_id, ordinal, phase, bits, label))
     truth_digest = hashlib.sha256(canonical(sorted(truth_digest_rows))).hexdigest()
     db.execute("INSERT INTO meta(key,value) VALUES('truth_digest',?)", (truth_digest,))
     append_event(db, {"kind": "suite_initialized", "challenge_count": len(specs), "truth_digest": truth_digest})
@@ -145,8 +145,13 @@ def verify_integrity(db: sqlite3.Connection) -> None:
         if row["seq"] != expected_seq or row["previous_digest"] != previous or row["digest"] != computed:
             raise ValueError("controller event-journal integrity failure")
         previous = row["digest"]
-    truth_rows = db.execute("SELECT challenge_id,expected_label FROM challenge ORDER BY challenge_id").fetchall()
-    actual_truth_digest = hashlib.sha256(canonical(sorted((row["challenge_id"], row["expected_label"]) for row in truth_rows))).hexdigest()
+    truth_rows = db.execute(
+        "SELECT challenge_id,ordinal,phase,feature_bits,expected_label FROM challenge ORDER BY challenge_id"
+    ).fetchall()
+    actual_truth_digest = hashlib.sha256(canonical(sorted(
+        (row["challenge_id"], row["ordinal"], row["phase"], row["feature_bits"], row["expected_label"])
+        for row in truth_rows
+    ))).hexdigest()
     stored = db.execute("SELECT value FROM meta WHERE key='truth_digest'").fetchone()
     if stored is None or stored["value"] != actual_truth_digest:
         raise ValueError("controller truth-store integrity failure")
