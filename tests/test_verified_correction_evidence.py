@@ -29,6 +29,7 @@ def pair(case_id, step, split, *, truth="B", learner="B", frozen="A",
     )
     return PairedOutcome(
         comparison=compare_committed_predictions(left, right, conditions=conditions),
+        issued_conditions=conditions,
         learner=left, frozen=right, case_id=case_id, expected_label=truth,
         evaluator_ref=evaluator_ref or ("eval-" + case_id),
         split=split,
@@ -104,6 +105,24 @@ def test_wrong_comparison_conditions_or_swapped_tickets_are_rejected():
     )
     with pytest.raises(ValueError, match="comparison"):
         assess(calibration(), replace(row, comparison=other), qualification(2))
+
+
+def test_substituted_issued_conditions_are_rejected():
+    row = qualification(1)
+    forged_conditions = ComparisonConditions(
+        information_condition_id="wrong-information",
+        opportunity_condition_id="wrong-opportunity",
+        resource_condition_id="equal-resource",
+        representation_version="binary-v1",
+    )
+    with pytest.raises(ValueError, match="comparison conditions"):
+        assess(calibration(), replace(row, issued_conditions=forged_conditions), qualification(2))
+
+
+def test_issued_conditions_must_be_exact_type():
+    row = qualification(1)
+    with pytest.raises(TypeError, match="split type"):
+        assess(calibration(), replace(row, issued_conditions="not-issued-conditions"), qualification(2))
 
 
 def test_duplicate_task_in_calibration_and_qualification_rejected():
