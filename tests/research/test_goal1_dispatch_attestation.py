@@ -82,6 +82,7 @@ def test_self_asserted_witness_and_fake_boolean_verifier_are_not_cryptographic_e
 
 
 @pytest.mark.parametrize("field,value", [
+    ("gateway_id", "attacker-gateway"),
     ("run_id", "other-run"),
     ("arm", "FROZEN"),
     ("challenge_id", "other-case"),
