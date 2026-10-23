@@ -9,6 +9,7 @@ from __future__ import annotations
 from contextlib import closing
 from datetime import datetime, timezone
 import hashlib
+import json
 from pathlib import Path
 import re
 import sqlite3
@@ -204,3 +205,68 @@ class LocalAttemptStore:
             except Exception:
                 pass
             raise
+
+    def execute_controller_reserved(
+        self, *, reservation: dict, challenge_view: dict,
+        invocation_id: str, route_ref: str, selected_model: str,
+        expected_model_artifact_sha256: str, reported_model_digest: str,
+        prompt: str, max_tokens: int, permit: object, transport: object,
+    ):
+        """Bind Malaphor's controller envelope BEFORE calling a local transport.
+
+        This is structural consistency only: a dict can be forged and the local
+        transport can be invoked outside this adapter. No cryptographic issuer
+        identity, independent gateway, or model-weight attestation is inferred.
+        """
+        exact = frozenset((
+            "reservation_id", "run_id", "arm", "challenge_id",
+            "challenge_view_digest", "model_prompt_sha256",
+            "model_identity", "model_artifact_sha256",
+        ))
+        if type(reservation) is not dict or frozenset(reservation) != exact:
+            raise ValueError("controller reservation fields missing or unexpected")
+        if type(challenge_view) is not dict or frozenset(challenge_view) != {
+            "challenge_id", "features",
+        }:
+            raise ValueError("public challenge must include only ID and features")
+        _id(challenge_view["challenge_id"], "challenge_id")
+        if type(challenge_view["features"]) is not str or not challenge_view["features"]:
+            raise ValueError("public challenge features invalid")
+        if type(prompt) is not str or not prompt:
+            raise ValueError("prompt is required")
+        _id(reservation["reservation_id"], "reservation_id")
+        _id(reservation["run_id"], "run_id")
+        _id(reservation["challenge_id"], "challenge_id")
+        _id(selected_model, "selected_model")
+        _sha(expected_model_artifact_sha256, "expected_model_artifact_sha256")
+        _sha(reservation["model_artifact_sha256"], "model_artifact_sha256")
+        _sha(reservation["challenge_view_digest"], "challenge_view_digest")
+        _sha(reservation["model_prompt_sha256"], "model_prompt_sha256")
+        _sha(reported_model_digest, "reported_model_digest")
+        canonical_view_digest = hashlib.sha256(json.dumps(
+            challenge_view, sort_keys=True, separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")).hexdigest()
+        if (
+            reservation["arm"] not in _ALLOWED_ARMS
+            or reservation["challenge_id"] != challenge_view["challenge_id"]
+            or reservation["challenge_view_digest"] != canonical_view_digest
+            or reservation["model_prompt_sha256"] != _digest(prompt)
+            or reservation["model_identity"] != selected_model
+            or reservation["model_artifact_sha256"]
+                != expected_model_artifact_sha256
+        ):
+            raise ValueError("controller reservation does not match selected inference")
+        return self.execute(
+            invocation_id=invocation_id,
+            reservation_id=reservation["reservation_id"],
+            run_id=reservation["run_id"],
+            arm=reservation["arm"],
+            challenge_id=reservation["challenge_id"],
+            challenge_view_digest=reservation["challenge_view_digest"],
+            route_ref=route_ref, model=selected_model,
+            reported_model_digest=reported_model_digest,
+            prompt_sha256=reservation["model_prompt_sha256"],
+            max_tokens=max_tokens, prompt=prompt,
+            permit=permit, transport=transport,
+        )
