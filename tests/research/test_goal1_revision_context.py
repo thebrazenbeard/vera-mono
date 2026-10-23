@@ -1,5 +1,6 @@
 """Negative controls for a guarded context revision; not a learning benchmark."""
 import tempfile
+import gc
 from pathlib import Path
 import unittest
 
@@ -60,7 +61,13 @@ def trial(*, cue="later:cue-01", use="synthetic:later-C", **kwargs):
 class RevisionContextTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
+        # sqlite3 context managers commit but do not close connections.
+        # Trigger collection before removing SQLite files on Windows.
+        def cleanup():
+            gc.collect()
+            gc.collect()
+            self.temp.cleanup()
+        self.addCleanup(cleanup)
         base=Path(self.temp.name)
         self.path=base/"gate.sqlite"
         self.ledgerpath=base/"correction.sqlite"
