@@ -15,7 +15,7 @@ from typing import Iterable, Mapping
 
 
 def _canonical(value: object) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +114,8 @@ class Evaluator:
             raise ValueError("one candidate per score batch")
         if len({r.case_id for r in rows}) != len(rows):
             raise ValueError("duplicate case/replay in score batch")
+        if len({r.commit_sequence for r in rows}) != len(rows):
+            raise ValueError("duplicate commit sequence in score batch")
         required_split = self.__qualification_split
         expected_cases = {c.case_id for c in self.public_cases(split=required_split)}
         if {r.case_id for r in rows} != expected_cases:
