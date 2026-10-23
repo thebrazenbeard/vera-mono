@@ -77,7 +77,7 @@ class Evaluator:
         if any(type(v) is not str or not v for v in answer_key.values()):
             raise ValueError("answer labels must be non-empty exact strings")
         self.__answer_key = dict(answer_key)
-        self._used_cases: set[str] = set()
+        self._used_candidate_cases: set[tuple[str, str]] = set()
 
     def public_cases(self, *, split: str) -> tuple[PublicCase, ...]:
         return tuple(c for c in self._cases.values() if c.split == split)
@@ -96,8 +96,10 @@ class Evaluator:
         expected_cases = {c.case_id for c in self.public_cases(split=required_split)}
         if {r.case_id for r in rows} != expected_cases:
             raise ValueError("score batch must exactly cover evaluator's required split")
-        if self._used_cases.intersection(r.case_id for r in rows):
-            raise ValueError("challenge replay denied by evaluator instance")
+        candidate_id = next(iter(candidate_ids))
+        candidate_cases = {(candidate_id, r.case_id) for r in rows}
+        if self._used_candidate_cases.intersection(candidate_cases):
+            raise ValueError("candidate/challenge replay denied by evaluator instance")
         correct = 0
         for row in rows:
             case = self._cases.get(row.case_id)
@@ -111,7 +113,7 @@ class Evaluator:
             if row.prompt_digest != hashlib.sha256(_canonical(case.learner_view())).hexdigest():
                 raise ValueError("prediction is bound to a different public prompt")
             correct += row.prediction == self.__answer_key[row.case_id]
-        self._used_cases.update(r.case_id for r in rows)
+        self._used_candidate_cases.update(candidate_cases)
         return CandidateScore(next(iter(candidate_ids)), len(rows), correct, correct / len(rows), sum(r.budget_units for r in rows))
 
 
