@@ -27,7 +27,9 @@ class PublicCase:
     rule_version: str
 
     def learner_view(self) -> dict[str, object]:
-        return {"case_id": self.case_id, "family": self.family, "features": list(self.features), "split": self.split, "rule_version": self.rule_version}
+        # Evaluator-only metadata (family, split, rule version) must not leak
+        # into the learner prompt. Case IDs are opaque and split-independent.
+        return {"case_id": self.case_id, "features": list(self.features)}
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,13 +142,15 @@ class Evaluator:
 def make_reversal_suite() -> tuple[tuple[PublicCase, ...], dict[str, str]]:
     """Tiny deterministic rule-reversal sanity fixture, not qualification data."""
     rows, truth = [], {}
+    case_number = 0
     for split, family, version, values in (
         ("calibration", "seen-family", "v1", (("red", "A"), ("blue", "B"))),
         ("qualification", "novel-family", "v1", (("circle", "A"), ("square", "B"))),
         ("reversal", "novel-family", "v2", (("circle", "B"), ("square", "A"))),
     ):
-        for i, (feature, label) in enumerate(values):
-            case_id = f"{split}-{i}"
+        for feature, label in values:
+            case_id = f"case-{case_number:03d}"
+            case_number += 1
             rows.append(PublicCase(case_id, family, (feature,), split, version))
             truth[case_id] = label
     return tuple(rows), truth
