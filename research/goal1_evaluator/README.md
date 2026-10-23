@@ -20,7 +20,7 @@ From repository root:
 python -m unittest discover -s tests/research -p 'test_goal1_evaluator.py' -v
 ```
 
-The initial isolated local run on 2026-10-23 produced **10 tests, 10 passed** before the subsequent adversarial hardening. The current branch adds malformed-receipt, scoring-split-substitution, and chronology-forgery cases; those additions are not locally rerun in this session and require current-head CI confirmation. This is source-level verification of a synthetic scaffold, not a run of the full repository suite.
+The initial isolated local run on 2026-10-23 produced **10 tests, 10 passed** before the subsequent adversarial hardening. The current branch adds malformed-receipt, scoring-split-substitution, chronology-forgery, and candidate-ID replay-rotation cases; those additions are not locally rerun in this session and require current-head CI confirmation. This is source-level verification of a synthetic scaffold, not a run of the full repository suite.
 
 ## Deliberate counterexample and limits
 
