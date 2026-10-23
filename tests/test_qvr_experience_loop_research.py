@@ -12,10 +12,21 @@ sys.path.insert(0, str(REPO / "scripts" / "research"))
 from qvr_experience_loop import (
     TRAIN, HOLDOUT, classify, choose_query, choose_rule,
     verify_feedback, evaluator_subprocess, eval_request, predict_all,
+    validate_lab_state_root,
 )
 
 
 class ExperienceLoopContractTests(unittest.TestCase):
+    def test_exact_sandbox_root_is_accepted_and_foreign_path_refused(self):
+        with tempfile.TemporaryDirectory(prefix="vera-goal1-self-learning-") as root:
+            private = Path(root) / "isolated-state"
+            private.mkdir()
+            self.assertEqual(validate_lab_state_root(private), private.resolve())
+            with self.assertRaises(ValueError):
+                validate_lab_state_root(Path(root) / "canonical-memory")
+        with self.assertRaises(ValueError):
+            validate_lab_state_root(Path.home() / "vera-mono" / "state")
+
     def test_exact_initial_decision_parsing(self):
         self.assertEqual(choose_query("A train-b"), ("A", "train-b"))
         for bad in ("A train-a", "B train-d because", "B train-a", "a train-b", "A hidden-e", "<think>B train-c</think>", "A train-b\nmore"):
