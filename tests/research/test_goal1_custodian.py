@@ -202,6 +202,40 @@ class CustodianProcessTests(unittest.TestCase):
             self.assertEqual(sum(response["ok"] is True for response in responses), 1)
             self.assertEqual(sum(response["ok"] is False for response in responses), 1)
 
+    def test_concurrent_feedback_release_has_exactly_one_winner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / "private-controller.sqlite"
+            challenge = issue(db)
+            self.assertTrue(commit(db, challenge, "candidate", "A")["ok"])
+            restart(db)
+            request = {"op": "feedback", "challenge_id": challenge["challenge_id"]}
+            clients = [ControllerClient(db), ControllerClient(db)]
+            try:
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    responses = list(pool.map(lambda client: client.send(request), clients))
+            finally:
+                for client in clients:
+                    client.close()
+            winners = [response for response in responses if response["ok"] is True]
+            losers = [response for response in responses if response["ok"] is False]
+            self.assertEqual(len(winners), 1, responses)
+            self.assertEqual(len(losers), 1, responses)
+            self.assertIn(winners[0]["label"], ("A", "B"))
+            self.assertIn("one-use", str(losers[0]["error"]))
+            events = self._events(db)
+            committed = next(event["seq"] for event in events if event["kind"] == "prediction_committed")
+            released = next(event["seq"] for event in events if event["kind"] == "training_feedback_released")
+            self.assertLess(committed, released)
+
+    @staticmethod
+    def _events(db: Path) -> list[dict[str, object]]:
+        with closing(sqlite3.connect(db)) as connection:
+            connection.row_factory = sqlite3.Row
+            return [
+                {"seq": row["seq"], **json.loads(row["event_json"])}
+                for row in connection.execute("SELECT seq,event_json FROM event ORDER BY seq")
+            ]
+
     def test_controller_owns_phase_order_and_blocks_progress_without_feedback(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "private-controller.sqlite"
