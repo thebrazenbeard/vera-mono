@@ -45,7 +45,7 @@ class EvaluatorFalsificationTests(unittest.TestCase):
     def test_receipt_created_after_observed_outcome_can_claim_earlier_sequence(self):
         # Intentional exploit: model the outcome being observed first, then
         # create receipts afterward with a caller-chosen earlier sequence.
-        observed_outcome = {"sequence": 2, "label": "A"}
+        observed_outcome = {"sequence": 3, "label": "A"}
         rows = self.receipts(self.evaluator.public_cases(split="qualification"), start=1)
         self.assertEqual(observed_outcome["sequence"], 2)
         self.assertEqual(self.evaluator.score(rows, outcome_sequence=observed_outcome["sequence"]).scored_cases, 2)
