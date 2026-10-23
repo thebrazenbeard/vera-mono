@@ -141,6 +141,43 @@ class LocalAttemptStore:
             result.append(record)
         return result
 
+    def recovery_report(self) -> list[dict]:
+        """Read-only post-crash inventory; NEVER authorizes replay or learning.
+
+        A missing local claim_id cannot prove the remote endpoint never
+        claimed a reservation. A present local claim_id cannot prove that
+        model dispatch happened. Local completion isn't independent custody.
+        Callers must reconcile with the actual independent claim/result ledger.
+        """
+        rows = []
+        for item in self.history():
+            status = item["status"]
+            if status == "RESERVED":
+                recovery_class = (
+                    "CLAIM_RECORDED_OUTCOME_UNKNOWN" if item["claim_id"]
+                    else "RESERVED_REMOTE_CLAIM_UNKNOWN"
+                )
+            elif status == "OUTCOME_UNKNOWN":
+                recovery_class = "TERMINAL_OUTCOME_UNKNOWN"
+            elif status == "COMPLETED":
+                recovery_class = "LOCAL_COMPLETION_UNATTESTED"
+            else:
+                raise ValueError("unrecognized durable attempt status")
+            rows.append({
+                "invocation_id": item["invocation_id"],
+                "reservation_id": item["reservation_id"],
+                "run_id": item["run_id"],
+                "arm": item["arm"],
+                "challenge_id": item["challenge_id"],
+                "status": status,
+                "claim_id": item["claim_id"],
+                "recovery_class": recovery_class,
+                "automatic_retry_permitted": False,
+                "independent_reconciliation_required": True,
+                "independent_attestation": bool(item["independent_attestation"]),
+            })
+        return rows
+
     def record_claim(self, invocation_id: str, claim_id: str) -> dict:
         """Write remote claim identity to the local fence before model dispatch.
 
