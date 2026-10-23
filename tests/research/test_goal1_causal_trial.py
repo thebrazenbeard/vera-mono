@@ -7,25 +7,54 @@ from research.goal1_evaluator.causal_trial import (
 )
 
 
+class TestOnlyVerifier:
+    """Schema-test stub only; not independent dispatch evidence in production."""
+    def verify(self, evidence):
+        return True
+
+
+_invocation_counter = 0
+
+
 def controller():
-    return CausalTrialController("GOAL1-LIVE-20261023-02")
+    return CausalTrialController("GOAL1-LIVE-20261023-02", dispatch_evidence_verifier=TestOnlyVerifier())
 
 
 def sha256(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def commit(c, arm, case, prediction="A", prompt=None, response="model response", budget=1, challenge_view_digest=None):
-    # Prompt and response hashes describe actual submitted/returned bytes. The
-    # challenge-view digest is a separate controller-issued-case identity.
+def commit(c, arm, case, prediction="A", prompt=None, response="model response", budget=1, challenge_view_digest=None, dispatch_evidence=None):
+    global _invocation_counter
+    prompt_hash = sha256(prompt if prompt is not None else f"QVR prompt for {arm}: {case}")
+    response_hash = sha256(response)
+    challenge_hash = challenge_view_digest or digest(case)
+    _invocation_counter += 1
+    evidence = dispatch_evidence or {
+        "witness_kind": "independent_dispatch_gateway",
+        "attestation_id": f"test-attestation-{_invocation_counter}",
+        "invocation_id": f"test-invocation-{_invocation_counter}",
+        "run_id": "test-run",
+        "arm": arm,
+        "challenge_id": case["challenge_id"],
+        "challenge_view_digest": challenge_hash,
+        "model_prompt_sha256": prompt_hash,
+        "model_response_sha256": response_hash,
+        "model_identity": "synthetic-test-model",
+        "model_artifact_sha256": "a" * 64,
+        "dispatch_monotonic_ns": 100,
+        "response_monotonic_ns": 200,
+        "outcome_status": "COMPLETED",
+    }
     return c.commit_prediction(
         arm=arm,
         challenge_id=case["challenge_id"],
         prediction=prediction,
-        challenge_view_digest=challenge_view_digest or digest(case),
-        model_prompt_sha256=sha256(prompt if prompt is not None else f"QVR prompt for {arm}: {case}"),
-        model_response_sha256=sha256(response),
+        challenge_view_digest=challenge_hash,
+        model_prompt_sha256=prompt_hash,
+        model_response_sha256=response_hash,
         budget_units=budget,
+        dispatch_evidence=evidence,
     )
 
 
@@ -178,3 +207,75 @@ def test_heldout_truth_is_never_released_as_feedback():
     commit(c, "LEARNED", case, "A")
     with pytest.raises(ValueError, match="training cases"):
         c.release_feedback(arm="LEARNED", challenge_id=case["challenge_id"])
+
+
+def test_matching_hashes_without_independent_dispatch_evidence_rejected():
+    c = CausalTrialController("no-witness")
+    case = c.issue("train")[0]
+    with pytest.raises(ValueError, match="independently verified dispatch evidence"):
+        c.commit_prediction(arm="LEARNED", challenge_id=case["challenge_id"], prediction="A",
+            challenge_view_digest=digest(case), model_prompt_sha256=sha256("p"),
+            model_response_sha256=sha256("r"), budget_units=1)
+
+
+def test_replayed_invocation_or_attestation_rejected():
+    c = controller()
+    first, second = c.issue("train")[:2]
+    prompt = f"QVR prompt for LEARNED: {first}"
+    evidence = {"witness_kind":"independent_dispatch_gateway", "attestation_id":"same-att",
+        "invocation_id":"same-inv", "run_id":"test-run", "arm":"LEARNED",
+        "challenge_id":first["challenge_id"], "challenge_view_digest":digest(first),
+        "model_prompt_sha256":sha256(prompt), "model_response_sha256":sha256("model response"),
+        "model_identity":"synthetic-test-model", "model_artifact_sha256":"a"*64,
+        "dispatch_monotonic_ns":100, "response_monotonic_ns":200, "outcome_status":"COMPLETED"}
+    commit(c, "LEARNED", first, prompt=prompt, dispatch_evidence=evidence)
+    prompt2 = f"QVR prompt for LEARNED: {second}"
+    replay = dict(evidence, challenge_id=second["challenge_id"],
+        challenge_view_digest=digest(second), model_prompt_sha256=sha256(prompt2))
+    with pytest.raises(ValueError, match="replayed dispatch"):
+        commit(c, "LEARNED", second, prompt=prompt2, dispatch_evidence=replay)
+
+
+@pytest.mark.parametrize("field,value,match", [
+    ("challenge_id", "wrong-challenge", "binding mismatch"),
+    ("dispatch_monotonic_ns", 300, "timestamp ordering"),
+    ("model_identity", "fabricated-model", "model identity mismatch"),
+    ("outcome_status", "OUTCOME_UNKNOWN", "OUTCOME_UNKNOWN"),
+])
+def test_invalid_dispatch_evidence_rejected(field, value, match):
+    c = controller()
+    case = c.issue("train")[0]
+    prompt = f"QVR prompt for LEARNED: {case}"
+    evidence = {"witness_kind":"independent_dispatch_gateway", "attestation_id":f"att-{field}",
+        "invocation_id":f"inv-{field}", "run_id":"test-run", "arm":"LEARNED",
+        "challenge_id":case["challenge_id"], "challenge_view_digest":digest(case),
+        "model_prompt_sha256":sha256(prompt), "model_response_sha256":sha256("model response"),
+        "model_identity":"synthetic-test-model", "model_artifact_sha256":"a"*64,
+        "dispatch_monotonic_ns":100, "response_monotonic_ns":200, "outcome_status":"COMPLETED"}
+    evidence[field] = value
+    with pytest.raises(ValueError, match=match):
+        commit(c, "LEARNED", case, prompt=prompt, dispatch_evidence=evidence)
+
+
+def test_same_host_self_report_is_not_independent_dispatch_evidence():
+    c = controller()
+    case = c.issue("train")[0]
+    evidence = {"witness_kind":"same_host_self_report", "attestation_id":"self-att",
+        "invocation_id":"self-inv", "run_id":"test-run", "arm":"LEARNED",
+        "challenge_id":case["challenge_id"], "challenge_view_digest":digest(case),
+        "model_prompt_sha256":sha256("p"), "model_response_sha256":sha256("model response"),
+        "model_identity":"synthetic-test-model", "model_artifact_sha256":"a"*64,
+        "dispatch_monotonic_ns":100, "response_monotonic_ns":200, "outcome_status":"COMPLETED"}
+    with pytest.raises(ValueError, match="independent dispatch witness"):
+        commit(c, "LEARNED", case, prompt="p", dispatch_evidence=evidence)
+
+
+def test_synthetic_scores_and_nominal_budget_never_claim_measured_learning():
+    c = controller()
+    for arm in ARMS:
+        for case in c.issue("holdout"):
+            commit(c, arm, case, prediction="A")
+    scores = c.score()
+    assert all(row["budget_kind"] == "protocol_counter_not_measured_usage" for row in scores.values())
+    assert all(row["resource_usage_measured"] is False for row in scores.values())
+    assert all("learning_claim" not in row for row in scores.values())

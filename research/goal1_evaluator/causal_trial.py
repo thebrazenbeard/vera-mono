@@ -19,6 +19,12 @@ BUDGET_PER_PREDICTION = 1
 MAX_ATTEMPTS_PER_ARM_CASE = 1
 STOP_AFTER_HOLDOUT_CASES = 4
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+REQUIRED_DISPATCH_FIELDS = frozenset({
+    "witness_kind", "attestation_id", "invocation_id", "run_id", "arm",
+    "challenge_id", "challenge_view_digest", "model_prompt_sha256",
+    "model_response_sha256", "model_identity", "model_artifact_sha256",
+    "dispatch_monotonic_ns", "response_monotonic_ns", "outcome_status",
+})
 
 
 def canonical(value: object) -> bytes:
@@ -47,10 +53,15 @@ class Challenge:
 class CausalTrialController:
     """Small controller that keeps labels in private state and assigns order itself."""
 
-    def __init__(self, suite_id: str = "GOAL1-LIVE-20261023-02"):
+    def __init__(self, suite_id: str = "GOAL1-LIVE-20261023-02", *, dispatch_evidence_verifier=None, expected_model_identity: str = "synthetic-test-model", expected_model_artifact_sha256: str | None = None):
         if not suite_id:
             raise ValueError("suite_id required")
         self.suite_id = suite_id
+        self._dispatch_evidence_verifier = dispatch_evidence_verifier
+        self._expected_model_identity = expected_model_identity
+        self._expected_model_artifact_sha256 = expected_model_artifact_sha256 or ("a" * 64)
+        self._used_invocations: set[str] = set()
+        self._used_attestations: set[str] = set()
         rows = []
         self._truth: dict[str, str] = {}
         for phase, specs in (("train", TRAIN), ("holdout", HOLDOUT)):
@@ -78,6 +89,7 @@ class CausalTrialController:
         self, *, arm: str, challenge_id: str, prediction: str,
         challenge_view_digest: str, model_prompt_sha256: str,
         model_response_sha256: str, budget_units: int,
+        dispatch_evidence: dict[str, object] | None = None,
     ) -> dict[str, object]:
         """Commit prediction plus distinct challenge, prompt, and response identities.
 
@@ -102,6 +114,11 @@ class CausalTrialController:
             raise ValueError("challenge view digest mismatch")
         _require_sha256(model_prompt_sha256, "model_prompt_sha256")
         _require_sha256(model_response_sha256, "model_response_sha256")
+        evidence = self._verify_dispatch_evidence(
+            dispatch_evidence, arm=arm, challenge_id=challenge_id,
+            challenge_view_digest=expected_view_digest,
+            prompt_sha256=model_prompt_sha256, response_sha256=model_response_sha256,
+        )
         key = (arm, challenge_id)
         if key in self._predictions:
             raise ValueError("duplicate attempt or reused case for arm")
@@ -113,6 +130,11 @@ class CausalTrialController:
             "prediction": prediction,
             "model_prompt_sha256": model_prompt_sha256,
             "model_response_sha256": model_response_sha256,
+            "dispatch_attestation_id": evidence["attestation_id"],
+            "invocation_id": evidence["invocation_id"],
+            "model_identity": evidence["model_identity"],
+            "model_artifact_sha256": evidence["model_artifact_sha256"],
+            "dispatch_evidence_verified": True,
             "sequence": self._seq,
             "budget_units": budget_units,
             "budget_kind": "protocol_counter_not_measured_usage",
@@ -120,7 +142,46 @@ class CausalTrialController:
         }
         receipt = dict(body, receipt_digest=digest(body))
         self._predictions[key] = receipt
+        self._used_invocations.add(str(evidence["invocation_id"]))
+        self._used_attestations.add(str(evidence["attestation_id"]))
         return dict(receipt)
+
+    def _verify_dispatch_evidence(self, evidence, *, arm, challenge_id, challenge_view_digest, prompt_sha256, response_sha256):
+        if evidence is None or self._dispatch_evidence_verifier is None:
+            raise ValueError("independently verified dispatch evidence required")
+        if not isinstance(evidence, dict) or not REQUIRED_DISPATCH_FIELDS.issubset(evidence):
+            raise ValueError("dispatch evidence fields missing")
+        # The verifier must authenticate an attestation from a separately controlled
+        # dispatch gateway/observer. A same-host caller-created record is not enough.
+        verifier = self._dispatch_evidence_verifier
+        try:
+            verified = verifier.verify(evidence)
+        except Exception as exc:
+            raise ValueError("dispatch attestation verification failed") from exc
+        if verified is not True:
+            raise ValueError("dispatch attestation verification failed")
+        if evidence["witness_kind"] != "independent_dispatch_gateway":
+            raise ValueError("independent dispatch witness required")
+        if evidence["outcome_status"] != "COMPLETED":
+            raise ValueError("OUTCOME_UNKNOWN or non-completed invocation cannot be committed")
+        if (evidence["arm"] != arm or evidence["challenge_id"] != challenge_id
+                or evidence["challenge_view_digest"] != challenge_view_digest
+                or evidence["model_prompt_sha256"] != prompt_sha256
+                or evidence["model_response_sha256"] != response_sha256):
+            raise ValueError("dispatch evidence binding mismatch")
+        if evidence["model_identity"] != self._expected_model_identity:
+            raise ValueError("model identity mismatch")
+        if evidence["model_artifact_sha256"] != self._expected_model_artifact_sha256:
+            raise ValueError("model artifact identity mismatch")
+        if (not isinstance(evidence["invocation_id"], str) or not evidence["invocation_id"]
+                or not isinstance(evidence["attestation_id"], str) or not evidence["attestation_id"]):
+            raise ValueError("dispatch invocation/attestation identity missing")
+        if evidence["invocation_id"] in self._used_invocations or evidence["attestation_id"] in self._used_attestations:
+            raise ValueError("replayed dispatch invocation or attestation")
+        start, end = evidence["dispatch_monotonic_ns"], evidence["response_monotonic_ns"]
+        if type(start) is not int or type(end) is not int or start < 0 or end <= start:
+            raise ValueError("invalid dispatch timestamp ordering")
+        return evidence
 
     def release_feedback(self, *, arm: str, challenge_id: str) -> str:
         key = (arm, challenge_id)
