@@ -72,6 +72,11 @@ class ChallengeBindingTests(unittest.TestCase):
         self.assertEqual(r.revision_id, "1"*64)
         self.assertEqual(r.arm, "LEARNED")
 
+    def test_task_demands_only_an_exact_label(self):
+        text = format_case_task(CASE)
+        self.assertIn("Return ONLY the literal token", text)
+        self.assertIn("No explanation", text)
+
     def test_wrong_case_features_and_case_id_rejected(self):
         with self.assertRaisesRegex(ValueError, "case"):
             bind(case={"challenge_id":"challenge-opaque-001","features":"bits:000"})
