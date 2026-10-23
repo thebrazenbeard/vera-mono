@@ -298,7 +298,14 @@ class CustodianProcessTests(unittest.TestCase):
                     training.append((bits, label))
                     memorized[bits] = label
 
-                fit_data = list(reversed(training)) if arm == "shuffled" else training
+                if arm == "shuffled":
+                    # Preserve feature order but deliberately misassign labels,
+                    # so this is a shuffled-feedback control rather than merely
+                    # presenting intact examples in a different order.
+                    shuffled_labels = [label for _, label in reversed(training)]
+                    fit_data = [(bits, label) for (bits, _), label in zip(training, shuffled_labels)]
+                else:
+                    fit_data = training
                 bias, weights = fit_parity(fit_data)
                 for _ in range(4):
                     challenge = issue(db)
