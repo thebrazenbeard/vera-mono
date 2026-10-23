@@ -14,11 +14,16 @@ class EvaluatorFalsificationTests(unittest.TestCase):
         predict = predict or (lambda case: "A")
         return tuple(commit_prediction(case=c, candidate_id=candidate, prediction=predict(c), commit_sequence=start+i, budget_units=budget) for i,c in enumerate(cases))
 
-    def test_learner_view_excludes_answer_key(self):
-        view = self.cases[0].learner_view()
-        self.assertNotIn("expected_label", view)
-        self.assertNotIn("answer", view)
-        self.assertNotIn(self.truth[self.cases[0].case_id], view.values())
+    def test_learner_view_excludes_answer_key_and_evaluator_metadata(self):
+        for case in self.cases:
+            view = case.learner_view()
+            self.assertNotIn("expected_label", view)
+            self.assertNotIn("answer", view)
+            self.assertNotIn("split", view)
+            self.assertNotIn("family", view)
+            self.assertNotIn("rule_version", view)
+            self.assertFalse(any(part in case.case_id for part in ("calibration", "qualification", "reversal")))
+            self.assertNotIn(self.truth[case.case_id], view.values())
 
     def test_scorer_uses_controller_truth_not_candidate_supplied_labels(self):
         cases = self.evaluator.public_cases(split="qualification")
