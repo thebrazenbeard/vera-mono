@@ -89,6 +89,19 @@ class Evaluator:
             raise ValueError("at least one prediction receipt is required")
         if type(outcome_sequence) is not int or outcome_sequence < 1:
             raise ValueError("outcome_sequence must be a positive exact integer")
+        # Receipt objects are untrusted inputs. Do not rely on the helper or
+        # dataclass annotations to have validated their fields.
+        for row in rows:
+            if not isinstance(row, PredictionReceipt):
+                raise ValueError("every receipt must be a PredictionReceipt")
+            for name in ("case_id", "candidate_id", "prediction", "prompt_digest", "commitment_sha256"):
+                value = getattr(row, name)
+                if type(value) is not str or not value:
+                    raise ValueError(f"{name} must be a non-empty exact string")
+            if type(row.commit_sequence) is not int or row.commit_sequence < 1:
+                raise ValueError("commit_sequence must be a positive exact integer")
+            if type(row.budget_units) is not int or row.budget_units < 0:
+                raise ValueError("budget_units must be a non-negative exact integer")
         candidate_ids = {r.candidate_id for r in rows}
         if len(candidate_ids) != 1:
             raise ValueError("one candidate per score batch")
