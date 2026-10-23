@@ -221,6 +221,31 @@ def controller_commit_parameters(binding: BoundTrialPrediction) -> dict[str, obj
     ):
         if type(digest) is not str or _HEX.fullmatch(digest) is None:
             raise ValueError("invalid binding digest")
+    # Detect post-binding field edits, including a syntactically valid
+    # substituted challenge-view hash. A fully rewritten/self-hashed object
+    # can still be forged; this is integrity consistency, not attestation.
+    subject = {
+        "schema": "VERA_GOAL1_QVR_TRIAL_BINDING_V1",
+        "challenge_id": binding.challenge_id,
+        "challenge_view_digest": binding.challenge_view_digest,
+        "model_prompt_sha256": binding.model_prompt_sha256,
+        "model_response_sha256": binding.model_response_sha256,
+        "prediction": binding.prediction,
+        "arm": binding.arm,
+        "revision_id": binding.revision_id,
+        "invocation_id": binding.invocation_id,
+        "qvr_journal_entry_digest": binding.qvr_journal_entry_digest,
+        "route_ref": binding.route_ref,
+        "runtime_pid": binding.runtime_pid,
+        "model": binding.model,
+        "registry_reported_model_digest": binding.registry_reported_model_digest,
+    }
+    computed = hashlib.sha256(json.dumps(
+        subject, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    if computed != binding.subject_digest:
+        raise ValueError("inconsistent untrusted subject digest")
     return {
         "arm": binding.arm,
         "challenge_id": binding.challenge_id,
