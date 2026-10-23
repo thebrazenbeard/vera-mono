@@ -61,17 +61,27 @@ def main():
     p.add_argument("--revision", required=True)
     p.add_argument("--binding", required=True)
     p.add_argument("--controller", required=True)
+    p.add_argument(
+        "--require-qualified", action="store_true",
+        help="Explicit red acceptance gate: source-contract tests do not prove real learning",
+    )
     args = p.parse_args()
     Goal1CrossBranchProbeTests.paths = tuple(map(Path, (
         args.journal, args.revision, args.binding, args.controller,
     )))
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(Goal1CrossBranchProbeTests)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
-    if result.wasSuccessful():
-        print("SOURCE_CONTRACT_PROBE=" + json.dumps(
-            inspect_contracts(*Goal1CrossBranchProbeTests.paths), sort_keys=True
-        ))
-    return 0 if result.wasSuccessful() else 1
+    if not result.wasSuccessful():
+        return 1
+    report = inspect_contracts(*Goal1CrossBranchProbeTests.paths)
+    print("SOURCE_CONTRACT_PROBE=" + json.dumps(report, sort_keys=True), flush=True)
+    if args.require_qualified:
+        # This diagnostic has no independent dispatch/truth custody or real
+        # post-restart learning result. Green protocol tests must never become
+        # a green end-to-end qualification by CLI flag or self-asserted labels.
+        print("GOAL1_QUALIFICATION_GATE=BLOCKED_SOURCE_ONLY", flush=True)
+        return 2
+    return 0
 
 
 if __name__ == "__main__":
