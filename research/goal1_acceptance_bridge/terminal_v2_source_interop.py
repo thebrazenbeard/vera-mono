@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 import runpy
 import tempfile
+import time
 
 GATEWAY_SHA256 = "27f6f7832d4ea5f2da0f8616fe4f475d6953861910bd2f0e1328d22d35d970ce"
 TERMINAL_V2_SHA256 = "cd6923597ada9bcfc07011fab43fbb75d8967f975590313e069cefa7e8ba81dc"
@@ -86,6 +87,10 @@ def run(root: Path) -> dict:
                     self.calls += 1
                     if status == "OUTCOME_UNKNOWN":
                         raise TimeoutError("synthetic unknown backend outcome")
+                    # Ensure this positive fixture genuinely takes >1 ms.
+                    # A fast sub-ms backend exposes the separate observed
+                    # PR90 floor-ms vs PR87-V2 positive-ms contract mismatch.
+                    time.sleep(0.005)
                     return gateway["ModelObservation"](
                         text="A", model=model, prompt_tokens=5,
                         output_tokens=1, backend_wall_ms=4)
