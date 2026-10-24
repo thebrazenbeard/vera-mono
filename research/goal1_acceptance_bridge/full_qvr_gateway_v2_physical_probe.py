@@ -129,7 +129,7 @@ def exercise(*, repo: Path, image_id: str, volume_prefix: str):
                         Encoding.Raw,PublicFormat.Raw) if variant=="wrong_key" else public),
                 expected_gateway_id=gateway_id,
                 expected_key_id="ephemeral-test-only")
-            volume=volume_prefix+"-"+variant
+            volume=volume_prefix+"-"+variant.replace("_","-")
             result=None
             try:
                 result=invoke_with_host_callback(
