@@ -117,7 +117,10 @@ class AuthenticatedReservationClaimClient:
                     raise ClaimTransportHold("evaluator claim response oversized")
         except ClaimTransportHold:
             raise
-        except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
+        except HTTPError as exc:
+            exc.close()
+            raise ClaimTransportHold("evaluator rejected or ambiguously claimed reservation") from exc
+        except (URLError, OSError, TimeoutError, ValueError) as exc:
             raise ClaimTransportHold("evaluator claim unavailable or ambiguous") from exc
         try:
             result = json.loads(raw.decode("utf-8"))
