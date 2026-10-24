@@ -23,7 +23,7 @@ Vera-owned Draft PR #89: `research/goal1_acceptance_bridge/networkless_learner_c
 - `--network=none`: no Docker networking beyond container loopback;
 - `--read-only`, `--user=65534:65534`, `--cap-drop=ALL`, `--security-opt=no-new-privileges`;
 - `--pids-limit=32`, `--memory=128m`, `--cpus=0.5`, `--ipc=private`; Docker's default private PID mode;
-- `--rm` disposable container and `-i` controlled stdin/stdout JSON; **no bind mounts, no host Docker socket, no device or GPU access, no ports, no user-provided Docker flags, no environment/credentials forwarding**.
+- `--rm` disposable container and `-i` controlled stdin/stdout JSON; fixed `--entrypoint=python` overrides image-supplied startup; **no bind mounts, no host Docker socket, no device or GPU access, no ports, no user-provided Docker flags, no environment/credentials forwarding**.
 
 A fixed Python worker receives `{nonce,prompt}` over stdin, probes network interfaces and host Ollama TCP paths from *inside its own namespace*, and emits one JSON `REQUEST_GATEWAY_INFERENCE` over stdout. The untrusted worker is never given an evaluator signing key, client mTLS key, claim ledger, Docker socket or access to host model transport. The parent verifies schema, nonce and prompt digest, insists on the sole loopback interface and no successful raw-model TCP probes, and only then invokes a **host-selected** callback with the original trusted-parent prompt (never a worker-chosen gateway URL or instruction). Any runner failure, missing image, timeout, invalid JSON, extra network interface, reachable model socket, forged nonce/digest or worker `qualified=true` stops before the callback.
 
@@ -63,3 +63,26 @@ First standalone Docker network-none experiment, non-root/read-only/capdrop: *ac
 **Protected effect boundary:** No current authorization in this task identifies a specific production service/identity cutover, gateway credential/trust provisioning, firewall/ACL changes, model-provider relocation or merge. These require Patrick's explicit approval for those exact targets/effects. This work committed source and tests only and ran automatically removed temporary test containers.
 
 No selected QVR route, model HTTP POST, Ollama service modification, live mTLS key provisioning, trust/ACL/firewall policy mutation, merge, deployment, canonical memory write, private truth publication or causal learning claim was made.
+
+## Final exact source / Docker host-verified observations
+
+The launcher was subsequently hardened to set `--entrypoint=python`, avoiding reliance on the image's inherited entrypoint, and the fixed Python invocation was changed to `-I -c <known worker code>`. Re-tested the real Lappy cell and eight policy tests after this hardening. The image was still the immutable cached `sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534`, with `--pull=never`; no installation or network image download.
+
+A second **host-side Docker inspect** was performed while a disposable research cell was running. Unlike the worker's own self-reported interface list, these properties were returned by Docker Engine for the actual container ID and inspected from the host:
+
+```json
+{
+  "network_mode": "none",
+  "read_only_rootfs": true,
+  "privileged": false,
+  "cap_drop": ["ALL"],
+  "user": "65534:65534",
+  "mount_count": 0
+}
+```
+
+The worker also reported only `lo` and exited normally; the container was deleted by `--rm`. This is a real Docker Engine runtime configuration observation for a **disposable test cell**, not proof against Docker daemon compromise or a selected production learner.
+
+Final revision: Lappy Windows **78/78 selected Goal 1 tests PASS**, Python compilation PASS, physical sandbox→host-only inert callback PASS, Docker host inspection PASS, test commands exit0. VN2 Linux **78/78 selected Goal 1 tests PASS**, Python compilation PASS, source policy tests PASS; no VN2 daemon-based container test claimed.
+
+**Hostile reviewer (accepted):** A pinned image *ID* is immutable inside the Docker daemon but only provides content identity, not independent image provenance/signature verification. This source accepts an image ID from its *trusted host caller*; production selection must freeze an externally reviewed image digest/trust configuration. The privileged Docker daemon and host broker remain a trusted computing base. No true selected runtime cutover or independent claim custody is implied by the networkless worker's own emitted JSON.
