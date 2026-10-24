@@ -65,7 +65,7 @@ def exercise(*, repo: Path, image_id: str, volume_prefix: str):
         gw=modules["research/goal1_gateway/sole_route.py"]
         v2=modules["research/goal1_evaluator/terminal_v2.py"]
         claim=modules["research/goal1_evaluator/reservation_status_contract.py"]
-        for variant in ("completed","denied","unknown"):
+        for variant in ("completed","denied","unknown","wrong_key"):
             key=Ed25519PrivateKey.generate()
             public=key.public_key().public_bytes(Encoding.Raw,PublicFormat.Raw)
             class Signer:
@@ -124,7 +124,9 @@ def exercise(*, repo: Path, image_id: str, volume_prefix: str):
                 reservation=reservation,invocation_id=inv,
                 verify_terminal_v2=witness,
                 claim_evidence_verifier=claim_custody,
-                pinned_gateway_public_key=public,
+                pinned_gateway_public_key=(
+                    Ed25519PrivateKey.generate().public_key().public_bytes(
+                        Encoding.Raw,PublicFormat.Raw) if variant=="wrong_key" else public),
                 expected_gateway_id=gateway_id,
                 expected_key_id="ephemeral-test-only")
             volume=volume_prefix+"-"+variant
@@ -159,9 +161,37 @@ def exercise(*, repo: Path, image_id: str, volume_prefix: str):
                 if variant=="denied":
                     assert gateway_state[0]["status"]=="RESERVED"
                     assert backend.calls==0 and witness.calls==0
-                else:
+                elif variant=="unknown":
                     assert gateway_state[0]["status"]=="OUTCOME_UNKNOWN"
                     assert backend.calls==1 and witness.calls==0
+                else:  # Real Ed25519 verifier rejects a substituted trust root.
+                    assert gateway_state[0]["status"]=="COMPLETED"
+                    assert backend.calls==1 and witness.calls==1
+                    assert claim_custody.calls==0
+                # Cold replay from another real Docker QVR process and newly
+                # constructed gateway bridge cannot re-claim a prior attempt.
+                replay_callback=GatewayTerminalTextBridge(
+                    dispatch=dispatch,backend=capture,store=store,
+                    reservation=reservation,invocation_id=inv,
+                    verify_terminal_v2=witness,
+                    claim_evidence_verifier=claim_custody,
+                    pinned_gateway_public_key=public,
+                    expected_gateway_id=gateway_id,
+                    expected_key_id="ephemeral-test-only")
+                try:
+                    invoke_with_host_callback(
+                        image_id=image_id,volume=volume,prompt=prompt,
+                        model=model,digest=reported_digest,invocation_id=inv,
+                        callback=replay_callback,max_tokens=3)
+                except GatewayTextHold:
+                    pass
+                else:
+                    raise AssertionError("cold gateway replay was dispatched")
+                assert endpoint.calls==1 and backend.calls==(
+                    0 if variant=="denied" else 1)
+                assert len(gw["GatewayAttemptStore"](
+                    root/("gateway-"+variant+".sqlite")).history())==1
+                assert cold_readback(image_id=image_id,volume=volume)["entries"]==0
             records.append({"case":variant,"gateway_state":gateway_state[0]["status"],
                             "qvr_journal_entries":history["entries"],
                             "fake_backend_calls":backend.calls,
