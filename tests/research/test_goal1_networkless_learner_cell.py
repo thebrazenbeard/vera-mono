@@ -20,7 +20,7 @@ class LearnerCellPolicyTests(unittest.TestCase):
         self.assertEqual(args[:2], ["docker", "run"])
         for token in ("--network=none", "--read-only", "--cap-drop=ALL",
                       "--security-opt=no-new-privileges", "--user=65534:65534",
-                      "--pull=never", "--ipc=private",
+                      "--pull=never", "--ipc=private", "--entrypoint=python",
                       "--pids-limit=32", "--memory=128m", "--cpus=0.5"):
             self.assertIn(token, args)
         self.assertNotIn("--privileged", args)
