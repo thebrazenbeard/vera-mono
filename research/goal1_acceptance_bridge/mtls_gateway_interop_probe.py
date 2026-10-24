@@ -48,7 +48,8 @@ def run(root: Path) -> dict:
     evaluator = load(root, "research/goal1_evaluator/reservation_status_contract.py")
     verifier_module = load(root, "research/goal1_evaluator/dispatch_attestation.py")
     Fixture = fixture_module["AuthenticatedClaimClientTests"]
-    scenarios = ("COMPLETED", "REMOTE_CLAIMED_BAD_JSON",
+    scenarios = ("COMPLETED", "BAD_JSON_BEFORE_REMOTE_CLAIM",
+                 "REMOTE_CLAIMED_RESPONSE_LOST",
                  "REMOTE_CLAIMED_CHANGED_RUN", "BACKEND_OUTCOME_UNKNOWN")
     results = []
 
@@ -77,11 +78,22 @@ def run(root: Path) -> dict:
                             prompt_tokens=3, output_tokens=2, backend_wall_ms=4,
                         )
 
-                if scenario == "REMOTE_CLAIMED_BAD_JSON":
+                if scenario == "BAD_JSON_BEFORE_REMOTE_CLAIM":
                     fixture.server.reply_mode = "badjson"
                 elif scenario == "REMOTE_CLAIMED_CHANGED_RUN":
                     fixture.server.reply_mode = "mismatch"
                 endpoint = fixture.client()
+                if scenario == "REMOTE_CLAIMED_RESPONSE_LOST":
+                    # Real mTLS remote commit, synthetic response-loss injection.
+                    # This does not claim actual physical packet loss.
+                    original_endpoint = endpoint
+                    class LostResponseAfterRemoteClaim:
+                        def claim_reservation(self, *, reservation, gateway_id, invocation_id):
+                            original_endpoint.claim_reservation(
+                                reservation=reservation, gateway_id=gateway_id,
+                                invocation_id=invocation_id)
+                            raise TimeoutError("synthetic loss after real mTLS claim")
+                    endpoint = LostResponseAfterRemoteClaim()
                 backend = InertBackend()
                 store = gateway["GatewayAttemptStore"](rootwork / "gateway.sqlite")
                 dispatcher = gateway["GatewayDispatch"](
@@ -111,7 +123,7 @@ def run(root: Path) -> dict:
                 except Exception as exc:
                     if scenario == "COMPLETED":
                         raise
-                    if scenario in ("REMOTE_CLAIMED_BAD_JSON", "REMOTE_CLAIMED_CHANGED_RUN"):
+                    if scenario in ("BAD_JSON_BEFORE_REMOTE_CLAIM", "REMOTE_CLAIMED_RESPONSE_LOST", "REMOTE_CLAIMED_CHANGED_RUN"):
                         if backend.calls != 0:
                             raise AssertionError("backend dispatched after invalid claim") from exc
                     elif not isinstance(exc, TimeoutError):
@@ -124,8 +136,11 @@ def run(root: Path) -> dict:
                 if len(row) != 1:
                     raise AssertionError("missing durable gateway attempt")
                 local = row[0]
-                if fixture.server.received != 1 or not fixture.server.claimed:
-                    raise AssertionError("remote synthetic claim missing")
+                if fixture.server.received != 1:
+                    raise AssertionError("expected exactly one real mTLS HTTP request")
+                remote_claim_expected = scenario != "BAD_JSON_BEFORE_REMOTE_CLAIM"
+                if bool(fixture.server.claimed) != remote_claim_expected:
+                    raise AssertionError("synthetic remote claim marker mismatched scenario")
                 if scenario == "COMPLETED":
                     if backend.calls != 1 or local["status"] != "COMPLETED":
                         raise AssertionError("valid mTLS path did not dispatch")
