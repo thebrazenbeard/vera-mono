@@ -37,6 +37,11 @@ class V2CompatibilityReportTests(unittest.TestCase):
         self.assertEqual(source_compatibility_exit_code(report(),require_compatible=True),2)
         self.assertEqual(source_compatibility_exit_code(report(),require_compatible=False),0)
 
+    def test_missing_zero_duration_boundary_cannot_pass_strict(self):
+        result=report()
+        del result["zero_ms_contract_boundary"]
+        self.assertEqual(source_compatibility_exit_code(result,require_compatible=True),2)
+
     def test_one_accepted_terminal_is_not_enough(self):
         result=report()
         result["zero_ms_contract_boundary"]["malaphor_v2_rejected_zero_ms"]=False
