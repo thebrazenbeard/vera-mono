@@ -88,6 +88,50 @@ class ExactWireTests(unittest.TestCase):
         with self.assertRaises(GatewayHold):
             GatewayAttemptStore(self.file).signed_terminal("inv1")
 
+    def test_signed_terminal_must_match_durable_reservation_metadata(self):
+        self.gateway.execute(reservation=reservation(), invocation_id="inv1",
+                             prompt="bounded prompt", max_tokens=2)
+        clean = GatewayAttemptStore(self.file).signed_terminal("inv1")
+        self.signer.private.public_key().verify(clean.signature, clean.payload_bytes)
+        for column, value in (
+            ("reservation_id", "swapped-reservation"),
+            ("run_id", "swapped-run"),
+            ("arm", "LEARNED"),
+            ("challenge_id", "swapped-case"),
+            ("gateway_id", "swapped-gateway"),
+            ("binding_sha256", sha(b"swapped-binding")),
+        ):
+            with self.subTest(column=column):
+                with closing(sqlite3.connect(self.file)) as db, db:
+                    db.execute(f"UPDATE attempts SET {column}=? WHERE invocation_id='inv1'",
+                               (value,))
+                with self.assertRaisesRegex(GatewayHold, "inconsistent"):
+                    GatewayAttemptStore(self.file).signed_terminal("inv1")
+                with closing(sqlite3.connect(self.file)) as db, db:
+                    original = reservation()
+                    original_column = {
+                        "reservation_id": original["reservation_id"],
+                        "run_id": original["run_id"], "arm": original["arm"],
+                        "challenge_id": original["challenge_id"],
+                        "gateway_id": "gateway1",
+                        "binding_sha256": sha(json.dumps(original, sort_keys=True,
+                            ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()),
+                    }[column]
+                    db.execute(f"UPDATE attempts SET {column}=? WHERE invocation_id='inv1'",
+                               (original_column,))
+                restored = GatewayAttemptStore(self.file).signed_terminal("inv1")
+                self.assertEqual(restored.payload_bytes, clean.payload_bytes)
+
+    def test_unknown_terminal_must_match_original_reservation_metadata(self):
+        self.backend.fails=True
+        with self.assertRaises(TimeoutError):
+            self.gateway.execute(reservation=reservation(), invocation_id="inv1",
+                                 prompt="bounded prompt", max_tokens=2)
+        with closing(sqlite3.connect(self.file)) as db, db:
+            db.execute("UPDATE attempts SET run_id='substituted' WHERE invocation_id='inv1'")
+        with self.assertRaises(GatewayHold):
+            GatewayAttemptStore(self.file).signed_terminal("inv1")
+
     def test_missing_original_wire_bytes_cannot_be_reconstructed(self):
         self.gateway.execute(reservation=reservation(), invocation_id="inv1",
                              prompt="bounded prompt", max_tokens=2)

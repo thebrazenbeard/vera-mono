@@ -178,7 +178,8 @@ class GatewayAttemptStore:
         _ident(invocation_id,"invocation_id")
         with closing(self._connect()) as db:
             row=db.execute("""SELECT status,claim_id,terminal_json,terminal_bytes,
-                terminal_sha256,signature_hex FROM attempts WHERE invocation_id=?""",
+                terminal_sha256,signature_hex,reservation_id,run_id,arm,challenge_id,
+                binding_sha256,gateway_id FROM attempts WHERE invocation_id=?""",
                 (invocation_id,)).fetchone()
         if row is None or row["status"] not in ("COMPLETED","OUTCOME_UNKNOWN"):
             raise GatewayHold("no terminal signed outcome available")
@@ -196,6 +197,12 @@ class GatewayAttemptStore:
                 or parsed.get("invocation_id")!=invocation_id
                 or parsed.get("claim_id")!=row["claim_id"]
                 or parsed.get("status")!=row["status"]
+                # Local reservation readback is a consistency check, NOT
+                # independently authenticated evaluator claim evidence.
+                or any(parsed.get(k)!=row[k] for k in (
+                    "reservation_id","run_id","arm","challenge_id","gateway_id"))
+                or _digest(_canonical({k:parsed.get(k) for k in _FIELDS}))
+                    !=row["binding_sha256"]
                 or not signature):
             raise GatewayHold("stored signed terminal bytes inconsistent")
         return GatewaySignedTerminal(
