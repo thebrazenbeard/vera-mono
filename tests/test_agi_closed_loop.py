@@ -194,6 +194,50 @@ def test_closed_loop_does_not_dispatch_unresolved_reasoning(tmp_path):
     assert admission.remaining_active == 0
 
 
+def test_closed_loop_does_not_dispatch_exhausted_low_confidence_answer(tmp_path):
+    from rezon.cascade import CascadeEngine, LayerResult, LayerSpec
+    from vera_core import ClosedLoopTask, DurableDispatchGate
+
+    loop = vera_core.ClosedLoopFrontier(tmp_path)
+    task = ClosedLoopTask(
+        task_id="weak-answer-1", prompt="Unknown action.",
+        semantic_object={
+            "schema_version": "0.1", "object_type": "node",
+            "id": "NODE-99999999-9999-4999-8999-999999999999",
+            "primary_label": "weak cue", "aliases": [],
+            "node_kind": "concept", "notes": None,
+        },
+    )
+    cascade = CascadeEngine((
+        LayerSpec(
+            "low-confidence",
+            lambda req: LayerResult(
+                answer="act", unresolved=(), confidence=0.10,
+            ),
+            min_confidence=0.80,
+        ),
+    ))
+    gate = DurableDispatchGate(
+        tmp_path / "dispatch.db", lineage_id="agi-loop",
+        remaining_active=1, remaining_retries=0, remaining_backend_jobs=1,
+    )
+    observed_actions = []
+
+    with pytest.raises(ValueError, match="did not resolve"):
+        loop.run_bounded(
+            task, cascade=cascade, dispatch_gate=gate, holder="worker",
+            now=10.0, ttl=30.0, expected_generation=0,
+            act=lambda action: observed_actions.append(action),
+        )
+
+    assert observed_actions == []
+    admission = gate.claim(
+        work_id="weak-answer-gate-not-used", holder="worker", now=11.0,
+        ttl=30.0, expected_generation=0, retry=False,
+    )
+    assert admission.remaining_active == 0
+
+
 def test_closed_loop_task_rejects_hidden_evaluator_target():
     from vera_core import ClosedLoopTask
 
