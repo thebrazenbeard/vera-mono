@@ -10,6 +10,7 @@ from __future__ import annotations
 from contextlib import closing
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from ipaddress import IPv4Address, ip_address, ip_network
 import json
 from pathlib import Path
 import re
@@ -246,8 +247,13 @@ def serve_mtls(*,ledger:CustodyLedger,bind_host:str,port:int,server_cert,
     check_id(allowed_gateway_id)
     if type(port) is not int or not 1<=port<=65535:
         raise ValueError("port required")
-    if not (bind_host.startswith("127.") or bind_host.startswith("100.")):
-        raise ValueError("research listener restricted to loopback or tailnet")
+    try:
+        ip=ip_address(bind_host)
+    except ValueError as exc:
+        raise ValueError("numeric IP bind address required") from exc
+    if (not isinstance(ip,IPv4Address)
+            or not (ip.is_loopback or ip in ip_network("100.64.0.0/10"))):
+        raise ValueError("research listener restricted to loopback or tailnet IPv4")
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*args):
             return
