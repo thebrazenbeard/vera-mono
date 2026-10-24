@@ -14,6 +14,7 @@ def report():
             "source_restart_replay_refused":True,
             "tamper_paths_rejected":True,
             "common_owner_rewrite_accepted":True,
+            "original_pin_rejects_rewrite":True,
             "independent_custody":False,
             "qualified":False,
         } for s in ("COMPLETED","OUTCOME_UNKNOWN")],
@@ -36,6 +37,11 @@ class ColdProcessGateTests(unittest.TestCase):
     def test_missing_whole_directory_rewrite_negative_control_holds(self):
         r=report()
         r["cases"][0].pop("common_owner_rewrite_accepted")
+        self.assertEqual(report_gate(r,require_source=True,require_independent=False),2)
+
+    def test_missing_original_pinned_key_falsifier_holds(self):
+        r=report()
+        r["cases"][0].pop("original_pin_rejects_rewrite",None)
         self.assertEqual(report_gate(r,require_source=True,require_independent=False),2)
 
     def test_false_claim_of_rewrite_resistance_holds(self):
