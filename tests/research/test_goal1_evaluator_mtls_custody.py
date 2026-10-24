@@ -42,6 +42,8 @@ def make_certs(root:Path):
         .public_key(issuer.public_key()).serial_number(x509.random_serial_number())
         .not_valid_before(now-timedelta(minutes=1)).not_valid_after(now+timedelta(hours=1))
         .add_extension(x509.BasicConstraints(ca=True,path_length=0),critical=True)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(issuer.public_key()),critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer.public_key()),critical=False)
         .sign(issuer,hashes.SHA256()))
     (root/"ca.pem").write_bytes(ca.public_bytes(serialization.Encoding.PEM))
     def leaf(label,filename,server=False):
@@ -52,6 +54,8 @@ def make_certs(root:Path):
              .not_valid_before(now-timedelta(minutes=1))
              .not_valid_after(now+timedelta(minutes=30))
              .add_extension(x509.BasicConstraints(ca=False,path_length=None),critical=True)
+             .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer.public_key()),critical=False)
+             .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()),critical=False)
              .add_extension(x509.ExtendedKeyUsage([
                  ExtendedKeyUsageOID.SERVER_AUTH if server else ExtendedKeyUsageOID.CLIENT_AUTH
              ]),critical=False)
