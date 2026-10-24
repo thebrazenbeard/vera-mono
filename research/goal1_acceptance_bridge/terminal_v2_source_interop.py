@@ -14,7 +14,7 @@ import runpy
 import tempfile
 
 GATEWAY_SHA256 = "27f6f7832d4ea5f2da0f8616fe4f475d6953861910bd2f0e1328d22d35d970ce"
-TERMINAL_V2_SHA256 = None  # supplied after immutable GitHub/host hash verification
+TERMINAL_V2_SHA256 = "cd6923597ada9bcfc07011fab43fbb75d8967f975590313e069cefa7e8ba81dc"
 
 
 def sha(data: bytes) -> str:
