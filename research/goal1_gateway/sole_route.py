@@ -297,8 +297,10 @@ class GatewayDispatch:
             self.store.claim(invocation_id,claim_id)
             start=time.monotonic_ns()
             observation=self.backend.generate(prompt,model=reservation["model_identity"],max_tokens=max_tokens)
-            elapsed_ns=max(1,time.monotonic_ns()-start)
-            elapsed_ms=max(1,(elapsed_ns+999_999)//1_000_000)
+            # Preserve measured time. Sub-ms observations truthfully quantize
+            # to 0 integer milliseconds under the evaluator's V2 contract.
+            elapsed_ns=max(0,time.monotonic_ns()-start)
+            elapsed_ms=elapsed_ns//1_000_000
             if (type(observation) is not ModelObservation
                     or observation.model!=reservation["model_identity"]
                     or type(observation.text) is not str
