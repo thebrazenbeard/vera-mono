@@ -61,3 +61,14 @@ The reproducible script independently checks all three #82 source SHA256 values 
 **Protection/authority:** This user request authorizes research/build/test and directs a repair, but no exact production package, selected service identity/rollback configuration, or independent claim-custodian endpoint can be verified. Do not install/reconfigure/activate `VeraMonoPilot`, merge `main`, change host firewall/ACL, provision trust/keys, or mutate model provider based on a synthetic callback. The repository/source interface work is deliberately committed only on Vera's separate Draft PR #89.
 
 No actual model inference, paid compute, live endpoint key, protected service, ACL/firewall/trust change, branch-owner mutation, canonical memory write or proof of learning.
+
+## Final source staging, test discovery and CI scope
+
+The optional PR #82 test module initially failed test discovery on VN2 because `importlib.util.find_spec("vera_core.local_cognition")` raises `ModuleNotFoundError` when the *parent* `vera_core` package is also unavailable. This is neither a production adapter defect nor evidence the QVR route exists; the test now explicitly classifies `ModuleNotFoundError` as **optional delegated source absent** and skips exactly those five PR #82-only tests. The physical Lappy overlay pins PR #82 and executes all five.
+
+**Final physical verification after this fix:**
+- Lappy Windows with immutable staged PR #82 class overlay + all prior Goal 1 research test sources: **83/83 selected tests PASS** (no skips), `py_compile` PASS, process exit 0.
+- VN2 Linux without delegated PR #82 installed: **83 discovered, 78 PASS and 5 explicitly SKIPPED**, `py_compile` PASS, process exit 0. VN2 does *not* claim QVR #82 runtime consumption or Docker daemon-based isolation.
+- Reproducible actual `QualifiedVeraRuntime` child + networkless Docker + host inert-callback + QVR journal cold readback test Lappy exit0, using exact PR #82 SHA pins. This did not modify any selected SCM process or use model provider hardware.
+
+**Activation is still blocked, not merely untested**: production source PR #82 remains Draft/unmerged; `VeraMonoPilot` observed stopped/manual and not verified as selecting these bits; the full QVR process was run on Lappy outside Docker with an isolated helper, so ordinary OS account raw Ollama access remains available; no independently operated evaluator evidence-read service/client identity or credential custody was supplied. The whole selected QVR learner process must be moved to an isolated image/identity and run with an authenticated external gateway, not simply receive this adapter as an injectable host-side transport. Any assertion otherwise would be a security false positive.
