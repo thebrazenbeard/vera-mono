@@ -20,11 +20,13 @@ class LearnerCellPolicyTests(unittest.TestCase):
         self.assertEqual(args[:2], ["docker", "run"])
         for token in ("--network=none", "--read-only", "--cap-drop=ALL",
                       "--security-opt=no-new-privileges", "--user=65534:65534",
-                      "--pull=never", "--ipc=private", "--pid=private",
+                      "--pull=never", "--ipc=private",
                       "--pids-limit=32", "--memory=128m", "--cpus=0.5"):
             self.assertIn(token, args)
         self.assertNotIn("--privileged", args)
         self.assertNotIn("--network=host", args)
+        self.assertFalse(any(item.startswith("--pid=") for item in args),
+                         "Docker default private PID mode; host sharing forbidden")
         self.assertFalse(any(arg.startswith(("--mount", "--volume", "--device", "--gpus",
                                              "--env", "--publish")) for arg in args))
         self.assertIn(IMAGE, args)
