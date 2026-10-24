@@ -6,6 +6,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
@@ -131,6 +132,28 @@ class ExactWireTests(unittest.TestCase):
             db.execute("UPDATE attempts SET run_id='substituted' WHERE invocation_id='inv1'")
         with self.assertRaises(GatewayHold):
             GatewayAttemptStore(self.file).signed_terminal("inv1")
+
+    def test_submillisecond_duration_preserves_truthful_zero_in_signed_wire(self):
+        with patch("research.goal1_gateway.sole_route.time.monotonic_ns",
+                   side_effect=(5_000_000, 5_654_321)):
+            payload, signature = self.gateway.execute(
+                reservation=reservation(), invocation_id="inv1",
+                prompt="bounded prompt", max_tokens=2)
+        self.assertEqual(payload["gateway_wall_ms"], 0)
+        wire = GatewayAttemptStore(self.file).signed_terminal("inv1")
+        self.assertEqual(json.loads(wire.payload_bytes)["gateway_wall_ms"], 0)
+        self.signer.private.public_key().verify(signature, wire.payload_bytes)
+
+    def test_whole_millisecond_duration_floor_quantization_preserved(self):
+        with patch("research.goal1_gateway.sole_route.time.monotonic_ns",
+                   side_effect=(5_000_000, 6_654_321)):
+            payload, signature = self.gateway.execute(
+                reservation=reservation(), invocation_id="inv1",
+                prompt="bounded prompt", max_tokens=2)
+        self.assertEqual(payload["gateway_wall_ms"], 1)
+        wire = GatewayAttemptStore(self.file).signed_terminal("inv1")
+        self.assertEqual(json.loads(wire.payload_bytes)["gateway_wall_ms"], 1)
+        self.signer.private.public_key().verify(signature, wire.payload_bytes)
 
     def test_missing_original_wire_bytes_cannot_be_reconstructed(self):
         self.gateway.execute(reservation=reservation(), invocation_id="inv1",
