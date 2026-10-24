@@ -188,6 +188,26 @@ class AuthenticatedClaimClientTests(unittest.TestCase):
             self.claim(self.client(ca_bundle=bad_ca))
         self.assertEqual(self.server.received,0)
 
+    def test_valid_but_untrusted_gateway_certificate_is_rejected_by_server(self):
+        key = _key()
+        wrong_ca_key = _key()
+        wrong_ca = _certificate("separate CA", wrong_ca_key,
+                                ca_key=wrong_ca_key, is_ca=True)
+        bad_client = _certificate("unauthorized client", key,
+                                  ca_key=wrong_ca_key, ca_cert=wrong_ca, client=True)
+        bad_cert_path = _write(self.dir/"unauthorized.pem", _cert_pem(bad_client))
+        bad_key_path = _write(self.dir/"unauthorized.key", _key_pem(key))
+        with self.assertRaises(ClaimTransportHold):
+            self.claim(self.client(client_certificate=bad_cert_path,
+                                   client_private_key=bad_key_path))
+        self.assertEqual(self.server.received, 0)
+
+    def test_server_hostname_mismatch_is_denied(self):
+        # The test server presents a certificate for localhost only.
+        with self.assertRaises(ClaimTransportHold):
+            self.claim(self.client(endpoint_url=self.url.replace("localhost", "127.0.0.1")))
+        self.assertEqual(self.server.received, 0)
+
     def test_tls_missing_gateway_certificate_denied(self):
         with self.assertRaises(ClaimTransportHold):
             self.client(client_certificate=self.dir/"absent.pem")
@@ -207,7 +227,7 @@ class AuthenticatedClaimClientTests(unittest.TestCase):
                     self.claim()
         self.assertEqual(self.server.received,2)
 
-    def test_mismatched_remote_claim_rejected_by_exact_contract_helper(self):
+    def test_mismatched_claim_remains_untrusted_until_exact_helper_checks(self):
         # #87 owns binding validation; the transport returns the raw untrusted
         # response for that helper, never labels it independently verified.
         self.server.reply_mode="mismatch"
