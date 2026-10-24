@@ -47,8 +47,11 @@ def create_context(source: Path, destination: Path) -> dict:
         tf.extractall(destination,filter="data")
     for path,blob in data.items():
         target=destination/path
-        if not target.is_file():
-            raise ValueError("missing QVR source destination in clean archive")
+        # Two of the three #82 modules do not exist on canonical main.
+        # They are new source files, not missing/corrupt archive members.
+        if path.endswith("qualified_runtime.py") and not target.is_file():
+            raise ValueError("QVR root module missing from tracked archive")
+        target.parent.mkdir(parents=True,exist_ok=True)
         target.write_bytes(blob)
     return {"owner_head":head,"qvr82_commit":QVR82,
             "source_sha256":SOURCES,"context":str(destination),
