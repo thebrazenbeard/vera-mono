@@ -35,8 +35,8 @@ class WorkspaceStartupSafetyTests(unittest.TestCase):
 
     def test_settings_deny_automatic_tasks(self):
         settings = load_jsonc(ROOT / ".vscode" / "settings.json")
-        self.assertIs(
-            settings.get("task.allowAutomaticTasks"), False,
+        self.assertEqual(
+            settings.get("task.allowAutomaticTasks"), "off",
             "workspace settings must explicitly disable auto tasks",
         )
         self.assertNotIn(
