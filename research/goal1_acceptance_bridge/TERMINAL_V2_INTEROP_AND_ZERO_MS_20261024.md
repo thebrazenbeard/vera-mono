@@ -39,3 +39,15 @@ Physical **Lappy Windows** and **VN2 Linux**: diagnostic mode `exit=0` with both
 - **Learner #86:** four-arm matched-budget hidden-truth trials remain blocked, and published four-case synthetic fixture is not a private holdout.
 
 No merge, main mutation, runtime deployment, TLS credential provisioning, trust/ACL/firewall changes, Ollama provider modifications, model training or canonical memory effect performed.
+
+## Final V2 strict-gate falsifier and verification
+
+The first conditional-source probe reproduced `COMPLETED gateway wall time must be positive` on Lappy and VN2 for naturally sub-ms inert model callbacks. After preserving that red evidence, the positive fixture inserted 5ms of real backend test duration and confirmed the unchanged #90 signed bytes were directly accepted by #87's new V2 verifier for COMPLETED and OUTCOME_UNKNOWN on **both** hosts. The probe also injected a deterministic unchanged zero-nanosecond difference into the isolated gateway time dependency and verified the actual gateway signed `gateway_wall_ms=0`, then V2 rejected this message. No owner source changed.
+
+Final strict `--require-compatible` emits **exit 2**, while diagnostic runs **exit 0** with the two accepted positive cases plus the zero-ms negative. The separate `source_compatibility_exit_code` result is **SOURCE-LEVEL ONLY**, never independent outcome or learning qualification.
+
+A further test exposed a fail-open report-parser defect: when a client-supplied report **omitted** the zero-ms boundary record entirely, strict mode initially returned 0 (physical Lappy RED test: one failure). The implementation was revised to require an explicitly observed `malaphor_v2_rejected_zero_ms is False` before it could even consider strict source compatibility green; missing, ambiguous or true rejection stays exit 2. Five focused V2 report tests now pass, including the missing-evidence falsifier.
+
+**Final physical exact staged selected tests:** Lappy Windows **58/58 PASS** with Python compilation and clean process exit 0; VN2 Linux **58/58 PASS** with Python compilation and clean process exit 0. The counts include 43 prior Vera #89 Goal 1 tests, ten pinned unmodified Integration #91 mTLS fixture tests, and five new V2 gate tests. Both were executed in isolated host source staging, NOT a claim of GitHub CI completeness or production route consumption.
+
+**Owner follow-up:** Resolve the precision semantics between Integration's `elapsed_ns//1_000_000` (0 legitimate for a sub-ms duration) and Malaphor's requirement that COMPLETED gateway_wall_ms be strictly positive. A contract modification requires independent owner agreement, fresh source pins and rerun; no invented round-up was implemented in Vera's branch.
