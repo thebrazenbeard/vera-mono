@@ -18,8 +18,11 @@ def _text(value: object,name: str) -> None:
  if type(value) is not str or not value.strip(): raise ValueError(f"{name} must be non-empty text")
 def verify_terminal_v2(*,payload_bytes: bytes,signature: bytes,pinned_gateway_public_key: bytes,expected_gateway_id: str,expected_key_id: str,expected_binding: dict[str,str],claim_evidence_verifier: IndependentClaimEvidenceVerifier) -> dict[str,Any]:
  """Verify unchanged signed bytes and independently authenticated claim linkage.
- COMPLETED may be scored only by a separate frozen evaluator. OUTCOME_UNKNOWN is a
- valid terminal, never a prediction/score, consumes reservation and is not retried.
+
+ COMPLETED timing fields are integer milliseconds measured by the emitting owner.
+ Zero is a valid floor-quantized observation (<1 ms); do not round it up or invent
+ elapsed time. This schema does not attest measurement accuracy or backend usage truth.
+ OUTCOME_UNKNOWN is terminal, never a prediction/score, consumes reservation and is not retried.
  """
  if type(payload_bytes) is not bytes or not payload_bytes: raise ValueError("exact terminal payload bytes required")
  if type(signature) is not bytes or not signature: raise ValueError("detached signature bytes required")
@@ -51,5 +54,4 @@ def verify_terminal_v2(*,payload_bytes: bytes,signature: bytes,pinned_gateway_pu
  if payload["model_identity_scope"]!="BACKEND_REPORTED_NOT_WEIGHT_ATTESTED": raise ValueError("COMPLETED model identity scope must remain qualified")
  for k in nullable:
   if type(payload[k]) is not int or payload[k]<0: raise ValueError(f"COMPLETED requires nonnegative integer {k}")
- if payload["gateway_wall_ms"]<=0: raise ValueError("COMPLETED gateway wall time must be positive")
  return {"status":"VERIFIED_COMPLETED","qualified":False,"prediction":None,"score_eligible":True,"automatic_retry_permitted":False,"reservation_consumed":True,"payload_sha256":hashlib.sha256(payload_bytes).hexdigest(),"payload":payload}

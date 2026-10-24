@@ -43,3 +43,39 @@ def test_wrong_gateway_and_claim_binding_fail_closed():
   verify_terminal_v2(payload_bytes=wire,signature=sig,pinned_gateway_public_key=pub,expected_gateway_id="wrong",expected_key_id="key-1",expected_binding={k:fields[k] for k in BINDING},claim_evidence_verifier=ClaimAuthority())
  authority=ClaimAuthority(lambda r:r.update(claim_id="substituted"))
  with pytest.raises(ValueError,match="claim does not bind"): verify(wire,sig,key,fields,authority)
+
+
+def test_zero_gateway_wall_ms_is_valid_floor_quantized_measurement():
+ key=Ed25519PrivateKey.generate(); fields=payload(); fields["gateway_wall_ms"]=0
+ wire,sig=signed(fields,key); result=verify(wire,sig,key,fields)
+ assert result["status"]=="VERIFIED_COMPLETED"
+ assert result["payload"]["gateway_wall_ms"]==0
+ assert result["score_eligible"] and not result["qualified"]
+
+@pytest.mark.parametrize("field,value",[("gateway_wall_ms",-1),("gateway_wall_ms",True),("prompt_tokens",-1),("prompt_tokens",True),("output_tokens",-1),("output_tokens",True),("backend_wall_ms",-1),("backend_wall_ms",True)])
+def test_falsified_or_malformed_usage_and_timing_are_rejected(field,value):
+ key=Ed25519PrivateKey.generate(); fields=payload(); fields[field]=value
+ wire,sig=signed(fields,key)
+ with pytest.raises(ValueError,match="nonnegative integer"):
+  verify(wire,sig,key,fields)
+
+def test_usage_changed_after_signing_is_rejected_as_signature_substitution():
+ key=Ed25519PrivateKey.generate(); fields=payload(); wire,sig=signed(fields,key)
+ substituted=json.loads(wire); substituted["output_tokens"]=999
+ substituted_wire=canonical_terminal_bytes(substituted)
+ with pytest.raises(ValueError,match="signature invalid"):
+  verify(substituted_wire,sig,key,fields)
+
+def test_signature_from_different_gateway_key_is_rejected():
+ trusted=Ed25519PrivateKey.generate(); attacker=Ed25519PrivateKey.generate(); fields=payload()
+ wire,_=signed(fields,trusted); substituted_signature=attacker.sign(wire)
+ with pytest.raises(ValueError,match="signature invalid"):
+  verify(wire,substituted_signature,trusted,fields)
+
+
+def test_submillisecond_gateway_and_backend_measurements_remain_zero_without_rounding():
+ key=Ed25519PrivateKey.generate(); fields=payload(); fields["gateway_wall_ms"]=0; fields["backend_wall_ms"]=0
+ wire,sig=signed(fields,key); result=verify(wire,sig,key,fields)
+ assert result["status"]=="VERIFIED_COMPLETED"
+ assert result["payload"]["gateway_wall_ms"]==0
+ assert result["payload"]["backend_wall_ms"]==0
