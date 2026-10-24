@@ -128,8 +128,61 @@ def _v2_binding_names(root: Path) -> tuple[str,...]:
     return v2["_BINDING_FIELDS"]
 
 
+
+def replace_all_local_receipt_and_test_key(work: Path, status: str) -> None:
+    """Adversarial test: overwrite every local proof owned by same test user.
+
+    Re-sign a DIFFERENT synthetic outcome using a fresh attacker key, replacing
+    the local public key too. This simulates the entire trust root being
+    supplied by the subject, NOT a break of Ed25519 or of a properly pinned
+    independently held public key. Operates exclusively on disposable files.
+    """
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+    db = work/"gateway.sqlite"
+    invocation,_,_=reservation(status)
+    with closing(sqlite3.connect(db)) as connection:
+        row=connection.execute(
+            "SELECT terminal_bytes FROM attempts WHERE invocation_id=?",
+            (invocation,)).fetchone()
+    if row is None or type(row[0]) is not bytes:
+        raise AssertionError("cannot stage fake receipt")
+    original=json.loads(row[0])
+    forged={**original}
+    if status=="COMPLETED":
+        forged["response_sha256"]=sha(b"FAKE MODEL OUTPUT NOT EMITTED")
+    else:
+        forged["terminal_utc"]="2030-01-01T00:00:00+00:00"
+    if forged==original:
+        raise AssertionError("adversarial rewrite did not change exact signed bytes")
+    bytes_for_attacker=json.dumps(
+        forged,sort_keys=True,separators=(",",":"),ensure_ascii=False,
+        allow_nan=False).encode("utf-8")
+    attacker=Ed25519PrivateKey.generate()
+    attacker_signature=attacker.sign(bytes_for_attacker)
+    # In real deployment the trusted verifier key MUST be pinned OUTSIDE this
+    # learner/gateway-writable folder. Here the test control is fully local.
+    with closing(sqlite3.connect(db)) as connection,connection:
+        updated=connection.execute("""UPDATE attempts
+          SET terminal_json=?,terminal_bytes=?,terminal_sha256=?,signature_hex=?
+          WHERE invocation_id=?""",(
+            bytes_for_attacker.decode("utf-8"),sqlite3.Binary(bytes_for_attacker),
+            sha(bytes_for_attacker),attacker_signature.hex(),invocation,
+        ))
+        if updated.rowcount != 1:
+            raise AssertionError("missing disposable receipt")
+    (work/"public-key.bin").write_bytes(
+        attacker.public_key().public_bytes(Encoding.Raw,PublicFormat.Raw))
+
 def read(root: Path, work: Path, status: str, tamper: str) -> dict:
     gateway,v2,_=frozen_source(root)
+    common_owner_rewrite = tamper=="rewrite_all"
+    if common_owner_rewrite:
+        replace_all_local_receipt_and_test_key(work,status)
+        # Any independently pinned public key would reject this replacement.
+        # The test's own mutable public-key file is intentionally untrusted.
+        tamper="none"
     invocation,prompt,record=reservation(status)
     db=work/"gateway.sqlite"
     if tamper=="local_db":
@@ -210,7 +263,8 @@ def read(root: Path, work: Path, status: str, tamper: str) -> dict:
             "score_eligible":result["score_eligible"],
             "cold_restart_replay_refused":replay_refused,
             "original_bytes_retained":True,"qualified":False,
-            "claim_authority":"SYNTHETIC_SAME_USER_NOT_INDEPENDENT"}
+            "claim_authority":"SYNTHETIC_SAME_USER_NOT_INDEPENDENT",
+            "attacker_replaced_local_key_and_receipt_still_verified":common_owner_rewrite}
 
 
 def report_gate(report: dict, *, require_source: bool, require_independent: bool)->int:
@@ -230,6 +284,7 @@ def report_gate(report: dict, *, require_source: bool, require_independent: bool
            or c.get("new_process_verified") is not True
            or c.get("source_restart_replay_refused") is not True
            or c.get("tamper_paths_rejected") is not True
+           or c.get("common_owner_rewrite_accepted") is not True
            or c.get("independent_custody") is not False
            or c.get("qualified") is not False for c in cases):
         return 2
@@ -260,6 +315,9 @@ def orchestrate(root: Path) -> dict:
                 negatives[bad]=call("read",bad)
             # DB mutation is destructive *only* inside disposable test dir;
             # run it last after other readback paths.
+            rewritten=call("read","rewrite_all")
+            if not rewritten["attacker_replaced_local_key_and_receipt_still_verified"]:
+                raise AssertionError("whole-local-root rewrite did not expose trust gap")
             negatives["local_db"]=call("read","local_db")
             if written["status"]!=status or good["status"]!="VERIFIED_"+status:
                 raise AssertionError("separate process did not recover correct terminal")
@@ -270,6 +328,7 @@ def orchestrate(root: Path) -> dict:
                 "new_process_verified":True,
                 "source_restart_replay_refused":good["cold_restart_replay_refused"],
                 "tamper_paths_rejected":True,
+                "common_owner_rewrite_accepted":True,
                 "independent_custody":False,
                 "qualified":False,
             })
@@ -290,7 +349,7 @@ if __name__=="__main__":
     p.add_argument("--mode",choices=("run","emit","read"),default="run")
     p.add_argument("--work",type=Path)
     p.add_argument("--status",choices=("COMPLETED","OUTCOME_UNKNOWN"))
-    p.add_argument("--tamper",choices=("none","wire","signature","claim","local_db"),default="none")
+    p.add_argument("--tamper",choices=("none","wire","signature","claim","local_db","rewrite_all"),default="none")
     p.add_argument("--require-source",action="store_true")
     p.add_argument("--require-independent",action="store_true")
     args=p.parse_args()
