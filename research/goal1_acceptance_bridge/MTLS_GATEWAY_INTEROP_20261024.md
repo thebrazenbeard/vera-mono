@@ -50,3 +50,13 @@ In all cases the gateway issued exactly one HTTPS request before the refusal; re
 - Vera #89: preserve source-pinned cross-owner regression and strict **HOLD** for terminal V2, private holdout custody, and restricted QVR route until observed independent effects. Do not infer installed QualifiedVeraRuntime from source files.
 
 No deployment, model-server privilege, TLS trust, gateway credentials, service activation, canonical memory, model weight modifications, main merge or protected effects performed.
+
+## Final strengthened source-cut verification
+
+After the five-case test first passed, the probe was strengthened to verify **the Python module actually imported** by #91's mTLS test fixture resolves to the exact staged PR #91 source path and SHA256. This avoids a false source pin in which the inspected file is correct but Python imports a different globally installed module. Final probe Git blob `7c3f5a7555ae59658e3457d513a63d63bbadd193`.
+
+- Final actual Lappy Windows run: five-case mTLS interop **PASS**, then full selected Goal 1 suite **53/53 PASS**, Python compile **PASS**, script exit0.
+- Final actual VN2 Linux run: five-case mTLS interop **PASS**, then exact selected Goal 1 suite **53/53 PASS**, Python compile **PASS**, script exit0.
+- The 53 include the ten #91 test cases staged exactly from immutable owner commit, plus 43 #89 selected research tests; these tests are **run in temporary isolated host workspaces**, not claimed to be PR #89's GitHub CI. Integration #91's own GitHub Windows and Ubuntu checks were independently observed successful on its frozen head.
+
+**Inference ceiling unchanged:** this verifies actual disposable mTLS client/server handshakes and conservative local dispatch ordering with a fake backend and an in-memory single-process endpoint. It does not install distinct OS identities or an independently administered durable claim ledger, cannot attest provider invocation bytes or model weights, and does not repair the #90 signed-terminal/#87 verifier V2 incompatibility. No user permission for protected host effects is inferred.
