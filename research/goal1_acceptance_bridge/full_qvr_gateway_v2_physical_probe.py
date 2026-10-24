@@ -28,11 +28,9 @@ PR95="7c191b2a97063ccc5821f3f274fb4f5e47ff99ed"
 PR87="d3784d9886a5cb071aed38fbe6b91f8ac1d6bbcf"
 SOURCES={
     "research/goal1_gateway/sole_route.py":(PR95,"ba20f64cf92dc6e58f4c82cecbe85963a6895ab97d5a3d4abfa961708945558d"),
-    "research/goal1_evaluator/terminal_v2.py":(PR87,"153aed3f37e013f9c9d9d9?"),
+    "research/goal1_evaluator/terminal_v2.py":(PR87,"153aed3f37e013f9fbb213af2539a1984bebf3086a1d77544d189e0c8104d187"),
+    "research/goal1_evaluator/reservation_status_contract.py":(PR87,"eeabe42d304515f0c068c30145230209af3f395ee49890ee6f5fba451772b2bc"),
 }
-# The authoritative V2 source digest is used rather than the Git blob ID.
-SOURCES["research/goal1_evaluator/terminal_v2.py"]=(PR87,"153aed3f37e013f9cbb213af2539a1984bebf3086a1d77544d189e0c8104d187")
-SOURCES["research/goal1_evaluator/reservation_status_contract.py"]=(PR87,"eeabe42d304515f0c068c30145230209af3f395ee49890ee6f5fba451772b2bc")
 
 
 def digest(data: bytes) -> str:
