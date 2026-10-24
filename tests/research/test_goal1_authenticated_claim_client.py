@@ -47,7 +47,15 @@ def _certificate(subject, key, *, ca_key, ca_cert=None, is_ca=False, server=Fals
         .serial_number(x509.random_serial_number())
         .not_valid_before(now-timedelta(days=1))
         .not_valid_after(now+timedelta(days=2))
-        .add_extension(x509.BasicConstraints(ca=is_ca, path_length=0 if is_ca else None),critical=True))
+        .add_extension(x509.BasicConstraints(ca=is_ca, path_length=0 if is_ca else None),critical=True)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()), critical=False)
+        .add_extension(x509.KeyUsage(
+            digital_signature=True, content_commitment=False,
+            key_encipherment=not is_ca, data_encipherment=False,
+            key_agreement=False, key_cert_sign=is_ca, crl_sign=is_ca,
+            encipher_only=False, decipher_only=False,
+        ),critical=True))
     if server:
         builder = (builder.add_extension(
             x509.SubjectAlternativeName([x509.DNSName("localhost")]), critical=False)
