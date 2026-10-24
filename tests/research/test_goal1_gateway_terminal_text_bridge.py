@@ -64,11 +64,14 @@ def build(*,bad_sha=False,unknown=False,unverified=False):
         return {"status":"VERIFIED_OUTCOME_UNKNOWN" if unknown else "VERIFIED_COMPLETED",
                 "qualified":False,"automatic_retry_permitted":False,
                 "payload_sha256":sha256(wire).hexdigest(),"payload":payload}
+    class ClaimEvidence:
+        def verify_claim_evidence(self, *, expected_binding):
+            return {**expected_binding, "status":"CLAIMED"}
     bridge=GatewayTerminalTextBridge(
         dispatch=Dispatch(),backend=capture,store=Store(),
         reservation=RESERVATION,invocation_id=INVOCATION,
         verify_terminal_v2=verifier,
-        claim_evidence_verifier=object(),
+        claim_evidence_verifier=ClaimEvidence(),
         pinned_gateway_public_key=b"pinned-only-test",
         expected_gateway_id=GATEWAY,expected_key_id="test-key")
     return bridge,call_log
@@ -106,3 +109,14 @@ def test_one_shot_no_automatic_replay_after_success_or_failure():
         failed(PROMPT,model=MODEL,model_digest=DIGEST,max_tokens=3)
     with pytest.raises(GatewayTextHold):
         failed(PROMPT,model=MODEL,model_digest=DIGEST,max_tokens=3)
+
+def test_plain_object_cannot_masquerade_as_claim_evidence_verifier():
+    bridge,_=build()
+    with pytest.raises(ValueError,match="gateway composition"):
+        GatewayTerminalTextBridge(
+            dispatch=bridge.dispatch,backend=bridge.backend,store=bridge.store,
+            reservation=RESERVATION,invocation_id=INVOCATION,
+            verify_terminal_v2=bridge.verify_terminal_v2,
+            claim_evidence_verifier=object(),
+            pinned_gateway_public_key=b"pinned-only-test",
+            expected_gateway_id=GATEWAY,expected_key_id="test-key")
