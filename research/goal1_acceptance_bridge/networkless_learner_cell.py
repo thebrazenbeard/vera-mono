@@ -74,8 +74,8 @@ def build_command(image_id: str) -> list[str]:
         "--network=none", "--read-only", "--cap-drop=ALL",
         "--security-opt=no-new-privileges", "--user=65534:65534",
         "--pids-limit=32", "--memory=128m", "--cpus=0.5",
-        "--ipc=private",
-        "-i", image_id, "python", "-I", "-c", _WORKER,
+        "--ipc=private", "--entrypoint=python",
+        "-i", image_id, "-I", "-c", _WORKER,
     ]
 
 
