@@ -1,4 +1,4 @@
-"""Prevent unreviewed editor-triggered execution in the Rezon checkout.
+"""Prevent unreviewed editor-triggered execution in the Vera Mono checkout.
 
 This checks source configuration only. It does not attest installed VS Code
 behavior, user settings, already-executed processes, or host compromise.
@@ -33,11 +33,11 @@ class WorkspaceStartupSafetyTests(unittest.TestCase):
                 "the disguised asset must never appear in a workspace task",
             )
 
-    def test_settings_deny_automatic_tasks(self):
+    def test_settings_do_not_claim_user_level_automatic_task_control(self):
         settings = load_jsonc(ROOT / ".vscode" / "settings.json")
-        self.assertEqual(
-            settings.get("task.allowAutomaticTasks"), "off",
-            "workspace settings must explicitly disable auto tasks",
+        self.assertNotIn(
+            "task.allowAutomaticTasks", settings,
+            "modern VS Code controls automatic-task consent at user scope",
         )
         self.assertNotIn(
             "tasks", settings,
