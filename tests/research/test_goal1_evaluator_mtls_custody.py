@@ -42,6 +42,9 @@ def make_certs(root:Path):
         .public_key(issuer.public_key()).serial_number(x509.random_serial_number())
         .not_valid_before(now-timedelta(minutes=1)).not_valid_after(now+timedelta(hours=1))
         .add_extension(x509.BasicConstraints(ca=True,path_length=0),critical=True)
+        .add_extension(x509.KeyUsage(digital_signature=True,content_commitment=False,
+            key_encipherment=False,data_encipherment=False,key_agreement=False,
+            key_cert_sign=True,crl_sign=True,encipher_only=False,decipher_only=False),critical=True)
         .add_extension(x509.SubjectKeyIdentifier.from_public_key(issuer.public_key()),critical=False)
         .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer.public_key()),critical=False)
         .sign(issuer,hashes.SHA256()))
