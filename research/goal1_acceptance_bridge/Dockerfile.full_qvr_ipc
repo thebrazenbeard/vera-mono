@@ -1,0 +1,10 @@
+# Goal 1 research FULL selected-class IPC test image.
+# This build deliberately FAILS unless exact Integration #82 QVR sources have
+# been staged into a disposable build context. No branch merging is implied.
+FROM python:3.12-slim
+WORKDIR /opt/vera
+COPY . /opt/vera
+RUN python -m pip install --no-cache-dir . && python -c "from vera_core import QualifiedVeraRuntime; assert hasattr(QualifiedVeraRuntime,'consume_local_cognition')"
+RUN mkdir -p /state && chown 65534:65534 /state
+USER 65534:65534
+ENTRYPOINT ["python","-u","/opt/vera/research/goal1_acceptance_bridge/full_qvr_stdio_worker.py"]
