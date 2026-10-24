@@ -5,9 +5,10 @@ authorize effects, or turn model output into an executable action. A separate
 review layer must resolve ``model_output_unverified`` before the cascade can
 produce a dispatchable answer. An arbitrary callback clearing that marker is
 not independent review or effect authorization. The research-only
-``ClosedLoopFrontier.run_bounded`` currently persists the *caller-provided*
-task semantic object even if reasoning later fails, so do not mistake a
-blocked dispatch for proof that no persistent state changed.
+``ClosedLoopFrontier.run_bounded`` preflights the *caller-provided* task
+semantic object and durably admits it only after bounded reasoning resolves.
+Such caller input is not established truth or effect authority; a blocked
+dispatch does not prove every possible external side effect was absent.
 """
 
 from __future__ import annotations
