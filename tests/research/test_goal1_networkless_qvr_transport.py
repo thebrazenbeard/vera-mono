@@ -11,7 +11,10 @@ from research.goal1_acceptance_bridge import networkless_qvr_transport as mod
 # PR #82 is delegated and intentionally not merged into our base PR.
 # Test on physical hosts against frozen exact #82 source; on GitHub main the
 # private optional owner branch is absent and cannot be presumed installed.
-_HAS_QVR82 = importlib.util.find_spec("vera_core.local_cognition") is not None
+try:
+    _HAS_QVR82 = importlib.util.find_spec("vera_core.local_cognition") is not None
+except ModuleNotFoundError:
+    _HAS_QVR82 = False
 
 
 @unittest.skipUnless(_HAS_QVR82, "PR82 optional cognition source not in canonical main")
