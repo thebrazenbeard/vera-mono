@@ -54,10 +54,7 @@ class GatewayTerminalTextBridge:
                 or not callable(getattr(dispatch, "execute", None))
                 or not callable(getattr(store, "signed_terminal", None))
                 or not callable(verify_terminal_v2)
-                or not callable(getattr(claim_evidence_verifier, "verify_claim_evidence", None))
-                and claim_evidence_verifier.__class__ is not object):
-            # A placeholder plain object is tolerated only in mock-boundary
-            # tests; the actual V2 verifier must still reject absent custody.
+                or not callable(getattr(claim_evidence_verifier, "verify_claim_evidence", None))):
             raise ValueError("gateway composition not bound")
         if (type(reservation) is not dict
                 or frozenset(reservation) != frozenset((
