@@ -152,5 +152,20 @@ class LoopbackCustody(unittest.TestCase):
         with self.assertRaises(ClaimDenied):
             self.reader().verify_claim_evidence(expected_binding=expected)
 
+
+class ListenerRestriction(unittest.TestCase):
+    def test_public_100_prefix_is_not_a_tailnet_address(self):
+        with self.assertRaises(ValueError):
+            serve_mtls(ledger=object(),bind_host="100.1.2.3",port=43101,
+                server_cert="missing.pem",server_key="missing.key",
+                ca_bundle="missing-ca.pem",allowed_gateway_id="gateway-test")
+
+    def test_ipv6_and_non_tailnet_private_bind_denied(self):
+        for address in ("0.0.0.0","192.168.1.20","::","127.0.0.0.1"):
+            with self.subTest(address=address), self.assertRaises(ValueError):
+                serve_mtls(ledger=object(),bind_host=address,port=43101,
+                    server_cert="missing.pem",server_key="missing.key",
+                    ca_bundle="missing-ca.pem",allowed_gateway_id="gateway-test")
+
 if __name__=="__main__":
     unittest.main()
