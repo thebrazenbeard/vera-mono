@@ -43,6 +43,19 @@ def run(root: Path) -> dict:
     from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
     load(root, "research/goal1_gateway/authenticated_claim_client.py")
+    # The fixture imports the client by Python module name. Pin the bytes of
+    # the object actually imported too, not merely a nearby staged file.
+    from research.goal1_gateway import authenticated_claim_client as selected_client
+    selected_path = Path(selected_client.__file__).resolve()
+    expected_client_path = (
+        root / "research/goal1_gateway/authenticated_claim_client.py"
+    ).resolve()
+    if selected_path != expected_client_path:
+        raise ValueError("runtime imported a different mTLS client module")
+    if hashlib.sha256(selected_path.read_bytes()).hexdigest() != SOURCE[
+        "research/goal1_gateway/authenticated_claim_client.py"
+    ]:
+        raise ValueError("runtime imported mTLS client bytes changed")
     fixture_module = load(root, "tests/research/test_goal1_authenticated_claim_client.py")
     gateway = load(root, "research/goal1_gateway/sole_route.py")
     evaluator = load(root, "research/goal1_evaluator/reservation_status_contract.py")
