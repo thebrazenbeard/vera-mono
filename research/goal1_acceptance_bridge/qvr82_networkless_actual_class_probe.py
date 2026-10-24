@@ -75,6 +75,21 @@ print(json.dumps({
 """
 
 
+_READER = r"""
+import json,sys
+from pathlib import Path
+from vera_core import QualifiedVeraRuntime,VeraStateDirectory
+runtime=QualifiedVeraRuntime.from_state_directory(
+ VeraStateDirectory(Path(sys.argv[1]),project_id='qvr-netless-research',
+ identity_id='synthetic-vera'))
+history=runtime.local_cognition_history()
+assert len(history)==1 and history[0]['invocation_id']=='test-qvr-invocation-1'
+assert 'QVR networkless research request' not in json.dumps(history)
+print(json.dumps({'cold_readback_entries':len(history),
+ 'raw_prompt_absent':True},sort_keys=True))
+"""
+
+
 def main() -> None:
     parser=argparse.ArgumentParser()
     parser.add_argument("--qvr82-overlay",type=Path,required=True)
@@ -107,31 +122,25 @@ def main() -> None:
                 or report.get("host_broker_callbacks")!=1
                 or report.get("qualified_learning") is not False):
             raise AssertionError("QVR82 runtime consumption mismatch")
-        # Child is now dead and its SQLite handles are closed. Reopen through
-        # actual PR82 runtime code, validate persisted metadata, then cleanup.
-        from vera_core import QualifiedVeraRuntime,VeraStateDirectory
-        from vera_core.local_cognition import LocalTextReceipt
-        runtime=QualifiedVeraRuntime.from_state_directory(
-            VeraStateDirectory(state,project_id="qvr-netless-research",
-                               identity_id="synthetic-vera"))
-        history=runtime.local_cognition_history()
-        if len(history)!=1 or history[0]["invocation_id"]!="test-qvr-invocation-1":
-            raise AssertionError("cold readback lost actual QVR journal")
-        if "QVR networkless research request" in json.dumps(history):
-            raise AssertionError("QVR journal leaked prompt")
-        # Windows SQLite handles remain alive inside this parent until process
-        # exit; do not claim immediate scratch deletion from this context.
+        # Cold readback uses ANOTHER process, ensuring its SQLite handles are
+        # closed before Windows attempts temporary-state deletion.
+        reopened=subprocess.run(
+            [sys.executable,"-c",_READER,str(state)],
+            capture_output=True,text=True,env=env,timeout=15)
+        if reopened.returncode:
+            raise RuntimeError("QVR82 cold readback failed: "+reopened.stderr[-1100:])
+        cold=json.loads(reopened.stdout)
+        if cold.get("cold_readback_entries")!=1 or cold.get("raw_prompt_absent") is not True:
+            raise AssertionError("QVR82 cold readback invalid")
         print(json.dumps({
             "schema":"GOAL1_QVR82_NETWORKLESS_ACTUAL_CLASS_ACCEPTANCE_V1",
             "child_exit":result.returncode,
             "child_report":report,
-            "cold_readback_entries":len(history),
+            "cold_readback_entries":cold["cold_readback_entries"],
             "source_shas":QVR82_SHA256,
             "production_route_selected":False,
             "independent_gateway_claim_qualified":False,
         },sort_keys=True))
-        # Avoid cleanup errors caused by open sqlite3 handle lifetimes on Win.
-        # TemporaryDirectory cleanup is deferred/retained for process exit.
 
 
 if __name__=="__main__":
