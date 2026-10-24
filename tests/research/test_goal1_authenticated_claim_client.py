@@ -38,9 +38,10 @@ def _key():
 
 def _certificate(subject, key, *, ca_key, ca_cert=None, is_ca=False, server=False, client=False):
     now = datetime.now(timezone.utc)
-    issuer = subject if ca_cert is None else ca_cert.subject
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, subject)])
+    issuer = name if ca_cert is None else ca_cert.subject
     builder = (x509.CertificateBuilder()
-        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, subject)]))
+        .subject_name(name)
         .issuer_name(issuer)
         .public_key(key.public_key())
         .serial_number(x509.random_serial_number())
