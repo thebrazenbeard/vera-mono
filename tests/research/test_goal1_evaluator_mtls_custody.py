@@ -127,9 +127,11 @@ class LoopbackCustody(unittest.TestCase):
         self.assertEqual(fresh.read_claim(claimed["claim_id"]),claimed)
         with self.assertRaises(HTTPError) as error: self.claim()
         self.assertEqual(error.exception.code,409)
+        error.exception.close()
     def test_wrong_client_identity_denied_and_reservation_preserved(self):
         with self.assertRaises(HTTPError) as error:self.claim("wrong")
         self.assertEqual(error.exception.code,403)
+        error.exception.close()
         self.assertEqual(self.ledger.reservation_status("res-mtls"),"RESERVED")
         self.assertEqual(self.claim()["status"],"CLAIMED")
     def test_no_client_cert_tls_handshake_rejected(self):
