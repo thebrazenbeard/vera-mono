@@ -10,6 +10,8 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import subprocess
+import sys
+from types import ModuleType
 from tempfile import TemporaryDirectory
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -42,9 +44,11 @@ def pinned(repo:Path,path:str)->dict:
     data=subprocess.check_output(["git","-C",str(repo),"show",commit+":"+path])
     if sha256(data).hexdigest()!=expected:
         raise ValueError("immutable owner source pin mismatch: "+path)
-    module={"__name__":"goal1_pinned_probe_"+path.split("/")[-1]}
-    exec(compile(data,path,"exec"),module)
-    return module
+    name="goal1_pinned_probe_"+path.split("/")[-1].replace(".","_")
+    module=ModuleType(name)
+    sys.modules[name]=module  # dataclasses/typing require a registered module
+    exec(compile(data,path,"exec"),module.__dict__)
+    return module.__dict__
 
 def exercise(repo:Path)->dict:
     modules={path:pinned(repo,path) for path in SOURCE}
