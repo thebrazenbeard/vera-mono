@@ -178,7 +178,10 @@ def replace_all_local_receipt_and_test_key(work: Path, status: str) -> None:
 def read(root: Path, work: Path, status: str, tamper: str) -> dict:
     gateway,v2,_=frozen_source(root)
     common_owner_rewrite = tamper=="rewrite_all"
+    prior_test_public_key = None
     if common_owner_rewrite:
+        # Snapshot the previously trusted key before this disposable attack.
+        prior_test_public_key = (work/"public-key.bin").read_bytes()
         replace_all_local_receipt_and_test_key(work,status)
         # Any independently pinned public key would reject this replacement.
         # The test's own mutable public-key file is intentionally untrusted.
@@ -229,6 +232,15 @@ def read(root: Path, work: Path, status: str, tamper: str) -> dict:
         "expected_binding":binding,
         "claim_evidence_verifier":FakeIndependentClaim(),
     }
+    original_pin_rejects_rewrite = False
+    if common_owner_rewrite:
+        try:
+            v2["verify_terminal_v2"](
+                **{**args,"pinned_gateway_public_key":prior_test_public_key})
+        except ValueError:
+            original_pin_rejects_rewrite = True
+        else:
+            raise AssertionError("forged signature unexpectedly accepted with original pinned test key")
     try:
         result=v2["verify_terminal_v2"](**args)
     except ValueError:
@@ -264,7 +276,8 @@ def read(root: Path, work: Path, status: str, tamper: str) -> dict:
             "cold_restart_replay_refused":replay_refused,
             "original_bytes_retained":True,"qualified":False,
             "claim_authority":"SYNTHETIC_SAME_USER_NOT_INDEPENDENT",
-            "attacker_replaced_local_key_and_receipt_still_verified":common_owner_rewrite}
+            "attacker_replaced_local_key_and_receipt_still_verified":common_owner_rewrite,
+            "original_pin_rejects_rewrite":original_pin_rejects_rewrite}
 
 
 def report_gate(report: dict, *, require_source: bool, require_independent: bool)->int:
@@ -285,6 +298,7 @@ def report_gate(report: dict, *, require_source: bool, require_independent: bool
            or c.get("source_restart_replay_refused") is not True
            or c.get("tamper_paths_rejected") is not True
            or c.get("common_owner_rewrite_accepted") is not True
+           or c.get("original_pin_rejects_rewrite") is not True
            or c.get("independent_custody") is not False
            or c.get("qualified") is not False for c in cases):
         return 2
@@ -316,8 +330,9 @@ def orchestrate(root: Path) -> dict:
             # DB mutation is destructive *only* inside disposable test dir;
             # run it last after other readback paths.
             rewritten=call("read","rewrite_all")
-            if not rewritten["attacker_replaced_local_key_and_receipt_still_verified"]:
-                raise AssertionError("whole-local-root rewrite did not expose trust gap")
+            if (not rewritten["attacker_replaced_local_key_and_receipt_still_verified"]
+                    or not rewritten["original_pin_rejects_rewrite"]):
+                raise AssertionError("original key/whole-local-root falsifier failed")
             negatives["local_db"]=call("read","local_db")
             if written["status"]!=status or good["status"]!="VERIFIED_"+status:
                 raise AssertionError("separate process did not recover correct terminal")
@@ -329,6 +344,7 @@ def orchestrate(root: Path) -> dict:
                 "source_restart_replay_refused":good["cold_restart_replay_refused"],
                 "tamper_paths_rejected":True,
                 "common_owner_rewrite_accepted":True,
+                "original_pin_rejects_rewrite":True,
                 "independent_custody":False,
                 "qualified":False,
             })
