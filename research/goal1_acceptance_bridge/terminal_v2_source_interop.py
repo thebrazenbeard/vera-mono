@@ -37,7 +37,7 @@ def source_compatibility_exit_code(report: dict, *, require_compatible: bool) ->
         return 2
     # Positive samples interoperate, but strict compatibility remains HOLD
     # while #90's signed zero-ms completion is rejected by Malaphor V2.
-    if report.get("zero_ms_contract_boundary", {}).get("malaphor_v2_rejected_zero_ms") is True:
+    if report.get("zero_ms_contract_boundary", {}).get("malaphor_v2_rejected_zero_ms") is not False:
         return 2
     cases = report.get("cases")
     if type(cases) is not list or len(cases) != 2:
