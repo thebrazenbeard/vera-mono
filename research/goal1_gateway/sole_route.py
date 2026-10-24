@@ -75,6 +75,19 @@ class TerminalSigner(Protocol):
     def sign(self, message: bytes) -> bytes: ...
 
 
+@dataclass(frozen=True, slots=True)
+class GatewaySignedTerminal:
+    """Exact bytes emitted by the gateway, not independent claim custody."""
+    invocation_id: str
+    claim_id: str
+    status: str
+    payload_bytes: bytes
+    payload_sha256: str
+    signature: bytes
+    qualified: bool = False
+    independent_claim_verified: bool = False
+
+
 class GatewayAttemptStore:
     """SQLite reservation-before-claim, non-replayable even across process exits.
 
@@ -94,6 +107,14 @@ class GatewayAttemptStore:
                 reserved_utc TEXT NOT NULL, terminal_utc TEXT,
                 UNIQUE(run_id, arm, challenge_id)
             )""")
+            # Historical terminal_json was locally canonicalized, not a
+            # preserved exact signed-byte handoff. Do not upgrade old rows'
+            # authority or reconstruct missing original wire bytes.
+            cols = {row[1] for row in db.execute("PRAGMA table_info(attempts)")}
+            if "terminal_bytes" not in cols:
+                db.execute("ALTER TABLE attempts ADD COLUMN terminal_bytes BLOB")
+            if "terminal_sha256" not in cols:
+                db.execute("ALTER TABLE attempts ADD COLUMN terminal_sha256 TEXT")
 
     def _connect(self):
         db = sqlite3.connect(self.path, timeout=10)
@@ -127,19 +148,61 @@ class GatewayAttemptStore:
             except sqlite3.IntegrityError as exc:
                 raise GatewayHold("claim identity reused") from exc
 
-    def terminal(self, invocation_id: str, payload: dict, signature: bytes) -> None:
+    def terminal(self, invocation_id: str, payload: dict, signature: bytes,
+                 *, payload_bytes: bytes) -> None:
         if type(signature) is not bytes or not signature:
             raise ValueError("unsigned terminal")
+        if (type(payload_bytes) is not bytes or not payload_bytes
+                or type(payload) is not dict
+                or payload_bytes != _canonical(payload)):
+            raise ValueError("original canonical signed terminal bytes required")
         if payload.get("invocation_id") != invocation_id:
             raise ValueError("terminal invocation mismatch")
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            updated=db.execute("""UPDATE attempts SET status=?,terminal_json=?,signature_hex=?,terminal_utc=?
+            updated=db.execute("""UPDATE attempts SET status=?,terminal_json=?,
+                terminal_bytes=?,terminal_sha256=?,signature_hex=?,terminal_utc=?
                 WHERE invocation_id=? AND status='CLAIMED' AND claim_id=?""",
-                (payload["status"],_canonical(payload).decode("utf-8"),signature.hex(),_utc(),
-                 invocation_id,payload["claim_id"]))
+                (payload["status"],payload_bytes.decode("utf-8"),
+                 sqlite3.Binary(payload_bytes),_digest(payload_bytes),
+                 signature.hex(),_utc(),invocation_id,payload["claim_id"]))
             if updated.rowcount!=1:
                 raise GatewayHold("terminal replay or wrong local claim")
+
+    def signed_terminal(self, invocation_id: str) -> GatewaySignedTerminal:
+        """Fail closed if the gateway did not persist its ORIGINAL signed bytes.
+
+        Local SQLite is same-user mutable: consumers MUST independently verify
+        detached signature, pinned gateway signer, and evaluator-held claim.
+        """
+        _ident(invocation_id,"invocation_id")
+        with closing(self._connect()) as db:
+            row=db.execute("""SELECT status,claim_id,terminal_json,terminal_bytes,
+                terminal_sha256,signature_hex FROM attempts WHERE invocation_id=?""",
+                (invocation_id,)).fetchone()
+        if row is None or row["status"] not in ("COMPLETED","OUTCOME_UNKNOWN"):
+            raise GatewayHold("no terminal signed outcome available")
+        wire=row["terminal_bytes"]
+        if type(wire) is not bytes or not wire:
+            raise GatewayHold("original signed terminal bytes unavailable")
+        try:
+            parsed=json.loads(wire.decode("utf-8"))
+            signature=bytes.fromhex(row["signature_hex"])
+        except (ValueError,TypeError,UnicodeError) as exc:
+            raise GatewayHold("terminal wire or signature invalid") from exc
+        if (type(parsed) is not dict or wire!=_canonical(parsed)
+                or wire.decode("utf-8")!=row["terminal_json"]
+                or _digest(wire)!=row["terminal_sha256"]
+                or parsed.get("invocation_id")!=invocation_id
+                or parsed.get("claim_id")!=row["claim_id"]
+                or parsed.get("status")!=row["status"]
+                or not signature):
+            raise GatewayHold("stored signed terminal bytes inconsistent")
+        return GatewaySignedTerminal(
+            invocation_id=invocation_id,claim_id=row["claim_id"],
+            status=row["status"],payload_bytes=wire,
+            payload_sha256=_digest(wire),signature=signature,
+        )
 
     def history(self) -> list[dict]:
         with closing(self._connect()) as db:
@@ -227,7 +290,8 @@ class GatewayDispatch:
             self.store.claim(invocation_id,claim_id)
             start=time.monotonic_ns()
             observation=self.backend.generate(prompt,model=reservation["model_identity"],max_tokens=max_tokens)
-            elapsed_ms=(time.monotonic_ns()-start)//1_000_000
+            elapsed_ns=max(1,time.monotonic_ns()-start)
+            elapsed_ms=max(1,(elapsed_ns+999_999)//1_000_000)
             if (type(observation) is not ModelObservation
                     or observation.model!=reservation["model_identity"]
                     or type(observation.text) is not str
@@ -242,8 +306,9 @@ class GatewayDispatch:
                      "gateway_wall_ms":elapsed_ms,"backend_wall_ms":observation.backend_wall_ms,
                      "key_id":self.signer.key_id,"terminal_utc":_utc(),
                      "model_identity_scope":"BACKEND_REPORTED_NOT_WEIGHT_ATTESTED"}
-            signature=self.signer.sign(_canonical(payload))
-            self.store.terminal(invocation_id,payload,signature)
+            payload_bytes=_canonical(payload)
+            signature=self.signer.sign(payload_bytes)
+            self.store.terminal(invocation_id,payload,signature,payload_bytes=payload_bytes)
             return payload,signature
         except BaseException:
             # A failed/timeout claim might have succeeded remotely. Do not
@@ -255,8 +320,9 @@ class GatewayDispatch:
                              "prompt_tokens":None,"output_tokens":None,"gateway_wall_ms":None,
                              "backend_wall_ms":None,"key_id":self.signer.key_id,
                              "terminal_utc":_utc(),"model_identity_scope":"UNKNOWN"}
-                    signature=self.signer.sign(_canonical(payload))
-                    self.store.terminal(invocation_id,payload,signature)
+                    payload_bytes=_canonical(payload)
+                    signature=self.signer.sign(payload_bytes)
+                    self.store.terminal(invocation_id,payload,signature,payload_bytes=payload_bytes)
                 except BaseException:
                     # At minimum durable RESERVED or CLAIMED is non-retryable.
                     pass
