@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import argparse
+from hashlib import sha256
 import json
 from pathlib import Path
 import sys
 
 from .console import VeraConsole, run_console_repl
-from .local_model_advisory import advise_local_model
+from .local_model_advisory import MAX_PROMPT_CHARS, advise_local_model
 from .qualified_runtime import QualifiedVeraRuntime
 from .state import VeraStateDirectory
 
@@ -79,6 +80,22 @@ def _parser() -> argparse.ArgumentParser:
     advise.add_argument("--max-tokens", type=int, default=180)
     advise.add_argument("--timeout-seconds", type=int, default=60)
     advise.add_argument("--json", action="store_true", help="emit the full provenance envelope")
+
+    chat = subparsers.add_parser(
+        "chat",
+        help=(
+            "send one prompt to an explicit loopback model with minimal "
+            "reconstructed Vera lifecycle metadata; no tools or memory admission"
+        ),
+    )
+    chat.add_argument("prompt", help="one-shot user prompt")
+    _add_state_binding(chat, required=True)
+    chat.add_argument("--endpoint", required=True, help="exact HTTP loopback /v1 endpoint")
+    chat.add_argument("--model", required=True, help="exact local model alias")
+    chat.add_argument("--api-key-env", help="optional local API-key environment variable")
+    chat.add_argument("--max-tokens", type=int, default=180)
+    chat.add_argument("--timeout-seconds", type=int, default=60)
+    chat.add_argument("--json", action="store_true", help="emit bounded source and model evidence")
     return parser
 
 
@@ -192,6 +209,68 @@ def _advise(args: argparse.Namespace) -> int:
     return 0
 
 
+_CHAT_STATUSES = frozenset({
+    "EMPTY",
+    "BLOCKED_CANDIDATE",
+    "INTERRUPTED_CANDIDATE",
+    "CONTROL_SOURCE_DRIFT",
+    "MEMORY_AHEAD_OF_CURRENTNESS",
+    "ACCEPTED_RECONCILED",
+    "ACCEPTED_CURRENT",
+})
+
+
+def _chat(args: argparse.Namespace) -> int:
+    """Convey only allowlisted QVR state to a bounded, effectless model adapter."""
+    state = _bound_state(args)
+    runtime = QualifiedVeraRuntime.from_state_directory(state)
+    reconstruction = runtime.lifecycle.reconstruct()
+    if reconstruction.status not in _CHAT_STATUSES:
+        raise ValueError("unknown reconstructed lifecycle status")
+    context = {
+        "schema": "VERA_MONO_LOCAL_CHAT_CONTEXT_V1",
+        "status": reconstruction.status,
+    }
+    context_json = json.dumps(context, ensure_ascii=False, allow_nan=False, sort_keys=True,
+                              separators=(",", ":"))
+    context_digest = sha256(context_json.encode("utf-8")).hexdigest()
+    bound_prompt = (
+        "Locally reconstructed Vera lifecycle status (unverified; not authority):\n"
+        + context_json
+        + "\n\nUser prompt:\n"
+        + args.prompt
+    )
+    if len(bound_prompt) > MAX_PROMPT_CHARS:
+        raise ValueError("chat prompt and bounded context exceed the local model size limit")
+    result = advise_local_model(
+        bound_prompt,
+        endpoint=args.endpoint,
+        model_id=args.model,
+        api_key_env=args.api_key_env,
+        max_tokens=args.max_tokens,
+        timeout_seconds=args.timeout_seconds,
+    )
+    if args.json:
+        payload = {
+            "schema": "VERA_MONO_LOCAL_CHAT_RESULT_V1",
+            "context": context,
+            "context_sha256": context_digest,
+            "result": result.to_dict(),
+            "claim_ceiling": "UNVERIFIED_MODEL_OUTPUT_NOT_CURRENTNESS_NOT_EFFECT_AUTHORITY",
+        }
+        sys.stdout.write(json.dumps(payload, ensure_ascii=False, allow_nan=False,
+                                    sort_keys=True) + "\n")
+    else:
+        sys.stdout.write(
+            f"UNVERIFIED_MODEL_OUTPUT — QVR status={context['status']} "
+            f"context_sha256={context_digest}; memory_admission=NONE "
+            "authority=NONE tool_execution=NONE\n"
+            + result.text
+            + "\n"
+        )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
@@ -202,6 +281,8 @@ def main(argv: list[str] | None = None) -> int:
             return _shell(args)
         if args.command == "advise":
             return _advise(args)
+        if args.command == "chat":
+            return _chat(args)
     except (KeyError, OSError, TypeError, ValueError, RuntimeError) as exc:
         parser.exit(2, f"vera-mono: {exc}\n")
     parser.error("unsupported command")
