@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from threading import Lock
 from typing import Callable
 
 
@@ -27,10 +28,18 @@ class CapturingBackend:
             raise TypeError("backend.generate required")
         self.delegate = delegate
         self.observations = []
+        self._once_lock = Lock()
+        self._generation_started = False
 
     def generate(self, prompt: str, *, model: str, max_tokens: int):
-        if self.observations:
-            raise GatewayTextHold("second backend generation refused")
+        # Reserve the one allowed call *before* entering a slow or ambiguous
+        # provider operation. An observation is appended only on success, so
+        # checking the list alone permits concurrent calls and retries after
+        # a provider timeout whose effect is unknown.
+        with self._once_lock:
+            if self._generation_started:
+                raise GatewayTextHold("second backend generation refused")
+            self._generation_started = True
         result = self.delegate.generate(prompt, model=model, max_tokens=max_tokens)
         self.observations.append(result)
         return result
@@ -89,13 +98,15 @@ class GatewayTerminalTextBridge:
         self.expected_gateway_id=expected_gateway_id
         self.expected_key_id=expected_key_id
         self.expected_reported_registry_digest=expected_reported_registry_digest
+        self._entry_lock=Lock()
         self._used=False
 
     def __call__(self, prompt: str, *, model: str, model_digest: str,
                  max_tokens: int) -> dict:
-        if self._used:
-            raise GatewayTextHold("gateway attempt already consumed; no replay")
-        self._used=True
+        with self._entry_lock:
+            if self._used:
+                raise GatewayTextHold("gateway attempt already consumed; no replay")
+            self._used=True
         if (type(prompt) is not str or not prompt
                 or len(prompt.encode("utf-8"))>4096
                 or type(model) is not str or model!=self.reservation["model_identity"]
