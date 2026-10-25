@@ -66,6 +66,28 @@ def _advise_with(connection, *, endpoint="http://127.0.0.1:11434/v1", **kwargs):
     return result, ctor
 
 
+@pytest.mark.parametrize("invalid_text", ["\ud800", "\udfff"])
+def test_invalid_unicode_prompt_fails_before_network(invalid_text):
+    with patch("vera_core.local_model_advisory.HTTPConnection") as constructor:
+        with pytest.raises(LocalModelError, match="valid Unicode"):
+            advise_local_model(
+                invalid_text,
+                endpoint="http://127.0.0.1:11434/v1",
+                model_id="gemma3:1b",
+            )
+    constructor.assert_not_called()
+
+
+@pytest.mark.parametrize("invalid_text", ["\ud800", "\udfff"])
+def test_invalid_unicode_model_text_fails_closed(invalid_text):
+    response = _valid_response()
+    response["choices"][0]["message"]["content"] = invalid_text
+    connection = _Connection(response=_Response(response))
+    with pytest.raises(LocalModelError, match="valid Unicode"):
+        _advise_with(connection)
+    assert connection.closed is True
+
+
 def test_real_request_contract_is_explicit_loopback_cognition_only():
     conn = _Connection()
     result, constructor = _advise_with(conn)
@@ -132,6 +154,16 @@ def test_invalid_requests_fail_before_network_access(values):
         with pytest.raises(LocalModelError):
             advise_local_model(**args)
     constructor.assert_not_called()
+
+
+@pytest.mark.parametrize("finish_reason", [["stop"], {"reason": "stop"}])
+def test_malformed_finish_reason_fails_as_local_model_error(finish_reason):
+    response = _valid_response()
+    response["choices"][0]["finish_reason"] = finish_reason
+    connection = _Connection(_Response(response))
+    with pytest.raises(LocalModelError, match="finish reason is unsupported"):
+        _advise_with(connection)
+    assert connection.closed is True
 
 
 @pytest.mark.parametrize("response", [

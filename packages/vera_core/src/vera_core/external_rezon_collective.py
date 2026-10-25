@@ -43,6 +43,12 @@ class CollectiveObservation:
     evidence_status: str = "UNVERIFIED_GATEWAY_CLAIM"
     independent_hosts_verified: bool = False
     execution_authorized: bool = False
+    # `state=COMPLETE_UNVERIFIED` mirrors Rezon's first-answer completion only.
+    # This separate advisory round label prevents callers from mistaking it
+    # for all peers having reviewed or a current synthesis being present.
+    missing_review_agents: tuple[str, ...] = ()
+    current_synthesis_ids: tuple[str, ...] = ()
+    round_state: str = "INITIAL_ANSWERS_INCOMPLETE"
 
 
 def _canonical(value: object) -> str:
@@ -151,6 +157,7 @@ def _decode(snapshot: object, *, episode_id: str, expected_agents: tuple[str, ..
     if not isinstance(syntheses, list) or len(syntheses) > 32:
         raise CollectiveObservationError("invalid synthesis list")
     ids: list[str] = []
+    current_ids: list[str] = []
     for item in syntheses:
         if not isinstance(item, dict) or set(item) != {
             "synthesis_id", "integrator_id", "input_digest", "content", "status", "is_current"
@@ -165,11 +172,27 @@ def _decode(snapshot: object, *, episode_id: str, expected_agents: tuple[str, ..
         ) or not _valid_text(item["content"]) or not item["content"].strip():
             raise CollectiveObservationError("invalid or promoted synthesis")
         ids.append(item["synthesis_id"])
+        if item["is_current"]:
+            current_ids.append(item["synthesis_id"])
     if len(ids) != len(set(ids)) or (missing and any(item["is_current"] for item in syntheses)):
         raise CollectiveObservationError("duplicate or premature synthesis")
+    reviewed = {value.removeprefix("review:") for value in review_ids}
+    missing_reviews = tuple(agent for agent in agents if agent not in reviewed)
+    # A strict, *observer-owned* completeness label. Rezon allows a current
+    # synthesis after the initial answer round; that is not proof that all
+    # enrolled peers performed independent adversarial review.
+    round_state = (
+        "INITIAL_ANSWERS_INCOMPLETE" if missing else
+        "PEER_REVIEW_INCOMPLETE" if missing_reviews else
+        "SYNTHESIS_NOT_OBSERVED" if not current_ids else
+        "SYNTHESIS_PRESENT_UNVERIFIED"
+    )
     return CollectiveObservation(
         episode_id, digest, agents, answer_ids, review_ids, tuple(ids), missing,
         "INCOMPLETE_UNKNOWN" if missing else "COMPLETE_UNVERIFIED",
+        missing_review_agents=missing_reviews,
+        current_synthesis_ids=tuple(current_ids),
+        round_state=round_state,
     )
 
 

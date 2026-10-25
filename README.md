@@ -117,7 +117,15 @@ peer-review identities, target relationships, and the deterministic input digest
 It rejects cross-episode/prompt/roster mismatches and treats a missing worker as
 `INCOMPLETE_UNKNOWN`, not as consensus.
 
-Even a complete two-worker answer/review/synthesis is reported only as
+Rezon's `complete` field means **all initial answers**, not all peer reviews or
+an integrated synthesis. To prevent downstream code from confusing those
+stages, `CollectiveObservation.round_state` separately reports
+`INITIAL_ANSWERS_INCOMPLETE`, `PEER_REVIEW_INCOMPLETE`,
+`SYNTHESIS_NOT_OBSERVED`, or `SYNTHESIS_PRESENT_UNVERIFIED`, alongside the
+exact `missing_review_agents` and `current_synthesis_ids`. The stricter
+observer-only round label requires each enrolled worker to have reviewed;
+it does not change Rezon's own valid partial-round behavior or certify
+independence. Even a fully observed round remains only
 `COMPLETE_UNVERIFIED` / `UNVERIFIED_GATEWAY_CLAIM`. A gateway token authenticates
 access to that gateway; it does **not** attest two independent model hosts,
 establish correctness or agreement, qualify the synthesis, admit memory, or
@@ -170,6 +178,11 @@ The console is deliberately semantics-first rather than generator-first. Raw tex
 
 Natural-language aliases such as `what is your status?` are accepted when the mapping is explicit. Basic shell dialogue is also supported: `vera` acts as a direct invocation; `exit`, `quit`, `end`, `bye`, `/exit`, and `/quit` leave the console when entered as standalone controls; and `Who am I?` reports the human authority named by the governed project identity while explicitly not claiming keyboard authentication. Unrecognized prose is retained as `UNRESOLVED` rather than being silently reclassified as a command. The interpreter's reading is candidate meaning only: it does not establish truth, canon, memory admission, authorization, or an external effect.
 
+The interactive semantic console displays replies on legacy Windows code pages
+without failing when text contains unsupported Unicode characters. Such
+characters display as backslash escapes (which can be ambiguous if the
+original text contains literal escapes); a UTF-8 console keeps the characters.
+
 A one-shot PowerShell call is also supported:
 
 ```powershell
@@ -181,6 +194,32 @@ Use `-Refresh` to reinstall the current checkout into the repository-local envir
 ```powershell
 .\vera.ps1 -Refresh ":identity"
 ```
+
+For **explicit, opt-in local-model chat** from the same Windows launcher, provide
+all five bindings and the existing loopback model endpoint. The launcher does
+not choose or install a model, create a state identity, start Ollama, change
+workstation permissions, or automatically turn an unrecognized console phrase
+into a model request:
+
+```powershell
+.\vera.ps1 -Chat -StateRoot "C:\path\to\existing-state" `
+  -ProjectId "<project-id>" -IdentityId "<identity-id>" `
+  -Endpoint "http://127.0.0.1:11434/v1" -Model "gemma3:1b"
+```
+
+`-Chat` delegates to the separate `vera-mono chat --interactive` boundary;
+the normal `.\vera.ps1` call still opens the **model-free semantic shell**.
+When `-Chat` is selected, missing values, a nonexistent
+`-StateRoot` directory, and shell-only arguments fail before environment
+setup. The launcher checks directory existence only, not proof of a
+qualified runtime or authenticated project/identity; those are
+caller-provided and Python reconstructs the bounded lifecycle separately.
+literal process arguments (not evaluated shell commands), and the Python chat
+boundary enforces exact numeric loopback, rejects tool calls, and makes no
+memory admission. Chat remains **stateless and unverified**; each turn has no
+previous dialogue context and cannot exercise Vera's provider, Bus, PC, or
+protected-effect permissions. For an explicitly configured local API key, use
+`-ApiKeyEnv VAR_NAME` with the secret stored only in the user's environment.
 
 Without state arguments the console is `SOURCE_ONLY`. To bind the PowerShell launcher to an existing `VeraStateDirectory`, use all three native PowerShell parameters together:
 
