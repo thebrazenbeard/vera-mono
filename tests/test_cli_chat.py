@@ -35,6 +35,9 @@ class _Response:
     def read(self, limit):
         return self._body[:limit]
 
+    def close(self):
+        pass
+
 
 class _Connection:
     def __init__(self, response=None, fail=None):
