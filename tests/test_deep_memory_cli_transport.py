@@ -354,17 +354,22 @@ class PinnedCLITest(unittest.TestCase):
 
     def test_junction_in_pinned_directory_is_rejected(self):
         # NTFS directory junctions aren't reported by Path.is_symlink().
-        with patch.object(
-            Path, "is_junction", lambda path: path == self.root / "tools"
-        ):
-            with self.assertRaisesRegex(EvidenceContractError, "linked source directory"):
-                self.search("PROJECT")
+        # Exercise a noncanonical input spelling on every OS, as may occur
+        # with Windows' temporary-directory spelling even without '..'.
+        with patch.object(self, "root", self.root / ".." / "dms"):
+            target = self.root.resolve(strict=True) / "tools"
+            self.assertNotEqual(self.root / "tools", target)
+            with patch.object(Path, "is_junction", lambda path: path == target):
+                with self.assertRaisesRegex(EvidenceContractError, "linked source directory"):
+                    self.search("PROJECT")
 
     def test_junction_in_pinned_file_is_rejected(self):
-        target = self.root / "tools" / "query_deep_memory.py"
-        with patch.object(Path, "is_junction", lambda path: path == target):
-            with self.assertRaisesRegex(EvidenceContractError, "linked source file"):
-                self.search("PROJECT")
+        with patch.object(self, "root", self.root / ".." / "dms"):
+            target = self.root.resolve(strict=True) / "tools" / "query_deep_memory.py"
+            self.assertNotEqual(self.root / "tools" / "query_deep_memory.py", target)
+            with patch.object(Path, "is_junction", lambda path: path == target):
+                with self.assertRaisesRegex(EvidenceContractError, "linked source file"):
+                    self.search("PROJECT")
 
     def test_ignored_bytecode_cannot_be_imported(self):
         (self.root / ".git" / "info" / "exclude").write_text("tools/__pycache__/\n")

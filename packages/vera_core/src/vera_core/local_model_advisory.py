@@ -9,10 +9,12 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from hashlib import sha256
-from http.client import HTTPConnection, HTTPException
+from http.client import HTTPConnection as _HTTPConnection, HTTPException
+import io
 import json
 import os
 import re
+import time
 from urllib.parse import urlsplit
 
 
@@ -24,6 +26,73 @@ _ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 class LocalModelError(RuntimeError):
     """A local inference request failed without granting any effect authority."""
+
+
+def _time_remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("local inference request exceeded its total deadline")
+    return remaining
+
+
+class _DeadlineReader(io.RawIOBase):
+    """Recalculate the same absolute deadline before *every* socket receive."""
+
+    def __init__(self, sock, deadline: float) -> None:
+        super().__init__()
+        self._sock = sock
+        self._deadline = deadline
+        # Native SocketIO keeps the descriptor alive when http.client closes
+        # HTTP/1.0 / Connection: close after parsing headers but before the
+        # response body is consumed. A direct recv_into wrapper does not.
+        self._raw = sock.makefile("rb", buffering=0)
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer) -> int:
+        self._sock.settimeout(_time_remaining(self._deadline))
+        return self._raw.readinto(buffer)
+
+    def close(self) -> None:
+        try:
+            self._raw.close()
+        finally:
+            super().close()
+
+
+class _DeadlineSocket:
+    """Limited socket surface used by http.client, including its buffered parser."""
+
+    def __init__(self, sock, deadline: float) -> None:
+        self._sock = sock
+        self._deadline = deadline
+
+    def sendall(self, data) -> None:
+        self._sock.settimeout(_time_remaining(self._deadline))
+        self._sock.sendall(data)
+
+    def makefile(self, mode: str):
+        if mode != "rb":
+            raise ValueError("only the HTTP response reader is supported")
+        return io.BufferedReader(_DeadlineReader(self._sock, self._deadline))
+
+    def close(self) -> None:
+        self._sock.close()
+
+
+class HTTPConnection(_HTTPConnection):
+    """HTTPConnection with one wall-clock limit across connect, headers, body."""
+
+    def __init__(self, host: str, port: int, *, timeout: int) -> None:
+        super().__init__(host, port, timeout=timeout)
+        self._deadline = time.monotonic() + timeout
+
+    def connect(self) -> None:
+        self.timeout = _time_remaining(self._deadline)
+        super().connect()
+        assert self.sock is not None
+        self.sock = _DeadlineSocket(self.sock, self._deadline)
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,6 +202,7 @@ def advise_local_model(
     # http.client uses the numeric loopback address directly: no DNS, proxy,
     # redirect following, browser-origin bridge, or model-supplied tool call.
     connection = HTTPConnection(host, port, timeout=timeout_seconds)
+    response = None
     try:
         connection.request("POST", "/v1/chat/completions", body=encoded, headers=headers)
         response = connection.getresponse()
@@ -142,7 +212,11 @@ def advise_local_model(
     except (OSError, TimeoutError, HTTPException) as exc:
         raise LocalModelError("local inference endpoint unavailable") from exc
     finally:
-        connection.close()
+        try:
+            if response is not None:
+                response.close()
+        finally:
+            connection.close()
     if len(raw) > MAX_RESPONSE_BYTES:
         raise LocalModelError("local inference response exceeds size limit")
     try:

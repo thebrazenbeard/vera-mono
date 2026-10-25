@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from hashlib import sha256
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
+import socket
+import threading
+import time
 from unittest.mock import patch
 
 import pytest
@@ -16,9 +20,13 @@ class _Response:
     def __init__(self, body, status=200):
         self.status = status
         self._raw = body if isinstance(body, bytes) else json.dumps(body).encode()
+        self.closed = False
 
     def read(self, count):
         return self._raw[:count]
+
+    def close(self):
+        self.closed = True
 
 
 class _Connection:
@@ -159,6 +167,120 @@ def test_transport_failure_is_bounded_and_connection_closes():
     with pytest.raises(LocalModelError, match="unavailable"):
         _advise_with(conn)
     assert conn.closed is True
+
+
+def test_non_success_http_response_is_explicitly_closed():
+    response = _Response({}, status=500)
+    conn = _Connection(response=response)
+    with pytest.raises(LocalModelError, match="HTTP status 500"):
+        _advise_with(conn)
+    assert conn.closed is True
+    assert response.closed is True
+
+
+@pytest.mark.parametrize("drip_section", ["body", "headers"])
+def test_loopback_slow_drip_cannot_extend_whole_request_deadline(drip_section):
+    """The same deadline must cover buffered headers and chunked bodies."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    body = json.dumps(_valid_response()).encode("utf-8")
+    if drip_section == "body":
+        prefix = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+        pieces = [f"{len(part):x}\r\n".encode() + part + b"\r\n"
+                  for part in (body[i:i + 6] for i in range(0, len(body), 6))]
+        suffix = b"0\r\n\r\n"
+    else:
+        prefix = b"HTTP/1.1 200 OK\r\n"
+        pieces = [f"X-Slow-{i}: value\r\n".encode() for i in range(22)]
+        suffix = f"Content-Length: {len(body)}\r\n\r\n".encode() + body
+    finished = threading.Event()
+
+    def serve():
+        try:
+            with listener:
+                peer, _ = listener.accept()
+                with peer:
+                    peer.settimeout(2)
+                    peer.recv(4096)
+                    peer.sendall(prefix)
+                    for piece in pieces:
+                        try:
+                            peer.sendall(piece)
+                        except OSError:
+                            break
+                        time.sleep(0.09)
+                    try:
+                        peer.sendall(suffix)
+                    except OSError:
+                        pass
+        finally:
+            finished.set()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    started = time.monotonic()
+    try:
+        with pytest.raises(LocalModelError, match="unavailable"):
+            advise_local_model(
+                "test", endpoint=f"http://127.0.0.1:{port}/v1",
+                model_id="gemma3:1b", timeout_seconds=1,
+            )
+        assert time.monotonic() - started < 1.5
+    finally:
+        listener.close()
+        assert finished.wait(timeout=4)
+
+
+@pytest.mark.parametrize("protocol, explicit_close", [
+    ("HTTP/1.0", False),
+    ("HTTP/1.1", True),
+])
+def test_loopback_complete_http_response_still_returns_advisory(protocol, explicit_close):
+    payload = json.dumps(_valid_response()).encode("utf-8")
+    requests = []
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = protocol
+
+        def do_POST(self):
+            # Consume the *entire* request before closing. A one-shot recv()
+            # leaves body bytes unread and can cause Windows TCP RST (10054).
+            length = int(self.headers["Content-Length"])
+            requests.append((self.path, self.rfile.read(length)))
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            if explicit_close:
+                self.send_header("Connection", "close")
+            self.end_headers()
+            # Force the close-connection path to parse headers before body
+            # bytes arrive, exposing premature underlying socket closure.
+            self.wfile.flush()
+            time.sleep(0.05)
+            self.wfile.write(payload)
+
+        def log_message(self, _format, *_args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    server.timeout = 3
+    thread = threading.Thread(target=server.handle_request, daemon=True)
+    thread.start()
+    try:
+        result = advise_local_model(
+            "test", endpoint=f"http://127.0.0.1:{server.server_port}/v1",
+            model_id="gemma3:1b", timeout_seconds=1,
+        )
+        assert result.text == "Careful answer."
+        assert result.status == "UNVERIFIED_MODEL_OUTPUT"
+    finally:
+        thread.join(timeout=4)
+        server.server_close()
+        assert not thread.is_alive()
+    assert requests[0][0] == "/v1/chat/completions"
+    assert json.loads(requests[0][1])["model"] == "gemma3:1b"
 
 
 def test_multiline_plain_text_is_allowed_without_terminal_controls():
