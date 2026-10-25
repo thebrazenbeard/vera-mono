@@ -340,6 +340,31 @@ directory, provider, or model is silently chosen.
 
 `chat` uses the same bounded HTTP `/v1/chat/completions` adapter as `advise`. It sends no tool definitions, rejects model responses containing tool/function calls, never admits the exchange into Vera memory, and grants no provider, PC, Bus, or external filesystem effect authority. Opening a previously empty state directory can initialize QVR's local SQLite bookkeeping. Reconstructing an interrupted lifecycle can also repair local audit records or append `RESTART_RECONCILED_COMMITTED` to its lifecycle journal when a currentness commit is already durable but its final journal event is missing. These local recovery writes are not memory-item admission or authorization of an external effect. A missing binding, non-loopback address, unavailable model endpoint, or invalid QVR reconstruction fails without fallback. The output remains `UNVERIFIED_MODEL_OUTPUT`; even an accepted lifecycle status does not qualify the model, install it, or authorize its actions. Reinvocation after process restart reopens local state. `advise` remains intentionally state-free.
 
+## Synthetic feedback lab (process-local, not self-learning)
+
+`vera-mono feedback-lab` exercises correction staging, source-disjoint exact-cue
+holdout scoring, explicit approval and optional rollback **without opening Vera
+state, calling a model, or saving a trained version**. Its only input is an
+explicit synthetic JSON fixture (64 KiB maximum), with schema
+`VERA_MONO_SYNTHETIC_FEEDBACK_LAB_V1`, `"synthetic": true`, nonempty `samples`
+containing all `FeedbackSample` fields, and nonempty `holdout` containing all
+`HeldoutCase` fields (see `tests/test_cli_feedback_lab.py` for an example).
+
+```powershell
+& .\.venv\Scripts\vera-mono.exe feedback-lab --fixture .\synthetic-feedback.json
+& .\.venv\Scripts\vera-mono.exe feedback-lab --fixture .\synthetic-feedback.json `
+  --approval-ref "owner-ack:synthetic-1" --rollback-ref "owner-ack:synthetic-rollback-1"
+```
+
+Approval flags are **unauthenticated caller assertions**, never a verified
+human review or proof of consent/privacy/provenance. Results expose only
+candidate/holdout hashes, scores, and action flags—not sample or answer text.
+The command refuses rollback when the candidate fails qualification and
+cannot be used across invocations to retain adaptation. Its exact-cue
+holdouts do **not** establish generalization, durable learning, or neural
+weight updates. Promotion to actual Lappy memory and live chat remains a
+separate security/identity/Windows qualification gate.
+
 ## Status
 
 This is source architecture and local implementation. It does not, by source presence alone, claim deployment, provider activation, project installation, behavioral qualification, consciousness, phenomenology, or protected-effect authorization.
