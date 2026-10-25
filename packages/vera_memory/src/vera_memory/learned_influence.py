@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import re
 import sqlite3
 
 from cryptography.exceptions import InvalidSignature
@@ -64,6 +65,44 @@ class LearnedInfluenceReceipt:
     review_evidence_ref: str | None
     evidence_split_qualified: bool = False
     use_evidence_id: str | None = None
+    authorization_effect: str = "NONE"
+
+
+_SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchMethodAttemptClaim:
+    """Source-computed C intent, NOT observed execution/effect evidence."""
+
+    selection_digest: str
+    method_digest: str
+    prompt_sha256: str
+    action_sha256: str
+
+    def __post_init__(self) -> None:
+        for field in (
+            "selection_digest", "method_digest", "prompt_sha256", "action_sha256"
+        ):
+            value = getattr(self, field)
+            if type(value) is not str or not _SHA256_HEX.fullmatch(value):
+                raise ValueError(f"{field} must be exact lowercase SHA256 hex")
+
+
+@dataclass(frozen=True, slots=True)
+class DurableResearchMethodAttempt:
+    """Crash-recoverable *unknown outcome* with no execution attestation."""
+
+    association_id: str
+    memory_revision_id: str
+    cue_event_id: str
+    use_evidence_id: str
+    selection_digest: str
+    method_digest: str
+    prompt_sha256: str
+    action_sha256: str
+    evidence_split_qualified: bool
+    execution_state: str = "UNKNOWN"
     authorization_effect: str = "NONE"
 
 
@@ -325,6 +364,25 @@ class DurableLearnedInfluenceGate:
                     candidate_loss REAL NOT NULL,
                     signature_hex TEXT NOT NULL,
                     PRIMARY KEY (association_id, memory_revision_id, use_evidence_id)
+                );
+                CREATE TABLE IF NOT EXISTS learned_research_method_attempts (
+                    association_id TEXT NOT NULL,
+                    memory_revision_id TEXT NOT NULL,
+                    cue_event_id TEXT NOT NULL,
+                    use_evidence_id TEXT NOT NULL,
+                    selection_digest TEXT NOT NULL,
+                    method_digest TEXT NOT NULL,
+                    prompt_sha256 TEXT NOT NULL,
+                    action_sha256 TEXT NOT NULL,
+                    evidence_split_qualified INTEGER NOT NULL CHECK (
+                        evidence_split_qualified IN (0,1)
+                    ),
+                    execution_state TEXT NOT NULL DEFAULT 'UNKNOWN'
+                        CHECK (execution_state = 'UNKNOWN'),
+                    authorization_effect TEXT NOT NULL DEFAULT 'NONE'
+                        CHECK (authorization_effect = 'NONE'),
+                    PRIMARY KEY (association_id, memory_revision_id, cue_event_id),
+                    UNIQUE (association_id, memory_revision_id, use_evidence_id)
                 );
                 """
             )
@@ -704,11 +762,24 @@ class DurableLearnedInfluenceGate:
         cue_event_id: str,
         use_evidence_id: str | None = None,
         expected_calibration_evidence_ids: tuple[str, ...] | None = None,
+        research_method_attempt: ResearchMethodAttemptClaim | None = None,
     ) -> LearnedInfluenceReceipt:
         if type(revision) is not LearnedRevision:
             raise TypeError("revision must be exact LearnedRevision")
         if type(cue_event_id) is not str or not cue_event_id:
             raise ValueError("cue_event_id must be a non-empty exact string")
+        if research_method_attempt is not None:
+            if type(research_method_attempt) is not ResearchMethodAttemptClaim:
+                raise TypeError("research_method_attempt must be exact claim")
+            if (type(use_evidence_id) is not str or not use_evidence_id
+                    or revision.association_id != (
+                        f"research-selection:{research_method_attempt.selection_digest}"
+                    ) or revision.memory_revision_id != (
+                        f"sha256:{research_method_attempt.method_digest}"
+                    )):
+                raise LearnedInfluenceBlocked(
+                    "research method attempt must match exact selection/revision and C use"
+                )
         expected_calibration = (
             None
             if expected_calibration_evidence_ids is None
@@ -911,6 +982,26 @@ class DurableLearnedInfluenceGate:
                 raise LearnedInfluenceReplay(
                     "cue event already consumed for this learned revision"
                 ) from exc
+            if research_method_attempt is not None:
+                # This row and the C fence commit atomically. A crash after
+                # commit is an UNKNOWN outcome, never proof that a method
+                # result was returned, dispatched, or independently observed.
+                db.execute(
+                    """INSERT INTO learned_research_method_attempts (
+                        association_id, memory_revision_id, cue_event_id,
+                        use_evidence_id, selection_digest, method_digest,
+                        prompt_sha256, action_sha256, evidence_split_qualified
+                    ) VALUES (?,?,?,?,?,?,?,?,?)""",
+                    (
+                        revision.association_id, revision.memory_revision_id,
+                        cue_event_id, use_evidence_id,
+                        research_method_attempt.selection_digest,
+                        research_method_attempt.method_digest,
+                        research_method_attempt.prompt_sha256,
+                        research_method_attempt.action_sha256,
+                        int(evidence_split_qualified),
+                    ),
+                )
             db.commit()
         except BaseException:
             db.rollback()
@@ -926,4 +1017,74 @@ class DurableLearnedInfluenceGate:
             review_evidence_ref=str(review["evidence_ref"]),
             evidence_split_qualified=evidence_split_qualified,
             use_evidence_id=use_evidence_id,
+        )
+
+    def read_research_method_attempt(
+        self, revision: LearnedRevision, *, cue_event_id: str,
+    ) -> DurableResearchMethodAttempt | None:
+        """Read source-computed intent; never infer execution from consumed C."""
+        if type(revision) is not LearnedRevision:
+            raise TypeError("revision must be exact LearnedRevision")
+        if type(cue_event_id) is not str or not cue_event_id:
+            raise ValueError("cue_event_id must be non-empty exact string")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                """SELECT association_id, memory_revision_id, cue_event_id,
+                          use_evidence_id, selection_digest, method_digest,
+                          prompt_sha256, action_sha256,
+                          evidence_split_qualified, execution_state,
+                          authorization_effect,
+                          EXISTS (
+                            SELECT 1 FROM learned_consumptions AS c
+                            WHERE c.association_id=a.association_id
+                              AND c.memory_revision_id=a.memory_revision_id
+                              AND c.cue_event_id=a.cue_event_id
+                          ) AS consumption_present,
+                          EXISTS (
+                            SELECT 1 FROM learned_use_cue_bindings AS u
+                            WHERE u.association_id=a.association_id
+                              AND u.memory_revision_id=a.memory_revision_id
+                              AND u.cue_event_id=a.cue_event_id
+                              AND u.use_evidence_id=a.use_evidence_id
+                          ) AS use_pair_present,
+                          EXISTS (
+                            SELECT 1 FROM learned_use_evidence AS e
+                            WHERE e.association_id=a.association_id
+                              AND e.memory_revision_id=a.memory_revision_id
+                              AND e.evidence_id=a.use_evidence_id
+                          ) AS use_evidence_present
+                   FROM learned_research_method_attempts AS a
+                   WHERE association_id=? AND memory_revision_id=? AND cue_event_id=?""",
+                (revision.association_id, revision.memory_revision_id, cue_event_id),
+            ).fetchone()
+        if row is None:
+            # Legacy/replayed cue without a journal row is not reconstructed
+            # into a fabricated method trace.
+            return None
+        if (str(row["execution_state"]) != "UNKNOWN"
+                or str(row["authorization_effect"]) != "NONE"
+                or row["evidence_split_qualified"] != 1
+                or row["consumption_present"] != 1
+                or row["use_pair_present"] != 1
+                or row["use_evidence_present"] != 1):
+            raise LearnedInfluenceBlocked("durable method attempt state corrupted")
+        claim = ResearchMethodAttemptClaim(
+            selection_digest=str(row["selection_digest"]),
+            method_digest=str(row["method_digest"]),
+            prompt_sha256=str(row["prompt_sha256"]),
+            action_sha256=str(row["action_sha256"]),
+        )
+        if (revision.association_id != f"research-selection:{claim.selection_digest}"
+                or revision.memory_revision_id != f"sha256:{claim.method_digest}"):
+            raise LearnedInfluenceBlocked("durable research attempt revision mismatch")
+        return DurableResearchMethodAttempt(
+            association_id=str(row["association_id"]),
+            memory_revision_id=str(row["memory_revision_id"]),
+            cue_event_id=str(row["cue_event_id"]),
+            use_evidence_id=str(row["use_evidence_id"]),
+            selection_digest=claim.selection_digest,
+            method_digest=claim.method_digest,
+            prompt_sha256=claim.prompt_sha256,
+            action_sha256=claim.action_sha256,
+            evidence_split_qualified=bool(row["evidence_split_qualified"]),
         )

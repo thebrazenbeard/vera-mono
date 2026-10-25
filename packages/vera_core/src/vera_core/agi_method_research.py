@@ -25,6 +25,7 @@ from vera_memory import (
     LearnedInfluenceBlocked,
     LearnedInfluenceReceipt,
     LearnedRevision,
+    ResearchMethodAttemptClaim,
 )
 
 
@@ -453,9 +454,11 @@ def consume_research_method(
 
     A returned choice is inert research output, not a dispatched action.
     Attempted replay, stale revision, and split reuse fail closed via the
-    existing ``DurableLearnedInfluenceGate`` transaction. The gate persists
-    the C-use fence, but this method/action trace is *not* atomically persisted
-    with it: process death after commit leaves actual method-use UNKNOWN.
+    existing ``DurableLearnedInfluenceGate`` transaction. The gate atomically
+    persists a source-computed PREPARED claim (selection/method/prompt/action
+    digests) with the C-use fence. Its execution state remains UNKNOWN even
+    after this function returns: the full ephemeral method/action trace is
+    not independently observed, attested, or durably executed by that claim.
     """
     if type(gate) is not DurableLearnedInfluenceGate:
         raise TypeError("gate must be exact DurableLearnedInfluenceGate")
@@ -473,6 +476,12 @@ def consume_research_method(
         cue_event_id=cue_event_id,
         use_evidence_id=later_use_evidence_id,
         expected_calibration_evidence_ids=choice.calibration_ids,
+        research_method_attempt=ResearchMethodAttemptClaim(
+            selection_digest=selection_digest,
+            method_digest=method.digest,
+            prompt_sha256=hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            action_sha256=hashlib.sha256(action.encode("utf-8")).hexdigest(),
+        ),
     )
     if not receipt.evidence_split_qualified:
         # Existing gate permits ordinary reviewed use; this research method

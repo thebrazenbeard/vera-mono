@@ -20,6 +20,7 @@ from .historical_evidence import (
 
 from .learned_influence import (
     DurableLearnedInfluenceGate,
+    DurableResearchMethodAttempt,
     LearnedInfluenceBlocked,
     LearnedInfluenceError,
     LearnedInfluenceGate,
@@ -29,6 +30,7 @@ from .learned_influence import (
     LearnedRevision,
     LaterOutcomeReceipt,
     ReviewDisposition,
+    ResearchMethodAttemptClaim,
     SignedLaterOutcome,
 )
 
@@ -46,6 +48,7 @@ __all__ = [
     "HistoricalEvidenceResult",
     "query_historical_evidence",
     "DurableLearnedInfluenceGate",
+    "DurableResearchMethodAttempt",
     "LearnedInfluenceBlocked",
     "LearnedInfluenceError",
     "LearnedInfluenceGate",
@@ -55,5 +58,6 @@ __all__ = [
     "LearnedRevision",
     "LaterOutcomeReceipt",
     "ReviewDisposition",
+    "ResearchMethodAttemptClaim",
     "SignedLaterOutcome",
 ]
