@@ -1,10 +1,13 @@
-# Local Vera adapter corpus preparation (source-only)
+# Local Vera private corpus preparation and gated LoRA training
 
-This is an **offline, opt-in corpus-preparation tool**, not a neural-weight
-trainer. It does not import PyTorch, download models, contact network services,
-start an Ollama session, write an adapter, or change Vera memory/identity state.
-It is deliberately separate from the **public** `thebrazenbeard/model-training`
-ChatGPT identity bootcamp, which does not train neural weights.
+The default **offline, opt-in corpus-preparation** commands do not train neural
+weights, import PyTorch, download models, contact network services, start an
+Ollama session, write an adapter, or change Vera memory/identity state. A
+**separately gated experimental LoRA runner** can update a tiny model only after
+an exact-input operator approval and explicit `--execute`; this source does not
+prove a model was actually trained, evaluated, or installed. Both paths are
+separate from the **public** `thebrazenbeard/model-training` ChatGPT identity
+bootcamp, which does not train neural weights.
 
 Do not place real personal conversations, examples, manifests, generated splits,
 secrets, or model artifacts anywhere in this Git repository or a GitHub issue.
@@ -57,8 +60,9 @@ independently detected**.
 The strict manifest and data-file parser verifies source bytes against the
 declared SHA-256, validates a pinned model/tokenizer/template/GGUF declaration,
 and requires explicit local-only classifications. On POSIX it additionally
-requires owner-only input file permissions and creates new output directories
-and files with owner-only permissions. On Linux it also checks the backing
+requires owner-only input file permissions, an owner-only output parent, and
+creates new output directories and files with owner-only permissions. On Linux
+it also checks the backing
 filesystem for private-POSIX-permission compatibility; WSL-mounted Windows
 drives such as `/mnt/c` (DrvFs/9p/NTFS), network mounts, and unknown backing
 filesystems are refused even if a file *appears* to have mode `0600`. Use a
@@ -84,13 +88,20 @@ receipt and provides no confidentiality or model-safety proof.
 
 `train-plan` computes an offline, read-only, SHA-256-bound preflight. It does
 **not** import PyTorch or load neural weights, and it writes nothing. The
-optional `train` action requires an exact output- and input-bound approval
+optional `train` action requires an exact input-, output-, step-count-, and
+training-recipe-bound approval
 copied from that preflight **plus** `--execute`:
 
 ```bash
-python -m tools.local_training train-plan /private/manifest.json /private/new-adapter --model-dir /private/model-snapshot
+python -m tools.local_training train-plan /private/manifest.json /private/new-adapter --model-dir /private/model-snapshot --steps 1
 python -m tools.local_training train /private/manifest.json /private/new-adapter --model-dir /private/model-snapshot --execute --approval TRAIN_LOCAL_LORA:EXACT_DIGEST_FROM_PREFLIGHT --steps 1
 ```
+
+Changing `--steps` requires a fresh `train-plan` approval. The plan and
+candidate status include the fixed recipe digest and requested optimizer step
+count. Recipe revision must advance when fixed hyperparameters or their
+behavior change; this digest is a source/configuration binding, not proof of a
+particular environment or training result.
 
 **Never run the second command until the base, license, consent, architecture,
 host, hardware and private data are independently qualified.** The approval
