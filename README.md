@@ -43,12 +43,14 @@ The CLI is invoked without a shell. It returns the bounded result to
 effective overlay privacy scopes are checked. An archive-wide audit, live provider
 installation, current-memory write, or execution authority is **not** provided.
 
-The bundled registry currently pins DeepMemoryStorage `f073feb409f71a0fdea7baa9053e54bcf8ed89a0`;
-the separately inspected `main` at `63edbc51fb87c889ab58051d02e18ba2aeca0d24`
-does not match. The transport therefore fails closed on that newer checkout.
+The bundled registry now pins the reviewed DeepMemoryStorage
+`63edbc51fb87c889ab58051d02e18ba2aeca0d24`; the vendored architecture
+binding is synchronized to its exact Git blob. Its retrieval program, result
+schema, and integration contract are unchanged from the previous source pin.
+Any checkout at a different commit, including later `main`, fails closed.
 Its deterministic tests use a synthetic producer at an exact Git commit, not a
 claim of a deployed runtime or a live historical-data retrieval. Operator source
-review and explicit pin/currentness approval are still required before use.
+review and explicit runtime installation/currentness approval remain separate.
 
 Native lifecycle flow is `vera_memory` CAS head â†’ portable recovery checkpoint â†’ validated local control-source cut/currentness candidate â†’ digest-chained lifecycle journal â†’ internal assurance gate â†’ atomic currentness commit â†’ committed journal event. `vera_core.VeraStateDirectory` reopens memory, recovery, currentness, journal, and trust paths from one persistent root, so restart reconstruction does not depend on conversational state. Recovery trust provisioning is user-local/configurable rather than tied to `/etc`, and inter-process registry locking uses SQLite rather than `fcntl`.
 

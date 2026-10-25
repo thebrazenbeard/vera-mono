@@ -12,13 +12,13 @@
       "authority_class": "EVIDENCE_SEARCH_ONLY",
       "source": {
         "repository": "thebrazenbeard/deepmemorystorage",
-        "reviewed_provider_head": "539b5988e0913130427da3d1098d84592d1122cf",
-        "source_merged_commit": "f073feb409f71a0fdea7baa9053e54bcf8ed89a0",
+        "reviewed_provider_head": "63edbc51fb87c889ab58051d02e18ba2aeca0d24",
+        "source_merged_commit": "63edbc51fb87c889ab58051d02e18ba2aeca0d24",
         "source_state": "MERGED_SOURCE",
         "bindings": [
           {
             "path": "architecture/DEEP_MEMORY_ARCHITECTURE_BINDING_V1.json",
-            "blob": "a951cbfad09e2dcc3685a04e47680df16a6edfc9",
+            "blob": "8fc03596e8095ebdf6a787430738512b7b5f85c5",
             "vendored_path": "architecture/integration/vendor/DEEP_MEMORY_ARCHITECTURE_BINDING_V1.json"
           },
           {
