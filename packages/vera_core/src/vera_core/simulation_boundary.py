@@ -7,13 +7,61 @@ Mono's separate qualified effect boundary.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 import copy
 import hashlib
 import json
+import math
 from types import MappingProxyType
 from typing import Any, Mapping
+
+
+_MAX_PATCH_DEPTH = 64
+_MAX_PATCH_NODES = 100_000
+_MAX_PATCH_BYTES = 1_048_576
+
+
+def _json_patch_copy(value: object, *, depth: int = 0,
+                     ancestors: set[int] | None = None,
+                     remaining: list[int] | None = None) -> Any:
+    """Detach exact JSON-like data; never invoke custom repr/copy hooks."""
+    if ancestors is None:
+        ancestors = set()
+    if remaining is None:
+        remaining = [_MAX_PATCH_NODES]
+    remaining[0] -= 1
+    if remaining[0] < 0 or depth > _MAX_PATCH_DEPTH:
+        raise ValueError("patch exceeds bounded JSON-compatible shape")
+
+    if value is None or type(value) in (str, bool):
+        return value
+    if type(value) is int:
+        if value.bit_length() > 4096:
+            raise ValueError("patch contains oversized non-JSON-compatible integer")
+        return value
+    if type(value) is float:
+        if not math.isfinite(value):
+            raise ValueError("patch contains nonfinite non-JSON-compatible number")
+        return value
+    if type(value) not in (dict, MappingProxyType, list):
+        raise TypeError("patch must contain only JSON-compatible values")
+    identity = id(value)
+    if identity in ancestors:
+        raise ValueError("patch contains cyclic non-JSON-compatible values")
+    ancestors.add(identity)
+    try:
+        if type(value) is list:
+            return [_json_patch_copy(item, depth=depth + 1,
+                                     ancestors=ancestors, remaining=remaining)
+                    for item in value]
+        if any(type(key) is not str for key in value):
+            raise TypeError("patch object keys must be JSON-compatible strings")
+        return {key: _json_patch_copy(item, depth=depth + 1,
+                                      ancestors=ancestors, remaining=remaining)
+                for key, item in value.items()}
+    finally:
+        ancestors.remove(identity)
 
 
 class SimulationEffectClass(StrEnum):
@@ -27,6 +75,7 @@ class SimulationMutation:
     effect_class: SimulationEffectClass
     subject_id: str
     patch: Mapping[str, Any]
+    _initial_digest: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         for label, value in (
@@ -37,24 +86,44 @@ class SimulationMutation:
                 raise ValueError(f"{label} must be a non-empty exact string")
         if type(self.effect_class) is not SimulationEffectClass:
             raise TypeError("effect_class must be exact SimulationEffectClass")
-        if not isinstance(self.patch, Mapping):
-            raise TypeError("patch must be a mapping")
-        object.__setattr__(self, "patch", MappingProxyType(dict(self.patch)))
+        if type(self.patch) not in (dict, MappingProxyType):
+            raise TypeError("patch must be a JSON-compatible mapping")
+        # Recursively rebuild the patch to detach caller-owned containers.
+        # Only exact JSON-like primitives are accepted: no custom __str__,
+        # __deepcopy__, object identity, or unserializable state can enter.
+        object.__setattr__(self, "patch", MappingProxyType(_json_patch_copy(self.patch)))
+        object.__setattr__(self, "_initial_digest", self._digest_for(self.patch))
+
+    def _digest_for(self, patch: Mapping[str, Any]) -> str:
+        try:
+            canonical = json.dumps(
+                {
+                    "mutation_id": self.mutation_id,
+                    "effect_class": self.effect_class.value,
+                    "subject_id": self.subject_id,
+                    "patch": dict(patch),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode("utf-8")
+        except (TypeError, ValueError, UnicodeError, RecursionError) as exc:
+            raise ValueError("patch must be UTF-8 JSON-compatible") from exc
+        if len(canonical) > _MAX_PATCH_BYTES:
+            raise ValueError("patch exceeds JSON-compatible byte budget")
+        return hashlib.sha256(canonical).hexdigest()
 
     def request_digest(self) -> str:
-        canonical = json.dumps(
-            {
-                "mutation_id": self.mutation_id,
-                "effect_class": self.effect_class.value,
-                "subject_id": self.subject_id,
-                "patch": self.patch,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-            ensure_ascii=False,
-            default=str,
-        )
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        """The creation-time request fingerprint, not a mutable live view."""
+        return self._initial_digest
+
+    def _admitted_patch_copy(self) -> dict[str, Any]:
+        """Freeze one candidate copy and reject post-construction tampering."""
+        candidate = _json_patch_copy(self.patch)
+        if self._digest_for(candidate) != self._initial_digest:
+            raise ValueError("mutation patch changed after construction")
+        return candidate
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +165,7 @@ class SimulationState:
     def apply(self, mutation: SimulationMutation) -> SimulationReceipt:
         if type(mutation) is not SimulationMutation:
             raise TypeError("mutation must be exact SimulationMutation")
+        patch = mutation._admitted_patch_copy()
         digest = mutation.request_digest()
         prior = self._receipts.get(mutation.mutation_id)
         if prior is not None:
@@ -130,7 +200,7 @@ class SimulationState:
             return receipt
 
         updated = dict(current)
-        updated.update(dict(mutation.patch))
+        updated.update(patch)
         self._subjects[mutation.subject_id] = updated
         self._revision += 1
         receipt = SimulationReceipt(
