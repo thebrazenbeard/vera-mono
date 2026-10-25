@@ -137,6 +137,15 @@ def _parser() -> argparse.ArgumentParser:
     chat.add_argument("--max-tokens", type=int, default=180)
     chat.add_argument("--timeout-seconds", type=int, default=60)
     chat.add_argument("--json", action="store_true", help="emit bounded source and model evidence")
+
+    lab = subparsers.add_parser(
+        "feedback-lab",
+        help=("run a synthetic in-process correction, heldout, explicit approval "
+              "and optional rollback probe; no chat, durable state or model training"),
+    )
+    lab.add_argument("--fixture", required=True, help="explicit synthetic JSON fixture path")
+    lab.add_argument("--approval-ref", help="caller-asserted review reference, not authenticated")
+    lab.add_argument("--rollback-ref", help="distinct caller-asserted rollback reference")
     return parser
 
 
@@ -406,6 +415,13 @@ def main(argv: list[str] | None = None) -> int:
             return _advise(args)
         if args.command == "chat":
             return _chat(args)
+        if args.command == "feedback-lab":
+            from .feedback_lab import evaluate_fixture
+            _write_json(evaluate_fixture(
+                Path(args.fixture), approval_ref=args.approval_ref,
+                rollback_ref=args.rollback_ref,
+            ))
+            return 0
     except (KeyError, OSError, TypeError, ValueError, RuntimeError) as exc:
         parser.exit(2, f"vera-mono: {exc}\n")
     parser.error("unsupported command")
