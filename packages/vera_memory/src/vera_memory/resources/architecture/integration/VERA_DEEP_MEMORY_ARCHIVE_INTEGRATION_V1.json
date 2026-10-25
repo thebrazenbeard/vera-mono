@@ -8,7 +8,7 @@
     "repository": "thebrazenbeard/deepmemorystorage",
     "role": "HISTORICAL_EVIDENCE_PLANE",
     "required_contract_path": "architecture/DEEP_MEMORY_ARCHITECTURE_BINDING_V1.json",
-    "required_contract_blob": "a951cbfad09e2dcc3685a04e47680df16a6edfc9",
+    "required_contract_blob": "8fc03596e8095ebdf6a787430738512b7b5f85c5",
     "required_human_contract_path": "architecture/DEEP_MEMORY_INTEGRATION_CONTRACT_V1.md",
     "required_human_contract_blob": "35f9be1c67d5898724ac85256af8cc9e667039f1",
     "required_result_schema_path": "schema/DEEP_MEMORY_EVIDENCE_RESULT_V1.schema.json",
@@ -18,8 +18,8 @@
     "vendored_human_contract_path": "architecture/integration/vendor/DEEP_MEMORY_INTEGRATION_CONTRACT_V1.md",
     "canonical_retrieval": "UNION_ALL_LEDGER_TRANCHES_WITH_HISTORICAL_CANON_PROVENANCE_AND_CLASSIFICATION_OVERLAYS",
     "authority_class": "EVIDENCE_SEARCH_ONLY",
-    "reviewed_provider_head": "539b5988e0913130427da3d1098d84592d1122cf",
-    "source_merged_commit": "f073feb409f71a0fdea7baa9053e54bcf8ed89a0",
+    "reviewed_provider_head": "63edbc51fb87c889ab58051d02e18ba2aeca0d24",
+    "source_merged_commit": "63edbc51fb87c889ab58051d02e18ba2aeca0d24",
     "source_state": "MERGED_SOURCE"
   },
   "current_memory_plane": {
