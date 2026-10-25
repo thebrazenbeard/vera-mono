@@ -536,5 +536,82 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
             self.store()
 
 
+    def test_reader_lock_cannot_admit_expired_observation(self):
+        s = self.seed()
+        now = [2_000_000]
+        checks = [0]
+        final_clock_checked = threading.Event()
+
+        def clock():
+            checks[0] += 1
+            snapshot = now[0]
+            if checks[0] >= 3:
+                final_clock_checked.set()
+            return snapshot
+
+        s.clock_ms = clock
+        outcomes = []
+        errors = []
+        reader = sqlite3.connect(s.path, timeout=3, isolation_level=None)
+        try:
+            reader.execute("BEGIN")
+            reader.execute("SELECT count(*) FROM need_projection").fetchone()
+
+            def writer():
+                try:
+                    outcomes.append(s.admit(self.observation()))
+                except BaseException as exc:
+                    errors.append(exc)
+
+            thread = threading.Thread(target=writer)
+            thread.start()
+            # Old BEGIN IMMEDIATE allows a reader to outlive the final clock
+            # check and blocks at COMMIT. EXCLUSIVE must wait before checking.
+            final_clock_checked.wait(timeout=0.6)
+            now[0] = 2_100_000
+        finally:
+            reader.rollback()
+            reader.close()
+        thread.join(timeout=7)
+        self.assertFalse(thread.is_alive(), "writer did not finish")
+        self.assertFalse(errors, str(errors))
+        self.assertEqual(len(outcomes), 1)
+        self.assertEqual(outcomes[0].status, "HOLD")
+        self.assertEqual(outcomes[0].goal_credit_reason, "OBSERVATION_NOT_FRESH")
+        self.assertEqual(s.read_need("need:rest").revision, 0)
+        self.assertEqual(s.read_goal("goal:original").status, "ACTIVE")
+        self.assertEqual(s.pending_outbox(), ())
+
+    def test_connect_closes_handle_if_any_setup_pragma_raises(self):
+        from unittest.mock import patch
+
+        s = self.seed()
+        for fail_at in (1, 2, 3):
+            with self.subTest(fail_at=fail_at):
+                class BrokenConnection:
+                    def __init__(self):
+                        self.calls = 0
+                        self.closes = 0
+                        self.row_factory = None
+
+                    def execute(self, sql):
+                        self.calls += 1
+                        if self.calls == fail_at:
+                            raise sqlite3.OperationalError("synthetic setup failure")
+                        return self
+
+                    def fetchone(self):
+                        return ("delete",)
+
+                    def close(self):
+                        self.closes += 1
+
+                conn = BrokenConnection()
+                with patch.object(self.module.sqlite3, "connect", return_value=conn):
+                    with self.assertRaises(sqlite3.OperationalError):
+                        s._connect()
+                self.assertEqual(conn.closes, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
