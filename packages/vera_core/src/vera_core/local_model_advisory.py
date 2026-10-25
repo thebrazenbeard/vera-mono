@@ -42,13 +42,23 @@ class _DeadlineReader(io.RawIOBase):
         super().__init__()
         self._sock = sock
         self._deadline = deadline
+        # Native SocketIO keeps the descriptor alive when http.client closes
+        # HTTP/1.0 / Connection: close after parsing headers but before the
+        # response body is consumed. A direct recv_into wrapper does not.
+        self._raw = sock.makefile("rb", buffering=0)
 
     def readable(self) -> bool:
         return True
 
     def readinto(self, buffer) -> int:
         self._sock.settimeout(_time_remaining(self._deadline))
-        return self._sock.recv_into(buffer)
+        return self._raw.readinto(buffer)
+
+    def close(self) -> None:
+        try:
+            self._raw.close()
+        finally:
+            super().close()
 
 
 class _DeadlineSocket:
@@ -192,6 +202,7 @@ def advise_local_model(
     # http.client uses the numeric loopback address directly: no DNS, proxy,
     # redirect following, browser-origin bridge, or model-supplied tool call.
     connection = HTTPConnection(host, port, timeout=timeout_seconds)
+    response = None
     try:
         connection.request("POST", "/v1/chat/completions", body=encoded, headers=headers)
         response = connection.getresponse()
@@ -201,7 +212,11 @@ def advise_local_model(
     except (OSError, TimeoutError, HTTPException) as exc:
         raise LocalModelError("local inference endpoint unavailable") from exc
     finally:
-        connection.close()
+        try:
+            if response is not None:
+                response.close()
+        finally:
+            connection.close()
     if len(raw) > MAX_RESPONSE_BYTES:
         raise LocalModelError("local inference response exceeds size limit")
     try:
