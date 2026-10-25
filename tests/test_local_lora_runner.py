@@ -10,9 +10,45 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
-from tools.local_training.lora_runner import plan_local_training, train_local_adapter
+from tools.local_training.lora_runner import _require_accelerator, plan_local_training, train_local_adapter
+
+
+class NativeBF16AcceleratorTests(unittest.TestCase):
+    """Synthetic torch boundary: never probes the host GPU or private files."""
+
+    def _fake_torch(self, checker):
+        self.cuda = SimpleNamespace(
+            is_available=Mock(return_value=True),
+            is_bf16_supported=Mock(side_effect=checker),
+            mem_get_info=Mock(return_value=(4 * 1024**3, 5 * 1024**3)),
+            current_device=Mock(return_value=0),
+            get_device_properties=Mock(return_value=SimpleNamespace(name="synthetic")),
+        )
+        return SimpleNamespace(cuda=self.cuda, __version__="synthetic")
+
+    def test_emulated_bf16_only_device_is_held_before_memory_probe(self):
+        fake_torch = self._fake_torch(lambda including_emulation=True: including_emulation)
+        with patch.dict(sys.modules, {"torch": fake_torch}):
+            with self.assertRaisesRegex(ValueError, "BF16"):
+                _require_accelerator()
+        self.cuda.mem_get_info.assert_not_called()
+
+    def test_legacy_bf16_probe_without_native_flag_fails_closed(self):
+        fake_torch = self._fake_torch(lambda: True)
+        with patch.dict(sys.modules, {"torch": fake_torch}):
+            with self.assertRaisesRegex(ValueError, "native BF16"):
+                _require_accelerator()
+        self.cuda.mem_get_info.assert_not_called()
+
+    def test_native_bf16_device_qualifies_with_explicit_native_probe(self):
+        fake_torch = self._fake_torch(lambda including_emulation=True: True)
+        with patch.dict(sys.modules, {"torch": fake_torch}):
+            result = _require_accelerator()
+        self.cuda.is_bf16_supported.assert_called_once_with(including_emulation=False)
+        self.assertEqual(result["vram_free"], 4 * 1024**3)
 
 
 @unittest.skipIf(os.name == "nt", "POSIX owner-only file semantics unavailable on Windows")

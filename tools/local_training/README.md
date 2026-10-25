@@ -167,8 +167,12 @@ separate corpus/training-approval gates; this command does not make an adapter
 or permit weight updates.
 
 The initial execution path accepts **only** the text-only
-`Qwen/Qwen3-0.6B`/`qwen3` family, with CUDA BF16, three GiB of *currently free*
-VRAM, and 1–32 small optimizer steps. It imports Transformers, PEFT and
+`Qwen/Qwen3-0.6B`/`qwen3` family, with CUDA **native hardware BF16**
+(emulated BF16 does not qualify), three GiB of *currently free*
+VRAM, and 1–32 small optimizer steps. The accelerator check explicitly calls
+`torch.cuda.is_bf16_supported(including_emulation=False)`; an older
+incompatible PyTorch signature fails closed rather than silently accepting
+emulation. It imports Transformers, PEFT and
 PyTorch only after the approval and GPU preflight, forces Hugging Face offline
 environment flags before imports, forbids remote code and pickle checkpoint
 loading, and writes an adapter to a new private output folder. Even that path
