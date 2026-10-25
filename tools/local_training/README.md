@@ -86,6 +86,32 @@ receipt and provides no confidentiality or model-safety proof.
 
 ## Experimental text-only LoRA entrypoint (separately gated)
 
+### Read-only local training host preflight
+
+Before preparing any private model or asking for weight-update approval, inspect
+the **actual** local WSL/Linux host from the terminal where the training would
+run. The path must be an existing owner-only directory on a qualified Linux
+filesystem (WSL's internal ext4 can qualify; `/mnt/c`, DrvFs, network shares,
+Git worktrees and native Windows private paths cannot):
+
+```bash
+python -m tools.local_training.train_doctor --output-parent /private/training-outputs
+```
+
+`train-doctor` prints a sanitized JSON receipt with
+`HOST_PREFLIGHT_PASS_NOT_TRAINING_AUTHORIZATION` (exit 0) or `HOST_HOLD`
+(exit 2). It reads only path metadata and Linux mount information, installed
+package versions and current CUDA capability; it does **not** open model or
+sample files, install/download anything, make network calls, train weights or
+create output files. The torch import/CUDA query may initialize CUDA runtime
+state. The check requires Python 3.12+, installed `torch`, `transformers`,
+`peft`, native CUDA BF16 (explicitly excludes emulation) and 3 GiB **currently
+free** VRAM. An API missing native-BF16 capability or a failed GPU query holds.
+Versions are reported as inventory, **not** verified as a compatible or pinned
+dependency lock. No path, username, file content or raw exception appears in
+the receipt. PASS is a technical preflight only, **never** a model, data,
+license, consent, adapter-quality, hardware-load or training authorization.
+
 `train-plan` computes an offline, read-only, SHA-256-bound preflight. It does
 **not** import PyTorch or load neural weights, and it writes nothing. The
 optional `train` action requires an exact input-, output-, step-count-, and
