@@ -283,6 +283,44 @@ class LocalLoRARunnerTests(unittest.TestCase):
         self.assertEqual(marker["optimizer_steps_requested"], 2)
         self.assertEqual(marker["training"]["optimizer_steps"], 2)
 
+    def test_inconsistent_training_step_receipt_cannot_mark_adapter_trained(self):
+        plan = plan_local_training(self.manifest, self.model, self.output, steps=2)
+
+        def fake_training(_model, _encoded, output, _steps):
+            (output / "adapter_model.safetensors").write_bytes(b"synthetic-only")
+            (output / "adapter_config.json").write_bytes(b"{}")
+            return {"optimizer_steps": 0}
+
+        with patch("tools.local_training.lora_runner._require_accelerator", return_value={}):
+            with patch("tools.local_training.lora_runner._encode_training_rows", return_value=(([1, 2], [-100, 2]),)):
+                with patch("tools.local_training.lora_runner._train_model", side_effect=fake_training):
+                    with self.assertRaisesRegex(ValueError, "optimizer steps|optimizer_steps"):
+                        train_local_adapter(self.manifest, self.model, self.output,
+                                            approval=plan.weight_update_approval, execute=True, steps=2)
+        self.assertFalse((self.output / "VERA_ADAPTER_STATUS.json").exists())
+
+    def test_malformed_training_step_receipts_never_create_trained_marker(self):
+        for name, receipt in (
+            ("missing", {}), ("boolean", {"optimizer_steps": True}),
+            ("string", {"optimizer_steps": "1"}), ("nondict", [1]),
+        ):
+            with self.subTest(receipt=name):
+                output = self.root / f"adapter-{name}"
+                plan = plan_local_training(self.manifest, self.model, output)
+
+                def fake_training(_model, _encoded, target, _steps):
+                    (target / "adapter_model.safetensors").write_bytes(b"synthetic-only")
+                    (target / "adapter_config.json").write_bytes(b"{}")
+                    return receipt
+
+                with patch("tools.local_training.lora_runner._require_accelerator", return_value={}):
+                    with patch("tools.local_training.lora_runner._encode_training_rows", return_value=(([1, 2], [-100, 2]),)):
+                        with patch("tools.local_training.lora_runner._train_model", side_effect=fake_training):
+                            with self.assertRaisesRegex(ValueError, "optimizer_steps"):
+                                train_local_adapter(self.manifest, self.model, output,
+                                                    approval=plan.weight_update_approval, execute=True)
+                self.assertFalse((output / "VERA_ADAPTER_STATUS.json").exists())
+
     def test_alignment_failure_is_prevalidated_without_creating_output(self):
         plan = plan_local_training(self.manifest, self.model, self.output)
         with patch.dict(os.environ, {}, clear=True):

@@ -214,7 +214,10 @@ The selected community GGUF, including a reconversion from quantized weights,
 is an *inference* artifact, not an original trainable safetensors checkpoint.
 
 Outputs remain **TRAINED_ADAPTER_UNQUALIFIED_UNEVALUATED_NOT_ACTIVATED** even if an actual
-local run later succeeds. The held-out split is excluded from optimizer steps;
+local run later succeeds. The marker is refused unless the training routine
+reports an integer optimizer-step count exactly matching the approved plan;
+partial or malformed receipts leave no trained-status marker and need deliberate
+operator review. The held-out split is excluded from optimizer steps;
 no baseline-versus-adapter evaluation, dataset governance attestation,
 hardware qualification, installation, or Vera identity/memory promotion is
 automatically implied. On native Windows the private ACL hold still refuses
