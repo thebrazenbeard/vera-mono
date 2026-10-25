@@ -132,6 +132,12 @@ class MemoryLedger:
                     superseded_by TEXT,
                     record_digest TEXT NOT NULL UNIQUE
                 );
+                -- Resolve successor relationships without parsing every unrelated
+                -- record on read. The partial index also tolerates an unrelated
+                -- malformed legacy payload during startup/migration.
+                CREATE INDEX IF NOT EXISTS idx_vera_memory_supersedes_v1
+                ON records(json_extract(payload_json, '$.supersedes'))
+                WHERE json_valid(payload_json);
                 CREATE TABLE IF NOT EXISTS operations (
                     operation_id TEXT PRIMARY KEY,
                     request_digest TEXT NOT NULL,
@@ -273,7 +279,8 @@ class MemoryLedger:
             successors = db.execute(
                 """
                 SELECT payload_json,record_digest FROM records
-                WHERE json_extract(payload_json, '$.supersedes')=?
+                WHERE json_valid(payload_json)
+                  AND json_extract(payload_json, '$.supersedes')=?
                 """, (record_id,),
             ).fetchall()
             if len(successors) > 1:

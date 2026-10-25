@@ -1,4 +1,53 @@
+import sqlite3
+
 from vera_memory import AdmissionRequest, MemoryClass, MemoryLedger, StaleMemoryHead
+
+
+def _admit_test_record(ledger: MemoryLedger, record_id: str) -> None:
+    ledger.admit(AdmissionRequest(
+        record_id=record_id,
+        text=f"text-{record_id}",
+        memory_class=MemoryClass.WORKING_PROJECT,
+        source_actor="test",
+        authority_ref="authority:test",
+        privacy_ref="privacy:test",
+        provenance_refs=("source:test",),
+        operation_id=f"op-{record_id}",
+        project_id="vera-mono",
+        governed_identity_id="vera",
+    ), expected_head=ledger.current_head)
+
+
+def test_unrelated_malformed_payload_does_not_poison_valid_record_read_or_migration(tmp_path):
+    database = tmp_path / "memory.sqlite"
+    ledger = MemoryLedger(database, project_id="vera-mono", identity_id="vera")
+    _admit_test_record(ledger, "good")
+    _admit_test_record(ledger, "unrelated")
+
+    # Simulate upgrading an existing ledger with no successor expression index.
+    with sqlite3.connect(database) as db:
+        db.execute("DROP INDEX IF EXISTS idx_vera_memory_supersedes_v1")
+        db.execute("UPDATE records SET payload_json=? WHERE record_id=?",
+                   ("{invalid", "unrelated"))
+
+    restored = MemoryLedger(database, project_id="vera-mono", identity_id="vera")
+    assert restored.read("good").text == "text-good"
+
+
+def test_successor_lookup_uses_partial_index_not_full_ledger_json_scan(tmp_path):
+    database = tmp_path / "memory.sqlite"
+    ledger = MemoryLedger(database, project_id="vera-mono", identity_id="vera")
+    _admit_test_record(ledger, "good")
+
+    with sqlite3.connect(database) as db:
+        plan = db.execute(
+            """EXPLAIN QUERY PLAN SELECT payload_json,record_digest FROM records
+               WHERE json_valid(payload_json)
+                 AND json_extract(payload_json, '$.supersedes')=?""",
+            ("good",),
+        ).fetchall()
+    assert any("USING INDEX idx_vera_memory_supersedes_v1" in str(row[-1])
+               for row in plan), plan
 
 
 def test_memory_ledger_cas_and_supersession(tmp_path):
