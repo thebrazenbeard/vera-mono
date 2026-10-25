@@ -83,7 +83,8 @@ Independent falsification is deliberately different from internal assurance. Ver
 
 `vera_core.external_rezon_collective.LoopbackCollectiveObserver` is an opt-in,
 **read-only** adapter for an independently running Rezon collective gateway. It
-uses an operator-supplied admin token to fetch only the exact episode's state
+uses the separately configured, operator-supplied **read-only state token**
+(never Rezon's write-capable admin or worker token) to fetch only the episode's state
 from numeric `127.0.0.1`, with bounded time and response size. The caller must
 independently supply the expected episode ID, ordered worker roster, and SHA-256
 of the original prompt. The adapter checks claim structure, worker answer and
@@ -102,6 +103,11 @@ external gateway as a separate process; do not combine both package source trees
 on a single `PYTHONPATH`. Deterministic contract checks are in
 `tests/test_external_rezon_collective.py`; deployed worker/process independence
 still requires separately qualified host evidence.
+
+This adapter requires the complementary Rezon gateway `read_token` role
+(`REZON_COLLECTIVE_STATE_READ_TOKEN` in Rezon's CLI). Older gateways without
+that opt-in role reject the credential; do not work around that by substituting
+an administrator bearer.
 
 ## PowerShell console
 

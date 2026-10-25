@@ -8,15 +8,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
-from http.client import HTTPConnection, HTTPException
 import json
 import re
+import socket
+from time import monotonic
 
 
 _EPISODE = re.compile(r"collective-[0-9a-f]{32}\Z")
 _AGENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\Z")
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
 _MAX_BODY = 1_000_000
+_MAX_HEADERS = 16_384
 
 
 class CollectiveObservationError(ValueError):
@@ -43,7 +45,20 @@ def _canonical(value: object) -> str:
 
 
 def _digest(value: object) -> str:
-    return sha256(_canonical(value).encode("utf-8")).hexdigest()
+    try:
+        return sha256(_canonical(value).encode("utf-8")).hexdigest()
+    except UnicodeError as exc:
+        raise CollectiveObservationError("invalid Unicode in collective source claims") from exc
+
+
+def _valid_text(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        value.encode("utf-8", errors="strict")
+    except UnicodeError:
+        return False
+    return True
 
 
 def _agents(value: object) -> tuple[str, ...]:
@@ -71,13 +86,13 @@ def _contributions(value: object, *, kind: str, agents: tuple[str, ...],
             item["id"] != f"{kind}:{agent}"
         ):
             raise CollectiveObservationError("invalid or duplicated contribution identity")
-        if not isinstance(item["content"], str) or not item["content"].strip() or (
+        if not _valid_text(item["content"]) or not item["content"].strip() or (
             len(item["content"]) > 32_768
         ):
             raise CollectiveObservationError("invalid contribution content")
         refs, targets = item["source_refs"], item["target_ids"]
         if not all(isinstance(v, list) and len(v) <= 32
-                   and all(isinstance(s, str) and 0 < len(s) <= 1024 for s in v)
+                   and all(_valid_text(s) and 0 < len(s) <= 1024 for s in v)
                    and len(v) == len(set(v))
                    for v in (refs, targets)):
             raise CollectiveObservationError("invalid source references or targets")
@@ -100,9 +115,9 @@ def _decode(snapshot: object, *, episode_id: str, expected_agents: tuple[str, ..
     if not isinstance(snapshot, dict) or snapshot.get("episode_id") != episode_id:
         raise CollectiveObservationError("cross-episode or invalid snapshot")
     prompt = snapshot.get("prompt")
-    if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 16_384 or (
-        sha256(prompt.encode("utf-8")).hexdigest() != expected_prompt_sha256
-    ):
+    if not _valid_text(prompt) or not prompt.strip() or len(prompt) > 16_384:
+        raise CollectiveObservationError("prompt provenance mismatch")
+    if sha256(prompt.encode("utf-8")).hexdigest() != expected_prompt_sha256:
         raise CollectiveObservationError("prompt provenance mismatch")
     agents = _agents(snapshot.get("agents"))
     if agents != expected_agents:
@@ -142,7 +157,7 @@ def _decode(snapshot: object, *, episode_id: str, expected_agents: tuple[str, ..
             f"synthesis:{item['input_digest']}:{item['integrator_id']}"
         ) or item["is_current"] is not (item["input_digest"] == digest) or (
             item["status"] != "unverified_model_synthesis"
-        ) or not isinstance(item["content"], str) or not item["content"].strip():
+        ) or not _valid_text(item["content"]) or not item["content"].strip():
             raise CollectiveObservationError("invalid or promoted synthesis")
         ids.append(item["synthesis_id"])
     if len(ids) != len(set(ids)) or (missing and any(item["is_current"] for item in syntheses)):
@@ -154,19 +169,19 @@ def _decode(snapshot: object, *, episode_id: str, expected_agents: tuple[str, ..
 
 
 class LoopbackCollectiveObserver:
-    """Non-mutating origin client; `GET /state` only, no retries or redirects."""
+    """Non-mutating origin client; one total elapsed deadline, no redirects."""
 
-    def __init__(self, *, port: int, admin_token: str, timeout: float = 3.0) -> None:
+    def __init__(self, *, port: int, read_token: str, timeout: float = 3.0) -> None:
         if type(port) is not int or not 1 <= port <= 65535 or (
-            not isinstance(admin_token, str) or not 16 <= len(admin_token) <= 256
-            or not admin_token.isascii() or not admin_token.isprintable()
-            or any(ch.isspace() for ch in admin_token)
+            not isinstance(read_token, str) or not 16 <= len(read_token) <= 256
+            or not read_token.isascii() or not read_token.isprintable()
+            or any(ch.isspace() for ch in read_token)
         ) or isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or (
             not 0 < timeout <= 20
         ):
             raise ValueError("bounded loopback port, token and timeout required")
         self._port = port
-        self._token = admin_token
+        self._token = read_token
         self._timeout = timeout
 
     def observe(self, episode_id: str, *, expected_agents: tuple[str, ...],
@@ -178,22 +193,71 @@ class LoopbackCollectiveObserver:
             or not _SHA.fullmatch(expected_prompt_sha256)
         ):
             raise CollectiveObservationError("exact episode and source expectations required")
-        connection = HTTPConnection("127.0.0.1", self._port, timeout=self._timeout)
+        # `http.client` socket timeout is per blocking read. A peer could drip
+        # arbitrarily small chunks forever. We require one monotonic wall-clock
+        # budget for connect, send, headers, and entire bounded body.
+        deadline = monotonic() + self._timeout
+
+        def remaining() -> float:
+            budget = deadline - monotonic()
+            if budget <= 0:
+                raise CollectiveObservationError("collective observation deadline exceeded")
+            return budget
+
+        request = (
+            f"GET /v1/episodes/{episode_id}/state HTTP/1.1\r\n"
+            f"Host: 127.0.0.1:{self._port}\r\n"
+            f"Authorization: Bearer {self._token}\r\n"
+            "Accept: application/json\r\n"
+            "Connection: close\r\n\r\n"
+        ).encode("ascii")
         try:
-            connection.request(
-                "GET", f"/v1/episodes/{episode_id}/state",
-                headers={"Authorization": f"Bearer {self._token}", "Accept": "application/json"},
-            )
-            response = connection.getresponse()
-            if response.status != 200 or response.getheader("Content-Type", "").split(";")[0] != "application/json":
-                raise CollectiveObservationError("unauthorized or unavailable collective state")
-            body = response.read(_MAX_BODY + 1)
-            if len(body) > _MAX_BODY:
-                raise CollectiveObservationError("collective response too large")
+            with socket.create_connection(("127.0.0.1", self._port), timeout=remaining()) as peer:
+                peer.settimeout(remaining())
+                peer.sendall(request)
+                pending = bytearray()
+                while b"\r\n\r\n" not in pending:
+                    if len(pending) > _MAX_HEADERS:
+                        raise CollectiveObservationError("collective headers too large")
+                    peer.settimeout(remaining())
+                    block = peer.recv(4096)
+                    if not block:
+                        raise CollectiveObservationError("incomplete collective headers")
+                    pending.extend(block)
+                header_bytes, _, initial_body = pending.partition(b"\r\n\r\n")
+                if len(header_bytes) > _MAX_HEADERS:
+                    raise CollectiveObservationError("collective headers too large")
+                lines = header_bytes.decode("ascii").split("\r\n")
+                if not re.fullmatch(r"HTTP/1\.[01] 200(?: [^\r\n]*)?", lines[0]):
+                    raise CollectiveObservationError("unauthorized or unavailable collective state")
+                headers: dict[str, str] = {}
+                for line in lines[1:]:
+                    if ":" not in line:
+                        raise CollectiveObservationError("invalid collective header")
+                    key, val = line.split(":", 1)
+                    key = key.strip().lower()
+                    if not re.fullmatch(r"[a-z0-9-]+", key) or key in headers:
+                        raise CollectiveObservationError("duplicate or invalid collective header")
+                    headers[key] = val.strip()
+                if headers.get("content-type", "").split(";", 1)[0] != "application/json" or (
+                    not re.fullmatch(r"[0-9]+", headers.get("content-length", ""))
+                ) or "transfer-encoding" in headers:
+                    raise CollectiveObservationError("invalid collective response framing")
+                length = int(headers["content-length"])
+                if length > _MAX_BODY or len(initial_body) > length:
+                    raise CollectiveObservationError("collective response too large or malformed")
+                body = bytearray(initial_body)
+                while len(body) < length:
+                    peer.settimeout(remaining())
+                    block = peer.recv(min(4096, length - len(body)))
+                    if not block:
+                        raise CollectiveObservationError("incomplete collective response")
+                    body.extend(block)
+                remaining()  # A last byte received at/after expiry is not success.
             snapshot = json.loads(body)
-        except (OSError, HTTPException, TimeoutError, UnicodeError, ValueError, RecursionError) as exc:
+        except CollectiveObservationError:
+            raise
+        except (OSError, TimeoutError, UnicodeError, ValueError, RecursionError) as exc:
             raise CollectiveObservationError("collective observation unavailable") from exc
-        finally:
-            connection.close()
         return _decode(snapshot, episode_id=episode_id, expected_agents=expected_agents,
                        expected_prompt_sha256=expected_prompt_sha256)

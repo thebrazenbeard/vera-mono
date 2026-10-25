@@ -15,7 +15,7 @@ from vera_core.external_rezon_collective import (
 
 
 EPISODE = "collective-" + "a" * 32
-TOKEN = "a-strong-admin-token-for-loopback"
+TOKEN = "a-strong-read-only-token-for-loopback"
 PROMPT = "Assess the unverified claim"
 PROMPT_SHA = sha256(PROMPT.encode()).hexdigest()
 AGENTS = ("alice", "bob")
@@ -62,43 +62,74 @@ def snapshot(*, complete=True, with_review=False, with_synthesis=False):
 
 
 class FakeResponse:
-    def __init__(self, body, status=200, media_type="application/json"):
+    def __init__(self, body, status=200, media_type="application/json", headers=None):
         self.status = status
         self.body = json.dumps(body).encode()
         self.media_type = media_type
+        self.headers = headers or {}
 
-    def getheader(self, name, default=None):
-        return self.media_type if name == "Content-Type" else default
+    def wire(self):
+        fields = {"Content-Type": self.media_type, "Content-Length": str(len(self.body)),
+                  "Connection": "close", **self.headers}
+        return (f"HTTP/1.1 {self.status} response\r\n" +
+                "".join(f"{key}: {val}\r\n" for key, val in fields.items()) +
+                "\r\n").encode() + self.body
 
-    def read(self, limit):
-        return self.body[:limit]
 
-
-class FakeConnection:
+class FakeSocket:
     response = FakeResponse(snapshot())
     calls = []
 
-    def __init__(self, host, port, timeout):
-        self.host, self.port, self.timeout = host, port, timeout
+    @classmethod
+    def create_connection(cls, address, *, timeout):
+        cls.calls.append((address, timeout))
+        return cls()
 
-    def request(self, method, route, headers):
-        self.calls.append((self.host, self.port, method, route, headers))
+    def __init__(self):
+        self.wire = self.response.wire()
 
-    def getresponse(self):
-        return self.response
+    def __enter__(self):
+        return self
 
-    def close(self):
+    def __exit__(self, *_):
         pass
+
+    def settimeout(self, value):
+        self.timeout = value
+
+    def sendall(self, data):
+        self.calls.append(data)
+
+    def recv(self, limit):
+        value, self.wire = self.wire[:limit], self.wire[limit:]
+        return value
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 10.0
+
+    def monotonic(self):
+        return self.now
+
+
+class DripSocket(FakeSocket):
+    clock = FakeClock()
+
+    def recv(self, limit):
+        self.clock.now += 0.49
+        return super().recv(1)
 
 
 class LoopbackCollectiveObserverTests(unittest.TestCase):
     def setUp(self):
-        FakeConnection.calls = []
-        FakeConnection.response = FakeResponse(snapshot())
-        self.patch = patch("vera_core.external_rezon_collective.HTTPConnection", FakeConnection)
+        FakeSocket.calls = []
+        FakeSocket.response = FakeResponse(snapshot())
+        self.patch = patch("vera_core.external_rezon_collective.socket.create_connection",
+                           FakeSocket.create_connection)
         self.patch.start()
         self.addCleanup(self.patch.stop)
-        self.observer = LoopbackCollectiveObserver(port=8899, admin_token=TOKEN)
+        self.observer = LoopbackCollectiveObserver(port=8899, read_token=TOKEN)
 
     def observe(self):
         return self.observer.observe(
@@ -107,7 +138,7 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
         )
 
     def test_one_worker_missing_remains_unknown_not_consensus(self):
-        FakeConnection.response = FakeResponse(snapshot(complete=False))
+        FakeSocket.response = FakeResponse(snapshot(complete=False))
         result = self.observe()
         self.assertEqual(result.state, "INCOMPLETE_UNKNOWN")
         self.assertEqual(result.missing_agents, ("bob",))
@@ -115,7 +146,7 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
         self.assertEqual(result.evidence_status, "UNVERIFIED_GATEWAY_CLAIM")
 
     def test_two_worker_answers_review_and_synthesis_remain_unverified(self):
-        FakeConnection.response = FakeResponse(
+        FakeSocket.response = FakeResponse(
             snapshot(complete=True, with_review=True, with_synthesis=True)
         )
         result = self.observe()
@@ -124,10 +155,10 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
         self.assertEqual(result.review_ids, ("review:alice",))
         self.assertEqual(len(result.synthesis_ids), 1)
         self.assertFalse(result.execution_authorized)
-        self.assertEqual(FakeConnection.calls[0][:4], (
-            "127.0.0.1", 8899, "GET", f"/v1/episodes/{EPISODE}/state"
-        ))
-        self.assertEqual(FakeConnection.calls[0][4]["Authorization"], f"Bearer {TOKEN}")
+        self.assertEqual(FakeSocket.calls[0][0], ("127.0.0.1", 8899))
+        self.assertIn(f"GET /v1/episodes/{EPISODE}/state HTTP/1.1".encode(),
+                      FakeSocket.calls[1])
+        self.assertIn(f"Authorization: Bearer {TOKEN}".encode(), FakeSocket.calls[1])
 
     def test_cross_episode_and_roster_claims_are_rejected(self):
         for mutation in (
@@ -138,7 +169,7 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
             with self.subTest(mutation=mutation):
                 state = snapshot()
                 mutation(state)
-                FakeConnection.response = FakeResponse(state)
+                FakeSocket.response = FakeResponse(state)
                 with self.assertRaises(CollectiveObservationError):
                     self.observe()
 
@@ -154,14 +185,14 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
             with self.subTest(mutation=mutation):
                 state = snapshot(complete=True)
                 mutation(state)
-                FakeConnection.response = FakeResponse(state)
+                FakeSocket.response = FakeResponse(state)
                 with self.assertRaises(CollectiveObservationError):
                     self.observe()
 
     def test_failed_and_redirected_authentication_never_get_promoted(self):
         for status in (302, 401, 403, 503):
             with self.subTest(status=status):
-                FakeConnection.response = FakeResponse(snapshot(), status=status)
+                FakeSocket.response = FakeResponse(snapshot(), status=status)
                 with self.assertRaises(CollectiveObservationError):
                     self.observe()
 
@@ -169,9 +200,9 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
         for port in (0, 65536, True, "8000"):
             with self.subTest(port=port):
                 with self.assertRaises(ValueError):
-                    LoopbackCollectiveObserver(port=port, admin_token=TOKEN)
+                    LoopbackCollectiveObserver(port=port, read_token=TOKEN)
         with self.assertRaises(ValueError):
-            LoopbackCollectiveObserver(port=8000, admin_token="short")
+            LoopbackCollectiveObserver(port=8000, read_token="short")
         with self.assertRaises(CollectiveObservationError):
             self.observer.observe("../../other", expected_agents=AGENTS,
                                   expected_prompt_sha256=PROMPT_SHA)
@@ -179,9 +210,47 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
     def test_malformed_untrusted_refs_fail_as_controlled_error(self):
         state = snapshot()
         state["answers"][0]["source_refs"] = [["unhashable"]]
-        FakeConnection.response = FakeResponse(state)
+        FakeSocket.response = FakeResponse(state)
         with self.assertRaises(CollectiveObservationError):
             self.observe()
+
+    def test_drip_feed_exceeding_total_deadline_is_rejected(self):
+        """Each byte arrives under the per-recv timeout; total time still fails."""
+        clock = FakeClock()
+        DripSocket.clock = clock
+        DripSocket.response = FakeResponse(snapshot())
+        with patch("vera_core.external_rezon_collective.socket.create_connection",
+                   DripSocket.create_connection), patch(
+                   "vera_core.external_rezon_collective.monotonic", clock.monotonic):
+            watcher = LoopbackCollectiveObserver(port=8899, read_token=TOKEN,
+                                                 timeout=1.0)
+            with self.assertRaisesRegex(CollectiveObservationError,
+                                        "deadline exceeded"):
+                watcher.observe(EPISODE, expected_agents=AGENTS,
+                                expected_prompt_sha256=PROMPT_SHA)
+        self.assertGreater(clock.now - 10.0, 1.0)
+
+    def test_duplicate_header_and_bad_framing_fail_closed(self):
+        for headers in ({"Transfer-Encoding": "chunked"},
+                        {"Content-Length": "999999999999999"}):
+            with self.subTest(headers=headers):
+                FakeSocket.response = FakeResponse(snapshot(), headers=headers)
+                with self.assertRaises(CollectiveObservationError):
+                    self.observe()
+
+    def test_escaped_lone_surrogate_claims_are_controlled_errors(self):
+        for mutate in (
+            lambda state: state.update(prompt="bad\ud800prompt"),
+            lambda state: state["answers"][0].update(content="bad\ud800answer"),
+            lambda state: state["answers"][0].update(source_refs=["bad\ud800ref"]),
+            lambda state: state["syntheses"][0].update(content="bad\ud800synthesis"),
+        ):
+            with self.subTest(mutate=mutate):
+                state = snapshot(with_synthesis=True)
+                mutate(state)
+                FakeSocket.response = FakeResponse(state)
+                with self.assertRaises(CollectiveObservationError):
+                    self.observe()
 
 
 if __name__ == "__main__":
