@@ -36,6 +36,13 @@ def test_powershell_default_console_does_not_select_or_start_a_model():
     assert "if ($chat)" in text
 
 
+def test_chat_requires_existing_directory_before_virtual_environment():
+    launcher=(ROOT / "vera.ps1").read_text(encoding="utf-8")
+    guard="Test-Path -LiteralPath $StateRoot -PathType Container"
+    assert guard in launcher
+    assert launcher.index(guard) < launcher.index("if (-not (Test-Path $VenvPython))")
+
+
 def test_powershell_chat_requires_explicit_all_binding_and_model_inputs():
     text = (ROOT / "vera.ps1").read_text(encoding="utf-8")
     for option in ("$Chat", "$Endpoint", "$Model", "$StateRoot", "$ProjectId", "$IdentityId"):
@@ -83,6 +90,41 @@ def test_powershell_chat_preflight_fails_before_installing_or_executing_argument
     assert result.returncode != 0
     assert "Explicit -Endpoint is required with -Chat" in (result.stderr + result.stdout)
     assert not canary_path.exists()
+
+
+@pytest.mark.skipif(
+    not (shutil.which("pwsh") or shutil.which("powershell")),
+    reason="PowerShell is not installed on this runner",
+)
+def test_local_chat_rejects_missing_state_root_before_invoking_environment(tmp_path):
+    """Explicit chat requires an existing state directory before even checking the venv."""
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    temp_repo = tmp_path / "staged-launcher"
+    temp_repo.mkdir()
+    shutil.copy2(ROOT / "vera.ps1", temp_repo / "vera.ps1")
+    # Preinstall inert executable stubs so the *old* launcher would reach chat
+    # immediately rather than downloading dependencies or making a new venv.
+    # cmd.exe invoked as "chat" fails locally, without model/network effects.
+    import os
+    scripts = temp_repo / ".venv" / "Scripts"
+    scripts.mkdir(parents=True)
+    for target in ("python.exe", "vera-mono.exe"):
+        shutil.copy2(os.environ["COMSPEC"], scripts / target)
+    absent = tmp_path / "does-not-exist"
+    result = subprocess.run(
+        [
+            powershell, "-NoProfile", "-NonInteractive", "-File",
+            str(temp_repo / "vera.ps1"), "-Chat",
+            "-StateRoot", str(absent), "-ProjectId", "test-project",
+            "-IdentityId", "test-identity",
+            "-Endpoint", "http://127.0.0.1:11434/v1",
+            "-Model", "gemma3:1b",
+        ],
+        capture_output=True, text=True, timeout=15, check=False,
+    )
+    assert result.returncode != 0
+    assert "must name an existing directory" in (result.stdout + result.stderr)
+    assert not absent.exists()
 
 
 @pytest.mark.skipif(

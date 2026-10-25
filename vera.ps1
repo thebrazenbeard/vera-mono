@@ -39,6 +39,11 @@ if ($Chat) {
     if ($null -ne $ConsoleArgs -and $ConsoleArgs.Count -gt 0) {
         throw "-Chat is interactive and does not accept console arguments."
     }
+    # This is a read-only filesystem preflight. Python owns lifecycle/identity
+    # reconstruction; a caller-supplied project/identity is not authenticated here.
+    if (-not (Test-Path -LiteralPath $StateRoot -PathType Container)) {
+        throw "Chat -StateRoot must name an existing directory; no state root is created."
+    }
 }
 else {
     foreach ($Name in @("Endpoint", "Model", "ApiKeyEnv")) {

@@ -194,8 +194,11 @@ into a model request:
 
 `-Chat` delegates to the separate `vera-mono chat --interactive` boundary;
 the normal `.\vera.ps1` call still opens the **model-free semantic shell**.
-When `-Chat` is selected, missing state/endpoint/model values and shell-only
-arguments fail before environment setup. Endpoint and model values pass as
+When `-Chat` is selected, missing values, a nonexistent
+`-StateRoot` directory, and shell-only arguments fail before environment
+setup. The launcher checks directory existence only, not proof of a
+qualified runtime or authenticated project/identity; those are
+caller-provided and Python reconstructs the bounded lifecycle separately.
 literal process arguments (not evaluated shell commands), and the Python chat
 boundary enforces exact numeric loopback, rejects tool calls, and makes no
 memory admission. Chat remains **stateless and unverified**; each turn has no
