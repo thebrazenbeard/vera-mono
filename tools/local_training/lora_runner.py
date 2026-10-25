@@ -149,8 +149,14 @@ def plan_local_training(manifest_path: Path, model_dir: Path, output_dir: Path, 
 def _require_accelerator() -> dict:
     import torch
 
-    if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
-        raise ValueError("CUDA GPU with BF16 support required; no CPU training fallback")
+    if not torch.cuda.is_available():
+        raise ValueError("CUDA GPU with native BF16 support required; no CPU training fallback")
+    try:
+        native_bf16 = torch.cuda.is_bf16_supported(including_emulation=False)
+    except TypeError as exc:
+        raise ValueError("cannot qualify native BF16 with this PyTorch CUDA probe") from exc
+    if not native_bf16:
+        raise ValueError("CUDA GPU with native BF16 support required; no emulation or CPU fallback")
     free, total = torch.cuda.mem_get_info()
     if free < 3 * 1024**3:
         raise ValueError("at least 3 GiB actually free VRAM required even for tiny-model experiment")
