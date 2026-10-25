@@ -4,6 +4,8 @@ param(
 
     [switch]$Chat,
 
+    [int]$EphemeralHistoryTurns,
+
     [string]$Endpoint,
 
     [string]$Model,
@@ -30,6 +32,10 @@ $VeraExe = Join-Path $VenvRoot "Scripts\vera-mono.exe"
 # The model-free semantic shell stays the default. Chat always requires a
 # deliberate, existing state binding and an explicitly selected local model.
 if ($Chat) {
+    if ($PSBoundParameters.ContainsKey("EphemeralHistoryTurns") -and
+        ($EphemeralHistoryTurns -lt 0 -or $EphemeralHistoryTurns -gt 8)) {
+        throw "-EphemeralHistoryTurns must be within 0..8."
+    }
     foreach ($Name in @("StateRoot", "ProjectId", "IdentityId", "Endpoint", "Model")) {
         if (-not $PSBoundParameters.ContainsKey($Name) -or
             [string]::IsNullOrWhiteSpace((Get-Variable -Name $Name -ValueOnly))) {
@@ -47,7 +53,7 @@ if ($Chat) {
     }
 }
 else {
-    foreach ($Name in @("Endpoint", "Model", "ApiKeyEnv")) {
+    foreach ($Name in @("Endpoint", "Model", "ApiKeyEnv", "EphemeralHistoryTurns")) {
         if ($PSBoundParameters.ContainsKey($Name)) {
             throw "-$Name requires explicit -Chat."
         }
@@ -114,7 +120,16 @@ if ($Chat) {
         $ChatArgs += "--api-key-env"
         $ChatArgs += $ApiKeyEnv
     }
-    Write-Host "Opening unverified local chat (stateless; no tools or memory admission)."
+    if ($PSBoundParameters.ContainsKey("EphemeralHistoryTurns")) {
+        $ChatArgs += "--ephemeral-history-turns"
+        $ChatArgs += $EphemeralHistoryTurns
+    }
+    if ($EphemeralHistoryTurns -gt 0) {
+        Write-Host "Opening unverified local chat (bounded in-process context; no durable history, tools or memory admission)."
+    }
+    else {
+        Write-Host "Opening unverified local chat (stateless; no tools or memory admission)."
+    }
     & $VeraExe chat @ChatArgs
     exit $LASTEXITCODE
 }
