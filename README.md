@@ -261,6 +261,11 @@ select a model, start Ollama, modify `VeraMonoPilot`, configure OS ACLs, authori
 an external effect, or turn generated text into trusted instructions. The
 semantic PowerShell console above remains model-free by default.
 
+The transport also re-reads the selected tag's registry digest after generation
+and refuses to return a candidate if the reported identity changed mid-call.
+This is a consistency fence, **not** an atomic loaded-weight attestation: a
+dishonest registry or change-and-change-back sequence remains outside its proof.
+
 Synthetic loopback and governed-provider integration checks are in
 `tests/test_local_ollama_provider_transport_unittest.py`. A production route
 requires a separately controlled selected process identity, actual direct-route
