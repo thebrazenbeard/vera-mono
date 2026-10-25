@@ -26,7 +26,8 @@ It runs offline and reads only privately stored, normalized JSON candidates
 of the exact form `{"messages":[{"role":"user","content":"..."},
 {"role":"assistant","content":"..."}]}`. It checks raw and normalized
 artifact SHA-256 bindings, record status, normalized/ready receipt digests,
-selected example/group identities, and duplicate content. Source groups must
+normalization replay, reconstructed Ingest source identity, selected
+example/group identities, and duplicate content. Source groups must
 truthfully identify related examples; no semantic near-duplicate detector exists.
 
 The private selection is UTF-8 JSONL, one record per candidate:
