@@ -180,6 +180,29 @@ Use `-Refresh` to reinstall the current checkout into the repository-local envir
 .\vera.ps1 -Refresh ":identity"
 ```
 
+For **explicit, opt-in local-model chat** from the same Windows launcher, provide
+all five bindings and the existing loopback model endpoint. The launcher does
+not choose or install a model, create a state identity, start Ollama, change
+workstation permissions, or automatically turn an unrecognized console phrase
+into a model request:
+
+```powershell
+.\vera.ps1 -Chat -StateRoot "C:\path\to\existing-state" `
+  -ProjectId "<project-id>" -IdentityId "<identity-id>" `
+  -Endpoint "http://127.0.0.1:11434/v1" -Model "gemma3:1b"
+```
+
+`-Chat` delegates to the separate `vera-mono chat --interactive` boundary;
+the normal `.\vera.ps1` call still opens the **model-free semantic shell**.
+When `-Chat` is selected, missing state/endpoint/model values and shell-only
+arguments fail before environment setup. Endpoint and model values pass as
+literal process arguments (not evaluated shell commands), and the Python chat
+boundary enforces exact numeric loopback, rejects tool calls, and makes no
+memory admission. Chat remains **stateless and unverified**; each turn has no
+previous dialogue context and cannot exercise Vera's provider, Bus, PC, or
+protected-effect permissions. For an explicitly configured local API key, use
+`-ApiKeyEnv VAR_NAME` with the secret stored only in the user's environment.
+
 Without state arguments the console is `SOURCE_ONLY`. To bind the PowerShell launcher to an existing `VeraStateDirectory`, use all three native PowerShell parameters together:
 
 ```powershell

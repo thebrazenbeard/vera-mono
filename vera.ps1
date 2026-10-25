@@ -2,6 +2,14 @@
 param(
     [switch]$Refresh,
 
+    [switch]$Chat,
+
+    [string]$Endpoint,
+
+    [string]$Model,
+
+    [string]$ApiKeyEnv,
+
     [string]$StateRoot,
 
     [string]$ProjectId,
@@ -17,6 +25,28 @@ $RepoRoot = $PSScriptRoot
 $VenvRoot = Join-Path $RepoRoot ".venv"
 $VenvPython = Join-Path $VenvRoot "Scripts\python.exe"
 $VeraExe = Join-Path $VenvRoot "Scripts\vera-mono.exe"
+
+# Reject incomplete or ambiguous configuration before venv creation/install.
+# The model-free semantic shell stays the default. Chat always requires a
+# deliberate, existing state binding and an explicitly selected local model.
+if ($Chat) {
+    foreach ($Name in @("StateRoot", "ProjectId", "IdentityId", "Endpoint", "Model")) {
+        if (-not $PSBoundParameters.ContainsKey($Name) -or
+            [string]::IsNullOrWhiteSpace((Get-Variable -Name $Name -ValueOnly))) {
+            throw "Explicit -$Name is required with -Chat."
+        }
+    }
+    if ($null -ne $ConsoleArgs -and $ConsoleArgs.Count -gt 0) {
+        throw "-Chat is interactive and does not accept console arguments."
+    }
+}
+else {
+    foreach ($Name in @("Endpoint", "Model", "ApiKeyEnv")) {
+        if ($PSBoundParameters.ContainsKey($Name)) {
+            throw "-$Name requires explicit -Chat."
+        }
+    }
+}
 
 if (-not (Test-Path $VenvPython)) {
     Write-Host "Creating local Vera Mono environment at $VenvRoot"
@@ -60,6 +90,27 @@ if ($Refresh -or -not (Test-Path $VeraExe)) {
 
 if (-not (Test-Path $VeraExe)) {
     throw "The Vera Mono console executable was not created at $VeraExe."
+}
+
+if ($Chat) {
+    # Array splatting invokes the exact executable; no shell/evaluation layer
+    # can reinterpret a model name, endpoint, or environment-variable name.
+    # The Python chat boundary enforces numeric loopback and no tool effects.
+    $ChatArgs = @(
+        "--interactive",
+        "--state-root", $StateRoot,
+        "--project-id", $ProjectId,
+        "--identity-id", $IdentityId,
+        "--endpoint", $Endpoint,
+        "--model", $Model
+    )
+    if ($PSBoundParameters.ContainsKey("ApiKeyEnv")) {
+        $ChatArgs += "--api-key-env"
+        $ChatArgs += $ApiKeyEnv
+    }
+    Write-Host "Opening unverified local chat (stateless; no tools or memory admission)."
+    & $VeraExe chat @ChatArgs
+    exit $LASTEXITCODE
 }
 
 $ForwardArgs = @()

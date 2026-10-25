@@ -162,6 +162,33 @@ def test_interactive_chat_rejects_arg_prompt_and_oversize_before_network(
     ctor.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("flag", "bad_value"),
+    [
+        ("--endpoint", "http://127.0.0.1:11434/v1;Write-Output PWNED"),
+        ("--endpoint", "http://127.0.0.1:11434/v1#malicious"),
+        ("--endpoint", "http://localhost:11434/v1"),
+        ("--model", "gemma3:1b;$(whoami)"),
+        ("--model", "gemma3:1b`Write-Output PWNED"),
+    ],
+)
+def test_local_chat_rejects_literal_shell_metacharacters_and_noncanonical_endpoint(
+    tmp_path, capsys, flag, bad_value,
+):
+    root = tmp_path / "state"
+    root.mkdir()
+    args = _args(root, "--json")
+    args[args.index(flag) + 1] = bad_value
+    with patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
+        with pytest.raises(SystemExit) as exc:
+            cli.main(args)
+    assert exc.value.code == 2
+    ctor.assert_not_called()
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert "PWNED" not in output.err
+
+
 def test_interactive_chat_fails_closed_when_second_model_call_fails(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
