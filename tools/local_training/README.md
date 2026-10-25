@@ -120,6 +120,52 @@ verifies bytes, not an upstream publisher signature; independent trusted
 origin and licensing review remain mandatory. The declared GGUF digest is
 intended inference lineage only: it is never used as a trainable base.
 
+### Offline source binding of an already-downloaded original-format base
+
+After an operator independently obtains and reviews the official *unquantized*
+`Qwen/Qwen3-0.6B` Transformers source, stage **copies** of its flat checkpoint
+files (`config.json`, `tokenizer.json`, `tokenizer_config.json`,
+`model.safetensors`, and any of `generation_config.json`, `merges.txt`,
+`vocab.json`, `special_tokens_map.json`) in a **new** local Linux directory
+with owner-only `0700` mode and all individual files `0600`. Do not point this
+tool at a Hugging Face cache (normally symlinked/hardlinked), a Git checkout,
+an existing model folder with unreviewed contents, a WSL Windows drive, or a
+GGUF quantization. No model download, credential use, network call, training,
+or installation is performed. The private staging directory is separate from
+the original source/cache and from any future training output directory.
+
+Record the independently reviewed publisher/revision evidence **outside**
+the model directory (for example, a reviewed origin record in an operator-only
+location). Calculate the SHA-256 of that *separate record*, and supply
+`sha256:<64-lowercase-hex>` as its reference. Separately declare the pinned
+40-character model and tokenizer revision hashes and the expected SHA-256 of
+the exact UTF-8 `chat_template` value in `tokenizer_config.json`:
+
+```bash
+python -m tools.local_training.bind_source \
+  --model-dir /private/local/model-staging \
+  --hf-repo Qwen/Qwen3-0.6B \
+  --revision-sha REPLACE_WITH_40_LOWERCASE_HEX \
+  --tokenizer-revision-sha REPLACE_WITH_40_LOWERCASE_HEX \
+  --chat-template-sha256 REPLACE_WITH_64_LOWERCASE_HEX \
+  --origin-evidence-ref sha256:REPLACE_WITH_64_LOWERCASE_HEX
+```
+
+The command creates **only** `VERA_SOURCE.json`, with exclusive `0600`
+creation, streaming local file digests, strict private-path checks, bounded
+safetensors-header checks, exact schema compatibility, and a follow-up
+`lora_runner._model_snapshot` verification. It cannot overwrite an existing
+binding. On validation failure it leaves no newly created binding; it never
+edits, replaces, or uploads weights. A successful machine-readable receipt
+says `DECLARED_ORIGIN_BYTES_HASHED_ONLY`. This means the *operator-declared*
+revision claims are tied to the local bytes, **not** that official publisher
+authenticity, all checkpoint tensor shapes, model completeness, license,
+consent, training hardware, or independently retained evidence authenticity
+has been established. Do not treat the supplied evidence digest as a verified
+remote signature. Continue with independent source/legal review and the
+separate corpus/training-approval gates; this command does not make an adapter
+or permit weight updates.
+
 The initial execution path accepts **only** the text-only
 `Qwen/Qwen3-0.6B`/`qwen3` family, with CUDA BF16, three GiB of *currently free*
 VRAM, and 1–32 small optimizer steps. It imports Transformers, PEFT and
