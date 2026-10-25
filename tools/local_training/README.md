@@ -15,6 +15,68 @@ Prepare them in an independently secured, private local directory.
 The tool rejects source/output paths inside any detected Git checkout as a
 guard against accidentally committing private training material.
 
+## Phase 1: reviewed Ingest-to-training corpus bridge
+
+`ingest`'s locally adapted source is the provenance/CAS producer. Its
+`ACCEPTED` status **does not** independently establish sample accuracy,
+license, consent, permission to train, or any right to change Vera's memory,
+identity, or model weights. The bridge requires a **separate** operator-authored
+selection file with an explicit review reference for every accepted candidate.
+It runs offline and reads only privately stored, normalized JSON candidates
+of the exact form `{"messages":[{"role":"user","content":"..."},
+{"role":"assistant","content":"..."}]}`. It checks raw and normalized
+artifact SHA-256 bindings, record status, normalized/ready receipt digests,
+normalization replay, reconstructed Ingest source identity, selected
+example/group identities, and duplicate content. Source groups must
+truthfully identify related examples; no semantic near-duplicate detector exists.
+
+The private selection is UTF-8 JSONL, one record per candidate:
+
+```json
+{"ingest_id":"64-lowercase-hex","normalized_sha256":"64-lowercase-hex","example_id":"opaque-1","group_id":"source-family-1","consent":"owner-approved-local-training","approval_reference":"opaque-operator-review-1"}
+```
+
+The selection is an **operator declaration**, not independently verified consent.
+Do not prepare it from unreviewed transcripts, third-party private content, or
+public issues. Place selection, Ingest store, destination parent, and resulting
+JSONL on a locally owned, private Linux filesystem (WSL ext4 can qualify),
+outside any Git checkout; directories need owner-only `0700`, and files `0600`.
+Ingest's default filesystem store does not assert those directory permissions,
+so operators must verify and secure them before running the bridge. Windows
+ACLs, network mounts, symlink paths, and Linux DrvFs are not accepted.
+
+```bash
+# Read-only source/receipt/sample validation; sanitized digests and counts only:
+python -m tools.local_training.ingest_bridge plan /private/intake /private/reviews.jsonl
+
+# Explicit export to a NEW owner-only file. No overwrite, training, or network:
+python -m tools.local_training.ingest_bridge export /private/intake /private/reviews.jsonl /private/approved.jsonl
+```
+
+Use the reported `corpus_sha256` and exported private JSONL in the existing
+manifest's `data` section below. The manifest/LoRA runner remains the separate
+model-binding, split, accelerator and weight-update approval boundary. Bridge
+receipt integrity checks are local byte-consistency checks, **not provenance
+authenticity or independent human review**. The bridge prints no sample text or
+private absolute paths in successful receipts.
+
+## Phase 2 and Phase 3 gates
+
+Phase 2: run the existing `train_doctor` preflight in the **actual intended WSL
+training environment** with a qualified private output parent. Verify the
+exact BF16-capable GPU's **currently free** VRAM, dependencies, original
+full-model safetensors snapshot, tokenizer/format binding, and independently
+reviewed licensing. A GGUF inference file or a specialist adapter for a
+different base (e.g., SPM's Qwen2.5-1.5B specialist) cannot substitute.
+
+Phase 3: take an immutable held-out baseline before any adapter update; after
+fresh operator approval bound to the exact `train-plan`, evaluate the bounded
+candidate against the same held-out cases and predefined SPM-style
+memory-currentness and LGCM-style predict-before-update checks. Keep any
+candidate **uninstalled** until it beats the baseline without leakage or
+regression. Neither these documents nor the corpus bridge claims training or
+behavioral qualification has happened.
+
 ## Operator-authored manifest
 
 All source, license, provenance and consent fields are **claims supplied by the
