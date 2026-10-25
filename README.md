@@ -117,7 +117,15 @@ peer-review identities, target relationships, and the deterministic input digest
 It rejects cross-episode/prompt/roster mismatches and treats a missing worker as
 `INCOMPLETE_UNKNOWN`, not as consensus.
 
-Even a complete two-worker answer/review/synthesis is reported only as
+Rezon's `complete` field means **all initial answers**, not all peer reviews or
+an integrated synthesis. To prevent downstream code from confusing those
+stages, `CollectiveObservation.round_state` separately reports
+`INITIAL_ANSWERS_INCOMPLETE`, `PEER_REVIEW_INCOMPLETE`,
+`SYNTHESIS_NOT_OBSERVED`, or `SYNTHESIS_PRESENT_UNVERIFIED`, alongside the
+exact `missing_review_agents` and `current_synthesis_ids`. The stricter
+observer-only round label requires each enrolled worker to have reviewed;
+it does not change Rezon's own valid partial-round behavior or certify
+independence. Even a fully observed round remains only
 `COMPLETE_UNVERIFIED` / `UNVERIFIED_GATEWAY_CLAIM`. A gateway token authenticates
 access to that gateway; it does **not** attest two independent model hosts,
 establish correctness or agreement, qualify the synthesis, admit memory, or
