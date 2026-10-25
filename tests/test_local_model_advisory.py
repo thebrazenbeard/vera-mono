@@ -156,6 +156,16 @@ def test_invalid_requests_fail_before_network_access(values):
     constructor.assert_not_called()
 
 
+@pytest.mark.parametrize("finish_reason", [["stop"], {"reason": "stop"}])
+def test_malformed_finish_reason_fails_as_local_model_error(finish_reason):
+    response = _valid_response()
+    response["choices"][0]["finish_reason"] = finish_reason
+    connection = _Connection(_Response(response))
+    with pytest.raises(LocalModelError, match="finish reason is unsupported"):
+        _advise_with(connection)
+    assert connection.closed is True
+
+
 @pytest.mark.parametrize("response", [
     _Response({}, status=302),
     _Response({}, status=500),

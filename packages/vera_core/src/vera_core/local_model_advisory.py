@@ -267,7 +267,9 @@ def advise_local_model(
     ):
         raise LocalModelError("local inference returned terminal or directional control characters")
     finish_reason = choice.get("finish_reason")
-    if finish_reason is not None and finish_reason not in {"stop", "length"}:
+    if finish_reason is not None and (
+        not isinstance(finish_reason, str) or finish_reason not in {"stop", "length"}
+    ):
         raise LocalModelError("local inference finish reason is unsupported")
     return AdvisoryResult(
         endpoint=canonical_endpoint,
