@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import inspect
 import os
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import stat
@@ -317,7 +318,7 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
 
     def test_known_schema_with_dropped_projection_table_fails_closed(self):
         self.seed()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("DROP TABLE goal_projection")
         with self.assertRaises(self.module.DriveFeedbackError):
             self.store()
@@ -354,7 +355,7 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
 
     def test_unversioned_partial_schema_is_not_silently_repaired(self):
         self.path.parent.mkdir(parents=True)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute(
                 "CREATE TABLE need_projection("
                 "need_id TEXT PRIMARY KEY, revision INTEGER, level REAL, unit TEXT)"
@@ -364,14 +365,14 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
 
     def test_unversioned_preexisting_valid_store_is_not_silently_adopted(self):
         s = self.seed()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("PRAGMA user_version = 0")
         with self.assertRaises(self.module.DriveFeedbackError):
             self.store()
 
     def test_known_schema_with_same_column_names_but_no_uniques_is_rejected(self):
         self.seed()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("DROP TABLE outcome_receipt")
             # Matching column names are insufficient to enforce exactly-once.
             db.execute("""
@@ -388,7 +389,7 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
 
     def test_unexpected_trigger_is_rejected_before_running_any_admission(self):
         self.seed()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("""
                 CREATE TRIGGER forge_on_receipt AFTER INSERT ON outcome_receipt
                 BEGIN UPDATE need_projection SET level=1; END
@@ -419,7 +420,7 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
 
                 with self.assertRaisesRegex(RuntimeError, "simulated first-open power loss"):
                     InterruptedBootstrap(path)
-                with sqlite3.connect(path) as db:
+                with closing(sqlite3.connect(path)) as db, db:
                     self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 0)
                     self.assertEqual(db.execute(
                         "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
@@ -497,7 +498,7 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
         s = self.store()
         self.assertEqual(stat.S_IMODE(s.path.parent.stat().st_mode), 0o700)
         self.assertEqual(stat.S_IMODE(s.path.stat().st_mode), 0o600)
-        with sqlite3.connect(s.path) as db:
+        with closing(sqlite3.connect(s.path)) as db, db:
             self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0], "delete")
 
     @unittest.skipUnless(os.name == "posix", "POSIX owner/mode semantics")
@@ -529,7 +530,7 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
 
     def test_foreign_journal_mode_is_not_silently_used(self):
         s = self.seed()
-        with sqlite3.connect(s.path) as db:
+        with closing(sqlite3.connect(s.path)) as db, db:
             self.assertEqual(db.execute("PRAGMA journal_mode=WAL").fetchone()[0], "wal")
         with self.assertRaises(self.module.DriveFeedbackError):
             self.store()
