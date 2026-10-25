@@ -6,6 +6,7 @@ exact PR95 GatewayDispatch and PR87 verify_terminal_v2 source.
 from __future__ import annotations
 from hashlib import sha256
 import json
+from threading import Barrier, Event, Thread
 from types import SimpleNamespace
 
 import pytest
@@ -139,6 +140,56 @@ def test_one_shot_no_automatic_replay_after_success_or_failure():
         failed(PROMPT,model=MODEL,model_digest=DIGEST,max_tokens=3)
     with pytest.raises(GatewayTextHold):
         failed(PROMPT,model=MODEL,model_digest=DIGEST,max_tokens=3)
+
+
+def test_bridge_concurrent_entry_makes_only_one_dispatch_attempt():
+    """Both callers may read a stale unused flag without a lock."""
+    bridge,_=build()
+    read_gate=Barrier(2)
+    dispatch_gate=Event()
+    attempts=[]
+    failures=[]
+    original_execute=bridge.dispatch.execute
+
+    def counted_execute(**kwargs):
+        attempts.append(kwargs["invocation_id"])
+        dispatch_gate.wait(timeout=0.3)
+        return original_execute(**kwargs)
+
+    bridge.dispatch.execute=counted_execute
+
+    class InterleavedBridge(GatewayTerminalTextBridge):
+        @property
+        def _used(self):
+            current=self.__dict__.get("_used",False)
+            try:
+                read_gate.wait(timeout=0.25)
+            except Exception:
+                # With the lock, the second caller cannot join this barrier.
+                pass
+            return current
+
+        @_used.setter
+        def _used(self,value):
+            self.__dict__["_used"]=value
+
+    bridge.__class__=InterleavedBridge
+
+    def invoke():
+        try:
+            bridge(PROMPT,model=MODEL,model_digest=DIGEST,max_tokens=3)
+        except GatewayTextHold as exc:
+            failures.append(exc)
+
+    workers=[Thread(target=invoke) for _ in range(2)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(timeout=3)
+
+    assert all(not worker.is_alive() for worker in workers)
+    assert len(attempts)==1, "a concurrent second caller reached gateway dispatch"
+    assert len(failures)==1
 
 def test_plain_object_cannot_masquerade_as_claim_evidence_verifier():
     bridge,_=build()
