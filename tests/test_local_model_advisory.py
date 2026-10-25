@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from hashlib import sha256
 import json
+import socket
+import threading
+import time
 from unittest.mock import patch
 
 import pytest
@@ -159,6 +162,96 @@ def test_transport_failure_is_bounded_and_connection_closes():
     with pytest.raises(LocalModelError, match="unavailable"):
         _advise_with(conn)
     assert conn.closed is True
+
+
+@pytest.mark.parametrize("drip_section", ["body", "headers"])
+def test_loopback_slow_drip_cannot_extend_whole_request_deadline(drip_section):
+    """The same deadline must cover buffered headers and chunked bodies."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    body = json.dumps(_valid_response()).encode("utf-8")
+    if drip_section == "body":
+        prefix = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+        pieces = [f"{len(part):x}\r\n".encode() + part + b"\r\n"
+                  for part in (body[i:i + 6] for i in range(0, len(body), 6))]
+        suffix = b"0\r\n\r\n"
+    else:
+        prefix = b"HTTP/1.1 200 OK\r\n"
+        pieces = [f"X-Slow-{i}: value\r\n".encode() for i in range(22)]
+        suffix = f"Content-Length: {len(body)}\r\n\r\n".encode() + body
+    finished = threading.Event()
+
+    def serve():
+        try:
+            with listener:
+                peer, _ = listener.accept()
+                with peer:
+                    peer.settimeout(2)
+                    peer.recv(4096)
+                    peer.sendall(prefix)
+                    for piece in pieces:
+                        try:
+                            peer.sendall(piece)
+                        except OSError:
+                            break
+                        time.sleep(0.09)
+                    try:
+                        peer.sendall(suffix)
+                    except OSError:
+                        pass
+        finally:
+            finished.set()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    started = time.monotonic()
+    try:
+        with pytest.raises(LocalModelError, match="unavailable"):
+            advise_local_model(
+                "test", endpoint=f"http://127.0.0.1:{port}/v1",
+                model_id="gemma3:1b", timeout_seconds=1,
+            )
+        assert time.monotonic() - started < 1.5
+    finally:
+        listener.close()
+        assert finished.wait(timeout=4)
+
+
+def test_loopback_complete_http_response_still_returns_advisory():
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    payload = json.dumps(_valid_response()).encode("utf-8")
+    finished = threading.Event()
+
+    def serve():
+        try:
+            with listener:
+                peer, _ = listener.accept()
+                with peer:
+                    peer.recv(4096)
+                    peer.sendall(
+                        b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                        + f"Content-Length: {len(payload)}\r\n\r\n".encode()
+                        + payload
+                    )
+        finally:
+            finished.set()
+
+    threading.Thread(target=serve, daemon=True).start()
+    try:
+        result = advise_local_model(
+            "test", endpoint=f"http://127.0.0.1:{port}/v1",
+            model_id="gemma3:1b", timeout_seconds=1,
+        )
+        assert result.text == "Careful answer."
+        assert result.status == "UNVERIFIED_MODEL_OUTPUT"
+    finally:
+        listener.close()
+        assert finished.wait(timeout=3)
 
 
 def test_multiline_plain_text_is_allowed_without_terminal_controls():
