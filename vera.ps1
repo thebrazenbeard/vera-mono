@@ -41,7 +41,8 @@ if ($Chat) {
     }
     # This is a read-only filesystem preflight. Python owns lifecycle/identity
     # reconstruction; a caller-supplied project/identity is not authenticated here.
-    if (-not (Test-Path -LiteralPath $StateRoot -PathType Container)) {
+    if (-not (Test-Path -LiteralPath $StateRoot -PathType Container) -or
+        -not [System.IO.Directory]::Exists($StateRoot)) {
         throw "Chat -StateRoot must name an existing directory; no state root is created."
     }
 }

@@ -43,6 +43,11 @@ def test_chat_requires_existing_directory_before_virtual_environment():
     assert launcher.index(guard) < launcher.index("if (-not (Test-Path $VenvPython))")
 
 
+def test_chat_preflight_only_accepts_real_filesystem_directory():
+    script=(ROOT / "vera.ps1").read_text(encoding="utf-8")
+    assert "[System.IO.Directory]::Exists($StateRoot)" in script
+
+
 def test_powershell_chat_requires_explicit_all_binding_and_model_inputs():
     text = (ROOT / "vera.ps1").read_text(encoding="utf-8")
     for option in ("$Chat", "$Endpoint", "$Model", "$StateRoot", "$ProjectId", "$IdentityId"):
@@ -96,26 +101,19 @@ def test_powershell_chat_preflight_fails_before_installing_or_executing_argument
     not (shutil.which("pwsh") or shutil.which("powershell")),
     reason="PowerShell is not installed on this runner",
 )
-def test_local_chat_rejects_missing_state_root_before_invoking_environment(tmp_path):
-    """Explicit chat requires an existing state directory before even checking the venv."""
+@pytest.mark.parametrize("invalid_root", ["missing", "registry"])
+def test_local_chat_rejects_invalid_state_root_before_environment(tmp_path, invalid_root):
     powershell = shutil.which("powershell") or shutil.which("pwsh")
     temp_repo = tmp_path / "staged-launcher"
     temp_repo.mkdir()
     shutil.copy2(ROOT / "vera.ps1", temp_repo / "vera.ps1")
-    # Preinstall inert executable stubs so the *old* launcher would reach chat
-    # immediately rather than downloading dependencies or making a new venv.
-    # cmd.exe invoked as "chat" fails locally, without model/network effects.
-    import os
-    scripts = temp_repo / ".venv" / "Scripts"
-    scripts.mkdir(parents=True)
-    for target in ("python.exe", "vera-mono.exe"):
-        shutil.copy2(os.environ["COMSPEC"], scripts / target)
     absent = tmp_path / "does-not-exist"
+    root_argument = str(absent) if invalid_root == "missing" else "Registry::HKEY_CURRENT_USER"
     result = subprocess.run(
         [
             powershell, "-NoProfile", "-NonInteractive", "-File",
             str(temp_repo / "vera.ps1"), "-Chat",
-            "-StateRoot", str(absent), "-ProjectId", "test-project",
+            "-StateRoot", root_argument, "-ProjectId", "test-project",
             "-IdentityId", "test-identity",
             "-Endpoint", "http://127.0.0.1:11434/v1",
             "-Model", "gemma3:1b",
@@ -124,6 +122,7 @@ def test_local_chat_rejects_missing_state_root_before_invoking_environment(tmp_p
     )
     assert result.returncode != 0
     assert "must name an existing directory" in (result.stdout + result.stderr)
+    assert not (temp_repo / ".venv").exists()
     assert not absent.exists()
 
 
