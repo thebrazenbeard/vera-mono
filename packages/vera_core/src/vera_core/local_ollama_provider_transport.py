@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from http.client import HTTPConnection, HTTPException
 import json
+import math
 import re
 from typing import Any
 
@@ -20,6 +21,26 @@ from typing import Any
 _MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}\Z")
 _DIGEST = re.compile(r"[a-f0-9]{64}\Z")
 _RESPONSE_LIMIT = 65536
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate local provider JSON key")
+        result[key] = value
+    return result
+
+
+def _reject_nonfinite_constant(_: str) -> None:
+    raise ValueError("non-finite local provider JSON constant")
+
+
+def _finite_json_float(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError("out-of-range local provider JSON number")
+    return parsed
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,7 +86,12 @@ class LocalOllamaProviderTransport:
             raw = response.read(_RESPONSE_LIMIT + 1)
             if len(raw) > _RESPONSE_LIMIT:
                 raise RuntimeError("oversized Ollama response")
-            value = json.loads(raw.decode("utf-8"))
+            value = json.loads(
+                raw.decode("utf-8"),
+                object_pairs_hook=_unique_json_object,
+                parse_constant=_reject_nonfinite_constant,
+                parse_float=_finite_json_float,
+            )
             if type(value) is not dict:
                 raise RuntimeError("invalid Ollama response object")
             return value
