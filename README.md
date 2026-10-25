@@ -102,6 +102,47 @@ If an external dispatch becomes ambiguous, `EffectFence` records `ATTEMPTED_UNKN
 
 Independent falsification is deliberately different from internal assurance. Vera can contain DriftGuard-derived checking mechanisms while a separately executed DriftGuard remains useful specifically because it is outside Vera's own self-checking boundary.
 
+### Experimental Rezon collective observation (not a runtime capability)
+
+`vera_core.external_rezon_collective.LoopbackCollectiveObserver` is an opt-in,
+**read-only** adapter for an independently running Rezon collective gateway. It
+uses the separately configured, operator-supplied **read-only state secret**
+(never Rezon's write-capable admin or worker token) to fetch only the episode's state
+from numeric `127.0.0.1`, with bounded time and response size. The caller must
+independently supply the expected episode ID, ordered worker roster, and SHA-256
+of the original prompt. The adapter checks claim structure, worker answer and
+peer-review identities, target relationships, and the deterministic input digest.
+It rejects cross-episode/prompt/roster mismatches and treats a missing worker as
+`INCOMPLETE_UNKNOWN`, not as consensus.
+
+Even a complete two-worker answer/review/synthesis is reported only as
+`COMPLETE_UNVERIFIED` / `UNVERIFIED_GATEWAY_CLAIM`. A gateway token authenticates
+access to that gateway; it does **not** attest two independent model hosts,
+establish correctness or agreement, qualify the synthesis, admit memory, or
+authorize any protected effect. This code neither launches Rezon nor injects its
+claims into `QualifiedVeraRuntime`. Rezon's stand-alone package and the absorbed
+monorepo `packages/rezon` have overlapping Python module names, so operate the
+external gateway as a separate process; do not combine both package source trees
+on a single `PYTHONPATH`. Deterministic contract checks are in
+`tests/test_external_rezon_collective.py`; deployed worker/process independence
+still requires separately qualified host evidence.
+
+This adapter requires the complementary Rezon gateway `read_token` role
+(`REZON_COLLECTIVE_STATE_READ_TOKEN` in Rezon's CLI). Older gateways without
+that opt-in role reject the credential; do not work around that by substituting
+an administrator bearer. Provision the read secret as 32 random bytes encoded
+in 64 lowercase hex characters, using `secrets.token_hex(32)` rather than a
+human-chosen password. On each observation, the client sends the exact path
+and a random client nonce, verifies a server-signed 10-second challenge before
+sending any request HMAC, and verifies the exact returned state bytes with a
+separate MAC. Each transcript binds the exact `GET` state path and expected
+numeric `127.0.0.1:port` audience; Rezon uses its actual accepted socket for
+that audience, not a caller-controlled `Host` header. **The read-only secret
+never appears in the HTTP request.** A spoofed cross-port or obsolete gateway
+cannot pass this proof without knowledge of the secret. This is
+loopback-only source authentication/integrity, not independent host attestation
+or protection from a fully compromised local user who can relay traffic.
+
 ## PowerShell console
 
 From a Windows PowerShell terminal opened in a clone of this repository:
