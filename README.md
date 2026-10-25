@@ -338,6 +338,32 @@ An interrupted in-flight call is marked delivery-unknown, not a successful
 response. The bound state root must already exist; no default identity, state
 directory, provider, or model is silently chosen.
 
+An additional **one-shot-only** opt-in path may include one explicitly selected,
+already admitted and independently reviewed `WORKING_PROJECT` memory record as
+untrusted model context. It requires all four CLI flags together:
+`--reviewed-record-id`, `--association-id`, `--cue-event-id`, and
+`--use-evidence-id`. The state root must already contain a qualified
+`DurableLearnedInfluenceGate` database at `learning/learned-influence.sqlite`,
+whose reviewed association revision matches that current memory record's
+verified digest and whose calibration and qualification evidence identities
+are disjoint from the later-use ID. Missing/stale/quarantined/replayed records
+fail closed. The gate persists a bounded use/replay receipt; the chat command
+does **not** admit any new memory or save conversation text. Reviewed text is
+JSON-escaped and labeled untrusted; this limits delimiter spoofing but cannot
+prove a language model will ignore malicious instructions inside that text.
+No tool/effect authority is attached to its answer.
+This flag set is intentionally refused in `--interactive` mode because one use
+identity cannot safely represent multiple turns. Review evidence and privacy
+references in the local ledgers are assertions by their upstream admitter; a
+database row by itself does not establish genuine consent or independent review.
+Both SQLite files must already exist as single-link regular files under the
+canonical state root with no symlink or junction path components; identities
+are checked again before model contact. These checks do not atomically prevent
+directory swaps between separate SQLite operations. Windows NTFS ACL and
+reparse-point behavior require live qualification before private-memory use.
+There is no automatic memory selection, feedback recording, neural-weight
+training, or model promotion here.
+
 `chat` uses the same bounded HTTP `/v1/chat/completions` adapter as `advise`. It sends no tool definitions, rejects model responses containing tool/function calls, never admits the exchange into Vera memory, and grants no provider, PC, Bus, or external filesystem effect authority. Opening a previously empty state directory can initialize QVR's local SQLite bookkeeping. Reconstructing an interrupted lifecycle can also repair local audit records or append `RESTART_RECONCILED_COMMITTED` to its lifecycle journal when a currentness commit is already durable but its final journal event is missing. These local recovery writes are not memory-item admission or authorization of an external effect. A missing binding, non-loopback address, unavailable model endpoint, or invalid QVR reconstruction fails without fallback. The output remains `UNVERIFIED_MODEL_OUTPUT`; even an accepted lifecycle status does not qualify the model, install it, or authorize its actions. Reinvocation after process restart reopens local state. `advise` remains intentionally state-free.
 
 ## Status

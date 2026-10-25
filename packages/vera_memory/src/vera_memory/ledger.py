@@ -262,6 +262,33 @@ class MemoryLedger:
             if row is None:
                 raise KeyError(record_id)
             payload = json.loads(row["payload_json"])
+            if (type(payload) is not dict
+                    or payload.get("record_id") != record_id
+                    or sha256_hex(canonical_json_bytes(payload)) != row["record_digest"]):
+                raise MemoryLedgerError("stored memory record digest mismatch")
+            # Mutable status/superseded_by columns are not part of the payload
+            # digest. Cross-check them against the successor's hashed payload
+            # so a bare status flip cannot revive a superseded memory record.
+            # This detects inconsistency, not a writer with total DB control.
+            successors = db.execute(
+                """
+                SELECT payload_json,record_digest FROM records
+                WHERE json_extract(payload_json, '$.supersedes')=?
+                """, (record_id,),
+            ).fetchall()
+            if len(successors) > 1:
+                raise MemoryLedgerError("multiple successors for one memory record")
+            successor_id = None
+            if successors:
+                successor = json.loads(successors[0]["payload_json"])
+                if (type(successor) is not dict
+                        or successor.get("supersedes") != record_id
+                        or sha256_hex(canonical_json_bytes(successor)) != successors[0]["record_digest"]):
+                    raise MemoryLedgerError("successor memory record digest mismatch")
+                successor_id = successor.get("record_id")
+            if (row["superseded_by"] != successor_id
+                    or row["status"] != ("SUPERSEDED" if successor_id else "CURRENT")):
+                raise MemoryLedgerError("memory supersession status contradicts admitted successor")
             return MemoryRecord(
                 record_id=payload["record_id"],
                 text=payload["text"],
