@@ -411,6 +411,51 @@ class DurableLearnedInfluenceGate:
             raise ValueError(f"{field} must not contain duplicates")
         return values
 
+    @staticmethod
+    def _evidence_roles(
+        db: sqlite3.Connection, association_id: str, memory_revision_id: str,
+    ) -> dict[str, str]:
+        """Recover all same-revision evidence roles without rewriting legacy state.
+
+        Called inside the caller's BEGIN IMMEDIATE transaction. Existing
+        cross-role aliases fail closed instead of silently being grandfathered.
+        Re-review may reuse an identity only for its original A or B role.
+        """
+        roles: dict[str, str] = {}
+
+        def bind(evidence_id: str, role: str) -> None:
+            previous = roles.setdefault(evidence_id, role)
+            if previous != role:
+                raise LearnedInfluenceBlocked(
+                    "existing evidence identity bound to incompatible roles"
+                )
+
+        args = (association_id, memory_revision_id)
+        for table in ("learned_evidence_history", "learned_evidence_bindings"):
+            for row in db.execute(
+                f"SELECT evidence_class, evidence_id FROM {table} "
+                "WHERE association_id=? AND memory_revision_id=?", args,
+            ):
+                kind = str(row["evidence_class"])
+                if kind not in ("CALIBRATION", "QUALIFICATION"):
+                    raise LearnedInfluenceBlocked("unknown persisted evidence role")
+                bind(str(row["evidence_id"]), kind)
+        for table, column, role in (
+            ("learned_consumptions", "cue_event_id", "CUE"),
+            ("learned_use_evidence", "evidence_id", "USE"),
+            ("learned_use_cue_bindings", "cue_event_id", "CUE"),
+            ("learned_use_cue_bindings", "use_evidence_id", "USE"),
+            ("learned_later_outcomes", "cue_event_id", "CUE"),
+            ("learned_later_outcomes", "use_evidence_id", "USE"),
+            ("learned_later_outcomes", "outcome_evidence_id", "OUTCOME"),
+        ):
+            for row in db.execute(
+                f"SELECT {column} FROM {table} "
+                "WHERE association_id=? AND memory_revision_id=?", args,
+            ):
+                bind(str(row[0]), role)
+        return roles
+
     def review_qualified(
         self,
         *,
@@ -446,6 +491,14 @@ class DurableLearnedInfluenceGate:
         db = self._connect()
         try:
             db.execute("BEGIN IMMEDIATE")
+            roles = self._evidence_roles(db, association_id, memory_revision_id)
+            for role, ids in (
+                ("CALIBRATION", calibration), ("QUALIFICATION", qualification),
+            ):
+                if any(roles.get(evidence_id, role) != role for evidence_id in ids):
+                    raise LearnedInfluenceBlocked(
+                        "review evidence identity already used in a different role"
+                    )
             db.execute(
                 """
                 INSERT INTO learned_reviews(
@@ -534,6 +587,13 @@ class DurableLearnedInfluenceGate:
         db = self._connect()
         try:
             db.execute("BEGIN IMMEDIATE")
+            roles = self._evidence_roles(
+                db, outcome.association_id, outcome.memory_revision_id,
+            )
+            if roles.get(outcome.outcome_evidence_id, "OUTCOME") != "OUTCOME":
+                raise LearnedInfluenceBlocked(
+                    "signed outcome evidence identity already used in another role"
+                )
             pin = db.execute(
                 "SELECT evaluator_id, public_key_sha256 FROM learned_outcome_trust WHERE singleton=1"
             ).fetchone()
@@ -588,9 +648,19 @@ class DurableLearnedInfluenceGate:
                     outcome.outcome_evidence_id,
                 ),
             ).fetchone()
-            if overlap or use_overlap:
+            cue_overlap = db.execute(
+                """
+                SELECT 1 FROM learned_consumptions
+                WHERE association_id=? AND memory_revision_id=? AND cue_event_id=?
+                """,
+                (
+                    outcome.association_id, outcome.memory_revision_id,
+                    outcome.outcome_evidence_id,
+                ),
+            ).fetchone()
+            if overlap or use_overlap or cue_overlap:
                 raise LearnedInfluenceBlocked(
-                    "outcome evidence identity overlaps calibration/qualification/use"
+                    "outcome evidence identity overlaps calibration/qualification/use/cue"
                 )
             try:
                 db.execute(
@@ -651,6 +721,50 @@ class DurableLearnedInfluenceGate:
         db = self._connect()
         try:
             db.execute("BEGIN IMMEDIATE")
+            roles = self._evidence_roles(
+                db, revision.association_id, revision.memory_revision_id,
+            )
+            prior_cue_role = roles.get(cue_event_id)
+            if prior_cue_role is not None:
+                if prior_cue_role != "CUE":
+                    raise LearnedInfluenceBlocked(
+                        "later-use cue identity already used in another role"
+                    )
+                existing = db.execute(
+                    """SELECT 1 FROM learned_consumptions
+                       WHERE association_id=? AND memory_revision_id=? AND cue_event_id=?""",
+                    (revision.association_id, revision.memory_revision_id, cue_event_id),
+                ).fetchone()
+                if existing is not None:
+                    raise LearnedInfluenceReplay(
+                        "cue event already consumed for this learned revision"
+                    )
+                raise LearnedInfluenceBlocked(
+                    "orphaned durable C cue reference cannot be replayed"
+                )
+            if type(use_evidence_id) is str:
+                if use_evidence_id == cue_event_id:
+                    raise LearnedInfluenceBlocked(
+                        "later-use evidence identity must be disjoint from its cue"
+                    )
+                prior_use_role = roles.get(use_evidence_id)
+                if prior_use_role is not None:
+                    if prior_use_role != "USE":
+                        raise LearnedInfluenceBlocked(
+                            "later-use evidence identity must be disjoint from other roles"
+                        )
+                    existing = db.execute(
+                        """SELECT 1 FROM learned_use_evidence
+                           WHERE association_id=? AND memory_revision_id=? AND evidence_id=?""",
+                        (revision.association_id, revision.memory_revision_id, use_evidence_id),
+                    ).fetchone()
+                    if existing is not None:
+                        raise LearnedInfluenceReplay(
+                            "later-use evidence identity already consumed for this learned revision"
+                        )
+                    raise LearnedInfluenceBlocked(
+                        "orphaned durable C use evidence reference cannot be replayed"
+                    )
             regression = db.execute(
                 """
                 SELECT 1 FROM learned_later_outcomes
@@ -663,6 +777,18 @@ class DurableLearnedInfluenceGate:
             if regression is not None:
                 raise LearnedInfluenceBlocked(
                     "later-use negative transfer quarantined this exact learned revision"
+                )
+            prior_outcome = db.execute(
+                """
+                SELECT 1 FROM learned_later_outcomes
+                WHERE association_id=? AND memory_revision_id=?
+                  AND outcome_evidence_id=?
+                """,
+                (revision.association_id, revision.memory_revision_id, cue_event_id),
+            ).fetchone()
+            if prior_outcome is not None:
+                raise LearnedInfluenceBlocked(
+                    "later-use cue identity overlaps earlier signed outcome evidence"
                 )
             review = db.execute(
                 """
@@ -719,6 +845,11 @@ class DurableLearnedInfluenceGate:
                 ).fetchall()
             }
             if evidence_split_qualified:
+                if cue_event_id in (bound_evidence_ids | historical_evidence_ids):
+                    raise LearnedInfluenceBlocked(
+                        "later-use cue identity must be disjoint from calibration "
+                        "and qualification evidence"
+                    )
                 if type(use_evidence_id) is not str or not use_evidence_id:
                     raise LearnedInfluenceBlocked(
                         "qualified learned revision requires later-use evidence identity"

@@ -173,6 +173,221 @@ class SignedLaterOutcomeContractTests(unittest.TestCase):
                 self.revision, cue_event_id="cue:C3", use_evidence_id="later:C3"
             )
 
+    def test_signed_outcome_cannot_relabel_any_prior_c_cue_as_outcome_evidence(self):
+        for reused_cue in ("cue:C1", "cue:C2"):
+            with self.subTest(reused_cue=reused_cue), TemporaryDirectory() as directory:
+                gate = self._gate(Path(directory) / "gate.db")
+                self._prepare(gate)
+                gate.consume(
+                    self.revision, cue_event_id="cue:C2", use_evidence_id="later:C2"
+                )
+                reused = self._resign(
+                    self._signed(0.0, 1.0), outcome_evidence_id=reused_cue
+                )
+                with self.assertRaises(LearnedInfluenceBlocked):
+                    gate.record_later_outcome(reused)
+                # Rejection cannot persist a spurious negative-transfer result.
+                gate.consume(
+                    self.revision, cue_event_id="cue:C3", use_evidence_id="later:C3"
+                )
+
+    def test_later_c_cue_cannot_relabel_recorded_outcome_evidence(self):
+        with TemporaryDirectory() as directory:
+            gate = self._gate(Path(directory) / "gate.db")
+            self._prepare(gate)
+            receipt = gate.record_later_outcome(self._signed(1.0, 0.0))
+            self.assertFalse(receipt.negative_transfer)
+            with self.assertRaises(LearnedInfluenceBlocked):
+                gate.consume(
+                    self.revision, cue_event_id="outcome:external:C1",
+                    use_evidence_id="later:C2",
+                )
+            gate.consume(
+                self.revision, cue_event_id="cue:C2", use_evidence_id="later:C2"
+            )
+
+    def test_c_cue_and_use_evidence_cannot_exchange_roles(self):
+        for cue, use in (
+            ("later:C1", "later:C2"),
+            ("cue:C2", "cue:C1"),
+            ("cue:C2", "cue:C2"),
+        ):
+            with self.subTest(cue=cue, use=use), TemporaryDirectory() as directory:
+                gate = self._gate(Path(directory) / "gate.db")
+                self._prepare(gate)
+                with self.assertRaises(LearnedInfluenceBlocked):
+                    gate.consume(self.revision, cue_event_id=cue, use_evidence_id=use)
+                gate.consume(
+                    self.revision, cue_event_id="cue:valid", use_evidence_id="later:valid"
+                )
+
+    def test_c_use_cannot_relabel_earlier_signed_outcome(self):
+        with TemporaryDirectory() as directory:
+            gate = self._gate(Path(directory) / "gate.db")
+            self._prepare(gate)
+            gate.record_later_outcome(self._signed(1.0, 0.0))
+            with self.assertRaises(LearnedInfluenceBlocked):
+                gate.consume(
+                    self.revision, cue_event_id="cue:C2",
+                    use_evidence_id="outcome:external:C1",
+                )
+            gate.consume(
+                self.revision, cue_event_id="cue:C2", use_evidence_id="later:C2"
+            )
+
+    def test_review_cannot_relabel_any_prior_c_role_as_a_or_b(self):
+        for prior in ("cue:C1", "later:C1", "outcome:external:C1"):
+            for new_role in ("A", "B"):
+                with self.subTest(prior=prior, role=new_role), TemporaryDirectory() as directory:
+                    gate = self._gate(Path(directory) / "gate.db")
+                    self._prepare(gate)
+                    gate.record_later_outcome(self._signed(1.0, 0.0))
+                    with self.assertRaises(LearnedInfluenceBlocked):
+                        gate.review_qualified(
+                            association_id=self.revision.association_id,
+                            memory_revision_id=self.revision.memory_revision_id,
+                            disposition=ReviewDisposition.ADMITTED,
+                            evidence_ref="fixture:re-review-relabel-C",
+                            calibration_evidence_ids=(
+                                (prior,) if new_role == "A" else ("calibration:A1",)
+                            ),
+                            qualification_evidence_ids=(
+                                (prior,) if new_role == "B" else ("qualification:B1",)
+                            ),
+                        )
+                    gate.consume(
+                        self.revision, cue_event_id="cue:C2", use_evidence_id="later:C2"
+                    )
+
+    def test_historical_a_cannot_be_reclassified_as_b_on_re_review(self):
+        with TemporaryDirectory() as directory:
+            gate = self._gate(Path(directory) / "gate.db")
+            self._prepare(gate)
+            gate.review_qualified(
+                association_id=self.revision.association_id,
+                memory_revision_id=self.revision.memory_revision_id,
+                disposition=ReviewDisposition.ADMITTED,
+                evidence_ref="fixture:legitimate-A2-B2",
+                calibration_evidence_ids=("calibration:A2",),
+                qualification_evidence_ids=("qualification:B2",),
+            )
+            with self.assertRaises(LearnedInfluenceBlocked):
+                gate.review_qualified(
+                    association_id=self.revision.association_id,
+                    memory_revision_id=self.revision.memory_revision_id,
+                    disposition=ReviewDisposition.ADMITTED,
+                    evidence_ref="fixture:reclassified-A1-as-B",
+                    calibration_evidence_ids=("calibration:A2",),
+                    qualification_evidence_ids=("calibration:A1",),
+                )
+            gate.consume(
+                self.revision, cue_event_id="cue:C2", use_evidence_id="later:C2"
+            )
+
+    def test_legacy_role_collision_survives_restart_and_blocks_new_use(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "gate.db"
+            gate = self._gate(path)
+            self._prepare(gate)
+            # Simulate an old database that admitted a use evidence identity
+            # already present as a C cue. Preserve it for explicit recovery.
+            with closing(sqlite3.connect(path)) as db, db:
+                db.execute(
+                    "INSERT INTO learned_use_evidence VALUES(?,?,?)",
+                    (
+                        self.revision.association_id,
+                        self.revision.memory_revision_id,
+                        "cue:C1",
+                    ),
+                )
+            recovered = self._gate(path)
+            with self.assertRaises(LearnedInfluenceBlocked):
+                recovered.consume(
+                    self.revision, cue_event_id="cue:C2",
+                    use_evidence_id="later:C2",
+                )
+            with closing(sqlite3.connect(path)) as db:
+                self.assertEqual(
+                    db.execute(
+                        "SELECT COUNT(*) FROM learned_use_evidence "
+                        "WHERE evidence_id='cue:C1'"
+                    ).fetchone()[0], 1,
+                )
+
+    def test_orphaned_cue_use_binding_still_reserves_both_role_ids(self):
+        for orphan_id, new_role in (("cue:C1", "B"), ("later:C1", "A")):
+            with self.subTest(orphan=orphan_id), TemporaryDirectory() as directory:
+                path = Path(directory) / "gate.db"
+                gate = self._gate(path)
+                self._prepare(gate)
+                # Simulate a damaged legacy database where the paired row
+                # survived but both primary role-table entries were lost.
+                with closing(sqlite3.connect(path)) as db, db:
+                    db.execute("DELETE FROM learned_consumptions")
+                    db.execute("DELETE FROM learned_use_evidence")
+                recovered = self._gate(path)
+                with self.assertRaises(LearnedInfluenceBlocked):
+                    recovered.review_qualified(
+                        association_id=self.revision.association_id,
+                        memory_revision_id=self.revision.memory_revision_id,
+                        disposition=ReviewDisposition.ADMITTED,
+                        evidence_ref="fixture:orphan-pair-relabel",
+                        calibration_evidence_ids=(
+                            (orphan_id,) if new_role == "A" else ("calibration:A1",)
+                        ),
+                        qualification_evidence_ids=(
+                            (orphan_id,) if new_role == "B" else ("qualification:B1",)
+                        ),
+                    )
+                with self.assertRaises(LearnedInfluenceBlocked):
+                    recovered.consume(
+                        self.revision,
+                        cue_event_id=(orphan_id if new_role == "B" else "cue:new"),
+                        use_evidence_id=(orphan_id if new_role == "A" else "later:new"),
+                    )
+                with closing(sqlite3.connect(path)) as db:
+                    self.assertEqual(
+                        db.execute("SELECT COUNT(*) FROM learned_use_cue_bindings")
+                        .fetchone()[0], 1,
+                    )
+
+    def test_orphaned_signed_outcome_still_reserves_cue_and_use_ids(self):
+        for orphan_id, new_role in (("cue:C1", "B"), ("later:C1", "A")):
+            with self.subTest(orphan=orphan_id), TemporaryDirectory() as directory:
+                path = Path(directory) / "gate.db"
+                gate = self._gate(path)
+                self._prepare(gate)
+                gate.record_later_outcome(self._signed(1.0, 0.0))
+                with closing(sqlite3.connect(path)) as db, db:
+                    db.execute("DELETE FROM learned_consumptions")
+                    db.execute("DELETE FROM learned_use_evidence")
+                    db.execute("DELETE FROM learned_use_cue_bindings")
+                recovered = self._gate(path)
+                with self.assertRaises(LearnedInfluenceBlocked):
+                    recovered.review_qualified(
+                        association_id=self.revision.association_id,
+                        memory_revision_id=self.revision.memory_revision_id,
+                        disposition=ReviewDisposition.ADMITTED,
+                        evidence_ref="fixture:orphan-outcome-relabel",
+                        calibration_evidence_ids=(
+                            (orphan_id,) if new_role == "A" else ("calibration:A1",)
+                        ),
+                        qualification_evidence_ids=(
+                            (orphan_id,) if new_role == "B" else ("qualification:B1",)
+                        ),
+                    )
+                with self.assertRaises(LearnedInfluenceBlocked):
+                    recovered.consume(
+                        self.revision,
+                        cue_event_id=(orphan_id if new_role == "B" else "cue:new"),
+                        use_evidence_id=(orphan_id if new_role == "A" else "later:new"),
+                    )
+                with closing(sqlite3.connect(path)) as db:
+                    self.assertEqual(
+                        db.execute("SELECT COUNT(*) FROM learned_later_outcomes")
+                        .fetchone()[0], 1,
+                    )
+
     def test_prior_qualification_id_cannot_be_reclassified_as_outcome(self):
         with TemporaryDirectory() as directory:
             gate = self._gate(Path(directory) / "gate.db")
