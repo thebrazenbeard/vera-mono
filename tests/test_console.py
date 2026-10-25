@@ -1,6 +1,32 @@
+import io
 import json
+import sys
 
-from vera_core.console import VeraConsole
+from vera_core.console import VeraConsole, run_console_repl
+
+
+def test_semantic_repl_escapes_unencodable_response_on_legacy_windows_console(monkeypatch):
+    output = io.BytesIO()
+    console_output = io.TextIOWrapper(output, encoding="cp1252", write_through=True)
+    inputs = iter(("smile 😊", ":exit"))
+    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+    monkeypatch.setattr(sys, "stdout", console_output)
+
+    assert run_console_repl(VeraConsole.source_only()) == 0
+    text = output.getvalue().decode("cp1252")
+    assert "Vera Mono semantic console" in text
+    assert "smile \\U0001f60a" in text
+
+
+def test_semantic_repl_preserves_unicode_on_utf8_console(monkeypatch):
+    output = io.BytesIO()
+    console_output = io.TextIOWrapper(output, encoding="utf-8", write_through=True)
+    inputs = iter(("smile 😊", ":exit"))
+    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+    monkeypatch.setattr(sys, "stdout", console_output)
+
+    assert run_console_repl(VeraConsole.source_only()) == 0
+    assert "smile 😊" in output.getvalue().decode("utf-8")
 
 
 def test_source_only_identity_and_greeting_are_repo_native():

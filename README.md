@@ -178,6 +178,11 @@ The console is deliberately semantics-first rather than generator-first. Raw tex
 
 Natural-language aliases such as `what is your status?` are accepted when the mapping is explicit. Basic shell dialogue is also supported: `vera` acts as a direct invocation; `exit`, `quit`, `end`, `bye`, `/exit`, and `/quit` leave the console when entered as standalone controls; and `Who am I?` reports the human authority named by the governed project identity while explicitly not claiming keyboard authentication. Unrecognized prose is retained as `UNRESOLVED` rather than being silently reclassified as a command. The interpreter's reading is candidate meaning only: it does not establish truth, canon, memory admission, authorization, or an external effect.
 
+The interactive semantic console displays replies on legacy Windows code pages
+without failing when text contains unsupported Unicode characters. Such
+characters display as backslash escapes (which can be ambiguous if the
+original text contains literal escapes); a UTF-8 console keeps the characters.
+
 A one-shot PowerShell call is also supported:
 
 ```powershell
