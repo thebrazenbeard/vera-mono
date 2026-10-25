@@ -170,14 +170,19 @@ def advise_local_model(
     if not isinstance(content, str) or not content.strip():
         raise LocalModelError("local inference returned no advisory text")
     # Untrusted model text is printed to a terminal in the human-readable CLI.
-    # Do not pass terminal escape/control sequences through to that surface.
+    # Forbid terminal controls and directional formatting controls that can
+    # visually reorder the answer, without banning benign shaping characters
+    # such as U+200D (zero-width joiner).
     if any(
         (ord(char) < 32 and char not in "\n\t")
         or ord(char) == 127
         or 128 <= ord(char) <= 159
+        or ord(char) in {0x061C, 0x200E, 0x200F}
+        or 0x202A <= ord(char) <= 0x202E
+        or 0x2066 <= ord(char) <= 0x206F
         for char in content
     ):
-        raise LocalModelError("local inference returned terminal control characters")
+        raise LocalModelError("local inference returned terminal or directional control characters")
     finish_reason = choice.get("finish_reason")
     if finish_reason is not None and finish_reason not in {"stop", "length"}:
         raise LocalModelError("local inference finish reason is unsupported")

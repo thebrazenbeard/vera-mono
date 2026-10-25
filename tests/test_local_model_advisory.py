@@ -139,6 +139,10 @@ def test_invalid_requests_fail_before_network_access(values):
     _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "answer", "function_call": {"name": "shell"}}}]}),
     _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "\u001b]52;clipboard-injection"}}]}),
     _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "\u009b31mcolor"}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "left\u202eright"}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "left\u2066right\u2069"}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "left\u200fright"}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "left\u061cright"}}]}),
     _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "answer"}, "finish_reason": "tool_calls"}]}),
     _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "answer"}, "finish_reason": "function_call"}]}),
     _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "tool", "content": "answer"}}]}),
@@ -161,6 +165,12 @@ def test_multiline_plain_text_is_allowed_without_terminal_controls():
     payload = {"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "line one\n\tline two"}}]}
     result, _ = _advise_with(_Connection(response=_Response(payload)))
     assert result.text == "line one\n\tline two"
+
+
+def test_ordinary_zero_width_joiner_remains_allowed():
+    payload = {"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "\U0001f469\u200d\U0001f4bb developer"}}]}
+    result, _ = _advise_with(_Connection(response=_Response(payload)))
+    assert result.text == "\U0001f469\u200d\U0001f4bb developer"
 
 
 def test_optional_api_key_stays_in_request_header_not_receipt(monkeypatch):
