@@ -344,6 +344,28 @@ class PinnedCLITest(unittest.TestCase):
         with self.assertRaises(EvidenceContractError):
             self.search("PROJECT")
 
+    def test_linked_source_root_is_rejected_before_path_resolution(self):
+        # Path.resolve() would erase the visible junction/link boundary.
+        with patch.object(
+            Path, "is_junction", lambda path: path == self.root
+        ):
+            with self.assertRaisesRegex(EvidenceContractError, "root is linked"):
+                self.transport()
+
+    def test_junction_in_pinned_directory_is_rejected(self):
+        # NTFS directory junctions aren't reported by Path.is_symlink().
+        with patch.object(
+            Path, "is_junction", lambda path: path == self.root / "tools"
+        ):
+            with self.assertRaisesRegex(EvidenceContractError, "linked source directory"):
+                self.search("PROJECT")
+
+    def test_junction_in_pinned_file_is_rejected(self):
+        target = self.root / "tools" / "query_deep_memory.py"
+        with patch.object(Path, "is_junction", lambda path: path == target):
+            with self.assertRaisesRegex(EvidenceContractError, "linked source file"):
+                self.search("PROJECT")
+
     def test_ignored_bytecode_cannot_be_imported(self):
         (self.root / ".git" / "info" / "exclude").write_text("tools/__pycache__/\n")
         cache = self.root / "tools" / "__pycache__"
