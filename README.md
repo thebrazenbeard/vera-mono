@@ -33,7 +33,11 @@ External infrastructure can still exist where it is genuinely external: model/pr
 opt-in, read-only source adapter for an operator-supplied DeepMemoryStorage checkout.
 It accepts only scoped historical evidence searches, verifies the configured Git
 commit against the external-provider registry's exact source binding, refuses a
-dirty checkout, invokes the bounded CLI without a shell, and returns its result to
+checkout with any mismatched tracked byte, hidden/ignored extra file or unsafe
+symlink/submodule, then runs only a private temporary snapshot of the verified
+Git-tree bytes. Its subprocess inherits no ambient tokens, Git or Python path;
+result capture is disk-backed with a byte cap, and the CLI is invoked without a
+shell. It returns the bounded result to
 `DeepMemoryEvidenceAdapter` for schema and privacy validation. Both explicit and
 effective overlay privacy scopes are checked. An archive-wide audit, live provider
 installation, current-memory write, or execution authority is **not** provided.

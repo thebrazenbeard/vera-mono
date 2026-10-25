@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from runtime_cohesion.deep_memory_cli_transport import PinnedDeepMemoryCLITransport
 from runtime_cohesion.deep_memory_evidence import (
@@ -62,7 +63,8 @@ class PinnedCLITest(unittest.TestCase):
         # The synthetic program tests the exact CLI transport/adapter contract.
         # It is not a stand-in for DeepMemoryStorage's independent union tests.
         program = (
-            "import argparse,json\n"
+            "import argparse,json,os\n"
+            "if 'DEEP_MEMORY_FAKE_TOKEN' in os.environ: raise SystemExit(90)\n"
             "p=argparse.ArgumentParser()\n"
             "p.add_argument('query')\n"
             "p.add_argument('--authorized-privacy',action='append',default=[])\n"
@@ -222,6 +224,141 @@ class PinnedCLITest(unittest.TestCase):
         # Both scopes are granted, but a self-contradictory overlay is invalid.
         with self.assertRaises(EvidenceContractError):
             adapter.search(EvidenceSearchRequest("witness", ("PROJECT", "PRIVATE")))
+
+    def test_nontext_effective_privacy_scope_has_controlled_denial(self):
+        def poisoned(**payload):
+            result = dict(self.transport()(**payload))
+            result["results"][0]["amendments"][0]["effective_privacy_scope"] = []
+            return result
+
+        adapter = DeepMemoryEvidenceAdapter(poisoned, registry_path=self.registry_path)
+        with self.assertRaises(EvidenceAuthorizationError):
+            adapter.search(EvidenceSearchRequest("witness", ("PROJECT",)))
+
+    def test_assume_unchanged_poison_does_not_execute(self):
+        script = self.root / "tools" / "query_deep_memory.py"
+        sentinel = Path(self.temp.name) / "poison-ran"
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.root),
+                "update-index",
+                "--assume-unchanged",
+                "tools/query_deep_memory.py",
+            ],
+            check=True,
+        )
+        script.write_text(
+            f"from pathlib import Path\nPath({str(sentinel)!r}).write_text('ran')\n"
+        )
+        self.assertEqual(
+            subprocess.run(
+                ["git", "-C", str(self.root), "status", "--porcelain"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout,
+            "",
+        )  # The old git-status-only gate was bypassable.
+        with self.assertRaises(EvidenceContractError):
+            self.search("PROJECT")
+        self.assertFalse(sentinel.exists())
+
+    def test_skip_worktree_poison_does_not_execute(self):
+        script = self.root / "tools" / "query_deep_memory.py"
+        sentinel = Path(self.temp.name) / "skip-ran"
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.root),
+                "update-index",
+                "--skip-worktree",
+                "tools/query_deep_memory.py",
+            ],
+            check=True,
+        )
+        script.write_text(
+            f"from pathlib import Path\nPath({str(sentinel)!r}).write_text('ran')\n"
+        )
+        with self.assertRaises(EvidenceContractError):
+            self.search("PROJECT")
+        self.assertFalse(sentinel.exists())
+
+    def test_git_excluded_extra_ledger_cannot_change_search_results(self):
+        (self.root / ".git" / "info" / "exclude").write_text(
+            "ledger/memories_999.jsonl\n"
+        )
+        (self.root / "ledger").mkdir()
+        (self.root / "ledger" / "memories_999.jsonl").write_text(
+            '{"memory_id":"poison"}\n'
+        )
+        self.assertEqual(
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(self.root),
+                    "status",
+                    "--porcelain",
+                    "--untracked-files=all",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout,
+            "",
+        )
+        with self.assertRaises(EvidenceContractError):
+            self.search("PROJECT")
+
+    def test_ignored_bytecode_cannot_be_imported(self):
+        (self.root / ".git" / "info" / "exclude").write_text("tools/__pycache__/\n")
+        cache = self.root / "tools" / "__pycache__"
+        cache.mkdir()
+        (cache / "deep_memory_catalog.cpython-312.pyc").write_bytes(b"fake bytecode")
+        self.assertEqual(
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(self.root),
+                    "status",
+                    "--porcelain",
+                    "--untracked-files=all",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout,
+            "",
+        )
+        with self.assertRaises(EvidenceContractError):
+            self.search("PROJECT")
+
+    def test_parent_credentials_are_not_inherited(self):
+        with patch.dict(os.environ, {"DEEP_MEMORY_FAKE_TOKEN": "never-forward"}):
+            self.assertEqual(self.search("PROJECT").count, 1)
+
+    def test_execution_uses_attested_snapshot_not_changed_worktree(self):
+        transport = self.transport()
+        original_attest = transport._attest_source_files
+        sentinel = Path(self.temp.name) / "race-poison-ran"
+
+        def attest_then_mutate():
+            checked = original_attest()
+            (self.root / "tools" / "query_deep_memory.py").write_text(
+                f"from pathlib import Path\nPath({str(sentinel)!r}).write_text('ran')\n"
+            )
+            return checked
+
+        transport._attest_source_files = attest_then_mutate
+        batch = DeepMemoryEvidenceAdapter(
+            transport, registry_path=self.registry_path
+        ).search(EvidenceSearchRequest("witness", ("PROJECT",)))
+        self.assertEqual(batch.count, 1)
+        self.assertFalse(sentinel.exists())
 
 
 if __name__ == "__main__":

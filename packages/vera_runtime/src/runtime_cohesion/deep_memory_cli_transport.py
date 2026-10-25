@@ -6,10 +6,13 @@ It is not an installed provider, a current-memory writer, or an authority source
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -21,6 +24,8 @@ from .deep_memory_evidence import (
 )
 
 _SHA = re.compile(r"[0-9a-f]{40}\Z")
+_MAX_SOURCE_FILES = 5_000
+_MAX_SOURCE_BYTES = 64_000_000
 
 
 def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -76,58 +81,148 @@ class PinnedDeepMemoryCLITransport:
         self._max_results = max_results
         self._max_result_bytes = max_result_bytes
 
-    def _verify_source_cut(self) -> Path:
+    def _git(self, *arguments: str) -> bytes:
+        # Ignore ambient Git identities/config and explicitly disable fsmonitor:
+        # a repository's fsmonitor may itself be an executable program.
+        git_env = {
+            "PATH": os.environ.get("PATH", os.defpath),
+            "LC_ALL": "C",
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+        return subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self._source_root),
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                f"core.hooksPath={os.devnull}",
+                *arguments,
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env=git_env,
+            timeout=self._timeout_seconds,
+        ).stdout
+
+    def _attest_source_files(self) -> dict[str, bytes]:
+        """Compare actual bytes/path inventory to the pinned Git *tree*, not index.
+
+        `git status` alone is insufficient: assume-unchanged/skip-worktree and
+        ignored files can conceal executable code or extra ledger tranches.
+        The returned checked bytes are materialized in a private snapshot for
+        execution, preventing a working-tree change between check and dispatch.
+        """
         root = self._source_root
         if not root.is_dir():
             raise EvidenceContractError("Deep Memory source root is not a directory")
         try:
-            top = subprocess.run(
-                ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=self._timeout_seconds,
-            ).stdout.strip()
-            head = subprocess.run(
-                ["git", "-C", str(root), "rev-parse", "HEAD"],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=self._timeout_seconds,
-            ).stdout.strip()
-            status = subprocess.run(
-                [
-                    "git",
-                    "-C",
-                    str(root),
-                    "status",
-                    "--porcelain",
-                    "--untracked-files=all",
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=self._timeout_seconds,
-            ).stdout
+            top = self._git("rev-parse", "--show-toplevel").decode("utf-8").strip()
+            head = self._git("rev-parse", "HEAD").decode("ascii").strip()
+            entries = self._git("ls-tree", "-r", "-z", self._source_commit)
         except (
             OSError,
             subprocess.CalledProcessError,
             subprocess.TimeoutExpired,
+            UnicodeError,
         ) as exc:
             raise EvidenceContractError(
                 "cannot attest Deep Memory source checkout"
             ) from exc
-        if Path(top).resolve() != root or head != self._source_commit or status:
+        if Path(top).resolve() != root or head != self._source_commit:
             raise EvidenceContractError(
-                "Deep Memory source checkout is moved, unpinned, or dirty"
+                "Deep Memory source checkout is moved or unpinned"
             )
-        script = root / "tools" / "query_deep_memory.py"
-        catalog = root / "tools" / "deep_memory_catalog.py"
-        if any(not path.is_file() or path.is_symlink() for path in (script, catalog)):
+        tree: dict[str, str] = {}
+        expected_directories: set[str] = set()
+        for entry in entries.split(b"\x00"):
+            if not entry:
+                continue
+            try:
+                metadata, raw_path = entry.split(b"\t", 1)
+                mode, entry_type, raw_digest = metadata.split(b" ", 2)
+                name = raw_path.decode("utf-8")
+            except (ValueError, UnicodeError) as exc:
+                raise EvidenceContractError("malformed pinned Git tree entry") from exc
+            relative = Path(name)
+            if (
+                mode not in (b"100644", b"100755")
+                or entry_type != b"blob"
+                or not _SHA.fullmatch(raw_digest.decode("ascii"))
+                or relative.is_absolute()
+                or "\\" in name
+                or any(part in ("", ".", "..") for part in relative.parts)
+                or name in tree
+            ):
+                raise EvidenceContractError(
+                    "unsafe symlink, submodule, or path in pinned Git tree"
+                )
+            tree[name] = raw_digest.decode("ascii")
+            expected_directories.update(
+                parent.as_posix() for parent in relative.parents if parent != Path(".")
+            )
+        if not 0 < len(tree) <= _MAX_SOURCE_FILES:
+            raise EvidenceContractError("pinned source file count is outside the bound")
+        if (
+            not {"tools/query_deep_memory.py", "tools/deep_memory_catalog.py"}
+            <= tree.keys()
+        ):
+            raise EvidenceContractError("pinned Deep Memory search program is missing")
+
+        def walk_error(exc: OSError) -> None:
             raise EvidenceContractError(
-                "pinned Deep Memory search program is missing or linked"
-            )
-        return script
+                "cannot enumerate complete Deep Memory checkout"
+            ) from exc
+
+        for directory, subdirs, files in os.walk(
+            root, followlinks=False, onerror=walk_error
+        ):
+            here = Path(directory)
+            if here == root:
+                subdirs[:] = [name for name in subdirs if name != ".git"]
+                files = [name for name in files if name != ".git"]
+            for name in subdirs:
+                child = here / name
+                rel = child.relative_to(root).as_posix()
+                if child.is_symlink() or rel not in expected_directories:
+                    raise EvidenceContractError(
+                        "untracked, ignored, or linked source directory"
+                    )
+            for name in files:
+                child = here / name
+                rel = child.relative_to(root).as_posix()
+                if child.is_symlink() or rel not in tree or not child.is_file():
+                    raise EvidenceContractError(
+                        "untracked, ignored, or linked source file"
+                    )
+
+        checked: dict[str, bytes] = {}
+        total_bytes = 0
+        for name, expected_blob in tree.items():
+            path = root / name
+            if path.is_symlink() or not path.is_file():
+                raise EvidenceContractError("pinned source file missing or linked")
+            try:
+                content = path.read_bytes()
+            except OSError as exc:
+                raise EvidenceContractError("cannot read pinned source bytes") from exc
+            total_bytes += len(content)
+            if total_bytes > _MAX_SOURCE_BYTES:
+                raise EvidenceContractError("pinned source snapshot exceeds byte limit")
+            actual_blob = hashlib.sha1(
+                b"blob " + str(len(content)).encode("ascii") + b"\x00" + content
+            ).hexdigest()
+            if actual_blob != expected_blob:
+                raise EvidenceContractError(
+                    "pinned source file content differs from Git tree"
+                )
+            checked[name] = content
+        return checked
 
     def __call__(
         self,
@@ -177,34 +272,73 @@ class PinnedDeepMemoryCLITransport:
                 "provider source binding does not match configured pinned source"
             )
 
-        script = self._verify_source_cut()
-        args = [sys.executable, "-E", "-s", "-B", str(script), query]
-        for scope in authorized_privacy_scopes:
-            args.extend(["--authorized-privacy", scope])
-        args.extend(["--limit", str(self._max_results), "--json"])
-        try:
-            completed = subprocess.run(
-                args,
-                cwd=self._source_root,
-                capture_output=True,
-                text=True,
-                timeout=self._timeout_seconds,
-                check=False,
+        checked_files = self._attest_source_files()
+        with tempfile.TemporaryDirectory(
+            prefix="vera-deepmemory-verified-"
+        ) as temp_name:
+            snapshot = Path(temp_name) / "source"
+            for name, contents in checked_files.items():
+                destination = snapshot / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(contents)
+            cache = Path(temp_name) / "empty-pycache"
+            cache.mkdir()
+            script = snapshot / "tools" / "query_deep_memory.py"
+            args = [
+                sys.executable,
+                "-E",
+                "-s",
+                "-B",
+                "-X",
+                "utf8",
+                "-X",
+                f"pycache_prefix={cache}",
+                str(script),
+            ]
+            for scope in authorized_privacy_scopes:
+                args.extend(["--authorized-privacy", scope])
+            args.extend(["--limit", str(self._max_results), "--json", "--", query])
+            # No ambient tokens, auth headers, Python path, or Git configuration
+            # are inherited by the provider. Only OS interpreter prerequisites.
+            allowed_env = (
+                "PATH",
+                "SystemRoot",
+                "WINDIR",
+                "TEMP",
+                "TMP",
+                "TMPDIR",
+                "LANG",
             )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            raise EvidenceContractError(
-                "Deep Memory search execution unavailable"
-            ) from exc
-        self._verify_source_cut()
-        if completed.returncode != 0:
-            # The donor's stderr may contain private ledger data; do not surface it.
-            raise EvidenceContractError("Deep Memory evidence search failed")
-        if len(completed.stdout.encode("utf-8")) > self._max_result_bytes:
-            raise EvidenceContractError(
-                "Deep Memory result exceeds configured byte limit"
-            )
+            child_env = {
+                key: os.environ[key] for key in allowed_env if key in os.environ
+            }
+            try:
+                with tempfile.TemporaryFile(mode="w+b") as output:
+                    completed = subprocess.run(
+                        args,
+                        cwd=snapshot,
+                        stdout=output,
+                        stderr=subprocess.DEVNULL,
+                        env=child_env,
+                        timeout=self._timeout_seconds,
+                        check=False,
+                    )
+                    if completed.returncode != 0:
+                        raise EvidenceContractError(
+                            "Deep Memory evidence search failed"
+                        )
+                    if output.tell() > self._max_result_bytes:
+                        raise EvidenceContractError(
+                            "Deep Memory result exceeds configured byte limit"
+                        )
+                    output.seek(0)
+                    response_text = output.read().decode("utf-8")
+            except (OSError, subprocess.TimeoutExpired, UnicodeError) as exc:
+                raise EvidenceContractError(
+                    "Deep Memory search execution unavailable"
+                ) from exc
         try:
-            result = json.loads(completed.stdout, object_pairs_hook=_unique_json_object)
+            result = json.loads(response_text, object_pairs_hook=_unique_json_object)
         except (ValueError, json.JSONDecodeError) as exc:
             raise EvidenceContractError(
                 "Deep Memory search emitted invalid JSON"
