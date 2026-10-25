@@ -26,7 +26,7 @@ Vera's implementation lives here. External repositories are research labs, donor
 `vera_core.drive_feedback.DriveFeedbackStore` is an additive SQLite reference
 for verifying caller-supplied outcome claims through an injected host verifier,
 atomically updating a need projection and exact goal-instance credit, rejecting
-replays and stale observations, and retaining an idempotent pending outbox.
+stale observations, handling matching replays idempotently, and retaining an idempotent pending outbox.
 See [DRIVE feedback reference](docs/DRIVE_FEEDBACK_REFERENCE_V1.md).
 
 **This module is not imported by the qualified Vera runtime, installed in
