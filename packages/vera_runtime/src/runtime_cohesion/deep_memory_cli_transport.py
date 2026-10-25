@@ -32,6 +32,17 @@ _MAX_SOURCE_BYTES = 64_000_000
 _GIT_TEXT_EXTENSIONS = frozenset({".py", ".json", ".jsonl", ".md", ".yml", ".yaml"})
 
 
+def _is_linked_path(path: Path) -> bool:
+    """Reject symbolic links *and* Windows directory junctions.
+
+    ``Path.is_symlink()`` does not report NTFS junctions. A checkout whose
+    apparent source directory traverses a junction is not the selected pinned
+    on-disk source tree, even if its current contents happen to hash correctly.
+    Python >=3.12 is required by this package, so ``is_junction`` is present.
+    """
+    return path.is_symlink() or path.is_junction()
+
+
 def _git_blob_sha(content: bytes) -> str:
     return hashlib.sha1(
         b"blob " + str(len(content)).encode("ascii") + b"\x00" + content
@@ -84,7 +95,10 @@ class PinnedDeepMemoryCLITransport:
             or not 1024 <= max_result_bytes <= 10_000_000
         ):
             raise ValueError("max_result_bytes must be in [1024, 10000000]")
-        self._source_root = Path(source_root).resolve(strict=True)
+        requested_root = Path(source_root)
+        if _is_linked_path(requested_root):
+            raise EvidenceContractError("Deep Memory source root is linked")
+        self._source_root = requested_root.resolve(strict=True)
         self._source_repository = source_repository
         self._source_commit = source_commit
         self._timeout_seconds = float(timeout_seconds)
@@ -199,14 +213,14 @@ class PinnedDeepMemoryCLITransport:
             for name in subdirs:
                 child = here / name
                 rel = child.relative_to(root).as_posix()
-                if child.is_symlink() or rel not in expected_directories:
+                if _is_linked_path(child) or rel not in expected_directories:
                     raise EvidenceContractError(
                         "untracked, ignored, or linked source directory"
                     )
             for name in files:
                 child = here / name
                 rel = child.relative_to(root).as_posix()
-                if child.is_symlink() or rel not in tree or not child.is_file():
+                if _is_linked_path(child) or rel not in tree or not child.is_file():
                     raise EvidenceContractError(
                         "untracked, ignored, or linked source file"
                     )
@@ -215,7 +229,7 @@ class PinnedDeepMemoryCLITransport:
         total_bytes = 0
         for name, expected_blob in tree.items():
             path = root / name
-            if path.is_symlink() or not path.is_file():
+            if _is_linked_path(path) or not path.is_file():
                 raise EvidenceContractError("pinned source file missing or linked")
             try:
                 content = path.read_bytes()
