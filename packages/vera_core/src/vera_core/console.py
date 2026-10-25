@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import sys
 from typing import Callable
 
 from vera_identity.loader import load_json_resource
@@ -314,6 +315,21 @@ class VeraConsole:
         )
 
 
+def _print_repl_response(text: str) -> None:
+    """Keep legacy Windows consoles from dropping an entire semantic reply.
+
+    Unsupported code points are rendered as readable backslash escapes. This
+    display is not lossless because literal backslashes may be ambiguous.
+    """
+    encoding = getattr(sys.stdout, "encoding", None)
+    if encoding:
+        try:
+            text.encode(encoding)
+        except UnicodeEncodeError:
+            text = text.encode(encoding, errors="backslashreplace").decode(encoding)
+    print(text)
+
+
 def run_console_repl(console: VeraConsole) -> int:
     print("Vera Mono semantic console")
     print(f"mode: {console.mode}")
@@ -328,6 +344,6 @@ def run_console_repl(console: VeraConsole) -> int:
         if not raw.strip():
             continue
         response = console.dispatch(raw)
-        print(response.text)
+        _print_repl_response(response.text)
         if response.exit_requested:
             return 0
