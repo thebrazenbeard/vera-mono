@@ -7,6 +7,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -264,16 +265,36 @@ def test_tampered_supersession_status_cannot_resurrect_reviewed_memory(tmp_path)
 def test_reviewed_memory_refuses_symlinked_database_ancestor_before_state_open(
     tmp_path, directory_name,
 ):
+    # Do not rename a populated SQLite directory: on Windows an SQLite handle
+    # may remain open briefly even after the transaction is committed, and
+    # directory renames then fail with WinError 5 before this test exercises
+    # the path-containment guard. Use a separate admitted state as the source.
+    admitted_root = tmp_path / "admitted-state"
+    admitted_root.mkdir()
+    _approve(admitted_root)
     root = tmp_path / "state"
     root.mkdir()
-    _approve(root)
+    other_directory = "memory" if directory_name == "learning" else "learning"
+    shutil.copytree(admitted_root / other_directory, root / other_directory)
     directory = root / directory_name
-    moved = tmp_path / ("outside-" + directory_name)
-    directory.rename(moved)
+    outside = admitted_root / directory_name
     try:
-        directory.symlink_to(moved, target_is_directory=True)
+        directory.symlink_to(outside, target_is_directory=True)
     except OSError as exc:
-        pytest.skip(f"symlink creation unavailable on this host: {exc}")
+        if os.name != "nt":
+            pytest.skip(f"symlink creation unavailable on this host: {exc}")
+        # Junction creation is normally available without the Windows
+        # developer-mode privilege needed for directory symlinks.
+        junction = subprocess.run(
+            ["cmd.exe", "/d", "/c", "mklink", "/J", str(directory), str(outside)],
+            text=True, capture_output=True,
+        )
+        if junction.returncode:
+            pytest.skip(
+                f"directory alias unavailable: symlink={exc}; "
+                f"junction={junction.stderr or junction.stdout}"
+            )
+    assert directory.is_symlink() or getattr(directory, "is_junction", lambda: False)()
     assert not (directory / ("memory.sqlite" if directory_name == "memory"
                              else "learned-influence.sqlite")).is_symlink()
     with patch("vera_core.cli.advise_local_model") as model:
