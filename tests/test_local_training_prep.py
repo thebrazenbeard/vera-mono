@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from tools.local_training.adapter_prep import build_plan, write_private_splits
 
 
+@unittest.skipIf(os.name == "nt", "POSIX private-file semantics unavailable on Windows")
 class AdapterPreparationTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -165,6 +168,26 @@ class AdapterPreparationTests(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             write_private_splits(self.manifest, output_dir)
         self.assertEqual((output_dir / "train.jsonl").read_bytes(), before)
+
+
+@unittest.skipUnless(os.name == "nt", "Windows fail-closed behavior")
+class WindowsPrivateACLHoldTests(unittest.TestCase):
+    def test_private_preparation_refuses_before_file_probe_or_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            missing_manifest = root / "private-manifest-does-not-exist.json"
+            output = root / "prepared"
+            # The Windows hold must run before reading even an operator-named
+            # manifest, and no output directory may be created.
+            with (
+                patch.object(Path, "is_file", side_effect=AssertionError("private file probed")),
+                patch("tools.local_training.adapter_prep.os.open", side_effect=AssertionError("private file opened")),
+            ):
+                with self.assertRaisesRegex(ValueError, "Windows private ACL qualification"):
+                    build_plan(missing_manifest)
+                with self.assertRaisesRegex(ValueError, "Windows private ACL qualification"):
+                    write_private_splits(missing_manifest, output)
+            self.assertFalse(output.exists())
 
 
 if __name__ == "__main__":
