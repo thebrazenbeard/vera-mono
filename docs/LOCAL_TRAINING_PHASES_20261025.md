@@ -11,7 +11,8 @@ Source change: `tools/local_training/ingest_bridge.py` supplies explicit
 their normalized blob SHA-256, source-group IDs and per-example local-training
 approval references. The exporter validates local owner-only storage, source
 record status, raw/normalized CAS hashes, normalization and ready-receipt
-digests, strict user/assistant JSON, duplicates and 16-MiB output limit.
+digests, raw-to-normalized replay, reconstructed source identity digest, strict
+user/assistant JSON, duplicates and 16-MiB output limit.
 It writes an exclusively created private 0600 JSONL file and prints only counts
 and hashes. The existing `adapter_prep` then validates its separately
 operator-authored manifest and produces group-disjoint train/evaluation sets.
