@@ -16,7 +16,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from ingest.canonical import canonical_json
+from ingest.canonical import canonical_digest, canonical_json
+from ingest.normalization import NORMALIZER_VERSION, normalize_bytes, sniff_media_type
 
 from .adapter_prep import _load_snapshot, _reject_git_checkout, _require_private_filesystem
 
@@ -88,6 +89,8 @@ def _record(store: Path, ingest_id: str) -> dict:
         raise ValueError("Ingest record is not accepted direct-source evidence")
     if data.get("warnings") != [] or data.get("error") is not None:
         raise ValueError("Ingest record contains warnings or errors requiring review")
+    if data.get("normalizer_version") != NORMALIZER_VERSION:
+        raise ValueError("unqualified Ingest normalizer revision")
     return data
 
 
@@ -112,7 +115,7 @@ def _artifact(store: Path, body: object, *, expected_kind: str) -> bytes:
     return raw
 
 
-def _receipts(store: Path, record: dict) -> None:
+def _receipts(store: Path, record: dict) -> str | None:
     _private_dir(store / "receipts", "Ingest receipts")
     ids = record.get("receipt_ids")
     if (not isinstance(ids, list) or not ids or
@@ -122,6 +125,7 @@ def _receipts(store: Path, record: dict) -> None:
     raw_artifact = record["raw_artifact"]["artifact_id"]
     normalized = record["normalized_artifact"]["artifact_id"]
     normalization_pass = record_ready = False
+    claimed_types: list[str | None] = []
     for identifier in ids:
         value = _json_bytes(_private_read(store / "receipts" / f"{identifier}.json", "Ingest receipt"), "Ingest receipt")
         digest = value.pop("receipt_digest", None)
@@ -129,18 +133,30 @@ def _receipts(store: Path, record: dict) -> None:
             raise ValueError("Ingest receipt identity mismatch")
         if not isinstance(digest, str) or digest != _hash(canonical_json(value).encode("utf-8")):
             raise ValueError("Ingest receipt digest mismatch")
+        inputs, outputs, details = (value.get("input_artifact_ids"), value.get("output_artifact_ids"),
+                                    value.get("details"))
+        if not isinstance(inputs, list) or not isinstance(outputs, list) or not isinstance(details, dict):
+            raise ValueError("Ingest receipt artifact lists/details malformed")
+        if (value.get("stage") == "persist_raw" and value.get("outcome") in {"CREATED", "EXISTS"}
+                and value.get("ingest_id") is None and raw_artifact in outputs):
+            if details.get("media_type") != record["raw_artifact"].get("media_type"):
+                raise ValueError("raw persistence receipt/media type mismatch")
+            claimed = details.get("claimed_media_type")
+            if claimed is not None and (not isinstance(claimed, str) or not claimed):
+                raise ValueError("Ingest claimed media type invalid")
+            claimed_types.append(claimed)
         if value.get("ingest_id") == record["ingest_id"]:
-            inputs, outputs = value.get("input_artifact_ids"), value.get("output_artifact_ids")
-            if not isinstance(inputs, list) or not isinstance(outputs, list):
-                raise ValueError("Ingest receipt artifact lists malformed")
             if (value.get("stage") == "normalize" and value.get("outcome") == "PASS" and
-                    raw_artifact in inputs and normalized in outputs):
+                    raw_artifact in inputs and normalized in outputs and
+                    details.get("normalizer_version") == NORMALIZER_VERSION and
+                    details.get("media_type") == record["normalized_artifact"].get("media_type")):
                 normalization_pass = True
             if (value.get("stage") == "record" and value.get("outcome") == "READY" and
                     normalized in outputs):
                 record_ready = True
-    if not normalization_pass or not record_ready:
+    if not normalization_pass or not record_ready or len(claimed_types) != 1:
         raise ValueError("Ingest normalization and record-ready receipts required")
+    return claimed_types[0]
 
 
 def _approved_row(store: Path, selection: dict) -> dict:
@@ -159,12 +175,33 @@ def _approved_row(store: Path, selection: dict) -> dict:
     if not isinstance(approval, str) or not _REVIEW_REF.fullmatch(approval):
         raise ValueError("selection needs an opaque per-example review reference")
     record = _record(store, ingest_id)
-    _artifact(store, record.get("raw_artifact"), expected_kind="raw")
+    raw = _artifact(store, record.get("raw_artifact"), expected_kind="raw")
     normal = record.get("normalized_artifact")
     if not isinstance(normal, dict) or normal.get("sha256") != expected or normal.get("media_type") != "application/json":
         raise ValueError("approved normalized JSON artifact binding mismatch")
     data = _artifact(store, normal, expected_kind="normalized")
-    _receipts(store, record)
+    claimed_type = _receipts(store, record)
+    if record["raw_artifact"]["media_type"] != sniff_media_type(raw):
+        raise ValueError("raw Ingest media type is inconsistent with source bytes")
+    if (normal["media_type"] != (claimed_type or record["raw_artifact"]["media_type"]) or
+            normalize_bytes(raw, normal["media_type"]) != data):
+        raise ValueError("normalized training bytes do not replay from raw source")
+    source = record.get("source")
+    if not isinstance(source, dict) or not isinstance(source.get("source_identity"), dict):
+        raise ValueError("Ingest source identity malformed")
+    identity_fields = ("scheme", "locator", "adapter", "adapter_version", "source_identity")
+    if any(field not in source for field in identity_fields):
+        raise ValueError("Ingest source identity incomplete")
+    identity = {
+        "schema": "INGEST_IDENTITY_V1",
+        "source": {field: source[field] for field in identity_fields},
+        "raw_sha256": record["raw_artifact"]["sha256"],
+        "claimed_media_type": claimed_type,
+        "normalizer_version": NORMALIZER_VERSION,
+        "policy_id": record.get("policy_id"),
+    }
+    if canonical_digest(identity) != ingest_id:
+        raise ValueError("Ingest record identity does not bind the raw source")
     payload = _json_bytes(data, "normalized training candidate")
     if set(payload) != {"messages"} or canonical_json(payload).encode("utf-8") != data:
         raise ValueError("normalized training candidate must contain only canonical messages")
