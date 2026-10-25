@@ -251,6 +251,11 @@ independent bounded request with freshly reconstructed allowlisted lifecycle
 status. The CLI stores no transcript, carries no prior-turn context into the
 next model request, and does not turn the local model into a qualified Vera
 provider. `--json` emits one result object per completed turn (JSON Lines).
+On terminals using legacy Windows encodings such as cp1252, JSON output
+uses ASCII Unicode escapes (still losslessly decoded by JSON consumers),
+and plain-text output backslash-escapes characters the console cannot encode.
+UTF-8 output streams retain literal Unicode replies. This only changes
+display/serialization; it does not alter the model reply or its digest.
 An interrupted in-flight call is marked delivery-unknown, not a successful
 response. The bound state root must already exist; no default identity, state
 directory, provider, or model is silently chosen.

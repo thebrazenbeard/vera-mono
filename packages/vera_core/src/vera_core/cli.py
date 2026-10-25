@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import codecs
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -10,6 +11,33 @@ from .console import VeraConsole, run_console_repl
 from .local_model_advisory import MAX_PROMPT_CHARS, advise_local_model
 from .qualified_runtime import QualifiedVeraRuntime
 from .state import VeraStateDirectory
+
+
+def _write_stdout(text: str) -> None:
+    """Avoid output failures when a legacy console cannot encode a reply.
+
+    Check before writing so an encoding failure cannot leave a partial record.
+    Plain text uses display-safe but ambiguous backslash escapes; JSON callers
+    pre-escape all Unicode on non-UTF-8 streams for lossless interchange.
+    """
+    encoding = getattr(sys.stdout, "encoding", None)
+    if encoding:
+        try:
+            text.encode(encoding)
+        except UnicodeEncodeError:
+            text = text.encode(encoding, errors="backslashreplace").decode(encoding)
+    sys.stdout.write(text)
+
+
+def _write_json(payload: dict, *, indent: int | None = None,
+                separators: tuple[str, str] | None = None) -> None:
+    encoding = getattr(sys.stdout, "encoding", None)
+    # JSON Lines consumers should receive portable UTF-8/ASCII bytes, never
+    # locale-specific high bytes such as cp1252's e-acute (0xE9).
+    ascii_only = bool(encoding and codecs.lookup(encoding).name != "utf-8")
+    rendered = json.dumps(payload, ensure_ascii=ascii_only, allow_nan=False,
+                          sort_keys=True, indent=indent, separators=separators)
+    _write_stdout(rendered + "\n")
 
 
 def _add_state_binding(parser: argparse.ArgumentParser, *, required: bool) -> None:
@@ -136,22 +164,9 @@ def _status(args: argparse.Namespace) -> int:
         ),
     }
     if args.pretty:
-        rendered = json.dumps(
-            payload,
-            ensure_ascii=False,
-            allow_nan=False,
-            sort_keys=True,
-            indent=2,
-        )
+        _write_json(payload, indent=2)
     else:
-        rendered = json.dumps(
-            payload,
-            ensure_ascii=False,
-            allow_nan=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-    sys.stdout.write(rendered + "\n")
+        _write_json(payload, separators=(",", ":"))
     return 0
 
 
@@ -178,7 +193,7 @@ def _shell(args: argparse.Namespace) -> int:
 
     if args.prompt is not None:
         response = console.dispatch(args.prompt)
-        sys.stdout.write(response.text + "\n")
+        _write_stdout(response.text + "\n")
         return 0
 
     if not sys.stdin.isatty():
@@ -186,7 +201,7 @@ def _shell(args: argparse.Namespace) -> int:
         if not raw:
             raise ValueError("stdin did not contain console input")
         response = console.dispatch(raw)
-        sys.stdout.write(response.text + "\n")
+        _write_stdout(response.text + "\n")
         return 0
 
     return run_console_repl(console)
@@ -202,12 +217,9 @@ def _advise(args: argparse.Namespace) -> int:
         timeout_seconds=args.timeout_seconds,
     )
     if args.json:
-        sys.stdout.write(
-            json.dumps(result.to_dict(), ensure_ascii=False, allow_nan=False, sort_keys=True)
-            + "\n"
-        )
+        _write_json(result.to_dict())
     else:
-        sys.stdout.write(
+        _write_stdout(
             f"UNVERIFIED_MODEL_OUTPUT — model={result.model_id} "
             f"endpoint={result.endpoint}; no Vera memory or effect authority\n"
             + result.text
@@ -265,10 +277,9 @@ def _chat_once(args: argparse.Namespace, prompt: str) -> int:
             "result": result.to_dict(),
             "claim_ceiling": "UNVERIFIED_MODEL_OUTPUT_NOT_CURRENTNESS_NOT_EFFECT_AUTHORITY",
         }
-        sys.stdout.write(json.dumps(payload, ensure_ascii=False, allow_nan=False,
-                                    sort_keys=True) + "\n")
+        _write_json(payload)
     else:
-        sys.stdout.write(
+        _write_stdout(
             f"UNVERIFIED_MODEL_OUTPUT — QVR status={context['status']} "
             f"context_sha256={context_digest}; memory_admission=NONE "
             "authority=NONE tool_execution=NONE\n"
