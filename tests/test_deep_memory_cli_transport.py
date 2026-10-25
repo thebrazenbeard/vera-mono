@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -122,6 +123,36 @@ class PinnedCLITest(unittest.TestCase):
         return DeepMemoryEvidenceAdapter(
             self.transport(), registry_path=self.registry_path
         ).search(EvidenceSearchRequest("witness", scopes))
+
+    def recommit_fixture_program(self, source):
+        (self.root / "tools" / "query_deep_memory.py").write_text(
+            source, encoding="utf-8"
+        )
+        subprocess.run(
+            ["git", "-C", str(self.root), "add", "tools/query_deep_memory.py"],
+            check=True,
+        )
+        git_env = dict(
+            os.environ,
+            GIT_AUTHOR_NAME="test",
+            GIT_AUTHOR_EMAIL="test@example.invalid",
+            GIT_COMMITTER_NAME="test",
+            GIT_COMMITTER_EMAIL="test@example.invalid",
+        )
+        subprocess.run(
+            ["git", "-C", str(self.root), "commit", "-qm", "fixture variant"],
+            check=True,
+            env=git_env,
+        )
+        self.sha = subprocess.run(
+            ["git", "-C", str(self.root), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        registry = json.loads(self.registry_path.read_text(encoding="utf-8"))
+        registry["providers"][0]["source"]["source_merged_commit"] = self.sha
+        self.registry_path.write_text(json.dumps(registry), encoding="utf-8")
 
     def test_provenance_from_two_tranches_remains_unpromoted(self):
         batch = self.search("PROJECT")
@@ -359,6 +390,58 @@ class PinnedCLITest(unittest.TestCase):
         ).search(EvidenceSearchRequest("witness", ("PROJECT",)))
         self.assertEqual(batch.count, 1)
         self.assertFalse(sentinel.exists())
+
+    def test_huge_stdout_kills_child_before_post_output_effect(self):
+        pid_file = Path(self.temp.name) / "oversize.pid"
+        post_output = Path(self.temp.name) / "oversize-survived"
+        self.recommit_fixture_program(
+            "import os,sys,time\nfrom pathlib import Path\n"
+            f"Path({str(pid_file)!r}).write_text(str(os.getpid()))\n"
+            "sys.stdout.write('X'*1_000_000)\nsys.stdout.flush()\n"
+            "time.sleep(5)\n"
+            f"Path({str(post_output)!r}).write_text('executed')\n"
+        )
+        transport = PinnedDeepMemoryCLITransport(
+            self.root,
+            source_repository=self.source_repository,
+            source_commit=self.sha,
+            max_result_bytes=1024,
+        )
+        start = time.monotonic()
+        with self.assertRaisesRegex(EvidenceContractError, "byte limit"):
+            DeepMemoryEvidenceAdapter(
+                transport, registry_path=self.registry_path
+            ).search(EvidenceSearchRequest("witness", ("PROJECT",)))
+        self.assertLess(time.monotonic() - start, 3)
+        self.assertFalse(post_output.exists())
+        self.assertTrue(pid_file.is_file())
+        if os.name == "posix":
+            with self.assertRaises(ProcessLookupError):
+                os.kill(int(pid_file.read_text()), 0)
+
+    def test_slow_stdout_is_killed_at_deadline(self):
+        pid_file = Path(self.temp.name) / "timeout.pid"
+        self.recommit_fixture_program(
+            "import os,sys,time\nfrom pathlib import Path\n"
+            f"Path({str(pid_file)!r}).write_text(str(os.getpid()))\n"
+            "sys.stdout.write('partial')\nsys.stdout.flush()\ntime.sleep(5)\n"
+        )
+        transport = PinnedDeepMemoryCLITransport(
+            self.root,
+            source_repository=self.source_repository,
+            source_commit=self.sha,
+            timeout_seconds=0.2,
+        )
+        start = time.monotonic()
+        with self.assertRaisesRegex(EvidenceContractError, "timed out"):
+            DeepMemoryEvidenceAdapter(
+                transport, registry_path=self.registry_path
+            ).search(EvidenceSearchRequest("witness", ("PROJECT",)))
+        self.assertLess(time.monotonic() - start, 3)
+        self.assertTrue(pid_file.is_file())
+        if os.name == "posix":
+            with self.assertRaises(ProcessLookupError):
+                os.kill(int(pid_file.read_text()), 0)
 
 
 if __name__ == "__main__":

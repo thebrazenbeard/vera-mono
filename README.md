@@ -36,8 +36,9 @@ commit against the external-provider registry's exact source binding, refuses a
 checkout with any mismatched tracked byte, hidden/ignored extra file or unsafe
 symlink/submodule, then runs only a private temporary snapshot of the verified
 Git-tree bytes. Its subprocess inherits no ambient tokens, Git or Python path;
-result capture is disk-backed with a byte cap, and the CLI is invoked without a
-shell. It returns the bounded result to
+stdout is drained in fixed-size chunks with a hard in-memory byte cap; the child
+is killed on overflow or deadline rather than allowed to fill a temporary file.
+The CLI is invoked without a shell. It returns the bounded result to
 `DeepMemoryEvidenceAdapter` for schema and privacy validation. Both explicit and
 effective overlay privacy scopes are checked. An archive-wide audit, live provider
 installation, current-memory write, or execution authority is **not** provided.

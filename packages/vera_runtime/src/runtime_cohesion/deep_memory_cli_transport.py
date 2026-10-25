@@ -9,10 +9,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import queue
 import re
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -313,30 +316,89 @@ class PinnedDeepMemoryCLITransport:
                 key: os.environ[key] for key in allowed_env if key in os.environ
             }
             try:
-                with tempfile.TemporaryFile(mode="w+b") as output:
-                    completed = subprocess.run(
-                        args,
-                        cwd=snapshot,
-                        stdout=output,
-                        stderr=subprocess.DEVNULL,
-                        env=child_env,
-                        timeout=self._timeout_seconds,
-                        check=False,
-                    )
-                    if completed.returncode != 0:
-                        raise EvidenceContractError(
-                            "Deep Memory evidence search failed"
-                        )
-                    if output.tell() > self._max_result_bytes:
-                        raise EvidenceContractError(
-                            "Deep Memory result exceeds configured byte limit"
-                        )
-                    output.seek(0)
-                    response_text = output.read().decode("utf-8")
-            except (OSError, subprocess.TimeoutExpired, UnicodeError) as exc:
+                child = subprocess.Popen(
+                    args,
+                    cwd=snapshot,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    env=child_env,
+                )
+            except OSError as exc:
                 raise EvidenceContractError(
                     "Deep Memory search execution unavailable"
                 ) from exc
+            chunks: queue.Queue[bytes] = queue.Queue(maxsize=2)
+            reader_done = threading.Event()
+            reader_stop = threading.Event()
+            reader_errors: list[OSError] = []
+
+            def drain_stdout() -> None:
+                try:
+                    assert child.stdout is not None
+                    while not reader_stop.is_set():
+                        chunk = child.stdout.read(64 * 1024)
+                        while not reader_stop.is_set():
+                            try:
+                                chunks.put(chunk, timeout=0.1)
+                                break
+                            except queue.Full:
+                                continue
+                        if not chunk:
+                            break
+                except OSError as exc:
+                    reader_errors.append(exc)
+                finally:
+                    reader_done.set()
+
+            reader = threading.Thread(target=drain_stdout, daemon=True)
+            reader.start()
+            deadline = time.monotonic() + self._timeout_seconds
+            output = bytearray()
+            try:
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise EvidenceContractError("Deep Memory search timed out")
+                    try:
+                        chunk = chunks.get(timeout=min(0.1, remaining))
+                    except queue.Empty:
+                        if reader_done.is_set() and chunks.empty():
+                            break
+                        continue
+                    if not chunk:
+                        break
+                    # A bounded queue of two 64KiB chunks guarantees the
+                    # producer cannot outrun the caller into unbounded memory.
+                    if len(output) + len(chunk) > self._max_result_bytes:
+                        raise EvidenceContractError(
+                            "Deep Memory result exceeds configured byte limit"
+                        )
+                    output.extend(chunk)
+                if reader_errors:
+                    raise EvidenceContractError("Deep Memory stdout stream failed")
+                if child.wait(timeout=max(0.001, deadline - time.monotonic())) != 0:
+                    raise EvidenceContractError("Deep Memory evidence search failed")
+                response_text = output.decode("utf-8")
+            except subprocess.TimeoutExpired as exc:
+                raise EvidenceContractError("Deep Memory search timed out") from exc
+            except UnicodeError as exc:
+                raise EvidenceContractError(
+                    "Deep Memory emitted invalid UTF-8"
+                ) from exc
+            finally:
+                reader_stop.set()
+                if child.poll() is None:
+                    try:
+                        child.kill()
+                    except OSError:
+                        pass
+                try:
+                    child.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    pass
+                reader.join(timeout=1)
+                if not reader.is_alive() and child.stdout is not None:
+                    child.stdout.close()
         try:
             result = json.loads(response_text, object_pairs_hook=_unique_json_object)
         except (ValueError, json.JSONDecodeError) as exc:
