@@ -128,7 +128,9 @@ def exercise(*, repo: Path, image_id: str, volume_prefix: str):
                     Ed25519PrivateKey.generate().public_key().public_bytes(
                         Encoding.Raw,PublicFormat.Raw) if variant=="wrong_key" else public),
                 expected_gateway_id=gateway_id,
-                expected_key_id="ephemeral-test-only")
+                expected_key_id="ephemeral-test-only",
+                expected_reported_registry_digest=reported_digest,
+                expected_model_artifact_sha256=reservation["model_artifact_sha256"])
             volume=volume_prefix+"-"+variant.replace("_","-")
             result=None
             try:
@@ -177,7 +179,9 @@ def exercise(*, repo: Path, image_id: str, volume_prefix: str):
                     claim_evidence_verifier=claim_custody,
                     pinned_gateway_public_key=public,
                     expected_gateway_id=gateway_id,
-                    expected_key_id="ephemeral-test-only")
+                    expected_key_id="ephemeral-test-only",
+                    expected_reported_registry_digest=reported_digest,
+                    expected_model_artifact_sha256=reservation["model_artifact_sha256"])
                 try:
                     invoke_with_host_callback(
                         image_id=image_id,volume=volume,prompt=prompt,

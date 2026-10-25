@@ -64,7 +64,9 @@ def exercise(repo:Path,image_id:str,volume:str)->dict:
                 claim_evidence_verifier=fixture.reader(),
                 pinned_gateway_public_key=public,
                 expected_gateway_id="gateway-test",
-                expected_key_id="ephemeral-gateway-test")
+                expected_key_id="ephemeral-gateway-test",
+                expected_reported_registry_digest="a"*64,
+                expected_model_artifact_sha256=BIND["model_artifact_sha256"])
             response=invoke_with_host_callback(
                 image_id=image_id,volume=volume,prompt="prompt",model="synthetic",
                 digest="a"*64,invocation_id="inv-mtls",

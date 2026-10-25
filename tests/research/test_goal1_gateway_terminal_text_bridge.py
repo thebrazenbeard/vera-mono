@@ -18,6 +18,7 @@ SHA=lambda value:sha256(value.encode("utf-8")).hexdigest()
 PROMPT="synthetic bridge test"
 MODEL="synthetic-model"
 DIGEST=SHA("reported tag only")
+MISMATCH_DIGEST=SHA("substituted registry digest")
 RESERVATION={
     "reservation_id":"res-test","run_id":"run-test","arm":"FROZEN",
     "challenge_id":"case-test","challenge_view_digest":SHA("view"),
@@ -27,7 +28,8 @@ RESERVATION={
 INVOCATION="inv-test"
 GATEWAY="test-gateway"
 
-def build(*,bad_sha=False,unknown=False,unverified=False):
+def build(*,bad_sha=False,unknown=False,unverified=False,
+          expected_registry_digest=DIGEST,expected_artifact_sha256=None):
     call_log=[]
     class Backend:
         def generate(self,prompt,*,model,max_tokens):
@@ -73,7 +75,11 @@ def build(*,bad_sha=False,unknown=False,unverified=False):
         verify_terminal_v2=verifier,
         claim_evidence_verifier=ClaimEvidence(),
         pinned_gateway_public_key=b"pinned-only-test",
-        expected_gateway_id=GATEWAY,expected_key_id="test-key")
+        expected_gateway_id=GATEWAY,expected_key_id="test-key",
+        expected_reported_registry_digest=expected_registry_digest,
+        expected_model_artifact_sha256=(expected_artifact_sha256
+            if expected_artifact_sha256 is not None
+            else RESERVATION["model_artifact_sha256"]))
     return bridge,call_log
 
 def test_signed_terminal_and_claim_verification_precede_qvr_text():
@@ -98,6 +104,30 @@ def test_mismatched_reservation_rejected_before_backend():
         bridge("substituted prompt",model=MODEL,model_digest=DIGEST,max_tokens=3)
     assert calls==[]
 
+def test_registry_digest_must_match_its_own_pinned_identity_before_any_dispatch():
+    bridge,calls=build()
+    assert MISMATCH_DIGEST != RESERVATION["model_artifact_sha256"]
+    assert DIGEST != RESERVATION["model_artifact_sha256"]
+    with pytest.raises(GatewayTextHold,match="model/prompt/permit mismatch"):
+        bridge(PROMPT,model=MODEL,model_digest=MISMATCH_DIGEST,max_tokens=3)
+    assert calls==[]
+    # The attempt is consumed before dispatch; a subsequent correct digest
+    # must never replay the same invocation.
+    with pytest.raises(GatewayTextHold,match="already consumed"):
+        bridge(PROMPT,model=MODEL,model_digest=DIGEST,max_tokens=3)
+    assert calls==[]
+
+def test_artifact_sha_is_independently_bound_before_any_dispatch():
+    with pytest.raises(ValueError,match="artifact"):
+        build(expected_artifact_sha256=SHA("other selected artifact"))
+
+def test_unpinned_registry_and_artifact_identities_are_refused_at_init():
+    for registry,artifact in (("not-a-digest",RESERVATION["model_artifact_sha256"]),
+                              (DIGEST,"not-a-digest")):
+        with pytest.raises(ValueError,match="identities/trust inputs"):
+            build(expected_registry_digest=registry,
+                  expected_artifact_sha256=artifact)
+
 def test_one_shot_no_automatic_replay_after_success_or_failure():
     bridge,calls=build()
     bridge(PROMPT,model=MODEL,model_digest=DIGEST,max_tokens=3)
@@ -119,4 +149,6 @@ def test_plain_object_cannot_masquerade_as_claim_evidence_verifier():
             verify_terminal_v2=bridge.verify_terminal_v2,
             claim_evidence_verifier=object(),
             pinned_gateway_public_key=b"pinned-only-test",
-            expected_gateway_id=GATEWAY,expected_key_id="test-key")
+            expected_gateway_id=GATEWAY,expected_key_id="test-key",
+            expected_reported_registry_digest=DIGEST,
+            expected_model_artifact_sha256=RESERVATION["model_artifact_sha256"])

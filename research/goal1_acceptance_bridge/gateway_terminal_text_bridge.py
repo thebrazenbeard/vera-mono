@@ -47,7 +47,9 @@ class GatewayTerminalTextBridge:
                  reservation: dict, invocation_id: str,
                  verify_terminal_v2: Callable,
                  claim_evidence_verifier, pinned_gateway_public_key: bytes,
-                 expected_gateway_id: str, expected_key_id: str):
+                 expected_gateway_id: str, expected_key_id: str,
+                 expected_reported_registry_digest: str,
+                 expected_model_artifact_sha256: str):
         if (not isinstance(backend, CapturingBackend)
                 or getattr(dispatch, "backend", None) is not backend
                 or getattr(dispatch, "gateway_id", None) != expected_gateway_id
@@ -65,8 +67,17 @@ class GatewayTerminalTextBridge:
                 or type(expected_gateway_id) is not str or not expected_gateway_id
                 or type(expected_key_id) is not str or not expected_key_id
                 or type(pinned_gateway_public_key) is not bytes
-                or not pinned_gateway_public_key):
+                or not pinned_gateway_public_key
+                or any(type(value) is not str or len(value)!=64
+                       or any(c not in "0123456789abcdef" for c in value)
+                       for value in (expected_reported_registry_digest,
+                                     expected_model_artifact_sha256))):
             raise ValueError("gateway identities/trust inputs invalid")
+        # Distinct trust domains: the learner reports a registry digest;
+        # the controller reserves an artifact digest. Their values need not
+        # be equal, but each must match its own outside-pinned expectation.
+        if reservation["model_artifact_sha256"]!=expected_model_artifact_sha256:
+            raise ValueError("reserved artifact differs from pinned expected artifact")
         self.dispatch=dispatch
         self.backend=backend
         self.store=store
@@ -77,6 +88,7 @@ class GatewayTerminalTextBridge:
         self.pinned_gateway_public_key=pinned_gateway_public_key
         self.expected_gateway_id=expected_gateway_id
         self.expected_key_id=expected_key_id
+        self.expected_reported_registry_digest=expected_reported_registry_digest
         self._used=False
 
     def __call__(self, prompt: str, *, model: str, model_digest: str,
@@ -89,6 +101,7 @@ class GatewayTerminalTextBridge:
                 or type(model) is not str or model!=self.reservation["model_identity"]
                 or type(model_digest) is not str or len(model_digest)!=64
                 or any(c not in "0123456789abcdef" for c in model_digest)
+                or model_digest!=self.expected_reported_registry_digest
                 or hashlib.sha256(prompt.encode("utf-8")).hexdigest()!=self.reservation["model_prompt_sha256"]
                 or type(max_tokens) is not int or not 1<=max_tokens<=128):
             raise GatewayTextHold("model/prompt/permit mismatch before gateway")
