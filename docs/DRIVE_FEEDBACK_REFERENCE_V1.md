@@ -29,17 +29,17 @@ credential vault, an authenticated transport, or a runtime integration.
 | No externally supplied verifier | `HOLD`, no receipt, projection, or outbox write |
 | Claim says observer or includes digest | Still untrusted until host verifier returns structurally bound `DriveWitness`; callback may lie |
 | Absolute need measurement | `normalized` level in [0,1], never additive caller-provided `claimed_need_change` |
-| Need freshness | Exact `need_id` and expected need revision; `BEGIN IMMEDIATE` CAS serializes writers |
+| Need freshness | Exact `need_id` and expected need revision; `BEGIN EXCLUSIVE` blocks readers before post-lock admission freshness checks |
 | Effect replay | Unique event, attempt, physical effect, evidence digest, witness attestation ID, and `(observer_id, source_sequence)` |
 | Observer clock | Fresh bounded timestamp; source sequences strictly increasing; later sequence cannot move observation time backwards |
 | Goal satisfaction | Same need, goal ID, choice ID, goal revision, `ACTIVE` and not vetoed, verified `EFFECT`, actual level improvement and target reached |
 | Replaced/vetoed goal | Fresh verified need-only measurement can still update need; **cannot** credit the replacement or vetoed goal |
 | Failed/no-op effect | Cannot claim increased need level; does not satisfy goal |
-| Atomicity | Receipt, need projection, optional exact goal credit, and outbox in one SQLite `BEGIN IMMEDIATE` transaction |
+| Atomicity | Receipt, need projection, optional exact goal credit, and outbox in one SQLite `BEGIN EXCLUSIVE` admission transaction |
 | Crash/replay | Precommit failure rolls back every table; postcommit restart has one durable pending outbox row; replay reports `goal_credit=False` |
 | Concurrent first-open | Schema and `user_version` committed together under `BEGIN IMMEDIATE`; an interrupted bootstrap can safely retry |
 | Database schema drift | Reject unknown version, partial/unversioned preexisting database, missing constraints/index, and foreign tables/triggers/views |
-| Feedback freshness | Validate before verifier, after SQLite writer-lock acquisition, and immediately before commit; expired observations fail with no durable updates |
+| Feedback freshness | Validate before verifier, after exclusive reader/writer lock acquisition, and immediately before commit; no SQLite reader-lock wait follows the final clock check. Scheduler and filesystem latency are not time-attested |
 | POSIX state privacy | Require an owner-only state directory, private database file, no path symlinks, and DELETE journal mode; reject rather than alter permissions on existing user files |
 | Runtime side effects | None. No `QualifiedVeraRuntime` registration, device action, host automation, or message dispatch |
 

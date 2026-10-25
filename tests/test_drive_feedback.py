@@ -536,5 +536,115 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
             self.store()
 
 
+    def test_reader_lock_cannot_admit_expired_observation(self):
+        """An actual SHARED reader must block EXCLUSIVE before the final clock check."""
+        s = self.seed()
+        now = [2_000_000]
+        s.clock_ms = lambda: now[0]
+        inside_sqlite_begin = threading.Event()
+        begin_returned = threading.Event()
+        begin_modes = []
+        real_connect = s._connect
+
+        class RecordingConnection:
+            def __init__(self, connection):
+                self._connection = connection
+
+            def execute(self, sql, *args):
+                if sql.startswith("BEGIN "):
+                    begin_modes.append(sql)
+
+                    def on_sqlite_trace(statement):
+                        if statement.startswith("BEGIN "):
+                            inside_sqlite_begin.set()
+
+                    self._connection.set_trace_callback(on_sqlite_trace)
+                    result = self._connection.execute(sql, *args)
+                    self._connection.set_trace_callback(None)
+                    # Simulate an observation expiring during the *real* lock
+                    # wait. Time advances only after SQLite obtains the lock,
+                    # so this cannot false-pass if the writer was unscheduled.
+                    now[0] = 2_100_000
+                    begin_returned.set()
+                    return result
+                return self._connection.execute(sql, *args)
+
+            def __getattr__(self, name):
+                return getattr(self._connection, name)
+
+        s._connect = lambda: RecordingConnection(real_connect())
+        outcomes = []
+        errors = []
+        reader = sqlite3.connect(s.path, timeout=3, isolation_level=None)
+        thread = None
+        try:
+            reader.execute("BEGIN")
+            reader.execute("SELECT count(*) FROM need_projection").fetchone()
+
+            def writer():
+                try:
+                    outcomes.append(s.admit(self.observation()))
+                except BaseException as exc:
+                    errors.append(exc)
+
+            thread = threading.Thread(target=writer)
+            thread.start()
+            self.assertTrue(
+                inside_sqlite_begin.wait(timeout=4),
+                "writer did not enter actual SQLite BEGIN",
+            )
+            self.assertFalse(
+                begin_returned.is_set(),
+                "exclusive admission lock acquired despite held SQLite reader",
+            )
+        finally:
+            reader.rollback()
+            reader.close()
+            if thread is not None:
+                thread.join(timeout=7)
+            s._connect = real_connect
+
+        self.assertFalse(thread is not None and thread.is_alive(), "writer did not finish")
+        self.assertEqual(begin_modes, ["BEGIN EXCLUSIVE"])
+        self.assertTrue(begin_returned.is_set(), "admission BEGIN never acquired lock")
+        self.assertFalse(errors, str(errors))
+        self.assertEqual(len(outcomes), 1)
+        self.assertEqual(outcomes[0].status, "HOLD")
+        self.assertEqual(outcomes[0].goal_credit_reason, "OBSERVATION_NOT_FRESH")
+        self.assertEqual(s.read_need("need:rest").revision, 0)
+        self.assertEqual(s.read_goal("goal:original").status, "ACTIVE")
+        self.assertEqual(s.pending_outbox(), ())
+
+    def test_connect_closes_handle_if_any_setup_pragma_raises(self):
+        from unittest.mock import patch
+
+        s = self.seed()
+        for fail_at in (1, 2, 3):
+            with self.subTest(fail_at=fail_at):
+                class BrokenConnection:
+                    def __init__(self):
+                        self.calls = 0
+                        self.closes = 0
+                        self.row_factory = None
+
+                    def execute(self, sql):
+                        self.calls += 1
+                        if self.calls == fail_at:
+                            raise sqlite3.OperationalError("synthetic setup failure")
+                        return self
+
+                    def fetchone(self):
+                        return ("delete",)
+
+                    def close(self):
+                        self.closes += 1
+
+                conn = BrokenConnection()
+                with patch.object(self.module.sqlite3, "connect", return_value=conn):
+                    with self.assertRaises(sqlite3.OperationalError):
+                        s._connect()
+                self.assertEqual(conn.closes, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

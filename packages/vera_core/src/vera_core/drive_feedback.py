@@ -288,16 +288,21 @@ class DriveFeedbackStore:
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=3, isolation_level=None)
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA foreign_keys = ON")
-        db.execute("PRAGMA busy_timeout = 3000")
-        # WAL sidecars require a separate host review; keep transient rollback
-        # journals within the private DB directory for this source reference.
-        journal = str(db.execute("PRAGMA journal_mode").fetchone()[0]).lower()
-        if journal != "delete":
+        try:
+            db.row_factory = sqlite3.Row
+            db.execute("PRAGMA foreign_keys = ON")
+            db.execute("PRAGMA busy_timeout = 3000")
+            # WAL sidecars require a separate host review; keep transient rollback
+            # journals within the private DB directory for this source reference.
+            journal = str(db.execute("PRAGMA journal_mode").fetchone()[0]).lower()
+            if journal != "delete":
+                raise DriveFeedbackError("unsupported durable journal mode")
+            return db
+        except BaseException:
+            # A failed setup PRAGMA must not leave a SQLite handle open,
+            # especially on Windows where it blocks temporary path cleanup.
             db.close()
-            raise DriveFeedbackError("unsupported durable journal mode")
-        return db
+            raise
 
     def _prepare_private_path(self) -> None:
         """Reject shared or symlinked POSIX state; never chmod existing data.
@@ -591,7 +596,10 @@ class DriveFeedbackStore:
 
         db = self._connect()
         try:
-            db.execute("BEGIN IMMEDIATE")
+            # In rollback-journal DELETE mode, EXCLUSIVE waits for existing
+            # readers BEFORE the post-lock freshness check. BEGIN IMMEDIATE
+            # permits reader-held COMMIT waits after the last clock check.
+            db.execute("BEGIN EXCLUSIVE")
             timing_error = admission_time_failure()
             if timing_error is not None:
                 db.rollback()
