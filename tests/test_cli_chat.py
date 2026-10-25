@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+import io
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ import pytest
 
 from vera_core import VeraStateDirectory
 from vera_core import cli
+from vera_core.local_model_advisory import MAX_PROMPT_CHARS
 from vera_control import local_r10_source_digest
 from vera_memory import AdmissionRequest, MemoryClass
 
@@ -61,6 +63,129 @@ def _args(root, *extra):
         "--endpoint", "http://127.0.0.1:11434/v1",
         "--model", "gemma3:1b", *extra,
     ]
+
+
+def _interactive_args(root, *extra):
+    args = _args(root, "--interactive", "--json", *extra)
+    args.remove("What can I inspect?")
+    return args
+
+
+def test_interactive_chat_uses_stdin_without_history_memory_or_authority(
+    tmp_path, capsys,
+):
+    root = tmp_path / "private-state-path-CANARY"
+    root.mkdir()
+    state = VeraStateDirectory(root, project_id="private-project-CANARY",
+                               identity_id="private-identity-CANARY")
+    memory_head = state.open().memory.current_head
+    connections = [_Connection(), _Connection()]
+    with patch.object(sys, "stdin", io.StringIO("First question\nSecond question\n:exit\n")), \
+            patch("vera_core.local_model_advisory.HTTPConnection", side_effect=connections):
+        assert cli.main(_interactive_args(root)) == 0
+
+    output = capsys.readouterr()
+    assert "UNVERIFIED_MODEL_OUTPUT: stateless local chat" in output.err
+    records = [json.loads(line) for line in output.out.splitlines()]
+    assert len(records) == 2
+    assert all(record["claim_ceiling"] ==
+               "UNVERIFIED_MODEL_OUTPUT_NOT_CURRENTNESS_NOT_EFFECT_AUTHORITY"
+               for record in records)
+    assert all(record["result"]["tool_execution"] == "NONE" and
+               record["result"]["memory_admission"] == "NONE" and
+               record["result"]["authority"] == "NONE" for record in records)
+    prompts = [connection.requests[0][2]["messages"][1]["content"]
+               for connection in connections]
+    assert "First question" in prompts[0]
+    assert "Second question" not in prompts[0]
+    assert "Second question" in prompts[1]
+    assert "First question" not in prompts[1]
+    assert all("CANARY" not in prompt for prompt in prompts)
+    assert "CANARY" not in output.out
+    assert "First question" not in output.out + output.err
+    assert "Second question" not in output.out + output.err
+    assert state.open().memory.current_head == memory_head
+
+
+def test_interactive_chat_eof_and_interrupt_before_prompt_send_nothing(tmp_path, capsys):
+    root = tmp_path / "state"
+    root.mkdir()
+    with patch("vera_core.local_model_advisory.HTTPConnection") as ctor, \
+            patch.object(sys, "stdin", io.StringIO("")):
+        assert cli.main(_interactive_args(root)) == 0
+    ctor.assert_not_called()
+    assert capsys.readouterr().out == ""
+
+    class InterruptingStdin:
+        def isatty(self):
+            return False
+
+        def readline(self, limit):
+            raise KeyboardInterrupt
+
+    with patch("vera_core.local_model_advisory.HTTPConnection") as ctor, \
+            patch.object(sys, "stdin", InterruptingStdin()):
+        assert cli.main(_interactive_args(root)) == 0
+    ctor.assert_not_called()
+    assert capsys.readouterr().out == ""
+
+
+def test_interactive_chat_rejects_arg_prompt_and_oversize_before_network(
+    tmp_path, capsys,
+):
+    root = tmp_path / "state"
+    root.mkdir()
+    args = _interactive_args(root)
+    args.insert(1, "SECRET_POSITIONAL_PROMPT")
+    with patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
+        with pytest.raises(SystemExit) as exc:
+            cli.main(args)
+    assert exc.value.code == 2
+    assert "forbids a positional prompt" in capsys.readouterr().err
+    ctor.assert_not_called()
+
+    oversized = "x" * (MAX_PROMPT_CHARS + 2) + "\n"
+    with patch.object(sys, "stdin", io.StringIO(oversized)), \
+            patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
+        with pytest.raises(SystemExit) as exc:
+            cli.main(_interactive_args(root))
+    assert exc.value.code == 2
+    assert "prompt exceeds" in capsys.readouterr().err
+    ctor.assert_not_called()
+
+    with patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
+        with pytest.raises(SystemExit) as exc:
+            cli.main([value for value in _interactive_args(root)
+                      if value != "--interactive"])
+    assert exc.value.code == 2
+    assert "requires a prompt" in capsys.readouterr().err
+    ctor.assert_not_called()
+
+
+def test_interactive_chat_fails_closed_when_second_model_call_fails(tmp_path, capsys):
+    root = tmp_path / "state"
+    root.mkdir()
+    connections = [_Connection(), _Connection(fail=OSError("offline"))]
+    with patch.object(sys, "stdin", io.StringIO("First\nSecond\nThird\n")), \
+            patch("vera_core.local_model_advisory.HTTPConnection", side_effect=connections) as ctor:
+        with pytest.raises(SystemExit) as exc:
+            cli.main(_interactive_args(root))
+    assert exc.value.code == 2
+    output = capsys.readouterr()
+    assert "endpoint unavailable" in output.err
+    assert len(output.out.splitlines()) == 1
+    assert ctor.call_count == 2  # The third prompt was not sent or retried.
+
+
+def test_interactive_chat_interrupt_during_model_call_is_not_success(tmp_path, capsys):
+    root = tmp_path / "state"
+    root.mkdir()
+    with patch.object(sys, "stdin", io.StringIO("First\n")), \
+            patch("vera_core.cli.advise_local_model", side_effect=KeyboardInterrupt):
+        assert cli.main(_interactive_args(root)) == 130
+    output = capsys.readouterr()
+    assert "request delivery is unknown" in output.err
+    assert output.out == ""
 
 
 def test_chat_binds_only_minimal_qvr_metadata_and_cold_restart_has_no_memory_admission(
