@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import hmac
 import json
 import re
+import secrets
 import socket
 from time import monotonic
 
@@ -19,6 +21,9 @@ _AGENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\Z")
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
 _MAX_BODY = 1_000_000
 _MAX_HEADERS = 16_384
+_READ_PREFLIGHT_DOMAIN = b"rezon-state-read/preflight/v2\0"
+_READ_REQUEST_DOMAIN = b"rezon-state-read/request/v2\0"
+_READ_RESPONSE_DOMAIN = b"rezon-state-read/response/v2\0"
 
 
 class CollectiveObservationError(ValueError):
@@ -173,9 +178,8 @@ class LoopbackCollectiveObserver:
 
     def __init__(self, *, port: int, read_token: str, timeout: float = 3.0) -> None:
         if type(port) is not int or not 1 <= port <= 65535 or (
-            not isinstance(read_token, str) or not 16 <= len(read_token) <= 256
-            or not read_token.isascii() or not read_token.isprintable()
-            or any(ch.isspace() for ch in read_token)
+            not isinstance(read_token, str) or not re.fullmatch(r"[0-9a-f]{64}", read_token)
+            or len(set(read_token)) < 8
         ) or isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or (
             not 0 < timeout <= 20
         ):
@@ -204,13 +208,81 @@ class LoopbackCollectiveObserver:
                 raise CollectiveObservationError("collective observation deadline exceeded")
             return budget
 
-        request = (
-            f"GET /v1/episodes/{episode_id}/state HTTP/1.1\r\n"
+        try:
+            path = f"/v1/episodes/{episode_id}/state"
+            audience = f"127.0.0.1:{self._port}"
+            client_nonce = secrets.token_hex(32)
+            _, challenge_body = self._get(
+                "/v1/read-challenge", authorization=None, remaining=remaining,
+                challenge_path=path, client_nonce=client_nonce,
+            )
+            challenge = json.loads(challenge_body)
+            if not isinstance(challenge, dict) or set(challenge) != {
+                "server_nonce", "expires_in_ms", "audience", "state_path",
+                "client_nonce", "issued_ms", "epoch", "proof",
+            } or not isinstance(challenge["server_nonce"], str) or not re.fullmatch(
+                r"[0-9a-f]{64}", challenge["server_nonce"]
+            ) or type(challenge["expires_in_ms"]) is not int or not (
+                0 < challenge["expires_in_ms"] <= 10_000
+            ) or challenge["audience"] != audience or challenge["state_path"] != path or (
+                challenge["client_nonce"] != client_nonce
+            ) or type(challenge["issued_ms"]) is not int or not (
+                0 < challenge["issued_ms"] < 2**64
+            ) or not isinstance(challenge["epoch"], str) or not re.fullmatch(
+                r"[0-9a-f]{32}", challenge["epoch"]
+            ) or not isinstance(challenge["proof"], str) or not re.fullmatch(
+                r"[0-9a-f]{64}", challenge["proof"]
+            ):
+                raise CollectiveObservationError("unsupported gateway read challenge")
+            server_nonce = challenge["server_nonce"]
+            issued_ms = challenge["issued_ms"]
+            epoch = challenge["epoch"]
+            context = (b"GET\0" + path.encode("ascii") + b"\0" + audience.encode("ascii")
+                       + b"\0" + bytes.fromhex(server_nonce) + bytes.fromhex(client_nonce)
+                       + issued_ms.to_bytes(8, "big") + bytes.fromhex(epoch))
+            secret = bytes.fromhex(self._token)
+            preflight_mac = hmac.new(secret, _READ_PREFLIGHT_DOMAIN + context,
+                                     sha256).hexdigest()
+            if not hmac.compare_digest(preflight_mac, challenge["proof"]):
+                raise CollectiveObservationError("gateway preflight proof was not authenticated")
+            remaining()
+            request_mac = hmac.new(secret, _READ_REQUEST_DOMAIN + context,
+                                   sha256).hexdigest()
+            authorization = (f"Rezon-Read-HMAC {server_nonce}.{client_nonce}."
+                             f"{issued_ms}.{epoch}.{request_mac}")
+            state_headers, body = self._get(path, authorization=authorization,
+                                            remaining=remaining)
+            expected = hmac.new(secret, _READ_RESPONSE_DOMAIN + context
+                + sha256(body).digest(), sha256).hexdigest()
+            proof = state_headers.get("x-rezon-state-proof", "")
+            if not re.fullmatch(r"[0-9a-f]{64}", proof) or not hmac.compare_digest(
+                expected, proof
+            ):
+                raise CollectiveObservationError("gateway state response was not authenticated")
+            remaining()
+            snapshot = json.loads(body)
+        except CollectiveObservationError:
+            raise
+        except (OSError, TimeoutError, UnicodeError, ValueError, RecursionError) as exc:
+            raise CollectiveObservationError("collective observation unavailable") from exc
+        return _decode(snapshot, episode_id=episode_id, expected_agents=expected_agents,
+                       expected_prompt_sha256=expected_prompt_sha256)
+
+    def _get(self, path: str, *, authorization: str | None,
+             remaining, challenge_path: str | None = None,
+             client_nonce: str | None = None) -> tuple[dict[str, str], bytes]:
+        headers = (
+            f"GET {path} HTTP/1.1\r\n"
             f"Host: 127.0.0.1:{self._port}\r\n"
-            f"Authorization: Bearer {self._token}\r\n"
             "Accept: application/json\r\n"
-            "Connection: close\r\n\r\n"
-        ).encode("ascii")
+            "Connection: close\r\n"
+        )
+        if authorization is not None:
+            headers += f"Authorization: {authorization}\r\n"
+        if challenge_path is not None and client_nonce is not None:
+            headers += f"X-Rezon-State-Path: {challenge_path}\r\n"
+            headers += f"X-Rezon-Client-Nonce: {client_nonce}\r\n"
+        request = (headers + "\r\n").encode("ascii")
         try:
             with socket.create_connection(("127.0.0.1", self._port), timeout=remaining()) as peer:
                 peer.settimeout(remaining())
@@ -230,20 +302,20 @@ class LoopbackCollectiveObserver:
                 lines = header_bytes.decode("ascii").split("\r\n")
                 if not re.fullmatch(r"HTTP/1\.[01] 200(?: [^\r\n]*)?", lines[0]):
                     raise CollectiveObservationError("unauthorized or unavailable collective state")
-                headers: dict[str, str] = {}
+                result_headers: dict[str, str] = {}
                 for line in lines[1:]:
                     if ":" not in line:
                         raise CollectiveObservationError("invalid collective header")
                     key, val = line.split(":", 1)
                     key = key.strip().lower()
-                    if not re.fullmatch(r"[a-z0-9-]+", key) or key in headers:
+                    if not re.fullmatch(r"[a-z0-9-]+", key) or key in result_headers:
                         raise CollectiveObservationError("duplicate or invalid collective header")
-                    headers[key] = val.strip()
-                if headers.get("content-type", "").split(";", 1)[0] != "application/json" or (
-                    not re.fullmatch(r"[0-9]+", headers.get("content-length", ""))
-                ) or "transfer-encoding" in headers:
+                    result_headers[key] = val.strip()
+                if result_headers.get("content-type", "").split(";", 1)[0] != "application/json" or (
+                    not re.fullmatch(r"[0-9]+", result_headers.get("content-length", ""))
+                ) or "transfer-encoding" in result_headers:
                     raise CollectiveObservationError("invalid collective response framing")
-                length = int(headers["content-length"])
+                length = int(result_headers["content-length"])
                 if length > _MAX_BODY or len(initial_body) > length:
                     raise CollectiveObservationError("collective response too large or malformed")
                 body = bytearray(initial_body)
@@ -254,10 +326,8 @@ class LoopbackCollectiveObserver:
                         raise CollectiveObservationError("incomplete collective response")
                     body.extend(block)
                 remaining()  # A last byte received at/after expiry is not success.
-            snapshot = json.loads(body)
+            return result_headers, bytes(body)
         except CollectiveObservationError:
             raise
         except (OSError, TimeoutError, UnicodeError, ValueError, RecursionError) as exc:
             raise CollectiveObservationError("collective observation unavailable") from exc
-        return _decode(snapshot, episode_id=episode_id, expected_agents=expected_agents,
-                       expected_prompt_sha256=expected_prompt_sha256)

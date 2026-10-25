@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from copy import deepcopy
 from hashlib import sha256
+import hmac
 import json
+import secrets
 import unittest
 from unittest.mock import patch
 
@@ -15,7 +17,7 @@ from vera_core.external_rezon_collective import (
 
 
 EPISODE = "collective-" + "a" * 32
-TOKEN = "a-strong-read-only-token-for-loopback"
+TOKEN = secrets.token_hex(32)
 PROMPT = "Assess the unverified claim"
 PROMPT_SHA = sha256(PROMPT.encode()).hexdigest()
 AGENTS = ("alice", "bob")
@@ -79,6 +81,13 @@ class FakeResponse:
 class FakeSocket:
     response = FakeResponse(snapshot())
     calls = []
+    challenge = "f" * 64
+    epoch = "9" * 32
+    issued_ms = 1000000
+    spoof_proof = False
+    spoof_preflight = False
+    spoof_audience = False
+    legacy_gateway = False
 
     @classmethod
     def create_connection(cls, address, *, timeout):
@@ -86,7 +95,7 @@ class FakeSocket:
         return cls()
 
     def __init__(self):
-        self.wire = self.response.wire()
+        self.wire = b""
 
     def __enter__(self):
         return self
@@ -99,6 +108,56 @@ class FakeSocket:
 
     def sendall(self, data):
         self.calls.append(data)
+        if b"GET /v1/read-challenge " in data:
+            if self.legacy_gateway:
+                self.wire = FakeResponse({"error": "unauthorized"}, status=401).wire()
+            else:
+                lines = data.split(b"\r\n")
+                path = next(line.split(b": ", 1)[1] for line in lines
+                            if line.startswith(b"X-Rezon-State-Path:"))
+                client_nonce = next(line.split(b": ", 1)[1].decode() for line in lines
+                                    if line.startswith(b"X-Rezon-Client-Nonce:"))
+                audience = "127.0.0.1:9999" if self.spoof_audience else "127.0.0.1:8899"
+                context = (b"GET\0" + path + b"\0" + audience.encode() + b"\0"
+                           + bytes.fromhex(self.challenge) + bytes.fromhex(client_nonce)
+                           + self.issued_ms.to_bytes(8, "big") + bytes.fromhex(self.epoch))
+                proof = hmac.new(bytes.fromhex(TOKEN),
+                    b"rezon-state-read/preflight/v2\0" + context, sha256).hexdigest()
+                if self.spoof_preflight:
+                    proof = "0" * 64
+                self.wire = FakeResponse({"server_nonce": self.challenge,
+                                          "expires_in_ms": 10000,
+                                          "audience": audience, "state_path": path.decode(),
+                                          "client_nonce": client_nonce,
+                                          "issued_ms": self.issued_ms,
+                                          "epoch": self.epoch, "proof": proof}).wire()
+            return
+        auth_line = next((line for line in data.split(b"\r\n")
+                          if line.startswith(b"Authorization: ")), b"")
+        if not auth_line.startswith(b"Authorization: Rezon-Read-HMAC "):
+            self.wire = FakeResponse({"error": "unauthorized"}, status=401).wire()
+            return
+        server_nonce, client_nonce, issued_text, epoch, request_mac = auth_line.split(
+            b" ", 2)[-1].decode().split(".")
+        path = data.split(b" ")[1]
+        context = (b"GET\0" + path + b"\0" + b"127.0.0.1:8899\0"
+                   + bytes.fromhex(server_nonce) + bytes.fromhex(client_nonce)
+                   + int(issued_text).to_bytes(8, "big") + bytes.fromhex(epoch))
+        expected_request = hmac.new(bytes.fromhex(TOKEN),
+            b"rezon-state-read/request/v2\0" + context, sha256).hexdigest()
+        if not hmac.compare_digest(request_mac, expected_request):
+            self.wire = FakeResponse({"error": "invalid MAC"}, status=401).wire()
+            return
+        state = self.response
+        response_proof = hmac.new(bytes.fromhex(TOKEN),
+            b"rezon-state-read/response/v2\0" + context
+            + sha256(state.body).digest(), sha256).hexdigest()
+        if self.spoof_proof:
+            response_proof = "0" * 64
+        self.wire = FakeResponse(json.loads(state.body), status=state.status,
+                                 media_type=state.media_type,
+                                 headers={**state.headers,
+                                          "X-Rezon-State-Proof": response_proof}).wire()
 
     def recv(self, limit):
         value, self.wire = self.wire[:limit], self.wire[limit:]
@@ -125,6 +184,10 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
     def setUp(self):
         FakeSocket.calls = []
         FakeSocket.response = FakeResponse(snapshot())
+        FakeSocket.spoof_proof = False
+        FakeSocket.spoof_preflight = False
+        FakeSocket.spoof_audience = False
+        FakeSocket.legacy_gateway = False
         self.patch = patch("vera_core.external_rezon_collective.socket.create_connection",
                            FakeSocket.create_connection)
         self.patch.start()
@@ -157,8 +220,10 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
         self.assertFalse(result.execution_authorized)
         self.assertEqual(FakeSocket.calls[0][0], ("127.0.0.1", 8899))
         self.assertIn(f"GET /v1/episodes/{EPISODE}/state HTTP/1.1".encode(),
-                      FakeSocket.calls[1])
-        self.assertIn(f"Authorization: Bearer {TOKEN}".encode(), FakeSocket.calls[1])
+                      FakeSocket.calls[3])
+        self.assertIn(b"Authorization: Rezon-Read-HMAC ", FakeSocket.calls[3])
+        self.assertFalse(any(TOKEN.encode() in part for part in FakeSocket.calls
+                             if isinstance(part, bytes)))
 
     def test_cross_episode_and_roster_claims_are_rejected(self):
         for mutation in (
@@ -195,6 +260,25 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
                 FakeSocket.response = FakeResponse(snapshot(), status=status)
                 with self.assertRaises(CollectiveObservationError):
                     self.observe()
+
+    def test_old_gateway_and_spoofed_local_port_fail_before_trust(self):
+        FakeSocket.legacy_gateway = True
+        with self.assertRaises(CollectiveObservationError):
+            self.observe()
+        self.assertEqual(len(FakeSocket.calls), 2)  # no read request was issued
+        FakeSocket.legacy_gateway = False
+        FakeSocket.spoof_audience = True
+        with self.assertRaisesRegex(CollectiveObservationError, "unsupported gateway"):
+            self.observe()
+        self.assertEqual(len(FakeSocket.calls), 4)  # still no signed read request
+        FakeSocket.spoof_audience = False
+        FakeSocket.spoof_preflight = True
+        with self.assertRaisesRegex(CollectiveObservationError, "preflight proof"):
+            self.observe()
+        FakeSocket.spoof_preflight = False
+        FakeSocket.spoof_proof = True
+        with self.assertRaisesRegex(CollectiveObservationError, "not authenticated"):
+            self.observe()
 
     def test_nonnumeric_port_short_token_and_foreign_episode_are_denied(self):
         for port in (0, 65536, True, "8000"):

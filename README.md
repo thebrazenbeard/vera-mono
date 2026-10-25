@@ -83,7 +83,7 @@ Independent falsification is deliberately different from internal assurance. Ver
 
 `vera_core.external_rezon_collective.LoopbackCollectiveObserver` is an opt-in,
 **read-only** adapter for an independently running Rezon collective gateway. It
-uses the separately configured, operator-supplied **read-only state token**
+uses the separately configured, operator-supplied **read-only state secret**
 (never Rezon's write-capable admin or worker token) to fetch only the episode's state
 from numeric `127.0.0.1`, with bounded time and response size. The caller must
 independently supply the expected episode ID, ordered worker roster, and SHA-256
@@ -107,7 +107,18 @@ still requires separately qualified host evidence.
 This adapter requires the complementary Rezon gateway `read_token` role
 (`REZON_COLLECTIVE_STATE_READ_TOKEN` in Rezon's CLI). Older gateways without
 that opt-in role reject the credential; do not work around that by substituting
-an administrator bearer.
+an administrator bearer. Provision the read secret as 32 random bytes encoded
+in 64 lowercase hex characters, using `secrets.token_hex(32)` rather than a
+human-chosen password. On each observation, the client sends the exact path
+and a random client nonce, verifies a server-signed 10-second challenge before
+sending any request HMAC, and verifies the exact returned state bytes with a
+separate MAC. Each transcript binds the exact `GET` state path and expected
+numeric `127.0.0.1:port` audience; Rezon uses its actual accepted socket for
+that audience, not a caller-controlled `Host` header. **The read-only secret
+never appears in the HTTP request.** A spoofed cross-port or obsolete gateway
+cannot pass this proof without knowledge of the secret. This is
+loopback-only source authentication/integrity, not independent host attestation
+or protection from a fully compromised local user who can relay traffic.
 
 ## PowerShell console
 
