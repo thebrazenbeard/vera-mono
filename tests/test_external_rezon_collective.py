@@ -31,11 +31,17 @@ def contribution(agent, kind, *, targets=()):
     }
 
 
-def snapshot(*, complete=True, with_review=False, with_synthesis=False):
+def snapshot(*, complete=True, with_review=False, with_full_review=False,
+             with_synthesis=False):
     answers = [contribution("alice", "answer")]
     if complete:
         answers.append(contribution("bob", "answer"))
     reviews = [contribution("alice", "review", targets=("answer:bob",))] if with_review else []
+    if with_full_review:
+        reviews = [
+            contribution("alice", "review", targets=("answer:bob",)),
+            contribution("bob", "review", targets=("answer:alice",)),
+        ]
     claims = [
         {
             "contribution_id": row["id"], "agent_id": row["agent_id"],
@@ -207,6 +213,55 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
         self.assertEqual(result.missing_agents, ("bob",))
         self.assertFalse(result.execution_authorized or result.independent_hosts_verified)
         self.assertEqual(result.evidence_status, "UNVERIFIED_GATEWAY_CLAIM")
+        self.assertEqual(result.round_state, "INITIAL_ANSWERS_INCOMPLETE")
+        self.assertEqual(result.missing_review_agents, AGENTS)
+
+    def test_first_answer_completion_does_not_claim_peer_review_or_synthesis(self):
+        result = self.observe()
+        self.assertEqual(result.state, "COMPLETE_UNVERIFIED")
+        self.assertEqual(result.round_state, "PEER_REVIEW_INCOMPLETE")
+        self.assertEqual(result.missing_review_agents, AGENTS)
+        self.assertEqual(result.current_synthesis_ids, ())
+
+    def test_current_synthesis_before_all_peer_reviews_is_not_full_round(self):
+        FakeSocket.response = FakeResponse(snapshot(with_synthesis=True))
+        result = self.observe()
+        self.assertEqual(result.round_state, "PEER_REVIEW_INCOMPLETE")
+        self.assertEqual(len(result.current_synthesis_ids), 1)
+        self.assertEqual(result.missing_review_agents, AGENTS)
+        self.assertFalse(result.execution_authorized)
+
+    def test_full_peer_review_without_synthesis_is_not_full_round(self):
+        FakeSocket.response = FakeResponse(snapshot(with_full_review=True))
+        result = self.observe()
+        self.assertEqual(result.round_state, "SYNTHESIS_NOT_OBSERVED")
+        self.assertEqual(result.missing_review_agents, ())
+        self.assertEqual(result.current_synthesis_ids, ())
+
+    def test_stale_synthesis_does_not_count_as_current_synthesis(self):
+        state = snapshot(with_full_review=True)
+        stale_digest = "0" * 64
+        state["syntheses"] = [{
+            "synthesis_id": f"synthesis:{stale_digest}:integrator",
+            "integrator_id": "integrator", "input_digest": stale_digest,
+            "content": "Earlier provisional model answer",
+            "status": "unverified_model_synthesis", "is_current": False,
+        }]
+        FakeSocket.response = FakeResponse(state)
+        result = self.observe()
+        self.assertEqual(result.round_state, "SYNTHESIS_NOT_OBSERVED")
+        self.assertEqual(len(result.synthesis_ids), 1)
+        self.assertEqual(result.current_synthesis_ids, ())
+
+    def test_full_peer_review_and_current_synthesis_still_unverified(self):
+        FakeSocket.response = FakeResponse(snapshot(
+            with_full_review=True, with_synthesis=True,
+        ))
+        result = self.observe()
+        self.assertEqual(result.round_state, "SYNTHESIS_PRESENT_UNVERIFIED")
+        self.assertEqual(result.missing_review_agents, ())
+        self.assertEqual(len(result.current_synthesis_ids), 1)
+        self.assertFalse(result.execution_authorized or result.independent_hosts_verified)
 
     def test_two_worker_answers_review_and_synthesis_remain_unverified(self):
         FakeSocket.response = FakeResponse(
@@ -217,6 +272,8 @@ class LoopbackCollectiveObserverTests(unittest.TestCase):
         self.assertEqual(set(result.answer_ids), {"answer:alice", "answer:bob"})
         self.assertEqual(result.review_ids, ("review:alice",))
         self.assertEqual(len(result.synthesis_ids), 1)
+        self.assertEqual(result.round_state, "PEER_REVIEW_INCOMPLETE")
+        self.assertEqual(result.missing_review_agents, ("bob",))
         self.assertFalse(result.execution_authorized)
         self.assertEqual(FakeSocket.calls[0][0], ("127.0.0.1", 8899))
         self.assertIn(f"GET /v1/episodes/{EPISODE}/state HTTP/1.1".encode(),

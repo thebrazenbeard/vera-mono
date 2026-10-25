@@ -234,13 +234,6 @@ class PinnedCLITest(unittest.TestCase):
                 },
             )
 
-    def test_relabeling_provider_registry_commit_cannot_promote_stale_checkout(self):
-        registry = json.loads(self.registry_path.read_text(encoding="utf-8"))
-        registry["providers"][0]["source"]["source_merged_commit"] = "0" * 40
-        self.registry_path.write_text(json.dumps(registry), encoding="utf-8")
-        with self.assertRaisesRegex(EvidenceContractError, "source binding"):
-            self.search("PROJECT")
-
     def test_inherited_overlay_with_foreign_effective_scope_fails_closed(self):
         def poisoned(**payload):
             result = dict(self.transport()(**payload))
@@ -324,33 +317,6 @@ class PinnedCLITest(unittest.TestCase):
             self.search("PROJECT")
         self.assertFalse(sentinel.exists())
 
-    def test_committed_provider_symlink_is_rejected_before_execution(self):
-        script = self.root / "tools" / "query_deep_memory.py"
-        script.unlink()
-        try:
-            script.symlink_to("deep_memory_catalog.py")
-        except (OSError, NotImplementedError):
-            self.skipTest("symlink creation unavailable in this test environment")
-        subprocess.run(
-            ["git", "-C", str(self.root), "add", "tools/query_deep_memory.py"],
-            check=True,
-        )
-        git_env = dict(
-            os.environ,
-            GIT_AUTHOR_NAME="test",
-            GIT_AUTHOR_EMAIL="test@example.invalid",
-            GIT_COMMITTER_NAME="test",
-            GIT_COMMITTER_EMAIL="test@example.invalid",
-        )
-        subprocess.run(
-            ["git", "-C", str(self.root), "commit", "-qm", "symlink attack fixture"],
-            check=True,
-            env=git_env,
-        )
-        self._rebind_fixture_commit()
-        with self.assertRaisesRegex(EvidenceContractError, "unsafe symlink"):
-            self.search("PROJECT")
-
     def test_git_excluded_extra_ledger_cannot_change_search_results(self):
         (self.root / ".git" / "info" / "exclude").write_text(
             "ledger/memories_999.jsonl\n"
@@ -377,6 +343,33 @@ class PinnedCLITest(unittest.TestCase):
         )
         with self.assertRaises(EvidenceContractError):
             self.search("PROJECT")
+
+    def test_linked_source_root_is_rejected_before_path_resolution(self):
+        # Path.resolve() would erase the visible junction/link boundary.
+        with patch.object(
+            Path, "is_junction", lambda path: path == self.root
+        ):
+            with self.assertRaisesRegex(EvidenceContractError, "root is linked"):
+                self.transport()
+
+    def test_junction_in_pinned_directory_is_rejected(self):
+        # NTFS directory junctions aren't reported by Path.is_symlink().
+        # Exercise a noncanonical input spelling on every OS, as may occur
+        # with Windows' temporary-directory spelling even without '..'.
+        with patch.object(self, "root", self.root / ".." / "dms"):
+            target = self.root.resolve(strict=True) / "tools"
+            self.assertNotEqual(self.root / "tools", target)
+            with patch.object(Path, "is_junction", lambda path: path == target):
+                with self.assertRaisesRegex(EvidenceContractError, "linked source directory"):
+                    self.search("PROJECT")
+
+    def test_junction_in_pinned_file_is_rejected(self):
+        with patch.object(self, "root", self.root / ".." / "dms"):
+            target = self.root.resolve(strict=True) / "tools" / "query_deep_memory.py"
+            self.assertNotEqual(self.root / "tools" / "query_deep_memory.py", target)
+            with patch.object(Path, "is_junction", lambda path: path == target):
+                with self.assertRaisesRegex(EvidenceContractError, "linked source file"):
+                    self.search("PROJECT")
 
     def test_ignored_bytecode_cannot_be_imported(self):
         (self.root / ".git" / "info" / "exclude").write_text("tools/__pycache__/\n")

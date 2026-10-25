@@ -147,6 +147,11 @@ def _model_id(value: str) -> str:
     return value
 
 
+def _contains_surrogate_codepoint(value: str) -> bool:
+    """JSON can decode escaped UTF-16 surrogates that UTF-8 cannot encode."""
+    return any(0xD800 <= ord(char) <= 0xDFFF for char in value)
+
+
 def _authorization_header(api_key_env: str | None) -> dict[str, str]:
     if api_key_env is None:
         return {}
@@ -172,6 +177,8 @@ def advise_local_model(
     model_id = _model_id(model_id)
     if type(prompt) is not str or not prompt.strip() or len(prompt) > MAX_PROMPT_CHARS:
         raise LocalModelError("prompt must be nonempty and within the size limit")
+    if _contains_surrogate_codepoint(prompt):
+        raise LocalModelError("prompt must contain valid Unicode scalar values")
     if type(max_tokens) is not int or not 1 <= max_tokens <= 512:
         raise LocalModelError("max_tokens must be within 1..512")
     if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 300:
@@ -243,6 +250,8 @@ def advise_local_model(
     content = message.get("content")
     if not isinstance(content, str) or not content.strip():
         raise LocalModelError("local inference returned no advisory text")
+    if _contains_surrogate_codepoint(content):
+        raise LocalModelError("local inference text must contain valid Unicode scalar values")
     # Untrusted model text is printed to a terminal in the human-readable CLI.
     # Forbid terminal controls and directional formatting controls that can
     # visually reorder the answer, without banning benign shaping characters
@@ -258,7 +267,9 @@ def advise_local_model(
     ):
         raise LocalModelError("local inference returned terminal or directional control characters")
     finish_reason = choice.get("finish_reason")
-    if finish_reason is not None and finish_reason not in {"stop", "length"}:
+    if finish_reason is not None and (
+        not isinstance(finish_reason, str) or finish_reason not in {"stop", "length"}
+    ):
         raise LocalModelError("local inference finish reason is unsupported")
     return AdvisoryResult(
         endpoint=canonical_endpoint,
