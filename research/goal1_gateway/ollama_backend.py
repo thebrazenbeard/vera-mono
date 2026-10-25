@@ -57,11 +57,7 @@ class OllamaMeasuredBackend:
         except (URLError, OSError, ValueError, TimeoutError, UnicodeError, TypeError) as exc:
             raise GatewayHold("provider outcome unknown") from exc
 
-    def generate(self, prompt: str, *, model: str, max_tokens: int) -> ModelObservation:
-        if model != self.model or type(prompt) is not str or not prompt or len(prompt.encode("utf-8")) > 4096:
-            raise GatewayHold("selected provider request mismatch")
-        if type(max_tokens) is not int or not 1 <= max_tokens <= 128:
-            raise GatewayHold("invalid token budget")
+    def _check_registry(self) -> None:
         tags = self._read(Request(self.endpoint + "/api/tags", method="GET",
                                   headers={"Accept": "application/json"}))
         items = tags.get("models")
@@ -70,6 +66,13 @@ class OllamaMeasuredBackend:
         matches = [x for x in items if type(x) is dict and x.get("name") == self.model]
         if len(matches) != 1 or matches[0].get("digest") != self.registry_digest:
             raise GatewayHold("provider registry digest mismatch")
+
+    def generate(self, prompt: str, *, model: str, max_tokens: int) -> ModelObservation:
+        if model != self.model or type(prompt) is not str or not prompt or len(prompt.encode("utf-8")) > 4096:
+            raise GatewayHold("selected provider request mismatch")
+        if type(max_tokens) is not int or not 1 <= max_tokens <= 128:
+            raise GatewayHold("invalid token budget")
+        self._check_registry()
         request = json.dumps({
             "model": self.model, "prompt": prompt, "stream": False,
             "keep_alive": 0, "options": {"num_predict": max_tokens, "temperature": 0},
@@ -87,6 +90,10 @@ class OllamaMeasuredBackend:
             raise GatewayHold("provider measured usage unavailable")
         if values[1] > max_tokens:
             raise GatewayHold("provider token limit not respected")
+        # A tag change observed after inference invalidates this completion.
+        # Two tag reads are only a consistency check, NOT an atomic pin of
+        # the actual loaded weight bytes or a guard against an ABA swap.
+        self._check_registry()
         return ModelObservation(text=response["response"], model=model,
                                 prompt_tokens=values[0], output_tokens=values[1],
                                 backend_wall_ms=values[2] // 1_000_000)
