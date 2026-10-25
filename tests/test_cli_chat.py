@@ -155,6 +155,95 @@ def test_interactive_chat_uses_stdin_without_history_memory_or_authority(
     assert state.open().memory.current_head == memory_head
 
 
+def test_opt_in_ephemeral_history_carries_only_prior_in_process_turns(tmp_path, capsys):
+    root = tmp_path / "state"
+    root.mkdir()
+    state = VeraStateDirectory(root, project_id="private-project-CANARY",
+                               identity_id="private-identity-CANARY")
+    original_head = state.open().memory.current_head
+    connections = [_Connection(), _Connection(), _Connection()]
+    with patch.object(sys, "stdin", io.StringIO("first private prompt\nsecond prompt\nthird prompt\n:exit\n")), \
+            patch("vera_core.local_model_advisory.HTTPConnection", side_effect=connections):
+        assert cli.main(_interactive_args(root, "--ephemeral-history-turns", "1")) == 0
+
+    output = capsys.readouterr()
+    prompts = [item.requests[0][2]["messages"][1]["content"] for item in connections]
+    assert "first private prompt" in prompts[0]
+    assert "first private prompt" in prompts[1]
+    assert "An unverified reply." in prompts[1]
+    assert "first private prompt" not in prompts[2]
+    assert "second prompt" in prompts[2]
+    assert "private-project-CANARY" not in repr(prompts)
+    assert "first private prompt" not in output.out + output.err
+    assert state.open().memory.current_head == original_head
+    for state_file in root.rglob("*"):
+        if state_file.is_file():
+            assert b"first private prompt" not in state_file.read_bytes()
+
+    # A fresh process/call gets none of the prior session's conversational state.
+    fresh = _Connection()
+    with patch.object(sys, "stdin", io.StringIO("new session\n:exit\n")), \
+            patch("vera_core.local_model_advisory.HTTPConnection", return_value=fresh):
+        assert cli.main(_interactive_args(root, "--ephemeral-history-turns", "1")) == 0
+    assert "first private prompt" not in fresh.requests[0][2]["messages"][1]["content"]
+    assert state.open().memory.current_head == original_head
+
+
+@pytest.mark.parametrize("bad_count", ["-1", "9", "not-an-int"])
+def test_ephemeral_history_rejects_invalid_counts_before_model_calls(tmp_path, capsys, bad_count):
+    root = tmp_path / "state"
+    root.mkdir()
+    with patch.object(sys, "stdin", io.StringIO("Do not send\n")), \
+            patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
+        with pytest.raises(SystemExit) as exc:
+            cli.main(_interactive_args(root, "--ephemeral-history-turns", bad_count))
+    assert exc.value.code == 2
+    ctor.assert_not_called()
+
+
+def test_ephemeral_history_rejects_one_shot_context_before_network(tmp_path, capsys):
+    root = tmp_path / "state"
+    root.mkdir()
+    with patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
+        with pytest.raises(SystemExit) as exc:
+            cli.main(_args(root, "--ephemeral-history-turns", "1"))
+    assert exc.value.code == 2
+    ctor.assert_not_called()
+
+
+def test_ephemeral_history_discards_oversized_unverified_reply(tmp_path, capsys):
+    root = tmp_path / "state"
+    root.mkdir()
+    long_reply = "R" * 7000
+    first = _Connection(_Response({"role": "assistant", "content": long_reply}))
+    second = _Connection()
+    with patch.object(sys, "stdin", io.StringIO("secret first turn\nfollow up\n:exit\n")), \
+            patch("vera_core.local_model_advisory.HTTPConnection", side_effect=[first, second]):
+        assert cli.main(_interactive_args(root, "--ephemeral-history-turns", "8")) == 0
+    prompt = second.requests[0][2]["messages"][1]["content"]
+    assert "follow up" in prompt
+    assert "secret first turn" not in prompt
+    assert long_reply not in prompt
+    assert len(prompt.encode("utf-8")) <= MAX_PROMPT_CHARS * 4
+    output = capsys.readouterr()
+    assert "secret first turn" not in output.out + output.err
+
+
+def test_ephemeral_history_never_credits_failed_model_reply(tmp_path, capsys):
+    root = tmp_path / "state"
+    root.mkdir()
+    first = _Connection()
+    second = _Connection(fail=OSError("offline"))
+    with patch.object(sys, "stdin", io.StringIO("first turn\nsecond fails\nthird unsent\n")), \
+            patch("vera_core.local_model_advisory.HTTPConnection", side_effect=[first, second]) as ctor:
+        with pytest.raises(SystemExit) as exc:
+            cli.main(_interactive_args(root, "--ephemeral-history-turns", "1"))
+    assert exc.value.code == 2
+    assert ctor.call_count == 2
+    assert second.requests == []  # Transport raised before accepting a request.
+    assert "endpoint unavailable" in capsys.readouterr().err
+
+
 def test_interactive_chat_eof_and_interrupt_before_prompt_send_nothing(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
