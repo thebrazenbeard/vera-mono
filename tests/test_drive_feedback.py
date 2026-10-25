@@ -537,10 +537,12 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
 
 
     def test_reader_lock_cannot_admit_expired_observation(self):
+        """An actual SHARED reader must block EXCLUSIVE before the final clock check."""
         s = self.seed()
         now = [2_000_000]
         s.clock_ms = lambda: now[0]
-        begin_attempted = threading.Event()
+        inside_sqlite_begin = threading.Event()
+        begin_returned = threading.Event()
         begin_modes = []
         real_connect = s._connect
 
@@ -551,16 +553,26 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
             def execute(self, sql, *args):
                 if sql.startswith("BEGIN "):
                     begin_modes.append(sql)
-                    begin_attempted.set()
+
+                    def on_sqlite_trace(statement):
+                        if statement.startswith("BEGIN "):
+                            inside_sqlite_begin.set()
+
+                    self._connection.set_trace_callback(on_sqlite_trace)
+                    result = self._connection.execute(sql, *args)
+                    self._connection.set_trace_callback(None)
+                    # Simulate an observation expiring during the *real* lock
+                    # wait. Time advances only after SQLite obtains the lock,
+                    # so this cannot false-pass if the writer was unscheduled.
+                    now[0] = 2_100_000
+                    begin_returned.set()
+                    return result
                 return self._connection.execute(sql, *args)
 
             def __getattr__(self, name):
                 return getattr(self._connection, name)
 
-        def traced_connect():
-            return RecordingConnection(real_connect())
-
-        s._connect = traced_connect
+        s._connect = lambda: RecordingConnection(real_connect())
         outcomes = []
         errors = []
         reader = sqlite3.connect(s.path, timeout=3, isolation_level=None)
@@ -577,18 +589,24 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
 
             thread = threading.Thread(target=writer)
             thread.start()
-            # Signal just BEFORE issuing BEGIN, while the reader holds SHARED.
-            # A timeout is a test failure, not an assumed successful lock wait.
-            self.assertTrue(begin_attempted.wait(timeout=4), "writer never attempted BEGIN")
-            now[0] = 2_100_000
+            self.assertTrue(
+                inside_sqlite_begin.wait(timeout=4),
+                "writer did not enter actual SQLite BEGIN",
+            )
+            self.assertFalse(
+                begin_returned.is_set(),
+                "exclusive admission lock acquired despite held SQLite reader",
+            )
         finally:
             reader.rollback()
             reader.close()
-        if thread is not None:
-            thread.join(timeout=7)
-        s._connect = real_connect
-        self.assertEqual(begin_modes, ["BEGIN EXCLUSIVE"])
+            if thread is not None:
+                thread.join(timeout=7)
+            s._connect = real_connect
+
         self.assertFalse(thread is not None and thread.is_alive(), "writer did not finish")
+        self.assertEqual(begin_modes, ["BEGIN EXCLUSIVE"])
+        self.assertTrue(begin_returned.is_set(), "admission BEGIN never acquired lock")
         self.assertFalse(errors, str(errors))
         self.assertEqual(len(outcomes), 1)
         self.assertEqual(outcomes[0].status, "HOLD")
