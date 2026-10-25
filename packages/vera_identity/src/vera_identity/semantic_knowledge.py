@@ -60,7 +60,7 @@ class SemanticKnowledgeStore:
             return _BorrowedConnection(self._memory)
         db = sqlite3.connect(self.path)
         db.row_factory = sqlite3.Row
-        return db
+        return _OwnedConnection(db)
 
     @staticmethod
     def _canonical(value: dict[str, object]) -> str:
@@ -152,3 +152,19 @@ class _BorrowedConnection:
     def __exit__(self, exc_type, exc, tb) -> None:
         if exc_type is not None:
             self.db.rollback()
+
+
+class _OwnedConnection:
+    """Commit or roll back a file connection, then release its Windows handle."""
+
+    def __init__(self, db: sqlite3.Connection) -> None:
+        self.db = db
+
+    def __enter__(self) -> sqlite3.Connection:
+        return self.db.__enter__()
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            return self.db.__exit__(exc_type, exc, tb)
+        finally:
+            self.db.close()

@@ -17,6 +17,7 @@ import hashlib
 import json
 from pathlib import Path
 import os
+import re
 import stat
 
 from vera_memory import (
@@ -169,6 +170,91 @@ def select_calibrated_method(
         calibration_ids=ids,
         candidates=candidates,
         calibration=calibration,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class InducedMethodCandidate:
+    """An inert correction proposed from labeled mistakes, not an admission."""
+
+    method: MethodSpec
+    source_calibration_ids: tuple[str, ...]
+    baseline_correct: int
+    induced_correct: int
+    induced_cue: str
+    authorization_effect: str = "NONE"
+    evidence_status: str = "TRAINING_LABELS_NOT_ATTESTED"
+
+
+def induce_error_rule_candidate(
+    baseline: MethodSpec,
+    calibration: tuple[CalibrationCase, ...],
+) -> InducedMethodCandidate | None:
+    """Derive one literal corrective rule from supplied errors, never install it.
+
+    This is a bounded, deterministic *research learner*: the caller provides
+    observations/labels, not candidate method bytes. One literal word from a
+    misclassified prompt is prepended as a rule only if it raises A accuracy
+    without reversing any originally correct A example. All labels are still
+    untrusted; better A score proves neither generalization nor B/C transfer.
+    In particular, this function grants no durable write or action authority.
+    """
+    if type(baseline) is not MethodSpec:
+        raise TypeError("baseline must be an exact MethodSpec")
+    if (type(calibration) is not tuple or not calibration
+            or len(calibration) > MAX_CALIBRATION_CASES
+            or any(type(case) is not CalibrationCase for case in calibration)):
+        raise ValueError("induction requires bounded exact calibration cases")
+    ids = tuple(case.evidence_id for case in calibration)
+    if len(ids) != len(set(ids)):
+        raise ValueError("induction calibration evidence identities repeat")
+    labels: dict[str, str] = {}
+    for case in calibration:
+        identity = case.prompt.casefold()
+        if identity in labels and labels[identity] != case.expected_action:
+            raise ValueError("conflicting training labels for the same input")
+        labels[identity] = case.expected_action
+    if len(baseline.rules) >= MAX_RULES:
+        return None
+
+    baseline_predictions = tuple(baseline.choose(case.prompt) for case in calibration)
+    baseline_correct = sum(p == case.expected_action for p, case in
+                           zip(baseline_predictions, calibration))
+    # Cap literal cue search work independently of user-provided prompt length.
+    proposals: set[tuple[str, str]] = set()
+    for prediction, case in zip(baseline_predictions, calibration):
+        if prediction == case.expected_action:
+            continue
+        for cue in re.findall(r"(?u)\b\w{4,32}\b", case.prompt.casefold())[:32]:
+            if any(cue == existing.casefold() for existing, _ in baseline.rules):
+                continue
+            proposals.add((cue, case.expected_action))
+    best: tuple[int, str, str, MethodSpec] | None = None
+    for cue, action in sorted(proposals):
+        candidate = MethodSpec(
+            baseline.method_id,
+            ((cue, action),) + baseline.rules,
+            baseline.default_action,
+        )
+        predictions = tuple(candidate.choose(case.prompt) for case in calibration)
+        if any(original == case.expected_action and new != case.expected_action
+               for original, new, case in zip(baseline_predictions, predictions,
+                                             calibration)):
+            continue
+        correct = sum(p == case.expected_action for p, case in
+                      zip(predictions, calibration))
+        if correct <= baseline_correct:
+            continue
+        # Highest training score wins; source-word lexicographic tie resolution
+        # makes repeated research runs deterministic and inspectable.
+        if best is None or correct > best[0]:
+            best = (correct, cue, action, candidate)
+    if best is None:
+        return None
+    return InducedMethodCandidate(
+        method=best[3], source_calibration_ids=ids,
+        baseline_correct=baseline_correct, induced_correct=best[0],
+        induced_cue=best[1],
     )
 
 

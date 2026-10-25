@@ -10,8 +10,14 @@ from __future__ import annotations
 from contextlib import closing
 from dataclasses import dataclass
 from enum import StrEnum
+import hashlib
+import json
+import math
 from pathlib import Path
 import sqlite3
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 
 class LearnedInfluenceError(ValueError):
@@ -58,6 +64,69 @@ class LearnedInfluenceReceipt:
     review_evidence_ref: str | None
     evidence_split_qualified: bool = False
     use_evidence_id: str | None = None
+    authorization_effect: str = "NONE"
+
+
+@dataclass(frozen=True, slots=True)
+class SignedLaterOutcome:
+    """Externally signed observation for one previously consumed C event.
+
+    Losses are bounded, nonnegative values; smaller is better. A matching
+    signature proves key possession, not evaluator independence or outcome truth.
+    """
+
+    evaluator_id: str
+    association_id: str
+    memory_revision_id: str
+    cue_event_id: str
+    use_evidence_id: str
+    outcome_evidence_id: str
+    baseline_loss: float
+    candidate_loss: float
+    signature_hex: str
+
+    def __post_init__(self) -> None:
+        for label in (
+            "evaluator_id", "association_id", "memory_revision_id",
+            "cue_event_id", "use_evidence_id", "outcome_evidence_id",
+        ):
+            value = getattr(self, label)
+            if type(value) is not str or not value or len(value) > 256:
+                raise ValueError(f"{label} must be a bounded non-empty string")
+        for label in ("baseline_loss", "candidate_loss"):
+            value = getattr(self, label)
+            if (type(value) is not float or not math.isfinite(value)
+                    or not 0 <= value <= 1e9
+                    or (value == 0.0 and math.copysign(1.0, value) < 0)):
+                raise ValueError(f"{label} must be a finite nonnegative float")
+        if (type(self.signature_hex) is not str or len(self.signature_hex) != 128
+                or any(c not in "0123456789abcdef" for c in self.signature_hex)):
+            raise ValueError("signature_hex must be lowercase Ed25519 signature hex")
+
+    def signing_bytes(self) -> bytes:
+        payload = {
+            "schema": "VERA_LEARNED_LATER_OUTCOME_V1",
+            "evaluator_id": self.evaluator_id,
+            "association_id": self.association_id,
+            "memory_revision_id": self.memory_revision_id,
+            "cue_event_id": self.cue_event_id,
+            "use_evidence_id": self.use_evidence_id,
+            "outcome_evidence_id": self.outcome_evidence_id,
+            "baseline_loss": self.baseline_loss,
+            "candidate_loss": self.candidate_loss,
+        }
+        return json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
+
+
+@dataclass(frozen=True, slots=True)
+class LaterOutcomeReceipt:
+    association_id: str
+    memory_revision_id: str
+    use_evidence_id: str
+    outcome_evidence_id: str
+    negative_transfer: bool
     authorization_effect: str = "NONE"
 
 
@@ -161,9 +230,27 @@ class DurableLearnedInfluenceGate:
     It only preserves exact review bindings and cue-consumption fences.
     """
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(
+        self,
+        path: str | Path,
+        *,
+        evaluator_id: str | None = None,
+        evaluator_public_key: bytes | None = None,
+    ) -> None:
+        if (evaluator_id is None) != (evaluator_public_key is None):
+            raise ValueError("evaluator identity and public key must be supplied together")
+        if evaluator_id is not None:
+            if type(evaluator_id) is not str or not evaluator_id or len(evaluator_id) > 256:
+                raise ValueError("evaluator_id must be a bounded non-empty string")
+            if type(evaluator_public_key) is not bytes or len(evaluator_public_key) != 32:
+                raise ValueError("Ed25519 evaluator_public_key must be 32 bytes")
+            Ed25519PublicKey.from_public_bytes(evaluator_public_key)
+        self._evaluator_id = evaluator_id
+        self._evaluator_public_key = evaluator_public_key
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        # sqlite3.Connection.__exit__ manages transactions but does not close
+        # the descriptor, which blocks temporary database cleanup on Windows.
         with closing(self._connect()) as db, db:
             db.executescript(
                 """
@@ -205,8 +292,67 @@ class DurableLearnedInfluenceGate:
                         evidence_id
                     )
                 );
+                CREATE TABLE IF NOT EXISTS learned_use_cue_bindings (
+                    association_id TEXT NOT NULL,
+                    memory_revision_id TEXT NOT NULL,
+                    cue_event_id TEXT NOT NULL,
+                    use_evidence_id TEXT NOT NULL,
+                    PRIMARY KEY (association_id, memory_revision_id, cue_event_id),
+                    UNIQUE (association_id, memory_revision_id, use_evidence_id)
+                );
+                CREATE TABLE IF NOT EXISTS learned_evidence_history (
+                    association_id TEXT NOT NULL,
+                    memory_revision_id TEXT NOT NULL,
+                    evidence_class TEXT NOT NULL,
+                    evidence_id TEXT NOT NULL,
+                    PRIMARY KEY (
+                        association_id, memory_revision_id, evidence_class, evidence_id
+                    )
+                );
+                CREATE TABLE IF NOT EXISTS learned_outcome_trust (
+                    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+                    evaluator_id TEXT NOT NULL,
+                    public_key_sha256 TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS learned_later_outcomes (
+                    association_id TEXT NOT NULL,
+                    memory_revision_id TEXT NOT NULL,
+                    cue_event_id TEXT NOT NULL,
+                    use_evidence_id TEXT NOT NULL,
+                    outcome_evidence_id TEXT NOT NULL UNIQUE,
+                    evaluator_id TEXT NOT NULL,
+                    baseline_loss REAL NOT NULL,
+                    candidate_loss REAL NOT NULL,
+                    signature_hex TEXT NOT NULL,
+                    PRIMARY KEY (association_id, memory_revision_id, use_evidence_id)
+                );
                 """
             )
+            # Preserve evidence that is still recoverable when opening an older
+            # database. Prior revisions already erased by old UPSERTs cannot
+            # be reconstructed, and legacy C uses have no cue-pair proof.
+            db.execute(
+                """
+                INSERT OR IGNORE INTO learned_evidence_history
+                SELECT association_id, memory_revision_id, evidence_class, evidence_id
+                FROM learned_evidence_bindings
+                """
+            )
+            if evaluator_id is not None:
+                digest = hashlib.sha256(evaluator_public_key).hexdigest()
+                db.execute("BEGIN IMMEDIATE")
+                row = db.execute(
+                    "SELECT evaluator_id, public_key_sha256 FROM learned_outcome_trust WHERE singleton=1"
+                ).fetchone()
+                if row is None:
+                    raise LearnedInfluenceBlocked(
+                        "external evaluator trust anchor requires separate host provisioning"
+                    )
+                if tuple(row) != (evaluator_id, digest):
+                    raise LearnedInfluenceBlocked(
+                        "outcome evaluator key/identity differs from durable trust pin"
+                    )
+                db.commit()
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=5.0, isolation_level=None)
@@ -341,12 +487,145 @@ class DurableLearnedInfluenceGate:
                     for evidence_id in qualification
                 ],
             )
+            db.executemany(
+                """
+                INSERT OR IGNORE INTO learned_evidence_history (
+                    association_id, memory_revision_id, evidence_class, evidence_id
+                ) VALUES (?, ?, ?, ?)
+                """,
+                [
+                    (association_id, memory_revision_id, "CALIBRATION", evidence_id)
+                    for evidence_id in calibration
+                ] + [
+                    (association_id, memory_revision_id, "QUALIFICATION", evidence_id)
+                    for evidence_id in qualification
+                ],
+            )
             db.commit()
         except BaseException:
             db.rollback()
             raise
         finally:
             db.close()
+
+    def record_later_outcome(
+        self, outcome: SignedLaterOutcome,
+    ) -> LaterOutcomeReceipt:
+        """Persist signed C feedback and quarantine a regressed exact revision.
+
+        The evaluator's public key is pinned from host composition. The gate
+        cannot attest the custody, independence, or honesty of that evaluator.
+        No positive result grants promotion authority; no automatic rollback
+        or model modification occurs.
+        """
+        if type(outcome) is not SignedLaterOutcome:
+            raise TypeError("outcome must be exact SignedLaterOutcome")
+        if self._evaluator_id is None or self._evaluator_public_key is None:
+            raise LearnedInfluenceBlocked("no pinned external outcome evaluator")
+        if outcome.evaluator_id != self._evaluator_id:
+            raise LearnedInfluenceBlocked("outcome evaluator identity mismatch")
+        try:
+            Ed25519PublicKey.from_public_bytes(self._evaluator_public_key).verify(
+                bytes.fromhex(outcome.signature_hex), outcome.signing_bytes()
+            )
+        except InvalidSignature as exc:
+            raise LearnedInfluenceBlocked("outcome evaluator signature invalid") from exc
+
+        db = self._connect()
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            pin = db.execute(
+                "SELECT evaluator_id, public_key_sha256 FROM learned_outcome_trust WHERE singleton=1"
+            ).fetchone()
+            if pin is None or tuple(pin) != (
+                self._evaluator_id, hashlib.sha256(self._evaluator_public_key).hexdigest()
+            ):
+                raise LearnedInfluenceBlocked("outcome evaluator trust pin missing/stale")
+            consumed = db.execute(
+                """
+                SELECT 1 FROM learned_consumptions
+                WHERE association_id=? AND memory_revision_id=? AND cue_event_id=?
+                """,
+                (
+                    outcome.association_id, outcome.memory_revision_id,
+                    outcome.cue_event_id,
+                ),
+            ).fetchone()
+            use = db.execute(
+                """
+                SELECT 1 FROM learned_use_cue_bindings
+                WHERE association_id=? AND memory_revision_id=?
+                  AND cue_event_id=? AND use_evidence_id=?
+                """,
+                (
+                    outcome.association_id, outcome.memory_revision_id,
+                    outcome.cue_event_id, outcome.use_evidence_id,
+                ),
+            ).fetchone()
+            if consumed is None or use is None:
+                raise LearnedInfluenceBlocked(
+                    "signed outcome lacks exact previously consumed C event/use"
+                )
+            # A source/split identifier cannot silently be relabeled as an
+            # independently observed outcome identity.
+            overlap = db.execute(
+                """
+                SELECT 1 FROM learned_evidence_history
+                WHERE association_id=? AND memory_revision_id=? AND evidence_id=?
+                """,
+                (
+                    outcome.association_id, outcome.memory_revision_id,
+                    outcome.outcome_evidence_id,
+                ),
+            ).fetchone()
+            use_overlap = db.execute(
+                """
+                SELECT 1 FROM learned_use_evidence
+                WHERE association_id=? AND memory_revision_id=? AND evidence_id=?
+                """,
+                (
+                    outcome.association_id, outcome.memory_revision_id,
+                    outcome.outcome_evidence_id,
+                ),
+            ).fetchone()
+            if overlap or use_overlap:
+                raise LearnedInfluenceBlocked(
+                    "outcome evidence identity overlaps calibration/qualification/use"
+                )
+            try:
+                db.execute(
+                    """
+                    INSERT INTO learned_later_outcomes (
+                        association_id, memory_revision_id, cue_event_id,
+                        use_evidence_id, outcome_evidence_id, evaluator_id,
+                        baseline_loss, candidate_loss, signature_hex
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        outcome.association_id, outcome.memory_revision_id,
+                        outcome.cue_event_id, outcome.use_evidence_id,
+                        outcome.outcome_evidence_id, outcome.evaluator_id,
+                        outcome.baseline_loss, outcome.candidate_loss,
+                        outcome.signature_hex,
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise LearnedInfluenceReplay(
+                    "signed C outcome already recorded or evidence ID reused"
+                ) from exc
+            db.commit()
+        except BaseException:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+        return LaterOutcomeReceipt(
+            association_id=outcome.association_id,
+            memory_revision_id=outcome.memory_revision_id,
+            use_evidence_id=outcome.use_evidence_id,
+            outcome_evidence_id=outcome.outcome_evidence_id,
+            negative_transfer=outcome.candidate_loss > outcome.baseline_loss,
+        )
 
     def consume(
         self,
@@ -372,6 +651,19 @@ class DurableLearnedInfluenceGate:
         db = self._connect()
         try:
             db.execute("BEGIN IMMEDIATE")
+            regression = db.execute(
+                """
+                SELECT 1 FROM learned_later_outcomes
+                WHERE association_id=? AND memory_revision_id=?
+                  AND candidate_loss > baseline_loss
+                LIMIT 1
+                """,
+                (revision.association_id, revision.memory_revision_id),
+            ).fetchone()
+            if regression is not None:
+                raise LearnedInfluenceBlocked(
+                    "later-use negative transfer quarantined this exact learned revision"
+                )
             review = db.execute(
                 """
                 SELECT memory_revision_id, disposition, evidence_ref
@@ -417,12 +709,21 @@ class DurableLearnedInfluenceGate:
             bound_evidence_ids = {
                 str(row["evidence_id"]) for row in evidence_rows
             }
+            historical_evidence_ids = {
+                str(row["evidence_id"]) for row in db.execute(
+                    """
+                    SELECT evidence_id FROM learned_evidence_history
+                    WHERE association_id=? AND memory_revision_id=?
+                    """,
+                    (revision.association_id, revision.memory_revision_id),
+                ).fetchall()
+            }
             if evidence_split_qualified:
                 if type(use_evidence_id) is not str or not use_evidence_id:
                     raise LearnedInfluenceBlocked(
                         "qualified learned revision requires later-use evidence identity"
                     )
-                if use_evidence_id in bound_evidence_ids:
+                if use_evidence_id in (bound_evidence_ids | historical_evidence_ids):
                     raise LearnedInfluenceBlocked(
                         "later-use evidence identity must be disjoint from calibration "
                         "and qualification evidence"
@@ -438,6 +739,18 @@ class DurableLearnedInfluenceGate:
                             revision.association_id,
                             revision.memory_revision_id,
                             use_evidence_id,
+                        ),
+                    )
+                    db.execute(
+                        """
+                        INSERT INTO learned_use_cue_bindings (
+                            association_id, memory_revision_id,
+                            cue_event_id, use_evidence_id
+                        ) VALUES (?, ?, ?, ?)
+                        """,
+                        (
+                            revision.association_id, revision.memory_revision_id,
+                            cue_event_id, use_evidence_id,
                         ),
                     )
                 except sqlite3.IntegrityError as exc:
