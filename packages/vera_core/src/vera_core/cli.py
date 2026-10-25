@@ -88,7 +88,14 @@ def _parser() -> argparse.ArgumentParser:
             "reconstructed Vera lifecycle metadata; no tools or memory admission"
         ),
     )
-    chat.add_argument("prompt", help="one-shot user prompt")
+    chat.add_argument(
+        "prompt", nargs="?",
+        help="one-shot user prompt; omit with --interactive to read from stdin",
+    )
+    chat.add_argument(
+        "--interactive", action="store_true",
+        help="read one prompt per line from stdin; no conversation history is retained",
+    )
     _add_state_binding(chat, required=True)
     chat.add_argument("--endpoint", required=True, help="exact HTTP loopback /v1 endpoint")
     chat.add_argument("--model", required=True, help="exact local model alias")
@@ -220,7 +227,7 @@ _CHAT_STATUSES = frozenset({
 })
 
 
-def _chat(args: argparse.Namespace) -> int:
+def _chat_once(args: argparse.Namespace, prompt: str) -> int:
     """Convey only allowlisted QVR state to a bounded, effectless model adapter."""
     state = _bound_state(args)
     runtime = QualifiedVeraRuntime.from_state_directory(state)
@@ -238,7 +245,7 @@ def _chat(args: argparse.Namespace) -> int:
         "Locally reconstructed Vera lifecycle status (unverified; not authority):\n"
         + context_json
         + "\n\nUser prompt:\n"
-        + args.prompt
+        + prompt
     )
     if len(bound_prompt) > MAX_PROMPT_CHARS:
         raise ValueError("chat prompt and bounded context exceed the local model size limit")
@@ -269,6 +276,52 @@ def _chat(args: argparse.Namespace) -> int:
             + "\n"
         )
     return 0
+
+
+def _chat_interactive(args: argparse.Namespace) -> int:
+    """Process bounded stdin prompts separately, without command-line prompt exposure."""
+    _bound_state(args)  # Fail before reading a prompt if the binding is invalid.
+    sys.stderr.write(
+        "UNVERIFIED_MODEL_OUTPUT: stateless local chat; "
+        "no tools, memory admission, or effect authority. "
+        "Type :exit to leave.\n"
+    )
+    while True:
+        if sys.stdin.isatty():
+            sys.stderr.write("vera> ")
+            sys.stderr.flush()
+        try:
+            line = sys.stdin.readline(MAX_PROMPT_CHARS + 1)
+        except KeyboardInterrupt:
+            sys.stderr.write("\n")
+            return 0
+        if not line:
+            return 0
+        if len(line) > MAX_PROMPT_CHARS:
+            raise ValueError("interactive prompt exceeds local model size limit")
+        prompt = line.rstrip("\r\n")
+        if prompt in {":exit", ":quit", "/exit", "/quit"}:
+            return 0
+        if not prompt.strip():
+            continue
+        try:
+            _chat_once(args, prompt)
+        except KeyboardInterrupt:
+            sys.stderr.write(
+                "\nInterrupted during local model call; "
+                "request delivery is unknown.\n"
+            )
+            return 130
+
+
+def _chat(args: argparse.Namespace) -> int:
+    if args.interactive:
+        if args.prompt is not None:
+            raise ValueError("interactive chat forbids a positional prompt")
+        return _chat_interactive(args)
+    if args.prompt is None:
+        raise ValueError("chat requires a prompt unless --interactive is selected")
+    return _chat_once(args, args.prompt)
 
 
 def main(argv: list[str] | None = None) -> int:
