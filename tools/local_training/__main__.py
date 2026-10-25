@@ -53,7 +53,13 @@ def main(argv: list[str] | None = None) -> int:
             }, sort_keys=True))
             return 0
         plan = write_private_splits(args.manifest, args.output) if args.output else build_plan(args.manifest)
-    except (ValueError, OSError) as exc:
+    except OSError:
+        # OS errors commonly embed absolute paths to private manifests, model
+        # checkpoints and datasets. Never disclose them through CLI logs.
+        print(f"{'TRAINING_HOLD' if is_training else 'PREPARATION_HOLD'}: private local file operation failed",
+              file=sys.stderr)
+        return 2
+    except ValueError as exc:
         print(f"{'TRAINING_HOLD' if is_training else 'PREPARATION_HOLD'}: {exc}", file=sys.stderr)
         return 2
     print(json.dumps({

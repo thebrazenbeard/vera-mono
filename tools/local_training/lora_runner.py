@@ -255,6 +255,10 @@ def train_local_adapter(manifest_path: Path, model_dir: Path, output_dir: Path,
     previous_umask = os.umask(0o077)
     try:
         training = _train_model(Path(model_dir), encoded, output, steps)
+        if (not isinstance(training, dict)
+                or type(training.get("optimizer_steps")) is not int
+                or training["optimizer_steps"] != plan.optimizer_steps):
+            raise ValueError("training optimizer_steps disagrees with approved optimizer steps")
         if not (output / "adapter_model.safetensors").is_file() or not (output / "adapter_config.json").is_file():
             raise ValueError("adapter files absent after weight-update call; refuse trained marker")
         artifacts = {}
