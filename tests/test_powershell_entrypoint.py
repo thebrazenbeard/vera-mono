@@ -61,6 +61,16 @@ def test_powershell_chat_requires_explicit_all_binding_and_model_inputs():
     assert "& $VeraExe shell @ForwardArgs" in text
 
 
+def test_powershell_chat_forwards_only_explicit_ephemeral_history_opt_in():
+    text = (ROOT / "vera.ps1").read_text(encoding="utf-8")
+    assert "[int]$EphemeralHistoryTurns" in text
+    assert '"EphemeralHistoryTurns"' in text
+    assert '"--ephemeral-history-turns"' in text
+    assert '$ChatArgs += $EphemeralHistoryTurns' in text
+    assert 'if ($EphemeralHistoryTurns -gt 0)' in text
+    assert 'bounded in-process context' in text
+
+
 def test_powershell_chat_never_uses_shell_expression_or_implicit_credentials():
     text = (ROOT / "vera.ps1").read_text(encoding="utf-8")
     assert "Invoke-Expression" not in text

@@ -214,12 +214,14 @@ When `-Chat` is selected, missing values, a nonexistent
 setup. The launcher checks directory existence only, not proof of a
 qualified runtime or authenticated project/identity; those are
 caller-provided and Python reconstructs the bounded lifecycle separately.
-literal process arguments (not evaluated shell commands), and the Python chat
+The launcher forwards literal process arguments (not evaluated shell commands), and the Python chat
 boundary enforces exact numeric loopback, rejects tool calls, and makes no
-memory admission. Chat remains **stateless and unverified**; each turn has no
+memory admission. Chat remains **stateless and unverified by default**; each turn has no
 previous dialogue context and cannot exercise Vera's provider, Bus, PC, or
 protected-effect permissions. For an explicitly configured local API key, use
 `-ApiKeyEnv VAR_NAME` with the secret stored only in the user's environment.
+An optional `-EphemeralHistoryTurns 1` through `8` forwards bounded, process-local
+prior conversation context. It is not durable memory, and it is cleared on exit.
 
 Without state arguments the console is `SOURCE_ONLY`. To bind the PowerShell launcher to an existing `VeraStateDirectory`, use all three native PowerShell parameters together:
 
@@ -240,6 +242,27 @@ After installing this checkout as shown above, for an operator-owned Ollama inst
 ```
 
 For a local endpoint requiring a bearer, put the key in a user-local environment variable and supply `--api-key-env NAME`. Do not put the key on the command line or commit it. Use `--json` for the bounded result/provenance envelope. No model is downloaded, started, selected for Vera, or granted authority by this command. The deterministic `shell` keeps its existing semantic and state-inspection behavior; free-form input is **not** silently escalated to a model or a tool.
+
+### Synthetic local-model baseline (opt in)
+
+`vera_core.local_model_evaluation` runs bounded, literal-match held-out probes
+through the same read-only loopback advisory adapter. It reports machine-
+readable observed outcomes, timing, and response hashes without raw responses.
+For an installed checkout with an already running local server:
+
+```powershell
+& .\.venv\Scripts\python.exe -m vera_core.local_model_evaluation `
+  --suite evaluations/local_vera_v1_heldout.jsonl `
+  --endpoint http://127.0.0.1:11434/v1 --model vera-local:latest
+```
+
+The included prompts are synthetic. Do not add private chats or personal
+identity material to this public evaluation file. A matching model alias is
+**not** a cryptographically verified weight identity. Passing short exact-text
+probes does not qualify reasoning, stable personality, persistent memory, Vera
+installation, or effects. Keep these cases out of training data. Record model
+digests, adapter identities, and generation settings separately before any
+training comparison; the v1 runner establishes none of those bindings.
 
 ## Optional local-model transport (not activated by the console)
 
@@ -270,7 +293,7 @@ those host qualifications.
 
 ## Opt-in local chat with bounded Vera context
 
-`vera-mono chat` is a separate **one-shot by default** command, with an opt-in stateless interactive mode. It requires the exact existing Vera state root, project/identity binding, loopback inference endpoint, and model alias on every invocation. It constructs a `QualifiedVeraRuntime` from `VeraStateDirectory`, checks its reconstructed lifecycle, then sends only the allowlisted lifecycle status alongside the operator's prompt. It never serializes `resume_context()` into the model request: memory text, commitments, unfinished work, accepted runtime identifiers (including fingerprints), identity/project labels, host paths, keys, and provider/effect internals remain out of the prompt.
+`vera-mono chat` is a separate **one-shot by default** command, with an opt-in interactive mode that is stateless unless explicitly configured otherwise. It requires the exact existing Vera state root, project/identity binding, loopback inference endpoint, and model alias on every invocation. It constructs a `QualifiedVeraRuntime` from `VeraStateDirectory`, checks its reconstructed lifecycle, then sends only the allowlisted lifecycle status alongside the operator's prompt. It never serializes `resume_context()` into the model request: memory text, commitments, unfinished work, accepted runtime identifiers (including fingerprints), identity/project labels, host paths, keys, and provider/effect internals remain out of the prompt.
 
 ```powershell
 & .\.venv\Scripts\vera-mono.exe chat "Help me understand the current state" `
@@ -292,6 +315,15 @@ independent bounded request with freshly reconstructed allowlisted lifecycle
 status. The CLI stores no transcript, carries no prior-turn context into the
 next model request, and does not turn the local model into a qualified Vera
 provider. `--json` emits one result object per completed turn (JSON Lines).
+For optional context during **one running terminal session only**, add
+`--ephemeral-history-turns 1` (maximum `8`); the oldest complete operator/model
+pair is discarded when the turn or 4096-byte context budget is exceeded.
+These are unverified prior texts, not trusted system instructions. The default
+remains zero prior turns. No transcript file, model-weight update, or governed
+memory admission is produced, and a new process starts with empty history.
+The local inference server itself is separately operated; loopback routing
+does not prove that server never logs, stores, or forwards prompts. Opting in
+sends earlier private conversation text to that selected endpoint again.
 On terminals using legacy Windows encodings such as cp1252, JSON output
 uses ASCII Unicode escapes (still losslessly decoded by JSON consumers),
 and plain-text output backslash-escapes characters the console cannot encode.
