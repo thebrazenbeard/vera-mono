@@ -27,7 +27,9 @@ from .learned_influence import (
     LearnedInfluenceReplay,
     LearnedInfluenceStale,
     LearnedRevision,
+    LaterOutcomeReceipt,
     ReviewDisposition,
+    SignedLaterOutcome,
 )
 
 __all__ = [
@@ -51,5 +53,7 @@ __all__ = [
     "LearnedInfluenceReplay",
     "LearnedInfluenceStale",
     "LearnedRevision",
+    "LaterOutcomeReceipt",
     "ReviewDisposition",
+    "SignedLaterOutcome",
 ]
