@@ -1,6 +1,65 @@
 from __future__ import annotations
 
+import sqlite3
+from unittest.mock import patch
+
+import pytest
 import vera_core
+
+
+def test_corrective_learning_closes_all_sqlite_connections(tmp_path):
+    """Schema, append, state and context must release Windows file handles."""
+    open_handles = []
+    original_connect = sqlite3.connect
+
+    def record_connect(*args, **kwargs):
+        connection = original_connect(*args, **kwargs)
+        open_handles.append(connection)
+        return connection
+
+    with patch("vera_core.corrective_learning.sqlite3.connect", record_connect):
+        try:
+            ledger = vera_core.CorrectiveLearningLedger(tmp_path / "corrections.db")
+            ledger.start(
+                correction_id="corr-closure", failure_signature_id="fail-closure",
+                summary="Observed failure", evidence_refs=("evidence:red",),
+            )
+            assert ledger.state("corr-closure").events
+            assert ledger.context()["open_count"] == 1
+            assert len(open_handles) == 5
+            for connection in open_handles:
+                with pytest.raises(sqlite3.ProgrammingError):
+                    connection.execute("SELECT 1")
+        finally:
+            for connection in open_handles:
+                connection.close()
+
+
+def test_corrective_learning_closes_rolled_back_duplicate_connection(tmp_path):
+    open_handles = []
+    original_connect = sqlite3.connect
+
+    def record_connect(*args, **kwargs):
+        connection = original_connect(*args, **kwargs)
+        open_handles.append(connection)
+        return connection
+
+    with patch("vera_core.corrective_learning.sqlite3.connect", record_connect):
+        try:
+            ledger = vera_core.CorrectiveLearningLedger(tmp_path / "corrections.db")
+            event = dict(correction_id="corr-same", failure_signature_id="fail-same",
+                         summary="Observed failure", evidence_refs=("evidence:red",))
+            ledger.start(**event)
+            with pytest.raises(ValueError, match="already bound"):
+                ledger.start(**event)
+            assert len(ledger.state("corr-same").events) == 1
+            assert len(open_handles) == 4
+            for connection in open_handles:
+                with pytest.raises(sqlite3.ProgrammingError):
+                    connection.execute("SELECT 1")
+        finally:
+            for connection in open_handles:
+                connection.close()
 
 
 def test_corrective_learning_survives_restart_and_enforces_full_cycle(tmp_path):

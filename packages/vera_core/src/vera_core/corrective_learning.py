@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from enum import StrEnum
 import hashlib
@@ -84,7 +85,7 @@ class CorrectiveLearningLedger:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS correction_events (
@@ -184,7 +185,7 @@ class CorrectiveLearningLedger:
         if type(summary) is not str or not summary.strip():
             raise ValueError("summary must be non-empty")
         evidence_refs = _refs(evidence_refs, field="evidence_refs")
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             rows = db.execute(
                 "SELECT * FROM correction_events WHERE correction_id=? "
@@ -246,7 +247,7 @@ class CorrectiveLearningLedger:
         )
 
     def state(self, correction_id: str) -> CorrectionState:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             rows = db.execute(
                 "SELECT * FROM correction_events WHERE correction_id=? "
                 "ORDER BY sequence",
@@ -311,7 +312,7 @@ class CorrectiveLearningLedger:
         )
 
     def context(self) -> dict[str, object]:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             ids = [
                 str(row[0])
                 for row in db.execute(
