@@ -188,5 +188,74 @@ class MethodCommitCrashTests(unittest.TestCase):
             self.assertEqual(normal_attempt.authorization_effect, "NONE")
 
 
+class MethodAttemptOrphanRoleTests(unittest.TestCase):
+    """A surviving method journal must fence roles after partial row loss."""
+
+    def _orphan_gate(self, db_path: Path):
+        gate = DurableLearnedInfluenceGate(db_path)
+        revision = LearnedRevision(
+            "research-selection:" + "a" * 64, "sha256:" + "b" * 64,
+        )
+        gate.review_qualified(
+            association_id=revision.association_id,
+            memory_revision_id=revision.memory_revision_id,
+            disposition=ReviewDisposition.ADMITTED,
+            evidence_ref="B:initial",
+            calibration_evidence_ids=("A:initial",),
+            qualification_evidence_ids=("B:initial",),
+        )
+        gate.consume(
+            revision, cue_event_id="C:former-cue", use_evidence_id="C:former-use",
+            expected_calibration_evidence_ids=("A:initial",),
+            research_method_attempt=ResearchMethodAttemptClaim(
+                selection_digest="a" * 64, method_digest="b" * 64,
+                prompt_sha256="c" * 64, action_sha256="d" * 64,
+            ),
+        )
+        # Simulate incomplete/corrupt older backing rows, not a normal SQLite
+        # atomic commit crash; only the UNKNOWN attempt journal survives.
+        with closing(sqlite3.connect(db_path)) as db, db:
+            for table in (
+                "learned_consumptions", "learned_use_evidence",
+                "learned_use_cue_bindings",
+            ):
+                db.execute(f"DELETE FROM {table}")
+        with self.assertRaises(LearnedInfluenceBlocked):
+            gate.read_research_method_attempt(
+                revision, cue_event_id="C:former-cue",
+            )
+        return gate, revision
+
+    def test_orphan_cue_and_use_never_relabel_as_calibration_or_qualification(self):
+        for identity in ("C:former-cue", "C:former-use"):
+            for role in ("CALIBRATION", "QUALIFICATION"):
+                with self.subTest(identity=identity, role=role), TemporaryDirectory() as directory:
+                    gate, revision = self._orphan_gate(Path(directory) / "gate.sqlite")
+                    calibration = (identity,) if role == "CALIBRATION" else ("A:new",)
+                    qualification = (identity,) if role == "QUALIFICATION" else ("B:new",)
+                    with self.assertRaises(LearnedInfluenceBlocked):
+                        gate.review_qualified(
+                            association_id=revision.association_id,
+                            memory_revision_id=revision.memory_revision_id,
+                            disposition=ReviewDisposition.ADMITTED,
+                            evidence_ref="B:re-review",
+                            calibration_evidence_ids=calibration,
+                            qualification_evidence_ids=qualification,
+                        )
+
+    def test_orphan_cue_and_use_never_replay_as_new_consumption(self):
+        for cue_id, use_id in (
+            ("C:former-cue", "C:new-use"),
+            ("C:new-cue", "C:former-use"),
+        ):
+            with self.subTest(cue=cue_id, use=use_id), TemporaryDirectory() as directory:
+                gate, revision = self._orphan_gate(Path(directory) / "gate.sqlite")
+                with self.assertRaises(LearnedInfluenceBlocked):
+                    gate.consume(
+                        revision, cue_event_id=cue_id, use_evidence_id=use_id,
+                        expected_calibration_evidence_ids=("A:initial",),
+                    )
+
+
 if __name__ == "__main__":
     unittest.main()

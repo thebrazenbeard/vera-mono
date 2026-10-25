@@ -506,6 +506,11 @@ class DurableLearnedInfluenceGate:
             ("learned_later_outcomes", "cue_event_id", "CUE"),
             ("learned_later_outcomes", "use_evidence_id", "USE"),
             ("learned_later_outcomes", "outcome_evidence_id", "OUTCOME"),
+            # A surviving crash-recovery record still owns both C identities
+            # even if older primary consumption/use rows were lost. Do not
+            # let either identity be relabeled A/B or reused as another C.
+            ("learned_research_method_attempts", "cue_event_id", "CUE"),
+            ("learned_research_method_attempts", "use_evidence_id", "USE"),
         ):
             for row in db.execute(
                 f"SELECT {column} FROM {table} "
