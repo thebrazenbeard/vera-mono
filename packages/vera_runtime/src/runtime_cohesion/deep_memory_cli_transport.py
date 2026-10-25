@@ -29,6 +29,13 @@ from .deep_memory_evidence import (
 _SHA = re.compile(r"[0-9a-f]{40}\Z")
 _MAX_SOURCE_FILES = 5_000
 _MAX_SOURCE_BYTES = 64_000_000
+_GIT_TEXT_EXTENSIONS = frozenset({".py", ".json", ".jsonl", ".md", ".yml", ".yaml"})
+
+
+def _git_blob_sha(content: bytes) -> str:
+    return hashlib.sha1(
+        b"blob " + str(len(content)).encode("ascii") + b"\x00" + content
+    ).hexdigest()
 
 
 def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -217,14 +224,24 @@ class PinnedDeepMemoryCLITransport:
             total_bytes += len(content)
             if total_bytes > _MAX_SOURCE_BYTES:
                 raise EvidenceContractError("pinned source snapshot exceeds byte limit")
-            actual_blob = hashlib.sha1(
-                b"blob " + str(len(content)).encode("ascii") + b"\x00" + content
-            ).hexdigest()
+            canonical = content
+            actual_blob = _git_blob_sha(canonical)
+            if (
+                actual_blob != expected_blob
+                and path.suffix.lower() in _GIT_TEXT_EXTENSIONS
+                and b"\r\n" in content
+            ):
+                # Git-for-Windows autocrlf may check out text as CRLF even
+                # when the pinned Git blob is LF. Accept ONLY this byte-level
+                # conversion when it exactly recreates the pinned Git object.
+                # Execute the canonical bytes, never the divergent worktree.
+                canonical = content.replace(b"\r\n", b"\n")
+                actual_blob = _git_blob_sha(canonical)
             if actual_blob != expected_blob:
                 raise EvidenceContractError(
                     "pinned source file content differs from Git tree"
                 )
-            checked[name] = content
+            checked[name] = canonical
         return checked
 
     def __call__(

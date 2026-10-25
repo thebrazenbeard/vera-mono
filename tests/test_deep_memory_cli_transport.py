@@ -372,6 +372,116 @@ class PinnedCLITest(unittest.TestCase):
         with patch.dict(os.environ, {"DEEP_MEMORY_FAKE_TOKEN": "never-forward"}):
             self.assertEqual(self.search("PROJECT").count, 1)
 
+    def _prepare_clean_crlf_checkout(self):
+        # Git for Windows may check out a clean text working tree with CRLF,
+        # even though its pinned Git objects contain canonical LF bytes.
+        subprocess.run(
+            ["git", "-C", str(self.root), "config", "core.autocrlf", "true"],
+            check=True,
+        )
+        for filename in ("query_deep_memory.py", "deep_memory_catalog.py"):
+            path = self.root / "tools" / filename
+            canonical_lf = path.read_bytes().replace(b"\r\n", b"\n")
+            path.write_bytes(canonical_lf.replace(b"\n", b"\r\n"))
+        subprocess.run(["git", "-C", str(self.root), "add", "tools"], check=True)
+        git_env = dict(
+            os.environ,
+            GIT_AUTHOR_NAME="test",
+            GIT_AUTHOR_EMAIL="test@example.invalid",
+            GIT_COMMITTER_NAME="test",
+            GIT_COMMITTER_EMAIL="test@example.invalid",
+        )
+        subprocess.run(
+            ["git", "-C", str(self.root), "commit", "--allow-empty", "-qm", "CRLF fixture"],
+            check=True,
+            env=git_env,
+        )
+        self._rebind_fixture_commit()
+        status = subprocess.run(
+            ["git", "-C", str(self.root), "status", "--porcelain"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        self.assertEqual(status, "")
+
+    def test_clean_git_crlf_checkout_uses_canonical_blob_bytes(self):
+        self._prepare_clean_crlf_checkout()
+        script = self.root / "tools" / "query_deep_memory.py"
+        self.assertIn(b"\r\n", script.read_bytes())
+        git_blob = subprocess.run(
+            ["git", "-C", str(self.root), "show", "HEAD:tools/query_deep_memory.py"],
+            check=True,
+            capture_output=True,
+        ).stdout
+        self.assertNotIn(b"\r\n", git_blob)
+        self.assertEqual(
+            self.transport()._attest_source_files()["tools/query_deep_memory.py"],
+            git_blob,
+        )
+        self.assertEqual(self.search("PROJECT").count, 1)
+
+    def test_crlf_conversion_does_not_admit_altered_script(self):
+        self._prepare_clean_crlf_checkout()
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.root),
+                "update-index",
+                "--assume-unchanged",
+                "tools/query_deep_memory.py",
+            ],
+            check=True,
+        )
+        script = self.root / "tools" / "query_deep_memory.py"
+        script.write_bytes(script.read_bytes() + b"# unauthorized edit\r\n")
+        with self.assertRaises(EvidenceContractError):
+            self.transport()._attest_source_files()
+
+    def test_crlf_conversion_does_not_rewrite_binary_files(self):
+        binary = self.root / "opaque.bin"
+        binary.write_bytes(b"opaque\x00\n")
+        subprocess.run(["git", "-C", str(self.root), "add", "opaque.bin"], check=True)
+        git_env = dict(
+            os.environ,
+            GIT_AUTHOR_NAME="test",
+            GIT_AUTHOR_EMAIL="test@example.invalid",
+            GIT_COMMITTER_NAME="test",
+            GIT_COMMITTER_EMAIL="test@example.invalid",
+        )
+        subprocess.run(
+            ["git", "-C", str(self.root), "commit", "-qm", "binary fixture"],
+            check=True,
+            env=git_env,
+        )
+        self._rebind_fixture_commit()
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.root),
+                "update-index",
+                "--assume-unchanged",
+                "opaque.bin",
+            ],
+            check=True,
+        )
+        binary.write_bytes(b"opaque\x00\r\n")
+        with self.assertRaises(EvidenceContractError):
+            self.transport()._attest_source_files()
+
+    def _rebind_fixture_commit(self):
+        self.sha = subprocess.run(
+            ["git", "-C", str(self.root), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        registry = json.loads(self.registry_path.read_text(encoding="utf-8"))
+        registry["providers"][0]["source"]["source_merged_commit"] = self.sha
+        self.registry_path.write_text(json.dumps(registry), encoding="utf-8")
+
     def test_execution_uses_attested_snapshot_not_changed_worktree(self):
         transport = self.transport()
         original_attest = transport._attest_source_files
