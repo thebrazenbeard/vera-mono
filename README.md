@@ -27,6 +27,24 @@ Donor references are preserved under `provenance/` and inside historical source 
 
 External infrastructure can still exist where it is genuinely external: model/provider APIs, databases, devices, transports, and separately executed hostile reviewers. The adapters, contracts, policy, and state machines for using them belong here.
 
+### Optional Deep Memory search transport (source candidate)
+
+`runtime_cohesion.deep_memory_cli_transport.PinnedDeepMemoryCLITransport` is an
+opt-in, read-only source adapter for an operator-supplied DeepMemoryStorage checkout.
+It accepts only scoped historical evidence searches, verifies the configured Git
+commit against the external-provider registry's exact source binding, refuses a
+dirty checkout, invokes the bounded CLI without a shell, and returns its result to
+`DeepMemoryEvidenceAdapter` for schema and privacy validation. Both explicit and
+effective overlay privacy scopes are checked. An archive-wide audit, live provider
+installation, current-memory write, or execution authority is **not** provided.
+
+The bundled registry currently pins DeepMemoryStorage `f073feb409f71a0fdea7baa9053e54bcf8ed89a0`;
+the separately inspected `main` at `63edbc51fb87c889ab58051d02e18ba2aeca0d24`
+does not match. The transport therefore fails closed on that newer checkout.
+Its deterministic tests use a synthetic producer at an exact Git commit, not a
+claim of a deployed runtime or a live historical-data retrieval. Operator source
+review and explicit pin/currentness approval are still required before use.
+
 Native lifecycle flow is `vera_memory` CAS head â†’ portable recovery checkpoint â†’ validated local control-source cut/currentness candidate â†’ digest-chained lifecycle journal â†’ internal assurance gate â†’ atomic currentness commit â†’ committed journal event. `vera_core.VeraStateDirectory` reopens memory, recovery, currentness, journal, and trust paths from one persistent root, so restart reconstruction does not depend on conversational state. Recovery trust provisioning is user-local/configurable rather than tied to `/etc`, and inter-process registry locking uses SQLite rather than `fcntl`.
 
 `vera_core.QualifiedVeraRuntime` is now the canonical host-composed runtime boundary. It opens the durable `VeraStateDirectory`, reuses the same persistent effect fence as the lifecycle, loads the persistent outbound trust registry, injects trusted PC/provider/reconciliation verifiers without persisting their secrets, and exposes the qualified coordination, effect, and recovery paths from one composition root. `prepare_pc_job`/`dispatch_pc_job` and `prepare_provider_effect`/`dispatch_provider_effect` own the lifecycle-bound preparation/dispatch wiring instead of making ordinary callers manually stitch together permits, subjects, and effect-gate calls. Low-level primitives remain available for adapters and tests, but they are not the qualified outbound runtime.

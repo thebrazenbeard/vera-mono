@@ -248,6 +248,19 @@ class DeepMemoryEvidenceAdapter:
                     raise EvidenceAuthorizationError(
                         f"{field_name} contains an unauthorized explicit privacy scope"
                     )
+                effective_scope = overlay.get("effective_privacy_scope")
+                if effective_scope is not None and effective_scope not in allowed:
+                    raise EvidenceAuthorizationError(
+                        f"{field_name} contains an unauthorized effective privacy scope"
+                    )
+                if (
+                    overlay_scope is not None
+                    and effective_scope is not None
+                    and overlay_scope != effective_scope
+                ):
+                    raise EvidenceContractError(
+                        f"{field_name} disagrees about its effective privacy scope"
+                    )
 
 
 def prepare_historical_admission_review(
