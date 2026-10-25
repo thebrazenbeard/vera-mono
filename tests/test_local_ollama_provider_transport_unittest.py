@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+import gc
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -87,9 +88,22 @@ def accepted_state(base: Path):
 
 
 class LocalOllamaProviderTransportTests(unittest.TestCase):
+    def _state_directory(self) -> Path:
+        # unittest cleanups run after test locals (runtime/store references) leave
+        # scope. On Windows, sqlite files cannot be unlinked while a connection
+        # awaiting collection still owns an OS file handle.
+        temporary = tempfile.TemporaryDirectory()
+
+        def cleanup() -> None:
+            gc.collect()
+            temporary.cleanup()
+
+        self.addCleanup(cleanup)
+        return Path(temporary.name)
+
     def test_no_host_authority_verifier_denies_transport_at_composition(self):
-        with tempfile.TemporaryDirectory() as directory, loopback_peer() as (port, observed, _):
-            state = accepted_state(Path(directory))
+        with loopback_peer() as (port, observed, _):
+            state = accepted_state(self._state_directory())
             transport = LocalOllamaProviderTransport(model=MODEL, registry_digest=DIGEST, port=port)
             with self.assertRaisesRegex(ValueError, "trusted provider authority verifier"):
                 QualifiedVeraRuntime.from_state_directory(
@@ -169,8 +183,8 @@ class LocalOllamaProviderTransportTests(unittest.TestCase):
                 self.assertEqual([m for m, _, _ in observed], ["GET"])
 
     def test_authorized_qualified_runtime_candidate_is_unverified_and_one_use(self):
-        with tempfile.TemporaryDirectory() as directory, loopback_peer() as (port, observed, _):
-            state = accepted_state(Path(directory))
+        with loopback_peer() as (port, observed, _):
+            state = accepted_state(self._state_directory())
             verifier = HmacProviderAuthority("test-issuer", PROVIDER, b"p" * 32)
             state.outbound_trust_registry().register(
                 authority_id=verifier.authority_id, role="PROVIDER", provider_id=PROVIDER,
