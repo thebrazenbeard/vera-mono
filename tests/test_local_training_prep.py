@@ -67,6 +67,89 @@ class AdapterPreparationTests(unittest.TestCase):
         )
         self.dataset.chmod(0o600)
 
+    def _fake_mount_info(self, extra_mount: str, filesystem: str = "9p") -> str:
+        # Linux mountinfo: longest containing mount controls the real backing FS.
+        return (
+            "1 0 0:1 / / rw - ext4 /dev/sda rw\n"
+            "2 1 0:2 / /tmp rw - overlay overlay rw\n"
+            f"3 2 0:3 / {extra_mount} rw - {filesystem} C: rw\n"
+        )
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux mountinfo guard")
+    def test_rejects_private_corpus_on_wsl_windows_mount_despite_0600(self):
+        with patch.object(
+            Path, "read_text", autospec=True,
+            side_effect=lambda path, *a, **k: self._fake_mount_info(str(self.root))
+            if str(path) == "/proc/self/mountinfo" else self.fail(f"Unexpected file read: {path}"),
+        ):
+            with self.assertRaisesRegex(ValueError, "filesystem"):
+                build_plan(self.manifest)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux mountinfo guard")
+    def test_rejects_drvfs_and_ntfs_backing_even_when_stat_reports_0600(self):
+        for filesystem in ("drvfs", "ntfs3", "cifs", "fuseblk"):
+            with self.subTest(filesystem=filesystem), patch.object(
+                Path, "read_text", autospec=True,
+                side_effect=lambda path, *a, **k: self._fake_mount_info(str(self.root), filesystem)
+                if str(path) == "/proc/self/mountinfo" else self.fail(f"Unexpected file read: {path}"),
+            ):
+                with self.assertRaisesRegex(ValueError, "filesystem"):
+                    build_plan(self.manifest)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux mountinfo guard")
+    def test_rejects_conflicting_stacked_mounts_at_same_path(self):
+        conflicting = (
+            self._fake_mount_info(str(self.root), "ext4")
+            + f"4 3 0:4 / {self.root} rw - 9p C: rw\n"
+        )
+        with patch.object(
+            Path, "read_text", autospec=True,
+            side_effect=lambda path, *a, **k: conflicting
+            if str(path) == "/proc/self/mountinfo" else self.fail(f"Unexpected file read: {path}"),
+        ):
+            with self.assertRaisesRegex(ValueError, "filesystem"):
+                build_plan(self.manifest)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux mountinfo guard")
+    def test_accepts_private_ext4_backing_in_wsl(self):
+        with patch.object(
+            Path, "read_text", autospec=True,
+            side_effect=lambda path, *a, **k: self._fake_mount_info(str(self.root), "ext4")
+            if str(path) == "/proc/self/mountinfo" else self.fail(f"Unexpected file read: {path}"),
+        ):
+            self.assertEqual(build_plan(self.manifest).training_count, 8)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux mountinfo guard")
+    def test_unavailable_mountinfo_refuses_before_private_open(self):
+        with (
+            patch.object(Path, "read_text", side_effect=FileNotFoundError("mountinfo missing")),
+            patch("tools.local_training.adapter_prep.os.open", side_effect=AssertionError("opened private file")),
+        ):
+            with self.assertRaisesRegex(ValueError, "filesystem qualification unavailable"):
+                build_plan(self.manifest)
+
+    def test_rejects_input_parent_symlink(self):
+        alias = self.root.parent / (self.root.name + "-alias")
+        alias.symlink_to(self.root, target_is_directory=True)
+        self.addCleanup(alias.unlink)
+        with self.assertRaisesRegex(ValueError, "symlink"):
+            build_plan(alias / self.manifest.name)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux mountinfo guard")
+    def test_rejects_private_output_on_wsl_windows_mount_before_creation(self):
+        other_tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(other_tmp.cleanup)
+        other_parent = Path(other_tmp.name)
+        destination = other_parent / "prepared"
+        with patch.object(
+            Path, "read_text", autospec=True,
+            side_effect=lambda path, *a, **k: self._fake_mount_info(str(other_parent))
+            if str(path) == "/proc/self/mountinfo" else self.fail(f"Unexpected file read: {path}"),
+        ):
+            with self.assertRaisesRegex(ValueError, "filesystem"):
+                write_private_splits(self.manifest, destination)
+        self.assertFalse(destination.exists())
+
     def test_exact_source_and_dataset_yield_disjoint_reproducible_splits(self):
         first = build_plan(self.manifest)
         second = build_plan(self.manifest)

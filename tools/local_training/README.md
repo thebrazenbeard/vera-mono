@@ -58,8 +58,13 @@ The strict manifest and data-file parser verifies source bytes against the
 declared SHA-256, validates a pinned model/tokenizer/template/GGUF declaration,
 and requires explicit local-only classifications. On POSIX it additionally
 requires owner-only input file permissions and creates new output directories
-and files with owner-only permissions. Windows private ACL verification is not
-implemented; private sample access deliberately fails closed on Windows.
+and files with owner-only permissions. On Linux it also checks the backing
+filesystem for private-POSIX-permission compatibility; WSL-mounted Windows
+drives such as `/mnt/c` (DrvFs/9p/NTFS), network mounts, and unknown backing
+filesystems are refused even if a file *appears* to have mode `0600`. Use a
+qualified Linux filesystem such as WSL's internal ext4 disk for private
+preparation. Native Windows private ACL verification is not implemented;
+private sample access deliberately fails closed on Windows.
 
 From the repository root:
 

@@ -10,6 +10,7 @@ import json
 import os
 import re
 import stat
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -63,12 +64,53 @@ def _reject_git_checkout(path: Path, description: str) -> None:
             raise ValueError(f"{description} cannot be within a Git checkout")
 
 
+_PRIVATE_LINUX_FILESYSTEMS = frozenset({
+    "ext2", "ext3", "ext4", "xfs", "btrfs", "f2fs", "zfs", "tmpfs", "overlay",
+})
+
+
+def _require_private_filesystem(path: Path, description: str) -> None:
+    """Reject Windows-backed or other unqualified Linux mounts, including WSL DrvFs.
+
+    A 0600 st_mode on a WSL-mounted Windows drive is not proof that Windows
+    principals cannot access the file. We fail closed on unknown backing FS.
+    """
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        mounts = Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        raise ValueError(f"{description} private filesystem qualification unavailable") from exc
+    candidate = path.resolve(strict=False)
+    best_mount: Path | None = None
+    best_types: set[str] = set()
+    for line in mounts:
+        fields = line.split(" - ", 1)
+        if len(fields) != 2:
+            continue
+        before, after = fields[0].split(), fields[1].split()
+        if len(before) < 5 or not after:
+            continue
+        decoded = re.sub(r"\\([0-7]{3})", lambda m: chr(int(m.group(1), 8)), before[4])
+        mountpoint = Path(decoded)
+        if candidate == mountpoint or mountpoint in candidate.parents:
+            if best_mount is None or len(mountpoint.parts) > len(best_mount.parts):
+                best_mount, best_types = mountpoint, {after[0]}
+            elif len(mountpoint.parts) == len(best_mount.parts):
+                # Stacked mounts with conflicting types are ambiguous unless
+                # fully resolved by mount-ID ancestry; refuse the ambiguity.
+                best_types.add(after[0])
+    if len(best_types) != 1 or not best_types <= _PRIVATE_LINUX_FILESYSTEMS:
+        raise ValueError(f"{description} requires a qualified private Linux filesystem")
+
+
 def _load_snapshot(path: Path, description: str, max_bytes: int) -> bytes:
     if os.name == "nt":
         raise ValueError("Windows private ACL qualification is not implemented; refuse private sample access")
     _reject_git_checkout(path.parent, description)
     if not path.is_absolute() or path.is_symlink() or not path.is_file():
         raise ValueError(f"{description} requires an existing absolute non-symlink regular file")
+    _require_private_filesystem(path, description)
     if os.name == "posix" and stat.S_IMODE(path.stat().st_mode) & 0o077:
         raise ValueError(f"{description} requires private file permissions (0600)")
     if path.stat().st_size > max_bytes:
@@ -218,6 +260,7 @@ def write_private_splits(manifest_path: Path, output_dir: Path) -> PreparationPl
         raise FileExistsError("new absolute non-symlink output directory required")
     if not out.parent.is_dir() or out.parent.is_symlink():
         raise ValueError("output parent must exist and not be a symlink")
+    _require_private_filesystem(out.parent, "output")
     out.mkdir(mode=0o700)
     if os.name == "posix":
         os.chmod(out, 0o700)
