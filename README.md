@@ -136,6 +136,33 @@ After installing this checkout as shown above, for an operator-owned Ollama inst
 
 For a local endpoint requiring a bearer, put the key in a user-local environment variable and supply `--api-key-env NAME`. Do not put the key on the command line or commit it. Use `--json` for the bounded result/provenance envelope. No model is downloaded, started, selected for Vera, or granted authority by this command. The deterministic `shell` keeps its existing semantic and state-inspection behavior; free-form input is **not** silently escalated to a model or a tool.
 
+## Optional local-model transport (not activated by the console)
+
+`vera_core.LocalOllamaProviderTransport` is an opt-in, host-injected
+`ProviderExecutionTransport` for one explicitly selected Ollama tag and one
+registry-reported SHA-256 digest at `127.0.0.1`. It supports only bounded
+`GENERATE_CANDIDATE` requests. The host must bind provider ID `local-ollama`
+to its current trusted provider verifier and trust registry, then use
+`QualifiedVeraRuntime.prepare_provider_effect` and
+`QualifiedVeraRuntime.execute_provider_effect`; the transport does not grant
+itself dispatch authority. Restart/replay handling remains owned by the
+qualified runtime's provider-effect fence and durable binding.
+
+The response is always marked `UNVERIFIED_LOCAL_MODEL_CANDIDATE` with
+`qualified=false`. Registry digests are self-reported metadata, **not loaded
+weight attestation**; a same-user process that can call Ollama directly still
+has a bypass outside this adapter. This source-only integration does not
+select a model, start Ollama, modify `VeraMonoPilot`, configure OS ACLs, authorize
+an external effect, or turn generated text into trusted instructions. The
+semantic PowerShell console above remains model-free by default.
+
+Synthetic loopback and governed-provider integration checks are in
+`tests/test_local_ollama_provider_transport_unittest.py`. A production route
+requires a separately controlled selected process identity, actual direct-route
+denial, independent authority/claim custody, real model identity evidence,
+and live restart/effect reconciliation. No source test can substitute for
+those host qualifications.
+
 ## Opt-in local chat with bounded Vera context
 
 `vera-mono chat` is a separate **one-shot** command. It requires the exact existing Vera state root, project/identity binding, loopback inference endpoint, and model alias on every invocation. It constructs a `QualifiedVeraRuntime` from `VeraStateDirectory`, checks its reconstructed lifecycle, then sends only the allowlisted lifecycle status alongside the operator's prompt. It never serializes `resume_context()` into the model request: memory text, commitments, unfinished work, accepted runtime identifiers (including fingerprints), identity/project labels, host paths, keys, and provider/effect internals remain out of the prompt.

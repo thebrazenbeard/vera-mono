@@ -146,6 +146,7 @@ from .execution_adapters import (
     validate_pc_execution_transport_attestation,
     validate_pc_execution_transport_for_job,
 )
+from .local_ollama_provider_transport import LocalOllamaProviderTransport
 from .github_api_client import (
     GitHubAPIError,
     GitHubGitDataAPIClient,
@@ -567,6 +568,7 @@ __all__ = [
     "validate_pc_execution_transport_attestation",
     "validate_pc_execution_transport_for_job",
     "ProviderExecutionTransport",
+    "LocalOllamaProviderTransport",
     "SourceMutationTransport",
     "SourceMutationTransportResult",
     "PreparedSourceMutation",
