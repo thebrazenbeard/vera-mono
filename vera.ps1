@@ -36,7 +36,13 @@ if (-not (Test-Path $VenvPython)) {
         if ($null -eq $py) {
             throw "Python 3.12+ is required. Install Python, then run .\vera.ps1 again."
         }
-        & $py.Source -3.12 -m venv $VenvRoot
+        # The launcher may have Python 3.13+ but no 3.12. Select its latest
+        # Python 3, then enforce our minimum version before creating a venv.
+        & $py.Source -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3,12) else 1)"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Python 3.12+ is required. Install Python, then run .\vera.ps1 again."
+        }
+        & $py.Source -3 -m venv $VenvRoot
     }
 
     if ($LASTEXITCODE -ne 0) {
