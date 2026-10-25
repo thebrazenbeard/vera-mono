@@ -1,4 +1,8 @@
 from pathlib import Path
+import shutil
+import subprocess
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,14 +25,120 @@ def test_powershell_entrypoint_forwards_remaining_arguments():
     assert "@ForwardArgs" in text
 
 
-def test_powershell_entrypoint_has_no_external_model_server_configuration():
+def test_powershell_default_console_does_not_select_or_start_a_model():
     text = (ROOT / "vera.ps1").read_text(encoding="utf-8").lower()
     assert "openai" not in text
     assert "ollama" not in text
     assert "lm studio" not in text
-    assert "--model" not in text
     assert "--base-url" not in text
-    assert "api_key" not in text
+    assert "& $veraexe shell @forwardargs" in text
+    assert "& $veraexe chat @chatargs" in text
+    assert "if ($chat)" in text
+
+
+def test_chat_requires_existing_directory_before_virtual_environment():
+    launcher=(ROOT / "vera.ps1").read_text(encoding="utf-8")
+    guard="Test-Path -LiteralPath $StateRoot -PathType Container"
+    assert guard in launcher
+    assert launcher.index(guard) < launcher.index("if (-not (Test-Path $VenvPython))")
+
+
+def test_chat_preflight_only_accepts_real_filesystem_directory():
+    script=(ROOT / "vera.ps1").read_text(encoding="utf-8")
+    assert "[System.IO.Directory]::Exists($StateRoot)" in script
+
+
+def test_powershell_chat_requires_explicit_all_binding_and_model_inputs():
+    text = (ROOT / "vera.ps1").read_text(encoding="utf-8")
+    for option in ("$Chat", "$Endpoint", "$Model", "$StateRoot", "$ProjectId", "$IdentityId"):
+        assert option in text
+    for requirement in ('"StateRoot"', '"ProjectId"', '"IdentityId"', '"Endpoint"', '"Model"'):
+        assert requirement in text
+    assert '"--interactive"' in text
+    assert '"--endpoint"' in text
+    assert '"--model"' in text
+    assert "& $VeraExe chat @ChatArgs" in text
+    assert "& $VeraExe shell @ForwardArgs" in text
+
+
+def test_powershell_chat_never_uses_shell_expression_or_implicit_credentials():
+    text = (ROOT / "vera.ps1").read_text(encoding="utf-8")
+    assert "Invoke-Expression" not in text
+    assert "iex " not in text.lower()
+    assert "Start-Process" not in text
+    assert "Invoke-WebRequest" not in text
+    assert '"--api-key-env"' in text
+    assert "--api-key=" not in text
+    assert "$ChatArgs += $ConsoleArgs" not in text
+
+
+@pytest.mark.skipif(
+    not (shutil.which("pwsh") or shutil.which("powershell")),
+    reason="PowerShell is not installed on this runner",
+)
+def test_powershell_chat_preflight_fails_before_installing_or_executing_arguments(tmp_path):
+    powershell = shutil.which("pwsh") or shutil.which("powershell")
+    canary_path = tmp_path / "shell-injection-canary.txt"
+    injected_model = f"gemma3:1b;Set-Content -Path '{canary_path}' -Value PWNED"
+
+    # Endpoint is deliberately omitted so the test never creates a venv or
+    # calls a provider, even when run against a Windows checkout.
+    result = subprocess.run(
+        [
+            powershell, "-NoProfile", "-NonInteractive", "-File", str(ROOT / "vera.ps1"),
+            "-Chat", "-StateRoot", str(tmp_path / "existing-state"),
+            "-ProjectId", "explicit-project", "-IdentityId", "explicit-identity",
+            "-Model", injected_model,
+        ],
+        capture_output=True, text=True, timeout=15, check=False,
+    )
+    assert result.returncode != 0
+    assert "Explicit -Endpoint is required with -Chat" in (result.stderr + result.stdout)
+    assert not canary_path.exists()
+
+
+@pytest.mark.skipif(
+    not (shutil.which("pwsh") or shutil.which("powershell")),
+    reason="PowerShell is not installed on this runner",
+)
+@pytest.mark.parametrize("invalid_root", ["missing", "registry"])
+def test_local_chat_rejects_invalid_state_root_before_environment(tmp_path, invalid_root):
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    temp_repo = tmp_path / "staged-launcher"
+    temp_repo.mkdir()
+    shutil.copy2(ROOT / "vera.ps1", temp_repo / "vera.ps1")
+    absent = tmp_path / "does-not-exist"
+    root_argument = str(absent) if invalid_root == "missing" else "Registry::HKEY_CURRENT_USER"
+    result = subprocess.run(
+        [
+            powershell, "-NoProfile", "-NonInteractive", "-File",
+            str(temp_repo / "vera.ps1"), "-Chat",
+            "-StateRoot", root_argument, "-ProjectId", "test-project",
+            "-IdentityId", "test-identity",
+            "-Endpoint", "http://127.0.0.1:11434/v1",
+            "-Model", "gemma3:1b",
+        ],
+        capture_output=True, text=True, timeout=15, check=False,
+    )
+    assert result.returncode != 0
+    assert "must name an existing directory" in (result.stdout + result.stderr)
+    assert not (temp_repo / ".venv").exists()
+    assert not absent.exists()
+
+
+@pytest.mark.skipif(
+    not (shutil.which("pwsh") or shutil.which("powershell")),
+    reason="PowerShell is not installed on this runner",
+)
+def test_powershell_shell_rejects_model_only_options_before_installing():
+    powershell = shutil.which("pwsh") or shutil.which("powershell")
+    result = subprocess.run(
+        [powershell, "-NoProfile", "-NonInteractive", "-File", str(ROOT / "vera.ps1"),
+         "-Model", "gemma3:1b"],
+        capture_output=True, text=True, timeout=15, check=False,
+    )
+    assert result.returncode != 0
+    assert "-Model requires explicit -Chat" in (result.stderr + result.stdout)
 
 
 def test_local_console_environment_is_ignored_by_git():
