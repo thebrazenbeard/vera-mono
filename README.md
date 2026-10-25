@@ -138,6 +138,14 @@ Without state arguments the console is `SOURCE_ONLY`. To bind the PowerShell lau
 
 The launcher forwards those values to `vera-mono shell --state-root ... --project-id ... --identity-id ...`. State binding exposes read-only console inspection and does not mint protected-effect authority or silently write canonical memory.
 
+## Bounded adaptive-learning research (source stage)
+
+The source includes small numerical online predictors (`OnlineLinearPredictor` and a contextual expert-bank variant), plus an inspectable *literal-method research* path in `vera_core.agi_method_research`. These are distinct learning mechanisms, not a single integrated autonomous Vera learning loop. A method candidate may be induced deterministically from supplied, labeled calibration errors; the candidate is content-revisioned and separately reviewed against A/B evidence before the research gate admits a later C cue/use. C outcomes can carry a configured evaluator's Ed25519 signature and a negative comparison can durably quarantine the exact method revision. Training labels, signatures, and claimed losses remain only as trustworthy as their source and evaluator custody.
+
+The evidence roles A calibration, B independent review, C cue/use, and C outcome must stay distinct across replay and cold restart. A journal entry or consumed C cue does **not** prove that the selected method executed; a crash between durable consumption and trace can leave the effect UNKNOWN. Separate successor source explores an atomic UNKNOWN-attempt record, but it still cannot independently attest method execution. When restoring partially lost state, surviving journal identities must also be checked against role reuse; a hostile review found that gap in the first successor candidate, so do not treat that branch as qualified until the exact correction passes.
+
+**Qualification ceiling:** Research source tests and disposable signed outcomes do not establish self-improving production behavior, independent causal improvement, self-authored general methods, neural weight changes, AGI, or installation on Lappy/VN1/VN2. The shifted-example negative-transfer falsifier must remain visible. The default effect classification for this path is `authorization_effect=NONE`; installed inference and protected actions require separately granted and tested runtime interfaces. As of October 25, 2026 these changes are branch/PR research, not merged production capability.
+
 ## Status
 
 This is source architecture and local implementation. It does not, by source presence alone, claim deployment, provider activation, project installation, behavioral qualification, consciousness, phenomenology, or protected-effect authorization.
