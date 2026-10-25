@@ -74,6 +74,51 @@ def _interactive_args(root, *extra):
     return args
 
 
+@pytest.mark.parametrize("mode", ["json", "plain", "interactive"])
+def test_chat_legacy_console_escapes_unrepresentable_unicode_without_losing_reply(
+    tmp_path, mode,
+):
+    root = tmp_path / "state"
+    root.mkdir()
+    reply = "Hello! 😊 café"
+    connection = _Connection(_Response({"role": "assistant", "content": reply}))
+    args = _interactive_args(root) if mode == "interactive" else _args(root)
+    if mode == "json":
+        args.append("--json")
+
+    output = io.BytesIO()
+    legacy_console = io.TextIOWrapper(output, encoding="cp1252", write_through=True)
+    with patch.object(sys, "stdout", legacy_console), \
+            patch.object(sys, "stdin", io.StringIO("Hi\n:exit\n")), \
+            patch("vera_core.local_model_advisory.HTTPConnection", return_value=connection):
+        assert cli.main(args) == 0
+
+    emitted = output.getvalue().decode("cp1252")
+    if mode == "plain":
+        assert "Hello! \\U0001f60a café" in emitted
+    else:
+        assert "\\ud83d\\ude0a" in emitted
+        assert "caf\\u00e9" in emitted
+        assert output.getvalue().isascii()  # JSON Lines is portable UTF-8/ASCII.
+        assert json.loads(emitted)["result"]["text"] == reply
+
+
+def test_chat_utf8_console_preserves_literal_unicode_reply(tmp_path):
+    root = tmp_path / "state"
+    root.mkdir()
+    reply = "Hello! 😊 café"
+    connection = _Connection(_Response({"role": "assistant", "content": reply}))
+    output = io.BytesIO()
+    utf8_console = io.TextIOWrapper(output, encoding="utf-8", write_through=True)
+    with patch.object(sys, "stdout", utf8_console), \
+            patch("vera_core.local_model_advisory.HTTPConnection", return_value=connection):
+        assert cli.main(_args(root, "--json")) == 0
+
+    emitted = output.getvalue().decode("utf-8")
+    assert reply in emitted
+    assert json.loads(emitted)["result"]["text"] == reply
+
+
 def test_interactive_chat_uses_stdin_without_history_memory_or_authority(
     tmp_path, capsys,
 ):
