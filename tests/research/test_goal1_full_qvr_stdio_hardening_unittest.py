@@ -7,6 +7,7 @@ import json
 import sys
 import time
 import unittest
+from threading import Event
 from unittest.mock import patch
 
 from research.goal1_acceptance_bridge import full_qvr_stdio_broker as broker
@@ -23,6 +24,51 @@ def child(script: str):
 
 
 class BrokerHardeningTests(unittest.TestCase):
+    def test_forged_trailing_frame_must_not_trigger_callback(self):
+        script = (
+            "import hashlib,json,sys,time\n"
+            "req=json.loads(sys.stdin.readline())\n"
+            "first={'kind':'GATEWAY_REQUEST','prompt':req['prompt'],"
+            "'model':req['model'],'model_digest':req['model_digest'],"
+            "'prompt_sha256':hashlib.sha256(req['prompt'].encode()).hexdigest(),"
+            "'max_tokens':req['max_tokens']}\n"
+            "print(json.dumps(first),flush=True)\n"
+            "print(json.dumps({'kind':'FORGED_TRAILING'}),flush=True)\n"
+            "time.sleep(.5)\n"
+        )
+        first = {"kind":"INVOKE", "prompt":"hi", "model":"test",
+                 "model_digest":"a" * 64, "invocation_id":"one", "max_tokens":2}
+        called = []
+        with child(script), self.assertRaises(RuntimeError):
+            broker._exchange(IMAGE, VOLUME, first,
+                             lambda *args, **kwargs: called.append(True),
+                             timeout_seconds=1)
+        self.assertEqual(called, [], "untrusted child stream reached effectful callback")
+
+    def test_timed_out_callback_must_not_finish_after_reported_unknown(self):
+        script = (
+            "import hashlib,json,sys,time\n"
+            "req=json.loads(sys.stdin.readline())\n"
+            "first={'kind':'GATEWAY_REQUEST','prompt':req['prompt'],"
+            "'model':req['model'],'model_digest':req['model_digest'],"
+            "'prompt_sha256':hashlib.sha256(req['prompt'].encode()).hexdigest(),"
+            "'max_tokens':req['max_tokens']}\n"
+            "print(json.dumps(first),flush=True)\n"
+            "time.sleep(2)\n"
+        )
+        first = {"kind":"INVOKE", "prompt":"hi", "model":"test",
+                 "model_digest":"a" * 64, "invocation_id":"one", "max_tokens":2}
+        entered, completed = Event(), Event()
+        def callback(*args, **kwargs):
+            entered.set()
+            time.sleep(.35)
+            completed.set()
+            return {}
+        with child(script), self.assertRaisesRegex(RuntimeError, "timeout|unknown"):
+            broker._exchange(IMAGE, VOLUME, first, callback, timeout_seconds=.2)
+        self.assertTrue(entered.is_set(), "callback was not exercised")
+        self.assertFalse(completed.wait(.4), "callback ran after timeout response")
+
     def test_valid_gateway_response_survives_broker_checks(self):
         script = (
             "import hashlib,json,sys\n"
