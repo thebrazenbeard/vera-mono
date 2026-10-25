@@ -86,6 +86,32 @@ receipt and provides no confidentiality or model-safety proof.
 
 ## Experimental text-only LoRA entrypoint (separately gated)
 
+### Read-only local training host preflight
+
+Before preparing any private model or asking for weight-update approval, inspect
+the **actual** local WSL/Linux host from the terminal where the training would
+run. The path must be an existing owner-only directory on a qualified Linux
+filesystem (WSL's internal ext4 can qualify; `/mnt/c`, DrvFs, network shares,
+Git worktrees and native Windows private paths cannot):
+
+```bash
+python -m tools.local_training.train_doctor --output-parent /private/training-outputs
+```
+
+`train-doctor` prints a sanitized JSON receipt with
+`HOST_PREFLIGHT_PASS_NOT_TRAINING_AUTHORIZATION` (exit 0) or `HOST_HOLD`
+(exit 2). It reads only path metadata and Linux mount information, installed
+package versions and current CUDA capability; it does **not** open model or
+sample files, install/download anything, make network calls, train weights or
+create output files. The torch import/CUDA query may initialize CUDA runtime
+state. The check requires Python 3.12+, installed `torch`, `transformers`,
+`peft`, native CUDA BF16 (explicitly excludes emulation) and 3 GiB **currently
+free** VRAM. An API missing native-BF16 capability or a failed GPU query holds.
+Versions are reported as inventory, **not** verified as a compatible or pinned
+dependency lock. No path, username, file content or raw exception appears in
+the receipt. PASS is a technical preflight only, **never** a model, data,
+license, consent, adapter-quality, hardware-load or training authorization.
+
 `train-plan` computes an offline, read-only, SHA-256-bound preflight. It does
 **not** import PyTorch or load neural weights, and it writes nothing. The
 optional `train` action requires an exact input-, output-, step-count-, and
@@ -120,9 +146,59 @@ verifies bytes, not an upstream publisher signature; independent trusted
 origin and licensing review remain mandatory. The declared GGUF digest is
 intended inference lineage only: it is never used as a trainable base.
 
+### Offline source binding of an already-downloaded original-format base
+
+After an operator independently obtains and reviews the official *unquantized*
+`Qwen/Qwen3-0.6B` Transformers source, stage **copies** of its flat checkpoint
+files (`config.json`, `tokenizer.json`, `tokenizer_config.json`,
+`model.safetensors`, and any of `generation_config.json`, `merges.txt`,
+`vocab.json`, `special_tokens_map.json`) in a **new** local Linux directory
+with owner-only `0700` mode and all individual files `0600`. Do not point this
+tool at a Hugging Face cache (normally symlinked/hardlinked), a Git checkout,
+an existing model folder with unreviewed contents, a WSL Windows drive, or a
+GGUF quantization. No model download, credential use, network call, training,
+or installation is performed. The private staging directory is separate from
+the original source/cache and from any future training output directory.
+
+Record the independently reviewed publisher/revision evidence **outside**
+the model directory (for example, a reviewed origin record in an operator-only
+location). Calculate the SHA-256 of that *separate record*, and supply
+`sha256:<64-lowercase-hex>` as its reference. Separately declare the pinned
+40-character model and tokenizer revision hashes and the expected SHA-256 of
+the exact UTF-8 `chat_template` value in `tokenizer_config.json`:
+
+```bash
+python -m tools.local_training.bind_source \
+  --model-dir /private/local/model-staging \
+  --hf-repo Qwen/Qwen3-0.6B \
+  --revision-sha REPLACE_WITH_40_LOWERCASE_HEX \
+  --tokenizer-revision-sha REPLACE_WITH_40_LOWERCASE_HEX \
+  --chat-template-sha256 REPLACE_WITH_64_LOWERCASE_HEX \
+  --origin-evidence-ref sha256:REPLACE_WITH_64_LOWERCASE_HEX
+```
+
+The command creates **only** `VERA_SOURCE.json`, with exclusive `0600`
+creation, streaming local file digests, strict private-path checks, bounded
+safetensors-header checks, exact schema compatibility, and a follow-up
+`lora_runner._model_snapshot` verification. It cannot overwrite an existing
+binding. On validation failure it leaves no newly created binding; it never
+edits, replaces, or uploads weights. A successful machine-readable receipt
+says `DECLARED_ORIGIN_BYTES_HASHED_ONLY`. This means the *operator-declared*
+revision claims are tied to the local bytes, **not** that official publisher
+authenticity, all checkpoint tensor shapes, model completeness, license,
+consent, training hardware, or independently retained evidence authenticity
+has been established. Do not treat the supplied evidence digest as a verified
+remote signature. Continue with independent source/legal review and the
+separate corpus/training-approval gates; this command does not make an adapter
+or permit weight updates.
+
 The initial execution path accepts **only** the text-only
-`Qwen/Qwen3-0.6B`/`qwen3` family, with CUDA BF16, three GiB of *currently free*
-VRAM, and 1–32 small optimizer steps. It imports Transformers, PEFT and
+`Qwen/Qwen3-0.6B`/`qwen3` family, with CUDA **native hardware BF16**
+(emulated BF16 does not qualify), three GiB of *currently free*
+VRAM, and 1–32 small optimizer steps. The accelerator check explicitly calls
+`torch.cuda.is_bf16_supported(including_emulation=False)`; an older
+incompatible PyTorch signature fails closed rather than silently accepting
+emulation. It imports Transformers, PEFT and
 PyTorch only after the approval and GPU preflight, forces Hugging Face offline
 environment flags before imports, forbids remote code and pickle checkpoint
 loading, and writes an adapter to a new private output folder. Even that path
@@ -138,7 +214,10 @@ The selected community GGUF, including a reconversion from quantized weights,
 is an *inference* artifact, not an original trainable safetensors checkpoint.
 
 Outputs remain **TRAINED_ADAPTER_UNQUALIFIED_UNEVALUATED_NOT_ACTIVATED** even if an actual
-local run later succeeds. The held-out split is excluded from optimizer steps;
+local run later succeeds. The marker is refused unless the training routine
+reports an integer optimizer-step count exactly matching the approved plan;
+partial or malformed receipts leave no trained-status marker and need deliberate
+operator review. The held-out split is excluded from optimizer steps;
 no baseline-versus-adapter evaluation, dataset governance attestation,
 hardware qualification, installation, or Vera identity/memory promotion is
 automatically implied. On native Windows the private ACL hold still refuses

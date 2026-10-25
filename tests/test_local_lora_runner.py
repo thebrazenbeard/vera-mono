@@ -10,9 +10,45 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
-from tools.local_training.lora_runner import plan_local_training, train_local_adapter
+from tools.local_training.lora_runner import _require_accelerator, plan_local_training, train_local_adapter
+
+
+class NativeBF16AcceleratorTests(unittest.TestCase):
+    """Synthetic torch boundary: never probes the host GPU or private files."""
+
+    def _fake_torch(self, checker):
+        self.cuda = SimpleNamespace(
+            is_available=Mock(return_value=True),
+            is_bf16_supported=Mock(side_effect=checker),
+            mem_get_info=Mock(return_value=(4 * 1024**3, 5 * 1024**3)),
+            current_device=Mock(return_value=0),
+            get_device_properties=Mock(return_value=SimpleNamespace(name="synthetic")),
+        )
+        return SimpleNamespace(cuda=self.cuda, __version__="synthetic")
+
+    def test_emulated_bf16_only_device_is_held_before_memory_probe(self):
+        fake_torch = self._fake_torch(lambda including_emulation=True: including_emulation)
+        with patch.dict(sys.modules, {"torch": fake_torch}):
+            with self.assertRaisesRegex(ValueError, "BF16"):
+                _require_accelerator()
+        self.cuda.mem_get_info.assert_not_called()
+
+    def test_legacy_bf16_probe_without_native_flag_fails_closed(self):
+        fake_torch = self._fake_torch(lambda: True)
+        with patch.dict(sys.modules, {"torch": fake_torch}):
+            with self.assertRaisesRegex(ValueError, "native BF16"):
+                _require_accelerator()
+        self.cuda.mem_get_info.assert_not_called()
+
+    def test_native_bf16_device_qualifies_with_explicit_native_probe(self):
+        fake_torch = self._fake_torch(lambda including_emulation=True: True)
+        with patch.dict(sys.modules, {"torch": fake_torch}):
+            result = _require_accelerator()
+        self.cuda.is_bf16_supported.assert_called_once_with(including_emulation=False)
+        self.assertEqual(result["vram_free"], 4 * 1024**3)
 
 
 @unittest.skipIf(os.name == "nt", "POSIX owner-only file semantics unavailable on Windows")
@@ -246,6 +282,44 @@ class LocalLoRARunnerTests(unittest.TestCase):
         marker = json.loads((self.output / "VERA_ADAPTER_STATUS.json").read_text(encoding="utf-8"))
         self.assertEqual(marker["optimizer_steps_requested"], 2)
         self.assertEqual(marker["training"]["optimizer_steps"], 2)
+
+    def test_inconsistent_training_step_receipt_cannot_mark_adapter_trained(self):
+        plan = plan_local_training(self.manifest, self.model, self.output, steps=2)
+
+        def fake_training(_model, _encoded, output, _steps):
+            (output / "adapter_model.safetensors").write_bytes(b"synthetic-only")
+            (output / "adapter_config.json").write_bytes(b"{}")
+            return {"optimizer_steps": 0}
+
+        with patch("tools.local_training.lora_runner._require_accelerator", return_value={}):
+            with patch("tools.local_training.lora_runner._encode_training_rows", return_value=(([1, 2], [-100, 2]),)):
+                with patch("tools.local_training.lora_runner._train_model", side_effect=fake_training):
+                    with self.assertRaisesRegex(ValueError, "optimizer steps|optimizer_steps"):
+                        train_local_adapter(self.manifest, self.model, self.output,
+                                            approval=plan.weight_update_approval, execute=True, steps=2)
+        self.assertFalse((self.output / "VERA_ADAPTER_STATUS.json").exists())
+
+    def test_malformed_training_step_receipts_never_create_trained_marker(self):
+        for name, receipt in (
+            ("missing", {}), ("boolean", {"optimizer_steps": True}),
+            ("string", {"optimizer_steps": "1"}), ("nondict", [1]),
+        ):
+            with self.subTest(receipt=name):
+                output = self.root / f"adapter-{name}"
+                plan = plan_local_training(self.manifest, self.model, output)
+
+                def fake_training(_model, _encoded, target, _steps):
+                    (target / "adapter_model.safetensors").write_bytes(b"synthetic-only")
+                    (target / "adapter_config.json").write_bytes(b"{}")
+                    return receipt
+
+                with patch("tools.local_training.lora_runner._require_accelerator", return_value={}):
+                    with patch("tools.local_training.lora_runner._encode_training_rows", return_value=(([1, 2], [-100, 2]),)):
+                        with patch("tools.local_training.lora_runner._train_model", side_effect=fake_training):
+                            with self.assertRaisesRegex(ValueError, "optimizer_steps"):
+                                train_local_adapter(self.manifest, self.model, output,
+                                                    approval=plan.weight_update_approval, execute=True)
+                self.assertFalse((output / "VERA_ADAPTER_STATUS.json").exists())
 
     def test_alignment_failure_is_prevalidated_without_creating_output(self):
         plan = plan_local_training(self.manifest, self.model, self.output)

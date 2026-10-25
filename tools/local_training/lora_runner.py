@@ -149,8 +149,14 @@ def plan_local_training(manifest_path: Path, model_dir: Path, output_dir: Path, 
 def _require_accelerator() -> dict:
     import torch
 
-    if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
-        raise ValueError("CUDA GPU with BF16 support required; no CPU training fallback")
+    if not torch.cuda.is_available():
+        raise ValueError("CUDA GPU with native BF16 support required; no CPU training fallback")
+    try:
+        native_bf16 = torch.cuda.is_bf16_supported(including_emulation=False)
+    except TypeError as exc:
+        raise ValueError("cannot qualify native BF16 with this PyTorch CUDA probe") from exc
+    if not native_bf16:
+        raise ValueError("CUDA GPU with native BF16 support required; no emulation or CPU fallback")
     free, total = torch.cuda.mem_get_info()
     if free < 3 * 1024**3:
         raise ValueError("at least 3 GiB actually free VRAM required even for tiny-model experiment")
@@ -249,6 +255,10 @@ def train_local_adapter(manifest_path: Path, model_dir: Path, output_dir: Path,
     previous_umask = os.umask(0o077)
     try:
         training = _train_model(Path(model_dir), encoded, output, steps)
+        if (not isinstance(training, dict)
+                or type(training.get("optimizer_steps")) is not int
+                or training["optimizer_steps"] != plan.optimizer_steps):
+            raise ValueError("training optimizer_steps disagrees with approved optimizer steps")
         if not (output / "adapter_model.safetensors").is_file() or not (output / "adapter_config.json").is_file():
             raise ValueError("adapter files absent after weight-update call; refuse trained marker")
         artifacts = {}
