@@ -6,6 +6,7 @@ import json
 import os
 import stat
 import struct
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -32,6 +33,7 @@ def _safetensors(payload=b"\0\0\0\0") -> bytes:
     return struct.pack("<Q", len(header)) + header + payload
 
 
+@unittest.skipUnless(sys.platform.startswith("linux"), "binding acceptance requires a private Linux filesystem")
 class LocalSnapshotBindingTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="vera-binding-")
@@ -201,6 +203,30 @@ class LocalSnapshotBindingTests(unittest.TestCase):
     def test_unqualified_filesystem_rejected(self):
         with patch("tools.local_training.bind_source._require_private_filesystem", side_effect=ValueError("DrVFs")):
             self.assert_rejected()
+
+
+class NativeWindowsSafetyHoldTests(unittest.TestCase):
+    """Runs on every CI OS; simulates Windows without touching private files."""
+
+    def test_windows_fails_closed_before_any_filesystem_access(self):
+        with (patch("tools.local_training.bind_source.sys.platform", "win32"),
+              patch("tools.local_training.bind_source._require_private_filesystem") as filesystem_probe,
+              patch("tools.local_training.bind_source._reject_git_checkout") as checkout_probe,
+              patch("tools.local_training.bind_source.os.open") as private_open,
+              patch("tools.local_training.bind_source._model_snapshot") as snapshot_probe):
+            with self.assertRaisesRegex(ValueError, "qualified local Linux filesystem"):
+                bind_private_model_snapshot(
+                    Path("/never-read-source-files"),
+                    hf_repo="Qwen/Qwen3-0.6B",
+                    revision_sha=REV,
+                    tokenizer_revision_sha=TOKEN_REV,
+                    expected_chat_template_sha256=TEMPLATE_SHA,
+                    origin_evidence_ref="sha256:" + "c" * 64,
+                )
+            filesystem_probe.assert_not_called()
+            checkout_probe.assert_not_called()
+            private_open.assert_not_called()
+            snapshot_probe.assert_not_called()
 
 
 if __name__ == "__main__":
