@@ -7,9 +7,11 @@ import sys
 from zipfile import ZipFile
 
 
+VERIFIER_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "verify_monorepo_wheel.py"
+
+
 def _verifier_module():
-    path = Path("scripts/verify_monorepo_wheel.py")
-    spec = importlib.util.spec_from_file_location("verify_monorepo_wheel", path)
+    spec = importlib.util.spec_from_file_location("verify_monorepo_wheel", VERIFIER_SCRIPT)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -35,7 +37,7 @@ def test_wheel_verifier_accepts_crlf_metadata(tmp_path: Path) -> None:
         )
 
     result = subprocess.run(
-        [sys.executable, "scripts/verify_monorepo_wheel.py", str(wheel)],
+        [sys.executable, str(VERIFIER_SCRIPT), str(wheel)],
         text=True,
         capture_output=True,
         check=False,
