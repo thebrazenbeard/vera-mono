@@ -18,6 +18,23 @@ from pathlib import Path
 from .adapter_prep import _load_snapshot, _prepare, _reject_git_checkout, _require_private_filesystem
 
 _SUPPORTED_BASE = {"Qwen/Qwen3-0.6B": "qwen3"}
+_TRAINING_RECIPE = {
+    "revision": "qwen3-0.6b-causal-bf16-lora-v1",
+    "precision": "bf16",
+    "max_sequence_tokens": 1024,
+    "batch_size": 1,
+    "sample_order": "cyclic-training-split-v1",
+    "lora_r": 8,
+    "lora_alpha": 16,
+    "lora_dropout": 0.0,
+    "lora_target_modules": ["q_proj", "k_proj", "v_proj", "o_proj"],
+    "optimizer": "AdamW",
+    "learning_rate": 1e-4,
+    "learning_schedule": "constant",
+}
+_TRAINING_RECIPE_SHA256 = hashlib.sha256(
+    json.dumps(_TRAINING_RECIPE, sort_keys=True, separators=(",", ":")).encode("utf-8")
+).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -28,6 +45,8 @@ class LocalTrainingPlan:
     model_snapshot_sha256: str
     train_examples: int
     heldout_examples: int
+    optimizer_steps: int
+    recipe_sha256: str
     weight_update_approval: str
 
 
@@ -86,7 +105,9 @@ def _model_snapshot(model_dir: Path, base: dict) -> str:
     return hashlib.sha256(json.dumps(binding, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def _preflight(manifest_path: Path, model_dir: Path, output_dir: Path):
+def _preflight(manifest_path: Path, model_dir: Path, output_dir: Path, *, steps: int = 1):
+    if type(steps) is not int or not (1 <= steps <= 32):
+        raise ValueError("steps must be within 1..32")
     prepared = _prepare(Path(manifest_path))  # Native Windows fails before private reads.
     manifest = json.loads(_load_snapshot(Path(manifest_path), "manifest", 65536))
     snapshot_sha = _model_snapshot(Path(model_dir), manifest["base_model"])
@@ -104,6 +125,8 @@ def _preflight(manifest_path: Path, model_dir: Path, output_dir: Path):
         "base": prepared.plan.base_model_binding_sha256,
         "snapshot": snapshot_sha,
         "output": str(output),
+        "optimizer_steps": steps,
+        "recipe_sha256": _TRAINING_RECIPE_SHA256,
     }, sort_keys=True, separators=(",", ":"))
     return LocalTrainingPlan(
         status="PREFLIGHT_ONLY_NOT_TRAINED",
@@ -112,13 +135,15 @@ def _preflight(manifest_path: Path, model_dir: Path, output_dir: Path):
         model_snapshot_sha256=snapshot_sha,
         train_examples=prepared.plan.training_count,
         heldout_examples=prepared.plan.evaluation_count,
+        optimizer_steps=steps,
+        recipe_sha256=_TRAINING_RECIPE_SHA256,
         weight_update_approval="TRAIN_LOCAL_LORA:" + hashlib.sha256(binding.encode()).hexdigest(),
     ), prepared
 
 
-def plan_local_training(manifest_path: Path, model_dir: Path, output_dir: Path) -> LocalTrainingPlan:
+def plan_local_training(manifest_path: Path, model_dir: Path, output_dir: Path, *, steps: int = 1) -> LocalTrainingPlan:
     """Digest-check all local input bytes; do not import torch or create output."""
-    return _preflight(manifest_path, model_dir, output_dir)[0]
+    return _preflight(manifest_path, model_dir, output_dir, steps=steps)[0]
 
 
 def _require_accelerator() -> dict:
@@ -160,7 +185,7 @@ def _encode_training_rows(model_dir: Path, rows: tuple[dict, ...]) -> tuple[tupl
         full = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
         prefix_ids = tokenizer.encode(prompt, add_special_tokens=False)
         ids = tokenizer.encode(full, add_special_tokens=False)
-        if len(ids) > 1024 or len(prefix_ids) >= len(ids) or ids[:len(prefix_ids)] != prefix_ids:
+        if len(ids) > _TRAINING_RECIPE["max_sequence_tokens"] or len(prefix_ids) >= len(ids) or ids[:len(prefix_ids)] != prefix_ids:
             raise ValueError("chat-template label alignment/length has not qualified")
         encoded.append((ids, [-100] * len(prefix_ids) + ids[len(prefix_ids):]))
     return tuple(encoded)
@@ -176,11 +201,16 @@ def _train_model(model_dir: Path, encoded: tuple[tuple[list[int], list[int]], ..
         use_safetensors=True, dtype=torch.bfloat16,
     ).to("cuda")
     model = get_peft_model(model, LoraConfig(
-        task_type=TaskType.CAUSAL_LM, r=8, lora_alpha=16,
-        lora_dropout=0.0, target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+        task_type=TaskType.CAUSAL_LM, r=_TRAINING_RECIPE["lora_r"],
+        lora_alpha=_TRAINING_RECIPE["lora_alpha"],
+        lora_dropout=_TRAINING_RECIPE["lora_dropout"],
+        target_modules=_TRAINING_RECIPE["lora_target_modules"],
     ))
     model.train()
-    optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=1e-4)
+    optimizer = torch.optim.AdamW(
+        (p for p in model.parameters() if p.requires_grad),
+        lr=_TRAINING_RECIPE["learning_rate"],
+    )
     done = 0
     for step in range(steps):
         ids, labels = encoded[step % len(encoded)]
@@ -202,16 +232,14 @@ def _train_model(model_dir: Path, encoded: tuple[tuple[list[int], list[int]], ..
 def train_local_adapter(manifest_path: Path, model_dir: Path, output_dir: Path,
                         *, approval: str, execute: bool, steps: int = 1) -> LocalTrainingPlan:
     """Separate exact-input approval before GPU access or any adapter artifact."""
-    plan, prepared = _preflight(manifest_path, model_dir, output_dir)
+    plan, prepared = _preflight(manifest_path, model_dir, output_dir, steps=steps)
     if execute is not True or approval != plan.weight_update_approval:
         raise ValueError("exact separate weight update approval and --execute required")
-    if type(steps) is not int or not (1 <= steps <= 32):
-        raise ValueError("steps must be within 1..32")
     _lock_offline_environment()
     device = _require_accelerator()
     encoded = _encode_training_rows(Path(model_dir), prepared.train)
     # Catch model-directory mutation between initial preflight and encoding.
-    after, _ = _preflight(manifest_path, model_dir, output_dir)
+    after, _ = _preflight(manifest_path, model_dir, output_dir, steps=steps)
     if after != plan:
         raise ValueError("model/data binding changed before training; replan required")
     output = Path(output_dir)
@@ -237,6 +265,8 @@ def train_local_adapter(manifest_path: Path, model_dir: Path, output_dir: Path,
             "snapshot_sha256": plan.model_snapshot_sha256,
             "train_examples": plan.train_examples,
             "heldout_examples_excluded": plan.heldout_examples,
+            "optimizer_steps_requested": plan.optimizer_steps,
+            "recipe_sha256": plan.recipe_sha256,
             "accelerator": device, "training": training,
             "adapter_artifact_sha256": artifacts,
         }, sort_keys=True, indent=2) + "\n", encoding="utf-8")

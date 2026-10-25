@@ -252,6 +252,16 @@ class AdapterPreparationTests(unittest.TestCase):
             write_private_splits(self.manifest, output_dir)
         self.assertEqual((output_dir / "train.jsonl").read_bytes(), before)
 
+    def test_refuses_world_writable_output_parent_before_creating_private_files(self):
+        output_dir = self.root / "prepared"
+        self.root.chmod(0o777)
+        try:
+            with self.assertRaisesRegex(ValueError, "owner-only|private permissions"):
+                write_private_splits(self.manifest, output_dir)
+            self.assertFalse(output_dir.exists())
+        finally:
+            self.root.chmod(0o700)
+
 
 @unittest.skipUnless(os.name == "nt", "Windows fail-closed behavior")
 class WindowsPrivateACLHoldTests(unittest.TestCase):

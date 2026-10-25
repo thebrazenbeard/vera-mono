@@ -151,6 +151,34 @@ class LocalLoRARunnerTests(unittest.TestCase):
                                     approval="TRAIN_INCORRECT", execute=True)
         self.assertFalse(self.output.exists())
 
+    def test_step_change_requires_new_approval_before_accelerator_access(self):
+        one_step = plan_local_training(self.manifest, self.model, self.output)
+        with patch("tools.local_training.lora_runner._require_accelerator", side_effect=AssertionError("accelerator probed")):
+            with self.assertRaisesRegex(ValueError, "approval"):
+                train_local_adapter(self.manifest, self.model, self.output,
+                                    approval=one_step.weight_update_approval, execute=True, steps=2)
+        self.assertFalse(self.output.exists())
+
+    def test_train_plan_binds_steps_and_recipe_to_approval(self):
+        one_step = plan_local_training(self.manifest, self.model, self.output, steps=1)
+        two_steps = plan_local_training(self.manifest, self.model, self.output, steps=2)
+        self.assertNotEqual(one_step.weight_update_approval, two_steps.weight_update_approval)
+        self.assertEqual(one_step.optimizer_steps, 1)
+        self.assertEqual(two_steps.optimizer_steps, 2)
+        self.assertEqual(one_step.recipe_sha256, two_steps.recipe_sha256)
+        self.assertEqual(len(one_step.recipe_sha256), 64)
+
+    def test_cli_train_plan_accepts_explicit_step_count_and_returns_bound_token(self):
+        command = [sys.executable, "-m", "tools.local_training", "train-plan", str(self.manifest),
+                   str(self.output), "--model-dir", str(self.model), "--steps", "2"]
+        result = subprocess.run(command, capture_output=True, text=True,
+                                cwd=Path(__file__).resolve().parents[1], timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        parsed = json.loads(result.stdout)
+        self.assertEqual(parsed["optimizer_steps"], 2)
+        self.assertEqual(parsed["exact_approval_to_copy_for_train"],
+                         plan_local_training(self.manifest, self.model, self.output, steps=2).weight_update_approval)
+
     def test_loaded_hub_library_refuses_before_accelerator_or_training_output(self):
         plan = plan_local_training(self.manifest, self.model, self.output)
         with patch.dict(sys.modules, {"huggingface_hub": object()}):
@@ -198,6 +226,26 @@ class LocalLoRARunnerTests(unittest.TestCase):
         self.assertEqual(marker["status"], "TRAINED_ADAPTER_UNQUALIFIED_UNEVALUATED_NOT_ACTIVATED")
         self.assertEqual(marker["adapter_artifact_sha256"]["adapter_model.safetensors"],
                          hashlib.sha256(b"synthetic-adapter-not-real-weights").hexdigest())
+        self.assertEqual(marker["optimizer_steps_requested"], 1)
+        self.assertEqual(marker["recipe_sha256"], plan.recipe_sha256)
+
+    def test_matching_two_step_approval_reaches_only_two_bounded_optimizer_steps(self):
+        plan = plan_local_training(self.manifest, self.model, self.output, steps=2)
+
+        def fake_training(_model, _encoded, output, steps):
+            self.assertEqual(steps, 2)
+            (output / "adapter_model.safetensors").write_bytes(b"two-step-synthetic-adapter")
+            (output / "adapter_config.json").write_bytes(b"{}")
+            return {"optimizer_steps": steps}
+
+        with patch("tools.local_training.lora_runner._require_accelerator", return_value={}):
+            with patch("tools.local_training.lora_runner._encode_training_rows", return_value=(([1, 2], [-100, 2]),)):
+                with patch("tools.local_training.lora_runner._train_model", side_effect=fake_training):
+                    train_local_adapter(self.manifest, self.model, self.output,
+                                        approval=plan.weight_update_approval, execute=True, steps=2)
+        marker = json.loads((self.output / "VERA_ADAPTER_STATUS.json").read_text(encoding="utf-8"))
+        self.assertEqual(marker["optimizer_steps_requested"], 2)
+        self.assertEqual(marker["training"]["optimizer_steps"], 2)
 
     def test_alignment_failure_is_prevalidated_without_creating_output(self):
         plan = plan_local_training(self.manifest, self.model, self.output)

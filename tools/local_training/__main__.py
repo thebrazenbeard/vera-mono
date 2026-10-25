@@ -26,14 +26,17 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("prepare/train-plan/train require output; plan forbids output")
     if is_training != (args.model_dir is not None):
         parser.error("train-plan/train require --model-dir; preparation forbids it")
-    if args.action != "train" and (args.approval or args.execute or args.steps != 1):
-        parser.error("--approval/--execute/--steps only available with train")
+    if args.action != "train" and (args.approval or args.execute):
+        parser.error("--approval/--execute only available with train")
+    if not is_training and args.steps != 1:
+        parser.error("--steps only available with train-plan/train")
     if args.action == "train" and not args.execute:
         parser.error("train requires --execute and exact --approval")
     try:
         if is_training:
             if args.action == "train-plan":
-                plan = plan_local_training(args.manifest, args.model_dir, args.output)
+                plan = plan_local_training(args.manifest, args.model_dir, args.output,
+                                           steps=args.steps)
             else:
                 plan = train_local_adapter(args.manifest, args.model_dir, args.output,
                                            approval=args.approval or "", execute=args.execute,
@@ -44,6 +47,8 @@ def main(argv: list[str] | None = None) -> int:
                 "model_snapshot_sha256": plan.model_snapshot_sha256,
                 "training_count": plan.train_examples,
                 "heldout_count": plan.heldout_examples,
+                "optimizer_steps": plan.optimizer_steps,
+                "recipe_sha256": plan.recipe_sha256,
                 **({"exact_approval_to_copy_for_train": plan.weight_update_approval} if args.action == "train-plan" else {}),
             }, sort_keys=True))
             return 0

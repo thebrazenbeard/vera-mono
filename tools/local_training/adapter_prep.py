@@ -261,6 +261,8 @@ def write_private_splits(manifest_path: Path, output_dir: Path) -> PreparationPl
     if not out.parent.is_dir() or out.parent.is_symlink():
         raise ValueError("output parent must exist and not be a symlink")
     _require_private_filesystem(out.parent, "output")
+    if os.name == "posix" and stat.S_IMODE(out.parent.stat().st_mode) & 0o077:
+        raise ValueError("output parent requires owner-only private permissions")
     out.mkdir(mode=0o700)
     if os.name == "posix":
         os.chmod(out, 0o700)
