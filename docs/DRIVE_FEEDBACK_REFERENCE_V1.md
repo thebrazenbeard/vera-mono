@@ -29,7 +29,7 @@ credential vault, an authenticated transport, or a runtime integration.
 | No externally supplied verifier | `HOLD`, no receipt, projection, or outbox write |
 | Claim says observer or includes digest | Still untrusted until host verifier returns structurally bound `DriveWitness`; callback may lie |
 | Absolute need measurement | `normalized` level in [0,1], never additive caller-provided `claimed_need_change` |
-| Need freshness | Exact `need_id` and expected need revision; `BEGIN EXCLUSIVE` blocks readers before admission freshness checks |
+| Need freshness | Exact `need_id` and expected need revision; `BEGIN EXCLUSIVE` blocks readers before post-lock admission freshness checks |
 | Effect replay | Unique event, attempt, physical effect, evidence digest, witness attestation ID, and `(observer_id, source_sequence)` |
 | Observer clock | Fresh bounded timestamp; source sequences strictly increasing; later sequence cannot move observation time backwards |
 | Goal satisfaction | Same need, goal ID, choice ID, goal revision, `ACTIVE` and not vetoed, verified `EFFECT`, actual level improvement and target reached |

@@ -539,20 +539,32 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
     def test_reader_lock_cannot_admit_expired_observation(self):
         s = self.seed()
         now = [2_000_000]
-        checks = [0]
-        final_clock_checked = threading.Event()
+        s.clock_ms = lambda: now[0]
+        begin_attempted = threading.Event()
+        begin_modes = []
+        real_connect = s._connect
 
-        def clock():
-            checks[0] += 1
-            snapshot = now[0]
-            if checks[0] >= 3:
-                final_clock_checked.set()
-            return snapshot
+        class RecordingConnection:
+            def __init__(self, connection):
+                self._connection = connection
 
-        s.clock_ms = clock
+            def execute(self, sql, *args):
+                if sql.startswith("BEGIN "):
+                    begin_modes.append(sql)
+                    begin_attempted.set()
+                return self._connection.execute(sql, *args)
+
+            def __getattr__(self, name):
+                return getattr(self._connection, name)
+
+        def traced_connect():
+            return RecordingConnection(real_connect())
+
+        s._connect = traced_connect
         outcomes = []
         errors = []
         reader = sqlite3.connect(s.path, timeout=3, isolation_level=None)
+        thread = None
         try:
             reader.execute("BEGIN")
             reader.execute("SELECT count(*) FROM need_projection").fetchone()
@@ -565,15 +577,18 @@ class DriveFeedbackBehaviorTests(unittest.TestCase):
 
             thread = threading.Thread(target=writer)
             thread.start()
-            # Old BEGIN IMMEDIATE allows a reader to outlive the final clock
-            # check and blocks at COMMIT. EXCLUSIVE must wait before checking.
-            final_clock_checked.wait(timeout=0.6)
+            # Signal just BEFORE issuing BEGIN, while the reader holds SHARED.
+            # A timeout is a test failure, not an assumed successful lock wait.
+            self.assertTrue(begin_attempted.wait(timeout=4), "writer never attempted BEGIN")
             now[0] = 2_100_000
         finally:
             reader.rollback()
             reader.close()
-        thread.join(timeout=7)
-        self.assertFalse(thread.is_alive(), "writer did not finish")
+        if thread is not None:
+            thread.join(timeout=7)
+        s._connect = real_connect
+        self.assertEqual(begin_modes, ["BEGIN EXCLUSIVE"])
+        self.assertFalse(thread is not None and thread.is_alive(), "writer did not finish")
         self.assertFalse(errors, str(errors))
         self.assertEqual(len(outcomes), 1)
         self.assertEqual(outcomes[0].status, "HOLD")
