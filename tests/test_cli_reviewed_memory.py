@@ -74,6 +74,46 @@ def _options(cue: str = "conversation-use-1") -> tuple[str, ...]:
     )
 
 
+def _windows_test_junction(directory: Path, outside: Path) -> None:
+    """Pass fixture paths as data; never interpolate them into shell source."""
+    env = dict(os.environ)
+    env["VERA_MONO_TEST_ALIAS_PATH"] = str(directory)
+    env["VERA_MONO_TEST_ALIAS_TARGET"] = str(outside)
+    junction = subprocess.run(
+        [
+            "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+            "$ErrorActionPreference='Stop'; "
+            "New-Item -ItemType Junction -Path $env:VERA_MONO_TEST_ALIAS_PATH "
+            "-Target $env:VERA_MONO_TEST_ALIAS_TARGET | Out-Null",
+        ],
+        env=env, text=True, capture_output=True,
+    )
+    if junction.returncode:
+        pytest.fail(
+            "Windows alias qualification requires an executable symlink or "
+            f"junction fixture: {junction.stderr or junction.stdout}"
+        )
+
+
+def test_windows_junction_fallback_keeps_shell_metacharacters_in_data_only():
+    directory = Path("C:/temp/alias&Write-Output UNSAFE")
+    outside = Path("C:/temp/target%COMSPEC%&whoami")
+    with patch("subprocess.run", return_value=subprocess.CompletedProcess([], 0)) as call:
+        _windows_test_junction(directory, outside)
+    command = call.call_args.args[0]
+    assert command[:4] == ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command"]
+    assert "UNSAFE" not in command[4] and "whoami" not in command[4]
+    assert call.call_args.kwargs["env"]["VERA_MONO_TEST_ALIAS_PATH"] == str(directory)
+    assert call.call_args.kwargs["env"]["VERA_MONO_TEST_ALIAS_TARGET"] == str(outside)
+
+
+def test_windows_junction_fallback_must_fail_if_alias_cannot_be_created():
+    failure = subprocess.CompletedProcess([], 1, "", "junction creation denied")
+    with patch("subprocess.run", return_value=failure):
+        with pytest.raises(pytest.fail.Exception, match="junction creation denied"):
+            _windows_test_junction(Path("alias"), Path("outside"))
+
+
 def test_reviewed_memory_explicitly_included_as_data_and_persists_across_process_calls(
     tmp_path, capsys,
 ):
@@ -285,15 +325,7 @@ def test_reviewed_memory_refuses_symlinked_database_ancestor_before_state_open(
             pytest.skip(f"symlink creation unavailable on this host: {exc}")
         # Junction creation is normally available without the Windows
         # developer-mode privilege needed for directory symlinks.
-        junction = subprocess.run(
-            ["cmd.exe", "/d", "/c", "mklink", "/J", str(directory), str(outside)],
-            text=True, capture_output=True,
-        )
-        if junction.returncode:
-            pytest.skip(
-                f"directory alias unavailable: symlink={exc}; "
-                f"junction={junction.stderr or junction.stdout}"
-            )
+        _windows_test_junction(directory, outside)
     assert directory.is_symlink() or getattr(directory, "is_junction", lambda: False)()
     assert not (directory / ("memory.sqlite" if directory_name == "memory"
                              else "learned-influence.sqlite")).is_symlink()
