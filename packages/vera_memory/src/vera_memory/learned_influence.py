@@ -353,11 +353,20 @@ class DurableLearnedInfluenceGate:
         *,
         cue_event_id: str,
         use_evidence_id: str | None = None,
+        expected_calibration_evidence_ids: tuple[str, ...] | None = None,
     ) -> LearnedInfluenceReceipt:
         if type(revision) is not LearnedRevision:
             raise TypeError("revision must be exact LearnedRevision")
         if type(cue_event_id) is not str or not cue_event_id:
             raise ValueError("cue_event_id must be a non-empty exact string")
+        expected_calibration = (
+            None
+            if expected_calibration_evidence_ids is None
+            else self._evidence_ids(
+                expected_calibration_evidence_ids,
+                field="expected_calibration_evidence_ids",
+            )
+        )
 
         db = self._connect()
         try:
@@ -393,6 +402,16 @@ class DurableLearnedInfluenceGate:
                 """,
                 (revision.association_id, revision.memory_revision_id),
             ).fetchall()
+            if expected_calibration is not None:
+                bound_calibration = {
+                    str(row["evidence_id"])
+                    for row in evidence_rows
+                    if str(row["evidence_class"]) == "CALIBRATION"
+                }
+                if bound_calibration != set(expected_calibration):
+                    raise LearnedInfluenceBlocked(
+                        "reviewed calibration evidence does not match selected artifact"
+                    )
             evidence_split_qualified = bool(evidence_rows)
             bound_evidence_ids = {
                 str(row["evidence_id"]) for row in evidence_rows
