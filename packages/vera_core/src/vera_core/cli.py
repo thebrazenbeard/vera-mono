@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 
 from .console import VeraConsole, run_console_repl
+from .local_model_advisory import advise_local_model
 from .qualified_runtime import QualifiedVeraRuntime
 from .state import VeraStateDirectory
 
@@ -63,6 +64,21 @@ def _parser() -> argparse.ArgumentParser:
         help="optional one-shot input; omit for interactive mode",
     )
     _add_state_binding(shell, required=False)
+
+    advise = subparsers.add_parser(
+        "advise",
+        help=(
+            "ask an explicitly selected loopback model for unverified, "
+            "read-only advisory text; no Vera state, tools, or effects"
+        ),
+    )
+    advise.add_argument("prompt", help="one-shot prompt sent only to the local model")
+    advise.add_argument("--endpoint", required=True, help="exact HTTP loopback /v1 endpoint")
+    advise.add_argument("--model", required=True, help="exact local model alias")
+    advise.add_argument("--api-key-env", help="optional environment variable containing a local API key")
+    advise.add_argument("--max-tokens", type=int, default=180)
+    advise.add_argument("--timeout-seconds", type=int, default=60)
+    advise.add_argument("--json", action="store_true", help="emit the full provenance envelope")
     return parser
 
 
@@ -152,6 +168,30 @@ def _shell(args: argparse.Namespace) -> int:
     return run_console_repl(console)
 
 
+def _advise(args: argparse.Namespace) -> int:
+    result = advise_local_model(
+        args.prompt,
+        endpoint=args.endpoint,
+        model_id=args.model,
+        api_key_env=args.api_key_env,
+        max_tokens=args.max_tokens,
+        timeout_seconds=args.timeout_seconds,
+    )
+    if args.json:
+        sys.stdout.write(
+            json.dumps(result.to_dict(), ensure_ascii=False, allow_nan=False, sort_keys=True)
+            + "\n"
+        )
+    else:
+        sys.stdout.write(
+            f"UNVERIFIED_MODEL_OUTPUT — model={result.model_id} "
+            f"endpoint={result.endpoint}; no Vera memory or effect authority\n"
+            + result.text
+            + "\n"
+        )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
@@ -160,6 +200,8 @@ def main(argv: list[str] | None = None) -> int:
             return _status(args)
         if args.command in {"shell", "console"}:
             return _shell(args)
+        if args.command == "advise":
+            return _advise(args)
     except (KeyError, OSError, TypeError, ValueError, RuntimeError) as exc:
         parser.exit(2, f"vera-mono: {exc}\n")
     parser.error("unsupported command")

@@ -1,0 +1,213 @@
+"""Source-bound tests for a deliberately effectless local model advisory route."""
+
+from __future__ import annotations
+
+from hashlib import sha256
+import json
+from unittest.mock import patch
+
+import pytest
+
+from vera_core import cli
+from vera_core.local_model_advisory import LocalModelError, advise_local_model
+
+
+class _Response:
+    def __init__(self, body, status=200):
+        self.status = status
+        self._raw = body if isinstance(body, bytes) else json.dumps(body).encode()
+
+    def read(self, count):
+        return self._raw[:count]
+
+
+class _Connection:
+    def __init__(self, response=None, fail=None):
+        self.response = response or _Response(_valid_response())
+        self.fail = fail
+        self.requests = []
+        self.closed = False
+
+    def request(self, method, path, body, headers):
+        if self.fail:
+            raise self.fail
+        self.requests.append((method, path, json.loads(body), headers))
+
+    def getresponse(self):
+        return self.response
+
+    def close(self):
+        self.closed = True
+
+
+def _valid_response():
+    return {
+        "model": "gemma3:1b",
+        "choices": [
+            {"message": {"role": "assistant", "content": "Careful answer."},
+             "finish_reason": "stop"}
+        ],
+    }
+
+
+def _advise_with(connection, *, endpoint="http://127.0.0.1:11434/v1", **kwargs):
+    with patch("vera_core.local_model_advisory.HTTPConnection", return_value=connection) as ctor:
+        result = advise_local_model(
+            "Consider two explanations", endpoint=endpoint, model_id="gemma3:1b", **kwargs
+        )
+    return result, ctor
+
+
+def test_real_request_contract_is_explicit_loopback_cognition_only():
+    conn = _Connection()
+    result, constructor = _advise_with(conn)
+    constructor.assert_called_once_with("127.0.0.1", 11434, timeout=60)
+    method, path, body, headers = conn.requests[0]
+    assert (method, path) == ("POST", "/v1/chat/completions")
+    assert headers == {"Content-Type": "application/json"}
+    assert body["model"] == "gemma3:1b"
+    assert body["stream"] is False
+    assert "tools" not in body
+    assert "tool_choice" not in body
+    assert [message["role"] for message in body["messages"]] == ["system", "user"]
+    assert body["messages"][1] == {"role": "user", "content": "Consider two explanations"}
+    assert conn.closed is True
+    assert result.status == "UNVERIFIED_MODEL_OUTPUT"
+    assert result.authority == result.memory_admission == result.tool_execution == "NONE"
+    assert result.prompt_sha256 == sha256(b"Consider two explanations").hexdigest()
+    assert result.response_sha256 == sha256(b"Careful answer.").hexdigest()
+    assert result.text == "Careful answer."
+
+
+def test_ipv6_loopback_is_allowed_without_name_resolution():
+    result, constructor = _advise_with(_Connection(), endpoint="http://[::1]:8097/v1")
+    constructor.assert_called_once_with("::1", 8097, timeout=60)
+    assert result.endpoint == "http://[::1]:8097/v1"
+
+
+@pytest.mark.parametrize("endpoint", [
+    "http://localhost:11434/v1",
+    "http://192.168.1.71:11434/v1",
+    "http://127.0.0.2:11434/v1",
+    "http://0.0.0.0:11434/v1",
+    "https://127.0.0.1:11434/v1",
+    "http://127.0.0.1/v1",
+    "http://127.0.0.1:99999/v1",
+    "http://user@127.0.0.1:11434/v1",
+    "http://127.0.0.1:11434/v1?redirect=1",
+    "http://127.0.0.1:11434/v1#fragment",
+    "http://127.0.0.1:11434/v1/chat/completions",
+    "http://127.0.0.1:011434/v1",
+    " http://127.0.0.1:11434/v1",
+])
+def test_noncanonical_or_nonloopback_urls_cannot_open_a_connection(endpoint):
+    with patch("vera_core.local_model_advisory.HTTPConnection") as constructor:
+        with pytest.raises(LocalModelError):
+            advise_local_model("test", endpoint=endpoint, model_id="gemma3:1b")
+    constructor.assert_not_called()
+
+
+@pytest.mark.parametrize("values", [
+    {"prompt": ""},
+    {"prompt": "x" * 12001},
+    {"model_id": "name with whitespace"},
+    {"model_id": ""},
+    {"max_tokens": 0},
+    {"max_tokens": 513},
+    {"timeout_seconds": 0},
+    {"timeout_seconds": 301},
+])
+def test_invalid_requests_fail_before_network_access(values):
+    args = {"prompt": "test", "endpoint": "http://127.0.0.1:11434/v1", "model_id": "gemma3:1b"}
+    args.update(values)
+    with patch("vera_core.local_model_advisory.HTTPConnection") as constructor:
+        with pytest.raises(LocalModelError):
+            advise_local_model(**args)
+    constructor.assert_not_called()
+
+
+@pytest.mark.parametrize("response", [
+    _Response({}, status=302),
+    _Response({}, status=500),
+    _Response(b"not-json"),
+    _Response(b" " * 1_000_001),
+    _Response({"choices": _valid_response()["choices"]}),
+    _Response({"model": "other:1b", "choices": _valid_response()["choices"]}),
+    _Response({"model": "gemma3:1b", "choices": []}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "", "tool_calls": [{"type": "function"}]}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "answer", "tool_calls": []}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "answer", "function_call": {"name": "shell"}}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "\u001b]52;clipboard-injection"}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "\u009b31mcolor"}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "left\u202eright"}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "left\u2066right\u2069"}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "left\u200fright"}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "left\u061cright"}}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "answer"}, "finish_reason": "tool_calls"}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "answer"}, "finish_reason": "function_call"}]}),
+    _Response({"model": "gemma3:1b", "choices": [{"message": {"role": "tool", "content": "answer"}}]}),
+])
+def test_untrusted_or_effectful_response_is_rejected(response):
+    conn = _Connection(response=response)
+    with pytest.raises(LocalModelError):
+        _advise_with(conn)
+    assert conn.closed is True
+
+
+def test_transport_failure_is_bounded_and_connection_closes():
+    conn = _Connection(fail=OSError("unreachable"))
+    with pytest.raises(LocalModelError, match="unavailable"):
+        _advise_with(conn)
+    assert conn.closed is True
+
+
+def test_multiline_plain_text_is_allowed_without_terminal_controls():
+    payload = {"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "line one\n\tline two"}}]}
+    result, _ = _advise_with(_Connection(response=_Response(payload)))
+    assert result.text == "line one\n\tline two"
+
+
+def test_ordinary_zero_width_joiner_remains_allowed():
+    payload = {"model": "gemma3:1b", "choices": [{"message": {"role": "assistant", "content": "\U0001f469\u200d\U0001f4bb developer"}}]}
+    result, _ = _advise_with(_Connection(response=_Response(payload)))
+    assert result.text == "\U0001f469\u200d\U0001f4bb developer"
+
+
+def test_optional_api_key_stays_in_request_header_not_receipt(monkeypatch):
+    monkeypatch.setenv("LOCAL_TEST_MODEL_KEY", "the-secret-value")
+    conn = _Connection()
+    result, _ = _advise_with(conn, api_key_env="LOCAL_TEST_MODEL_KEY")
+    assert conn.requests[0][3]["Authorization"] == "Bearer the-secret-value"
+    assert "the-secret-value" not in json.dumps(result.to_dict())
+
+
+def test_missing_api_key_fails_closed_before_transport(monkeypatch):
+    monkeypatch.delenv("LOCAL_TEST_MODEL_KEY", raising=False)
+    with patch("vera_core.local_model_advisory.HTTPConnection") as constructor:
+        with pytest.raises(LocalModelError, match="key unavailable"):
+            advise_local_model("test", endpoint="http://127.0.0.1:11434/v1", model_id="gemma3:1b", api_key_env="LOCAL_TEST_MODEL_KEY")
+    constructor.assert_not_called()
+
+
+def test_non_ascii_api_key_cannot_enter_an_http_header(monkeypatch):
+    monkeypatch.setenv("LOCAL_TEST_MODEL_KEY", "bad-\u2603-key")
+    with patch("vera_core.local_model_advisory.HTTPConnection") as constructor:
+        with pytest.raises(LocalModelError, match="key unavailable"):
+            advise_local_model("test", endpoint="http://127.0.0.1:11434/v1", model_id="gemma3:1b", api_key_env="LOCAL_TEST_MODEL_KEY")
+    constructor.assert_not_called()
+
+
+def test_cli_advice_is_explicit_and_does_not_read_vera_state(monkeypatch, capsys):
+    def no_state(*_args, **_kwargs):
+        raise AssertionError("advisory route must not read governed state")
+    monkeypatch.setattr(cli, "_bound_state", no_state)
+    monkeypatch.setattr(cli, "advise_local_model", lambda *_args, **_kwargs:
+        _advise_with(_Connection())[0])
+    assert cli.main(["advise", "hello", "--endpoint", "http://127.0.0.1:11434/v1", "--model", "gemma3:1b"]) == 0
+    output = capsys.readouterr().out
+    assert output.startswith("UNVERIFIED_MODEL_OUTPUT")
+    assert "Careful answer." in output
+    assert cli.main(["advise", "hello", "--endpoint", "http://127.0.0.1:11434/v1", "--model", "gemma3:1b", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "UNVERIFIED_MODEL_OUTPUT"
+    assert payload["memory_admission"] == "NONE"

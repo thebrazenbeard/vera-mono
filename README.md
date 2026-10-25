@@ -124,6 +124,18 @@ Without state arguments the console is `SOURCE_ONLY`. To bind the PowerShell lau
 
 The launcher forwards those values to `vera-mono shell --state-root ... --project-id ... --identity-id ...`. State binding exposes read-only console inspection and does not mint protected-effect authority or silently write canonical memory.
 
+## Optional local model advisory (not a Vera runtime route)
+
+The separately invoked `vera-mono advise` command can ask an **already running**, operator-selected OpenAI-compatible model server on the same computer. It uses an exact numeric loopback URL, does not follow redirects or proxies, exposes no tools, and sends **only the explicitly provided prompt**—never Vera's current state, private memory, credentials, or task context. Its output is labelled `UNVERIFIED_MODEL_OUTPUT`; generation is not evidence of correctness, memory admission, runtime installation, a qualified model route, or protected-effect authority.
+
+After installing this checkout as shown above, for an operator-owned Ollama instance:
+
+```powershell
+& .\.venv\Scripts\vera-mono.exe advise "Compare these explanations" --endpoint http://127.0.0.1:11434/v1 --model gemma3:1b
+```
+
+For a local endpoint requiring a bearer, put the key in a user-local environment variable and supply `--api-key-env NAME`. Do not put the key on the command line or commit it. Use `--json` for the bounded result/provenance envelope. No model is downloaded, started, selected for Vera, or granted authority by this command. The deterministic `shell` keeps its existing semantic and state-inspection behavior; free-form input is **not** silently escalated to a model or a tool.
+
 ## Status
 
 This is source architecture and local implementation. It does not, by source presence alone, claim deployment, provider activation, project installation, behavioral qualification, consciousness, phenomenology, or protected-effect authorization.
