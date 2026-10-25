@@ -138,7 +138,7 @@ For a local endpoint requiring a bearer, put the key in a user-local environment
 
 ## Opt-in local chat with bounded Vera context
 
-`vera-mono chat` is a separate **one-shot** command. It requires the exact existing Vera state root, project/identity binding, loopback inference endpoint, and model alias on every invocation. It constructs a `QualifiedVeraRuntime` from `VeraStateDirectory`, checks its reconstructed lifecycle, then sends only the lifecycle status and a SHA-256 digest of any accepted runtime ID alongside the operator's prompt. It never serializes `resume_context()` into the model request: memory text, commitments, unfinished work, identity/project labels, host paths, keys, and provider/effect internals remain out of the prompt.
+`vera-mono chat` is a separate **one-shot** command. It requires the exact existing Vera state root, project/identity binding, loopback inference endpoint, and model alias on every invocation. It constructs a `QualifiedVeraRuntime` from `VeraStateDirectory`, checks its reconstructed lifecycle, then sends only the allowlisted lifecycle status alongside the operator's prompt. It never serializes `resume_context()` into the model request: memory text, commitments, unfinished work, accepted runtime identifiers (including fingerprints), identity/project labels, host paths, keys, and provider/effect internals remain out of the prompt.
 
 ```powershell
 & .\.venv\Scripts\vera-mono.exe chat "Help me understand the current state" `
@@ -146,7 +146,7 @@ For a local endpoint requiring a bearer, put the key in a user-local environment
   --endpoint http://127.0.0.1:11434/v1 --model gemma3:1b --json
 ```
 
-`chat` uses the same bounded HTTP `/v1/chat/completions` adapter as `advise`. It sends no tool definitions, rejects model responses containing tool/function calls, never admits the exchange into Vera memory, and grants no provider, PC, Bus, or filesystem effect authority. Opening a previously empty state directory can initialize QVR's local SQLite bookkeeping; this is not memory-item admission or an external effect. A missing binding, non-loopback address, unavailable model endpoint, or invalid QVR reconstruction fails without fallback. The output remains `UNVERIFIED_MODEL_OUTPUT`; even an accepted lifecycle status does not qualify the model, install it, or authorize its actions. Reinvocation after process restart reopens local state. `advise` remains intentionally state-free.
+`chat` uses the same bounded HTTP `/v1/chat/completions` adapter as `advise`. It sends no tool definitions, rejects model responses containing tool/function calls, never admits the exchange into Vera memory, and grants no provider, PC, Bus, or external filesystem effect authority. Opening a previously empty state directory can initialize QVR's local SQLite bookkeeping. Reconstructing an interrupted lifecycle can also repair local audit records or append `RESTART_RECONCILED_COMMITTED` to its lifecycle journal when a currentness commit is already durable but its final journal event is missing. These local recovery writes are not memory-item admission or authorization of an external effect. A missing binding, non-loopback address, unavailable model endpoint, or invalid QVR reconstruction fails without fallback. The output remains `UNVERIFIED_MODEL_OUTPUT`; even an accepted lifecycle status does not qualify the model, install it, or authorize its actions. Reinvocation after process restart reopens local state. `advise` remains intentionally state-free.
 
 ## Status
 

@@ -227,15 +227,9 @@ def _chat(args: argparse.Namespace) -> int:
     reconstruction = runtime.lifecycle.reconstruct()
     if reconstruction.status not in _CHAT_STATUSES:
         raise ValueError("unknown reconstructed lifecycle status")
-    runtime_id = reconstruction.accepted_runtime_id
-    if runtime_id is not None and type(runtime_id) is not str:
-        raise ValueError("invalid accepted runtime identity")
     context = {
         "schema": "VERA_MONO_LOCAL_CHAT_CONTEXT_V1",
         "status": reconstruction.status,
-        "accepted_runtime_id_sha256": (
-            None if runtime_id is None else sha256(runtime_id.encode("utf-8")).hexdigest()
-        ),
     }
     context_json = json.dumps(context, ensure_ascii=False, allow_nan=False, sort_keys=True,
                               separators=(",", ":"))

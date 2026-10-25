@@ -14,6 +14,7 @@ import pytest
 
 from vera_core import VeraStateDirectory
 from vera_core import cli
+from vera_control import local_r10_source_digest
 from vera_memory import AdmissionRequest, MemoryClass
 
 
@@ -80,7 +81,7 @@ def test_chat_binds_only_minimal_qvr_metadata_and_cold_restart_has_no_memory_adm
         emitted = json.loads(capsys.readouterr().out)
         assert emitted["schema"] == "VERA_MONO_LOCAL_CHAT_RESULT_V1"
         assert emitted["context"]["status"] == "EMPTY"
-        assert emitted["context"]["accepted_runtime_id_sha256"] is None
+        assert set(emitted["context"]) == {"schema", "status"}
         assert emitted["result"]["memory_admission"] == "NONE"
         assert emitted["result"]["authority"] == "NONE"
         assert emitted["result"]["tool_execution"] == "NONE"
@@ -202,15 +203,74 @@ def test_accepted_state_does_not_leak_memory_commitments_or_runtime_id(tmp_path,
         assert cli.main(_args(root, "--json")) == 0
     result = json.loads(capsys.readouterr().out)
     assert result["context"]["status"] == "ACCEPTED_CURRENT"
-    assert result["context"]["accepted_runtime_id_sha256"] == sha256(
-        b"RUNTIME_SECRET_CANARY"
-    ).hexdigest()
+    assert set(result["context"]) == {"schema", "status"}
     sent = json.dumps(connection.requests[0][2])
     for forbidden in ("MEMORY_SECRET_CANARY", "COMMITMENT_SECRET_CANARY",
                       "WORK_SECRET_CANARY", "RUNTIME_SECRET_CANARY"):
         assert forbidden not in sent
         assert forbidden not in json.dumps(result)
     assert state.open().memory.current_head == head
+
+
+def test_chat_reconciles_existing_durable_currentness_without_admitting_new_memory(
+    tmp_path, capsys,
+):
+    """An interrupted final journal append can be repaired by QVR reconstruction."""
+    root = tmp_path / "interrupted-state"
+    root.mkdir()
+    state = VeraStateDirectory(root, project_id="private-project-CANARY",
+                               identity_id="private-identity-CANARY")
+    lifecycle = state.open()
+    admitted = lifecycle.memory.admit(AdmissionRequest(
+        record_id="m1", text="RECOVERY_MEMORY_CANARY",
+        memory_class=MemoryClass.WORKING_PROJECT,
+        source_actor="test", authority_ref="authority:test",
+        privacy_ref="privacy:test", provenance_refs=("source:test",),
+        operation_id="op1", project_id=state.project_id,
+        governed_identity_id=state.identity_id,
+    ), expected_head=lifecycle.memory.current_head)
+    checkpoint = lifecycle.checkpoints.append(
+        checkpoint_id="cp1", runtime_id="RUNTIME_SECRET_CANARY",
+        memory_head_digest=admitted["store_head"],
+        control_source_digest=local_r10_source_digest(),
+        expected_head=lifecycle.checkpoints.current_head,
+    )
+    currentness_payload = {
+        "project_id": state.project_id,
+        "identity_id": state.identity_id,
+        "runtime_id": checkpoint.runtime_id,
+        "memory_head_digest": checkpoint.memory_head_digest,
+        "recovery_checkpoint_digest": checkpoint.checkpoint_digest,
+        "recovery_checkpoint_generation": checkpoint.generation,
+        "control_source_digest": checkpoint.control_source_digest,
+    }
+    lifecycle.currentness.publish("vera-runtime", currentness_payload,
+                                  expected_generation=None)
+    original_head = lifecycle.memory.current_head
+    assert not lifecycle.journal.has_event("cp1", "CURRENTNESS_COMMITTED")
+
+    connection = _Connection()
+    with patch("vera_core.local_model_advisory.HTTPConnection", return_value=connection):
+        assert cli.main(_args(root, "--json")) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["context"] == {
+        "schema": "VERA_MONO_LOCAL_CHAT_CONTEXT_V1",
+        "status": "ACCEPTED_RECONCILED",
+    }
+    assert lifecycle.journal.has_event("cp1", "RESTART_RECONCILED_COMMITTED")
+    reconciled_journal_head = lifecycle.journal.head
+    assert state.open().memory.current_head == original_head
+    assert "CANARY" not in json.dumps(connection.requests)
+    assert "CANARY" not in json.dumps(result)
+
+    # A subsequent reconstruction sees the committed recovery event, not a
+    # second journal append or model-driven memory admission.
+    with patch("vera_core.local_model_advisory.HTTPConnection", return_value=_Connection()):
+        assert cli.main(_args(root, "--json")) == 0
+    restarted = json.loads(capsys.readouterr().out)
+    assert restarted["context"]["status"] == "ACCEPTED_CURRENT"
+    assert lifecycle.journal.head == reconciled_journal_head
+    assert state.open().memory.current_head == original_head
 
 
 def test_cold_process_restart_reopens_same_minimal_state(tmp_path):
