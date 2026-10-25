@@ -100,6 +100,21 @@ class LocalOllamaProviderTransport:
         finally:
             connection.close()
 
+    def _check_registry(self) -> None:
+        """Fence the selected tag both before and after inference.
+
+        This only checks Ollama's self-reported registry, not loaded weights or
+        an independently trusted model identity.
+        """
+        tags = self._json("GET", "/api/tags")
+        models = tags.get("models")
+        if type(models) is not list or len(models) > 1000:
+            raise RuntimeError("invalid Ollama registry snapshot")
+        matches = [entry for entry in models if type(entry) is dict
+                   and entry.get("name") == self.model]
+        if len(matches) != 1 or matches[0].get("digest") != self.registry_digest:
+            raise RuntimeError("selected model registry identity changed")
+
     def execute(self, operation: str, request_payload: Any) -> dict:
         if operation != "GENERATE_CANDIDATE" or type(request_payload) is not dict:
             raise ValueError("unsupported local model operation")
@@ -116,14 +131,7 @@ class LocalOllamaProviderTransport:
             or request_payload["port"] != self.port):
             raise ValueError("local inference request differs from host selection")
 
-        tags = self._json("GET", "/api/tags")
-        models = tags.get("models")
-        if type(models) is not list or len(models) > 1000:
-            raise RuntimeError("invalid Ollama registry snapshot")
-        matches = [entry for entry in models if type(entry) is dict
-                   and entry.get("name") == self.model]
-        if len(matches) != 1 or matches[0].get("digest") != self.registry_digest:
-            raise RuntimeError("selected model registry identity changed")
+        self._check_registry()
 
         result = self._json("POST", "/api/generate", {
             "model": self.model,
@@ -138,6 +146,9 @@ class LocalOllamaProviderTransport:
             or type(text) is not str or not text.strip()
             or len(text.encode("utf-8")) > 4096):
             raise RuntimeError("unverified or invalid local Ollama response")
+        # A tag that changed during generation cannot yield even an unverified
+        # candidate attributed to the originally selected registry digest.
+        self._check_registry()
         normalized = text.strip()
         return {
             "kind": "UNVERIFIED_LOCAL_MODEL_CANDIDATE",
