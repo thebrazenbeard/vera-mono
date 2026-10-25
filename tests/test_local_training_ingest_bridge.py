@@ -120,6 +120,51 @@ class IngestTrainingBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "SHA-256/size"):
             plan_ingest_export(self.store, self.selection_path)
 
+    def test_rehashed_rewritten_normalized_blob_is_rejected_on_raw_replay(self):
+        """Even self-consistent new CAS/receipts cannot rewrite acquired history."""
+        from ingest.canonical import canonical_digest, canonical_json
+
+        path = self._record_path()
+        record = json.loads(path.read_text(encoding="utf-8"))
+        old_id = record["normalized_artifact"]["artifact_id"]
+        altered = {"messages": [
+            {"role": "user", "content": "Private synthetic prompt altered"},
+            {"role": "assistant", "content": "Private synthetic response altered"},
+        ]}
+        forged = canonical_json(altered).encode("utf-8")
+        digest = hashlib.sha256(forged).hexdigest()
+        blob_dir = self.store / "blobs" / "sha256" / digest[:2]
+        blob_dir.mkdir(mode=0o700, exist_ok=True)
+        blob_dir.chmod(0o700)
+        new_blob = blob_dir / digest
+        new_blob.write_bytes(forged)
+        new_blob.chmod(0o600)
+        record["normalized_artifact"].update(
+            artifact_id=f"sha256:{digest}", sha256=digest, size_bytes=len(forged),
+            storage_locator=f"blobs/sha256/{digest[:2]}/{digest}",
+        )
+        path.write_text(json.dumps(record), encoding="utf-8")
+        path.chmod(0o600)
+        for receipt_id in record["receipt_ids"]:
+            receipt_path = self.store / "receipts" / (receipt_id + ".json")
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            if old_id in receipt["output_artifact_ids"]:
+                receipt["output_artifact_ids"] = [f"sha256:{digest}" if item == old_id else item
+                                                  for item in receipt["output_artifact_ids"]]
+                receipt.pop("receipt_digest")
+                receipt["receipt_digest"] = canonical_digest(receipt)
+                receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+                receipt_path.chmod(0o600)
+        self.selections[0]["normalized_sha256"] = digest
+        self._write_selection()
+        with self.assertRaisesRegex(ValueError, "do not replay from raw source"):
+            plan_ingest_export(self.store, self.selection_path)
+
+    def test_tampered_source_locator_fails_ingest_identity_reconstruction(self):
+        self._change_record(lambda rec: rec["source"].update(locator="urn:forged:source"))
+        with self.assertRaisesRegex(ValueError, "identity does not bind"):
+            plan_ingest_export(self.store, self.selection_path)
+
     def test_forged_normalize_receipt_cannot_pass(self):
         record = json.loads(self._record_path().read_text())
         for receipt_id in record["receipt_ids"]:
