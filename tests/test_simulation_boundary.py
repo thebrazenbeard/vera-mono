@@ -194,3 +194,49 @@ def test_json_patch_depth_and_size_are_bounded_before_admission():
                 subject_id="vera",
                 patch={"data": item},
             )
+
+
+def test_initial_subjects_are_detached_from_nested_caller_owned_objects():
+    initial = {"vera": {"pose": {"x": 1}, "labels": ["initial"]}}
+    state = SimulationState(initial)
+    initial["vera"]["pose"]["x"] = 99
+    initial["vera"]["labels"].append("external")
+    assert state.revision == 0
+    assert state.snapshot() == {
+        "vera": {"pose": {"x": 1}, "labels": ["initial"]}
+    }
+
+
+def test_initial_subjects_reject_non_json_aliases_before_state_creation():
+    hooks_called = []
+
+    class Opaque:
+        def __deepcopy__(self, _memo):
+            hooks_called.append("deepcopy")
+            return self
+
+        def __str__(self):
+            hooks_called.append("str")
+            return "opaque"
+
+    cycle = []
+    cycle.append(cycle)
+    for values in ({"payload": Opaque()}, {"payload": cycle}, {"payload": float("nan")}):
+        with pytest.raises((TypeError, ValueError), match="JSON-compatible"):
+            SimulationState({"vera": values})
+    assert hooks_called == []
+
+    for initial in ({"": {}}, {1: {}}, {"vera": [1, 2]}):
+        with pytest.raises((TypeError, ValueError)):
+            SimulationState(initial)
+
+
+def test_initial_subjects_accept_detached_read_only_json_mappings():
+    initial = MappingProxyType({
+        "vera": MappingProxyType({
+            "pose": MappingProxyType({"x": 1, "y": 2})
+        })
+    })
+    assert SimulationState(initial).snapshot() == {
+        "vera": {"pose": {"x": 1, "y": 2}}
+    }

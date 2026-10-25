@@ -143,10 +143,18 @@ class SimulationState:
 
     def __init__(self, subjects: Mapping[str, Mapping[str, Any]] | None = None):
         source = {} if subjects is None else subjects
-        self._subjects = {
-            str(subject_id): dict(values)
-            for subject_id, values in source.items()
-        }
+        if type(source) not in (dict, MappingProxyType):
+            raise TypeError("subjects must be a JSON-compatible mapping")
+        # Initial world state needs the same detached JSON-compatible boundary
+        # as later mutations. A shallow dict copy would retain caller-owned
+        # nested dictionaries/lists and let revision 0 change without a receipt.
+        initial = _json_patch_copy(source)
+        for subject_id, values in initial.items():
+            if type(subject_id) is not str or not subject_id:
+                raise ValueError("subject_id must be a non-empty exact string")
+            if type(values) is not dict:
+                raise TypeError("subject values must be JSON-compatible mappings")
+        self._subjects = initial
         self._revision = 0
         self._receipts: dict[str, SimulationReceipt] = {}
 
