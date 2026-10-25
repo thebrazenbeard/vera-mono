@@ -79,6 +79,30 @@ If an external dispatch becomes ambiguous, `EffectFence` records `ATTEMPTED_UNKN
 
 Independent falsification is deliberately different from internal assurance. Vera can contain DriftGuard-derived checking mechanisms while a separately executed DriftGuard remains useful specifically because it is outside Vera's own self-checking boundary.
 
+### Experimental Rezon collective observation (not a runtime capability)
+
+`vera_core.external_rezon_collective.LoopbackCollectiveObserver` is an opt-in,
+**read-only** adapter for an independently running Rezon collective gateway. It
+uses an operator-supplied admin token to fetch only the exact episode's state
+from numeric `127.0.0.1`, with bounded time and response size. The caller must
+independently supply the expected episode ID, ordered worker roster, and SHA-256
+of the original prompt. The adapter checks claim structure, worker answer and
+peer-review identities, target relationships, and the deterministic input digest.
+It rejects cross-episode/prompt/roster mismatches and treats a missing worker as
+`INCOMPLETE_UNKNOWN`, not as consensus.
+
+Even a complete two-worker answer/review/synthesis is reported only as
+`COMPLETE_UNVERIFIED` / `UNVERIFIED_GATEWAY_CLAIM`. A gateway token authenticates
+access to that gateway; it does **not** attest two independent model hosts,
+establish correctness or agreement, qualify the synthesis, admit memory, or
+authorize any protected effect. This code neither launches Rezon nor injects its
+claims into `QualifiedVeraRuntime`. Rezon's stand-alone package and the absorbed
+monorepo `packages/rezon` have overlapping Python module names, so operate the
+external gateway as a separate process; do not combine both package source trees
+on a single `PYTHONPATH`. Deterministic contract checks are in
+`tests/test_external_rezon_collective.py`; deployed worker/process independence
+still requires separately qualified host evidence.
+
 ## PowerShell console
 
 From a Windows PowerShell terminal opened in a clone of this repository:
