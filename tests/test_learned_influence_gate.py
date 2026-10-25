@@ -1,3 +1,6 @@
+import sqlite3
+from unittest.mock import patch
+
 import pytest
 
 from vera_memory.learned_influence import (
@@ -91,6 +94,35 @@ def test_durable_learned_influence_survives_restart_and_preserves_replay(tmp_pat
 
     next_receipt = reopened.consume(revision, cue_event_id="cue-2")
     assert next_receipt.memory_revision_id == "rev-7"
+
+
+def test_durable_gate_closes_schema_and_review_connections_before_return(tmp_path):
+    """Windows must not retain SQLite handles through temp-directory cleanup."""
+    from vera_memory import DurableLearnedInfluenceGate
+
+    open_handles = []
+    original_connect = sqlite3.connect
+
+    def record_connect(*args, **kwargs):
+        connection = original_connect(*args, **kwargs)
+        open_handles.append(connection)
+        return connection
+
+    with patch("vera_memory.learned_influence.sqlite3.connect", record_connect):
+        try:
+            gate = DurableLearnedInfluenceGate(tmp_path / "gate.db")
+            gate.review(
+                association_id="id", memory_revision_id="revision",
+                disposition=ReviewDisposition.ADMITTED, evidence_ref="review",
+            )
+            assert len(open_handles) == 2
+            for connection in open_handles:
+                with pytest.raises(sqlite3.ProgrammingError):
+                    connection.execute("SELECT 1")
+        finally:
+            # Cleanup also happens on the intentionally RED original source.
+            for connection in open_handles:
+                connection.close()
 
 
 def test_durable_quarantine_and_stale_review_survive_restart(tmp_path):
