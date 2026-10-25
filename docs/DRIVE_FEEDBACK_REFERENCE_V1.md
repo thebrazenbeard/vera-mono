@@ -67,7 +67,7 @@ without independently custodied evidence and key/source validation.
   records the host's claimed delivery; it does not attest that another process
   applied the projection. Consumers require independent idempotency.
   `pending_outbox(limit=...)` reads oldest undelivered rows in bounded batches
-  of 1–1000; consumers acknowledge individual events after handling them.
+  of 1 to 1000; consumers acknowledge individual events after handling them.
 
 For safety, `admit()` requires a currently fresh observation and host verifier
 **even for historical replays**. A stale replay yields `HOLD` rather than a
