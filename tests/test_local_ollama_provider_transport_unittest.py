@@ -29,7 +29,7 @@ PROVIDER = "local-ollama"
 @contextmanager
 def loopback_peer():
     observed = []
-    config = {"model": MODEL, "digest": DIGEST, "response": "candidate only"}
+    config = {"model": MODEL, "digest": DIGEST, "response": "candidate only", "raw_json": None}
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -43,7 +43,8 @@ def loopback_peer():
             self._send({"model": config["model"], "response": config["response"], "done": True})
 
         def _send(self, data):
-            raw = json.dumps(data).encode()
+            raw = (config["raw_json"].encode() if config["raw_json"] is not None
+                   else json.dumps(data).encode())
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(raw)))
@@ -147,6 +148,25 @@ class LocalOllamaProviderTransportTests(unittest.TestCase):
                     "port": port, "max_tokens": 8,
                 })
             self.assertEqual([m for m, _, _ in observed], ["GET"])
+
+    def test_ambiguous_or_nonfinite_registry_json_prevents_generation(self):
+        valid = '{"models":[{"name":"test-model:latest","digest":"' + DIGEST + '"}]}'
+        malformed = (
+            valid[:-1] + ',"models":[]}',
+            valid[:-1] + ',"unexpected":NaN}',
+            valid[:-1] + ',"unexpected":Infinity}',
+            valid[:-1] + ',"unexpected":1e9999}',
+        )
+        for raw in malformed:
+            with self.subTest(raw=raw), loopback_peer() as (port, observed, config):
+                config["raw_json"] = raw
+                transport = LocalOllamaProviderTransport(model=MODEL, registry_digest=DIGEST, port=port)
+                with self.assertRaises(RuntimeError):
+                    transport.execute("GENERATE_CANDIDATE", {
+                        "prompt": "hello", "model": MODEL,
+                        "registry_digest": DIGEST, "port": port, "max_tokens": 8,
+                    })
+                self.assertEqual([m for m, _, _ in observed], ["GET"])
 
     def test_authorized_qualified_runtime_candidate_is_unverified_and_one_use(self):
         with tempfile.TemporaryDirectory() as directory, loopback_peer() as (port, observed, _):
