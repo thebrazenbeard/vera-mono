@@ -12,6 +12,7 @@ import tempfile
 from threading import Thread
 import unittest
 
+from vera_assurance import EffectFenceError
 from vera_core import (
     HmacProviderAuthority,
     LocalOllamaProviderTransport,
@@ -30,7 +31,8 @@ PROVIDER = "local-ollama"
 @contextmanager
 def loopback_peer():
     observed = []
-    config = {"model": MODEL, "digest": DIGEST, "response": "candidate only", "raw_json": None}
+    config = {"model": MODEL, "digest": DIGEST, "response": "candidate only",
+              "raw_json": None, "rotate_digest_on_post": False}
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -41,6 +43,8 @@ def loopback_peer():
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             observed.append(("POST", self.path, body))
+            if config["rotate_digest_on_post"]:
+                config["digest"] = "b" * 64
             self._send({"model": config["model"], "response": config["response"], "done": True})
 
         def _send(self, data):
@@ -163,6 +167,59 @@ class LocalOllamaProviderTransportTests(unittest.TestCase):
                 })
             self.assertEqual([m for m, _, _ in observed], ["GET"])
 
+    def test_registry_identity_change_during_generation_denies_candidate(self):
+        with loopback_peer() as (port, observed, config):
+            transport = LocalOllamaProviderTransport(model=MODEL, registry_digest=DIGEST, port=port)
+            config["rotate_digest_on_post"] = True
+            with self.assertRaisesRegex(RuntimeError, "selected model registry identity changed"):
+                transport.execute("GENERATE_CANDIDATE", {
+                    "prompt": "hello", "model": MODEL, "registry_digest": DIGEST,
+                    "port": port, "max_tokens": 8,
+                })
+            self.assertEqual([m for m, _, _ in observed], ["GET", "POST", "GET"])
+
+    def test_qualified_runtime_marks_post_generation_drift_unknown_and_denies_replay(self):
+        with loopback_peer() as (port, observed, config):
+            state = accepted_state(self._state_directory())
+            verifier = HmacProviderAuthority("test-issuer", PROVIDER, b"p" * 32)
+            state.outbound_trust_registry().register(
+                authority_id=verifier.authority_id, role="PROVIDER", provider_id=PROVIDER,
+                key_id=verifier.key_id, key_digest=verifier.key_digest,
+                expected_registry_generation=0,
+            )
+            transport = LocalOllamaProviderTransport(model=MODEL, registry_digest=DIGEST, port=port)
+            runtime = QualifiedVeraRuntime.from_state_directory(
+                state, provider_authority_verifiers={PROVIDER: verifier},
+                provider_execution_transports={PROVIDER: transport},
+            )
+            prepared = runtime.prepare_provider_effect(
+                effect_id="candidate-drift", provider_id=PROVIDER,
+                operation="GENERATE_CANDIDATE",
+                request_payload={"prompt": "hello", "model": MODEL,
+                                 "registry_digest": DIGEST, "port": port, "max_tokens": 8},
+            )
+            authority = verifier.issue(
+                effect_id=prepared.effect_id, operation=prepared.operation,
+                request_digest=prepared.request_digest,
+                lifecycle_permit_digest=prepared.permit.permit_digest,
+            )
+            config["rotate_digest_on_post"] = True
+            with self.assertRaisesRegex(RuntimeError, "selected model registry identity changed"):
+                runtime.execute_provider_effect(prepared, authority=authority)
+            self.assertEqual([m for m, _, _ in observed], ["GET", "POST", "GET"])
+
+            reopened = QualifiedVeraRuntime.from_state_directory(
+                state, provider_authority_verifiers={PROVIDER: verifier},
+                provider_execution_transports={PROVIDER: transport},
+            )
+            assessment = reopened.assess_provider_effect("candidate-drift")
+            self.assertEqual(assessment.fence_state, "ATTEMPTED_UNKNOWN")
+            self.assertTrue(assessment.recovery_required)
+            self.assertFalse(assessment.dispatch_candidate_allowed)
+            with self.assertRaises(EffectFenceError):
+                reopened.execute_provider_effect(prepared, authority=authority)
+            self.assertEqual([m for m, _, _ in observed], ["GET", "POST", "GET"])
+
     def test_ambiguous_or_nonfinite_registry_json_prevents_generation(self):
         valid = '{"models":[{"name":"test-model:latest","digest":"' + DIGEST + '"}]}'
         malformed = (
@@ -212,7 +269,7 @@ class LocalOllamaProviderTransportTests(unittest.TestCase):
             self.assertEqual(output["kind"], "UNVERIFIED_LOCAL_MODEL_CANDIDATE")
             self.assertEqual(output["model_identity_level"], "REGISTRY_SELF_REPORTED")
             self.assertFalse(output["qualified"])
-            self.assertEqual([m for m, _, _ in observed], ["GET", "POST"])
+            self.assertEqual([m for m, _, _ in observed], ["GET", "POST", "GET"])
 
             reopened = QualifiedVeraRuntime.from_state_directory(
                 state, provider_authority_verifiers={PROVIDER: verifier},
@@ -221,7 +278,7 @@ class LocalOllamaProviderTransportTests(unittest.TestCase):
             self.assertTrue(reopened.assess_provider_effect("candidate-one").terminal)
             with self.assertRaisesRegex(OutboundAuthorityError, "exact request and lifecycle permit"):
                 reopened.execute_provider_effect(prepared, authority=authority)
-            self.assertEqual([m for m, _, _ in observed], ["GET", "POST"])
+            self.assertEqual([m for m, _, _ in observed], ["GET", "POST", "GET"])
 
 
 if __name__ == "__main__":
