@@ -353,6 +353,7 @@ class DurableLearnedInfluenceGate:
         *,
         cue_event_id: str,
         use_evidence_id: str | None = None,
+        require_qualified: bool = False,
     ) -> LearnedInfluenceReceipt:
         if type(revision) is not LearnedRevision:
             raise TypeError("revision must be exact LearnedRevision")
@@ -374,6 +375,10 @@ class DurableLearnedInfluenceGate:
                 raise LearnedInfluenceBlocked(
                     "learned revision requires explicit review before influence"
                 )
+            if require_qualified and len(str(review["evidence_ref"])) > 256:
+                raise LearnedInfluenceBlocked(
+                    "local chat review evidence reference exceeds bounded context"
+                )
             if str(review["memory_revision_id"]) != revision.memory_revision_id:
                 raise LearnedInfluenceStale(
                     "learned revision changed after its latest review"
@@ -394,6 +399,11 @@ class DurableLearnedInfluenceGate:
                 (revision.association_id, revision.memory_revision_id),
             ).fetchall()
             evidence_split_qualified = bool(evidence_rows)
+            evidence_classes = {str(row["evidence_class"]) for row in evidence_rows}
+            if require_qualified and evidence_classes != {"CALIBRATION", "QUALIFICATION"}:
+                raise LearnedInfluenceBlocked(
+                    "local chat influence requires complete qualified evidence split"
+                )
             bound_evidence_ids = {
                 str(row["evidence_id"]) for row in evidence_rows
             }
