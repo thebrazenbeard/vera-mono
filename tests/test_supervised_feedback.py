@@ -2,9 +2,12 @@
 
 from dataclasses import asdict, replace
 import json
+import os
+from pathlib import Path
 import sqlite3
 import subprocess
 import sys
+import tomllib
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
@@ -12,6 +15,24 @@ import pytest
 
 from vera_memory.local_feedback_learning import FeedbackSample, HeldoutCase, LearningBlocked
 from vera_memory.supervised_feedback import SupervisedFeedbackJournal
+
+
+def _independent_python_env():
+    """Give `python -c` the source roots pytest normally adds via pyproject.toml.
+
+    CI installs pytest directly and does not install each monorepo package before
+    executing tests; pytest's `pythonpath` setting is not inherited by subprocesses.
+    """
+    env = os.environ.copy()
+    repo_root = Path(__file__).resolve().parents[1]
+    with (repo_root / "pyproject.toml").open("rb") as config:
+        paths = tomllib.load(config)["tool"]["pytest"]["ini_options"]["pythonpath"]
+    source_roots = [str(repo_root / path) for path in paths]
+    inherited = env.get("PYTHONPATH")
+    if inherited:
+        source_roots.append(inherited)
+    env["PYTHONPATH"] = os.pathsep.join(source_roots)
+    return env
 
 
 def _sample(cue="the synthetic planet", answer="violet", number=1):
@@ -78,7 +99,7 @@ def test_approval_and_rollback_survive_independent_processes(broker):
     runner = 'import sys; from vera_memory.supervised_feedback import SupervisedFeedbackJournal; j=SupervisedFeedbackJournal(sys.argv[1],installation_id="lappy-test",trusted_reviewer_key=bytes.fromhex(sys.argv[2]),trusted_checkpoint_head=sys.argv[3],synthetic_fixture_mode=True); print(j.active_revision); print(j.lookup("the synthetic planet"))'
     before_rollback = subprocess.run(
         [sys.executable, "-c", runner, str(db), broker[2].hex(), next_process.head],
-        check=True, capture_output=True, text=True,
+        check=True, capture_output=True, text=True, env=_independent_python_env(),
     )
     assert before_rollback.stdout.strip().splitlines() == [approved, "violet"]
     rollback = signed(third_process, "ROLLBACK", genesis, "review-rollback")
@@ -87,10 +108,9 @@ def test_approval_and_rollback_survive_independent_processes(broker):
     assert after_restart.active_revision == genesis
     assert after_restart.lookup("the synthetic planet") is None
     # A fourth Python interpreter must independently reconstruct the approved state.
-    env = __import__("os").environ.copy()
     result = subprocess.run(
         [sys.executable, "-c", runner, str(db), broker[2].hex(), third_process.head],
-        check=True, capture_output=True, text=True, env=env,
+        check=True, capture_output=True, text=True, env=_independent_python_env(),
     )
     assert result.stdout.strip().splitlines() == [genesis, "None"]
 
@@ -230,7 +250,7 @@ def test_revoke_survives_new_interpreter_and_invalidates_lookup(broker):
     runner = 'import sys; from vera_memory.supervised_feedback import SupervisedFeedbackJournal; j=SupervisedFeedbackJournal(sys.argv[1],installation_id="lappy-test",trusted_reviewer_key=bytes.fromhex(sys.argv[2]),trusted_checkpoint_head=sys.argv[3],synthetic_fixture_mode=True); print(j.lookup("the synthetic planet")); print(j.revoked_revisions[0])'
     result = subprocess.run(
         [sys.executable, "-c", runner, str(db), public_key.hex(), first.head],
-        check=True, capture_output=True, text=True,
+        check=True, capture_output=True, text=True, env=_independent_python_env(),
     )
     assert result.stdout.strip().splitlines() == ["None", ev.candidate_revision]
 
@@ -247,7 +267,7 @@ def test_long_lived_consumer_fails_closed_after_independent_signed_revoke(broker
     runner = 'import sys,json; from vera_memory.supervised_feedback import SupervisedFeedbackJournal,ReviewDecision; j=SupervisedFeedbackJournal(sys.argv[1],installation_id="lappy-test",trusted_reviewer_key=bytes.fromhex(sys.argv[2]),trusted_checkpoint_head=sys.argv[3],synthetic_fixture_mode=True); j.apply_review(ReviewDecision(**json.loads(sys.argv[4]))); print(j.head)'
     child = subprocess.run(
         [sys.executable, "-c", runner, str(db), public_key.hex(), other_process.head, json.dumps(asdict(signed_revoke))],
-        check=True, capture_output=True, text=True,
+        check=True, capture_output=True, text=True, env=_independent_python_env(),
     )
     newest_head = child.stdout.strip()
     assert open_journal(head=newest_head).lookup("the synthetic planet") is None
