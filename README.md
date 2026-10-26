@@ -338,16 +338,24 @@ An interrupted in-flight call is marked delivery-unknown, not a successful
 response. The bound state root must already exist; no default identity, state
 directory, provider, or model is silently chosen.
 
-An additional **one-shot-only** opt-in path may include one explicitly selected,
-already admitted and independently reviewed `WORKING_PROJECT` memory record as
-untrusted model context. It requires all four CLI flags together:
+The reviewed-memory chat path is currently a **source-only, synthetic-test
+prototype: production `chat` rejects it before state access or model contact**.
+An on-disk `ADMITTED` disposition and human-looking review/evidence references
+can be issued by the same caller. They do not prove independent human approval.
+Reactivation requires an independently verified, action-bound broker attestation
+and live private-memory host qualification; no verifier is installed yet.
+
+The disabled one-shot path would include one explicitly selected
+`WORKING_PROJECT` record as untrusted model context. Its fixture-only lower-level
+contract requires all four CLI flags together:
 `--reviewed-record-id`, `--association-id`, `--cue-event-id`, and
 `--use-evidence-id`. The state root must already contain a qualified
 `DurableLearnedInfluenceGate` database at `learning/learned-influence.sqlite`,
 whose reviewed association revision matches that current memory record's
 verified digest and whose calibration and qualification evidence identities
 are disjoint from the later-use ID. Missing/stale/quarantined/replayed records
-fail closed. The gate persists a bounded use/replay receipt; the chat command
+fail closed. With an explicitly mocked independent attestation verifier, the gate
+persists a bounded use/replay receipt; the chat command
 does **not** admit any new memory or save conversation text. Reviewed text is
 JSON-escaped and labeled untrusted; this limits delimiter spoofing but cannot
 prove a language model will ignore malicious instructions inside that text.
@@ -365,6 +373,31 @@ There is no automatic memory selection, feedback recording, neural-weight
 training, or model promotion here.
 
 `chat` uses the same bounded HTTP `/v1/chat/completions` adapter as `advise`. It sends no tool definitions, rejects model responses containing tool/function calls, never admits the exchange into Vera memory, and grants no provider, PC, Bus, or external filesystem effect authority. Opening a previously empty state directory can initialize QVR's local SQLite bookkeeping. Reconstructing an interrupted lifecycle can also repair local audit records or append `RESTART_RECONCILED_COMMITTED` to its lifecycle journal when a currentness commit is already durable but its final journal event is missing. These local recovery writes are not memory-item admission or authorization of an external effect. A missing binding, non-loopback address, unavailable model endpoint, or invalid QVR reconstruction fails without fallback. The output remains `UNVERIFIED_MODEL_OUTPUT`; even an accepted lifecycle status does not qualify the model, install it, or authorize its actions. Reinvocation after process restart reopens local state. `advise` remains intentionally state-free.
+
+## Synthetic feedback lab (process-local, not self-learning)
+
+`vera-mono feedback-lab` exercises correction staging, source-disjoint exact-cue
+holdout scoring, explicit approval and optional rollback **without opening Vera
+state, calling a model, or saving a trained version**. Its only input is an
+explicit synthetic JSON fixture (64 KiB maximum), with schema
+`VERA_MONO_SYNTHETIC_FEEDBACK_LAB_V1`, `"synthetic": true`, nonempty `samples`
+containing all `FeedbackSample` fields, and nonempty `holdout` containing all
+`HeldoutCase` fields (see `tests/test_cli_feedback_lab.py` for an example).
+
+```powershell
+& .\.venv\Scripts\vera-mono.exe feedback-lab --fixture .\synthetic-feedback.json
+& .\.venv\Scripts\vera-mono.exe feedback-lab --fixture .\synthetic-feedback.json `
+  --approval-ref "owner-ack:synthetic-1" --rollback-ref "owner-ack:synthetic-rollback-1"
+```
+
+Approval flags are **unauthenticated caller assertions**, never a verified
+human review or proof of consent/privacy/provenance. Results expose only
+candidate/holdout hashes, scores, and action flags—not sample or answer text.
+The command refuses rollback when the candidate fails qualification and
+cannot be used across invocations to retain adaptation. Its exact-cue
+holdouts do **not** establish generalization, durable learning, or neural
+weight updates. Promotion to actual Lappy memory and live chat remains a
+separate security/identity/Windows qualification gate.
 
 ## Status
 

@@ -18,6 +18,42 @@ class StaleMemoryHead(MemoryLedgerError):
     pass
 
 
+def _strict_record_payload(raw: str, *, record_id: str, digest: str) -> dict[str, Any]:
+    """Require exactly the canonical JSON bytes committed by the digest.
+
+    SQLite JSON1 chooses the first duplicate object key; Python's standard
+    json.loads chooses the last. Canonical byte equality, including recursive
+    duplicate-key rejection, prevents those two interpreters from disagreeing
+    about successor lineage while a stale digest appears to remain valid.
+    """
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise MemoryLedgerError("duplicate JSON key in stored memory record")
+            result[key] = value
+        return result
+
+    def reject_nonfinite(value: str) -> None:
+        raise MemoryLedgerError(f"non-finite stored memory value: {value}")
+
+    try:
+        payload = json.loads(raw, object_pairs_hook=unique_object,
+                             parse_constant=reject_nonfinite)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise MemoryLedgerError("corrupt stored memory JSON") from exc
+    if type(payload) is not dict or payload.get("record_id") != record_id:
+        raise MemoryLedgerError("stored memory canonical payload/digest mismatch")
+    try:
+        normalized = canonical_json(payload)
+        actual_digest = sha256_hex(canonical_json_bytes(payload))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise MemoryLedgerError("corrupt stored memory canonical values") from exc
+    if normalized != raw or actual_digest != digest:
+        raise MemoryLedgerError("stored memory canonical payload/digest mismatch")
+    return payload
+
+
 class MemoryClass(StrEnum):
     AUTOBIOGRAPHICAL = "AUTOBIOGRAPHICAL"
     WORKING_PROJECT = "WORKING_PROJECT"
@@ -130,7 +166,8 @@ class MemoryLedger:
                     payload_json TEXT NOT NULL,
                     status TEXT NOT NULL CHECK(status IN ('CURRENT','SUPERSEDED')),
                     superseded_by TEXT,
-                    record_digest TEXT NOT NULL UNIQUE
+                    record_digest TEXT NOT NULL UNIQUE,
+                    supersedes_id TEXT
                 );
                 -- Resolve successor relationships without parsing every unrelated
                 -- record on read. The partial index also tolerates an unrelated
@@ -146,6 +183,28 @@ class MemoryLedger:
                     FOREIGN KEY(record_id) REFERENCES records(record_id)
                 );
                 """
+            )
+            # Upgrade historical ledgers once. Do not infer trusted lineage from
+            # JSON1: it interprets duplicate keys differently from json.loads.
+            # Corrupt legacy entries block migration rather than quietly
+            # disappearing from the successor lookup.
+            columns = {row[1] for row in db.execute("PRAGMA table_info(records)")}
+            if "supersedes_id" not in columns:
+                db.execute("ALTER TABLE records ADD COLUMN supersedes_id TEXT")
+                for row in db.execute(
+                    "SELECT record_id,payload_json,record_digest FROM records"
+                ).fetchall():
+                    payload = _strict_record_payload(
+                        row["payload_json"], record_id=row["record_id"],
+                        digest=row["record_digest"],
+                    )
+                    db.execute(
+                        "UPDATE records SET supersedes_id=? WHERE record_id=?",
+                        (payload.get("supersedes"), row["record_id"]),
+                    )
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_vera_memory_supersedes_rel_v2 "
+                "ON records(supersedes_id)"
             )
             if db.execute("SELECT 1 FROM meta WHERE key='generation'").fetchone() is None:
                 db.execute("INSERT INTO meta(key,value) VALUES('generation','0')")
@@ -218,8 +277,9 @@ class MemoryLedger:
             payload = self._record_payload(request)
             record_digest = sha256_hex(canonical_json_bytes(payload))
             db.execute(
-                "INSERT INTO records(record_id,payload_json,status,superseded_by,record_digest) VALUES(?,?, 'CURRENT', NULL, ?)",
-                (request.record_id, canonical_json(payload), record_digest),
+                "INSERT INTO records(record_id,payload_json,status,superseded_by,record_digest,supersedes_id) "
+                "VALUES(?,?, 'CURRENT', NULL, ?, ?)",
+                (request.record_id, canonical_json(payload), record_digest, request.supersedes),
             )
 
             new_generation = generation + 1
@@ -262,36 +322,37 @@ class MemoryLedger:
             if expected_head is not None and expected_head != head:
                 raise StaleMemoryHead("memory head mismatch")
             row = db.execute(
-                "SELECT payload_json,status,superseded_by,record_digest FROM records WHERE record_id=?",
+                "SELECT payload_json,status,superseded_by,record_digest,supersedes_id "
+                "FROM records WHERE record_id=?",
                 (record_id,),
             ).fetchone()
             if row is None:
                 raise KeyError(record_id)
-            payload = json.loads(row["payload_json"])
-            if (type(payload) is not dict
-                    or payload.get("record_id") != record_id
-                    or sha256_hex(canonical_json_bytes(payload)) != row["record_digest"]):
-                raise MemoryLedgerError("stored memory record digest mismatch")
+            payload = _strict_record_payload(
+                row["payload_json"], record_id=record_id, digest=row["record_digest"],
+            )
+            if row["supersedes_id"] != payload.get("supersedes"):
+                raise MemoryLedgerError("stored memory lineage relation mismatch")
             # Mutable status/superseded_by columns are not part of the payload
             # digest. Cross-check them against the successor's hashed payload
             # so a bare status flip cannot revive a superseded memory record.
             # This detects inconsistency, not a writer with total DB control.
             successors = db.execute(
                 """
-                SELECT payload_json,record_digest FROM records
-                WHERE json_valid(payload_json)
-                  AND json_extract(payload_json, '$.supersedes')=?
+                SELECT record_id,payload_json,record_digest,supersedes_id FROM records
+                WHERE supersedes_id=?
                 """, (record_id,),
             ).fetchall()
             if len(successors) > 1:
                 raise MemoryLedgerError("multiple successors for one memory record")
             successor_id = None
             if successors:
-                successor = json.loads(successors[0]["payload_json"])
-                if (type(successor) is not dict
-                        or successor.get("supersedes") != record_id
-                        or sha256_hex(canonical_json_bytes(successor)) != successors[0]["record_digest"]):
-                    raise MemoryLedgerError("successor memory record digest mismatch")
+                successor = _strict_record_payload(
+                    successors[0]["payload_json"], record_id=successors[0]["record_id"],
+                    digest=successors[0]["record_digest"],
+                )
+                if successor.get("supersedes") != record_id:
+                    raise MemoryLedgerError("successor memory lineage relation mismatch")
                 successor_id = successor.get("record_id")
             if (row["superseded_by"] != successor_id
                     or row["status"] != ("SUPERSEDED" if successor_id else "CURRENT")):

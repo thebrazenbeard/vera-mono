@@ -143,10 +143,19 @@ def _parser() -> argparse.ArgumentParser:
     chat.add_argument("--max-tokens", type=int, default=180)
     chat.add_argument("--timeout-seconds", type=int, default=60)
     chat.add_argument("--json", action="store_true", help="emit bounded source and model evidence")
-    chat.add_argument("--reviewed-record-id", help="explicit governed memory record to use as untrusted data")
+    chat.add_argument("--reviewed-record-id", help="DISABLED pending independently authenticated review broker; source-only fixture prototype")
     chat.add_argument("--association-id", help="reviewed influence association identity")
     chat.add_argument("--cue-event-id", help="unique, replay-fenced local use event identity")
     chat.add_argument("--use-evidence-id", help="distinct qualification-safe use evidence identity")
+
+    lab = subparsers.add_parser(
+        "feedback-lab",
+        help=("run a synthetic in-process correction, heldout, explicit approval "
+              "and optional rollback probe; no chat, durable state or model training"),
+    )
+    lab.add_argument("--fixture", required=True, help="explicit synthetic JSON fixture path")
+    lab.add_argument("--approval-ref", help="caller-asserted review reference, not authenticated")
+    lab.add_argument("--rollback-ref", help="distinct caller-asserted rollback reference")
     return parser
 
 
@@ -263,6 +272,21 @@ def _reviewed_flags_supplied(args: argparse.Namespace) -> bool:
     return any(getattr(args, field) is not None for field in (
         "reviewed_record_id", "association_id", "cue_event_id", "use_evidence_id",
     ))
+
+
+def _require_independent_review_attestation() -> None:
+    """Fail closed until an independently verified, action-bound broker exists.
+
+    The on-disk learned-influence gate currently accepts reviewer and evidence
+    references supplied by the same caller. Those are useful synthetic fixture
+    controls, but are not authenticated human approvals. Do not consume private
+    reviewed memory or contact a model on their strength. Keep the existing
+    lower-level source path testable while production admission is disabled.
+    """
+    raise ValueError(
+        "reviewed chat memory is disabled: no independently authenticated, "
+        "action-bound review attestation verifier is installed"
+    )
 
 
 def _checked_local_review_db(state: VeraStateDirectory, path: Path) -> tuple[int, int]:
@@ -396,6 +420,8 @@ def _chat_once(
     *, prior_turns: list[tuple[str, str]] | None = None,
 ) -> str:
     """Convey only allowlisted QVR state to a bounded, effectless model adapter."""
+    if _reviewed_flags_supplied(args):
+        _require_independent_review_attestation()
     state = _bound_state(args)
     reviewed_db_identities = None
     if _reviewed_flags_supplied(args):
@@ -540,6 +566,13 @@ def main(argv: list[str] | None = None) -> int:
             return _advise(args)
         if args.command == "chat":
             return _chat(args)
+        if args.command == "feedback-lab":
+            from .feedback_lab import evaluate_fixture
+            _write_json(evaluate_fixture(
+                Path(args.fixture), approval_ref=args.approval_ref,
+                rollback_ref=args.rollback_ref,
+            ))
+            return 0
     except (KeyError, OSError, TypeError, ValueError, RuntimeError) as exc:
         parser.exit(2, f"vera-mono: {exc}\n")
     parser.error("unsupported command")
