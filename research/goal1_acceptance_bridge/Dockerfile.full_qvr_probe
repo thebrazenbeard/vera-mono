@@ -1,0 +1,10 @@
+# Goal 1 research image. Build from exact PR89 branch checkout with:
+# docker build --pull -f research/goal1_acceptance_bridge/Dockerfile.full_qvr_probe -t local/qvr-full-probe:research .
+# Capture immutable ID with docker image inspect; NEVER qualify by tag.
+# This image is not installed/selected as the production Vera learner.
+FROM python:3.12-slim
+WORKDIR /opt/vera
+COPY . /opt/vera
+RUN python -m pip install --no-cache-dir . && python -c "from vera_core import QualifiedVeraRuntime; print(QualifiedVeraRuntime.__name__)"
+USER 65534:65534
+ENTRYPOINT ["python","-I","-c","from vera_core import QualifiedVeraRuntime; print(QualifiedVeraRuntime.__name__)"]
