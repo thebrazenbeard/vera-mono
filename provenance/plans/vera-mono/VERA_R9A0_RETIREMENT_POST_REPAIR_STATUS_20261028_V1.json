@@ -1,0 +1,94 @@
+{
+  "schema": "VERA_R9A0_RETIREMENT_POST_REPAIR_STATUS_V1",
+  "observed_date": "2026-10-28",
+  "status": "ARCHIVAL_GATES_OPEN_SOURCE_ONLY",
+  "preserves_historical_crosswalk": {
+    "path": "provenance/plans/vera-mono/VERA_R9A0_RETIREMENT_CROSSWALK_V1.json",
+    "git_blob": "3d05093ca86d7f06d03d04afe5382d76625f7d3e",
+    "interpretation": "The V1 observation remains immutable provenance; this record updates status, not original historical facts."
+  },
+  "source": {
+    "repository": "thebrazenbeard/vera-R9A0",
+    "main_commit": "3ede5a422d34c4a053b2c40c5ff4e4e271950707",
+    "archived_at_observation": false
+  },
+  "main_source_repair": {
+    "pr_url": "https://github.com/thebrazenbeard/vera-R9A0/pull/25",
+    "merged": true,
+    "editor_tasks_blob": "513d537675b8bdb691aee22a24862745c3edd595",
+    "editor_settings_blob": "3861df39fdb913d4bac2616c0b2642b35dd3d462",
+    "tasks_empty": true,
+    "auto_task_setting_removed": true,
+    "disguised_font_execution_targets_absent": [
+      "public/fonts/fa-solid.lkf",
+      "public/fonts/fa-solid-500.woff2"
+    ]
+  },
+  "historical_branch_snapshot": {
+    "count_including_main": 16,
+    "concealed_editor_folder_open_execution_heads": 14,
+    "families": [
+      {
+        "id": "FONT_LKF_NODE_AUTORUN",
+        "count": 6,
+        "branches": [
+          "_do_not_use",
+          "_invalid_noop_probe",
+          "bt2/wave7-49-boundary-hardening-20261010",
+          "carrier/r9a0-post-heph-hashprobe-4055-v1",
+          "carrier/r9a0-r6-exact-byte-4054-v1",
+          "feature/r9a0-combined-native-implementation-v1"
+        ],
+        "tasks_blob": "de6de3adea989c8e85a4d39ce0337378d92be7db",
+        "settings_blob": "934d55548c36ff0e330f2a2ba69bf74b10a7dcba",
+        "node_execution_target": "public/fonts/fa-solid.lkf",
+        "target_blob": "31ce18eddf4c96c1a705dbceaec4304f953d4dc3"
+      },
+      {
+        "id": "FONT_WOFF2_NODE_AUTORUN",
+        "count": 8,
+        "branches": [
+          "feature/r9a0-native-project-v1",
+          "feature/r9a0-supabase-rebuild-v1",
+          "feature/r9b0-protocol-execution-v2",
+          "fix/r9b0-github-only-coordination-v1",
+          "hardening/github-native-audit-v1-20260924",
+          "integration/r9a0-current-main-20260927",
+          "qualification/voice-currentness-current-main-v1-20260930",
+          "work/issue7-voice-currentness-guard-v1-20260920"
+        ],
+        "tasks_blob": "1a828db96e870c5db15b61f9e82f515cbb26f4c3",
+        "settings_blob": "934d55548c36ff0e330f2a2ba69bf74b10a7dcba",
+        "node_execution_target": "public/fonts/fa-solid-500.woff2",
+        "target_blob_variants": [
+          {
+            "blob": "b3f101886b33e9b5ed2a76841e4c4785ec0a48b4",
+            "branch_count": 6
+          },
+          {
+            "blob": "60e613b9bcbd179b2c27b96c2130cd7db2e4250b",
+            "branch_count": 2
+          }
+        ]
+      }
+    ],
+    "inspected_clean_heads": [
+      "main",
+      "security/remove-r9a0-editor-loader-20261024"
+    ]
+  },
+  "unresolved_gates": [
+    "CLASSIFY_AND_CONTAIN_HISTORICAL_BRANCH_CHECKOUT_RISK",
+    "VERIFY_EXTERNAL_WRITERS_AND_CONSUMERS",
+    "COMPLETE_MONO_CAPABILITY_AND_REGRESSION_COMPARISONS",
+    "OBTAIN_SEPARATE_OWNER_ARCHIVE_AUTHORIZATION"
+  ],
+  "non_authorizations": [
+    "DO_NOT_EXECUTE_REFERENCED_FILES",
+    "DO_NOT_COPY_SUSPICIOUS_EDITOR_OR_FONT_ASSETS_TO_MONO",
+    "DO_NOT_DELETE_BRANCHES_OR_REWRITE_HISTORY",
+    "DO_NOT_ARCHIVE_REPOSITORY_BASED_ON_THIS_STATUS",
+    "DO_NOT_INFER_INSTALLATION_RUNTIME_OR_HOST_EFFECT"
+  ],
+  "evidence_boundary": "Static GitHub source, branch, and PR readbacks only. No loader execution, machine compromise, host cleanup, provider state, installed Project release, behavioral qualification, or absence of external writers was established."
+}
