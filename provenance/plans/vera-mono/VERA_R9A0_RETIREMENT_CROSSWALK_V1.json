@@ -263,7 +263,7 @@
         "project_ref": "klmbpaigzeguvnpccqzz",
         "observed_version": "20260830182602",
         "observed_name": "r9b0_provider_readback_cardinality_v1",
-        "source_migration_recorded_as_applied": true,
+        "matching_named_migration_recorded_as_applied": true,
         "statement_byte_equivalence_to_r9a0_source": "UNVERIFIED",
         "live_function_behavior": "UNVERIFIED",
         "limitation": "A connected-project migration inventory showed the later applied version; this does not establish exact statement-byte equality or runtime effect."
