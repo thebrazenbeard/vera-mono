@@ -66,6 +66,7 @@ def assess_external_assignment_currentness(
     reason = "SOURCE_COMPLETENESS_NOT_ESTABLISHED"
     if (
         isinstance(completeness, ExternalSourceCompletenessClaim)
+        and type(completeness.status) is str
         and completeness.status == "COMPLETE"
     ):
         reason = "INDEPENDENT_SOURCE_QUALIFICATION_UNAVAILABLE"
