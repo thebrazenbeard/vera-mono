@@ -60,12 +60,12 @@ def assess_external_assignment_currentness(
     graph remains unresolved. No provider I/O or execution occurs here.
     """
 
-    if not isinstance(observation, ExternalAssignmentObservation):
+    if type(observation) is not ExternalAssignmentObservation:
         raise TypeError("observation must be an ExternalAssignmentObservation")
 
     reason = "SOURCE_COMPLETENESS_NOT_ESTABLISHED"
     if (
-        isinstance(completeness, ExternalSourceCompletenessClaim)
+        type(completeness) is ExternalSourceCompletenessClaim
         and type(completeness.status) is str
         and completeness.status == "COMPLETE"
     ):
