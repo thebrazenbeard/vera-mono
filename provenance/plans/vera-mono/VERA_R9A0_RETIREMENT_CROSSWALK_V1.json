@@ -1,0 +1,341 @@
+{
+  "schema": "VERA_R9A0_RETIREMENT_CROSSWALK_V1",
+  "status": "SOURCE_INVENTORY_ONLY_ARCHIVAL_NOT_AUTHORIZED",
+  "observed_date": "2026-10-28",
+  "source": {
+    "repository": "thebrazenbeard/vera-R9A0",
+    "default_branch": "main",
+    "commit": "80379b7b6caeebb610debf572f50fd9f4f378563",
+    "archived_at_observation": false,
+    "release_id": "VERA_PROJECT_INTEGRATION_R9A0_20260806_V1",
+    "manifest_path": "project/VERA_R9A0_MANIFEST.json",
+    "manifest_blob": "7ce0ec2d2c9197ec96f5edb177b90bb6242a8666",
+    "checksum_manifest_blob": "f06b8efb35024f97be29a776f9bfd139b6b46726"
+  },
+  "target": {
+    "repository": "thebrazenbeard/vera-mono",
+    "default_branch": "main",
+    "commit": "7835b1a097ce3c6a5a0aefc7c5d8272e8fe9e8fa",
+    "architecture_contract": "MONOREPO_CONTRACT.md",
+    "architecture_contract_blob": "e9ebb39d136fc18829be9e8046271e11ba334e9f",
+    "self_contained_runtime": true,
+    "cross_repository_runtime_dependency_prohibited": true
+  },
+  "interpretation": {
+    "repository_retirement_candidate": true,
+    "archive_now": false,
+    "automatic_copy_authorized": false,
+    "source_presence_is_not_installation_or_runtime_use": true,
+    "source_only_comparison": true,
+    "monorepo_equivalence_not_assumed": true,
+    "archiving_source_repository_does_not_erase_immutable_git_history": true
+  },
+  "capability_crosswalk": [
+    {
+      "id": "R9A0_NATIVE_CHATGPT_PROJECT_PACK",
+      "disposition": "SUPERSEDED_PROJECT_PACK_PRESERVE_HISTORICAL_SOURCE",
+      "source_paths": [
+        {
+          "path": "project/VERA_R9A0_MANIFEST.json",
+          "git_blob_sha": "7ce0ec2d2c9197ec96f5edb177b90bb6242a8666"
+        },
+        {
+          "path": "project/VERA_R9A0_NATIVE_PROJECT_INSTRUCTIONS.txt",
+          "git_blob_sha": "03910e0685f4b3a15c839f7bfc368eaa7a0fed98"
+        },
+        {
+          "path": "project/VERA_R9A0_RUNTIME.md",
+          "git_blob_sha": "85e19501e2d5a05e450a4054cf27352faaea4033"
+        }
+      ],
+      "target_candidates": [
+        {
+          "path": "architecture/chatgpt/PROJECT_PACK_MANIFEST.json",
+          "git_blob_sha": "57cb71bfa313932ddcfc5dc3cf7181a7f7f2ff54"
+        },
+        {
+          "path": "architecture/chatgpt/README.md",
+          "git_blob_sha": "460ffee69b8019f22a63ab120b9da7eb263f6fed"
+        }
+      ],
+      "equivalence": "NOT_ASSERTED",
+      "decision": "Keep the Revision 9 native ChatGPT Project release as historical provenance; do not install it or overwrite the monorepo Project pack."
+    },
+    {
+      "id": "R9A0_IDENTITY_CURRENTNESS_AND_NATIVE_CONTRACT",
+      "disposition": "REVIEW_SEMANTIC_REGRESSION_GAPS_BEFORE_ADAPTATION",
+      "source_paths": [
+        {
+          "path": "project/VERA_R9A0_NATIVE_CONTRACT.json",
+          "git_blob_sha": "759a8c7fb5f71c7feedd3fc5ff66f3c9f7e2b757"
+        },
+        {
+          "path": "schemas/native-project/vera-r9a0-native-contract.schema.json",
+          "git_blob_sha": "1592145d080660f0cb748c04a7bc0f3b51771537"
+        },
+        {
+          "path": "tests/native-project/test_r9a0_assignment_currentness.py",
+          "git_blob_sha": "dd5d3fd0c26ca7775a2fd7e2218e07d4b9c71be2"
+        },
+        {
+          "path": "tests/native-project/test_r9a0_cross_feature_invariants.py",
+          "git_blob_sha": "cc9e45944af682408f29cab58ec1014d46768acb"
+        }
+      ],
+      "target_candidates": [
+        {
+          "path": "architecture/VERA_NATIVE_LIFECYCLE_V1.json",
+          "git_blob_sha": "9240686ca8b14c3c123517db574a45a65cb08a22"
+        },
+        {
+          "path": "packages/vera_core/",
+          "git_blob_sha": null
+        },
+        {
+          "path": "packages/vera_memory/",
+          "git_blob_sha": null
+        }
+      ],
+      "equivalence": "UNVERIFIED",
+      "decision": "Compare assignment event admission, owner/lane succession, source-cut staleness, protected authority and recovery invariants against current monorepo public seams; port only uncovered regression vectors.",
+      "priority_historical_vectors": [
+        {
+          "case_id": "CUR19",
+          "source_path": "tests/native-project/fixtures/assignment_currentness_v1/19_unique_successor_not_complete_control_graph.json",
+          "git_blob_sha": "a23acc2342ba25b970a3341b46205d9d13818a71",
+          "requirement": "Unique observed successor is not proof that the controlling event graph is complete; incomplete source must fail closed."
+        },
+        {
+          "case_id": "CUR20",
+          "source_path": "tests/native-project/fixtures/assignment_currentness_v1/20_source_completeness_transition_fail_closed.json",
+          "git_blob_sha": "bfaf779c28bb238a1639a9716b66ded69d7daf1a",
+          "requirement": "An observed completion event does not settle assignment currentness while controlling source completeness remains unproven."
+        }
+      ],
+      "test_portability": "R9A0_TEST_LOCAL_RESOLVER_FIXTURES_NOT_DROP_IN_MONO_PRODUCTION_TESTS"
+    },
+    {
+      "id": "R9A0_PRAGMATICS_AND_SAFETY_CONTAMINATION",
+      "disposition": "CANDIDATE_REGRESSION_VECTOR_ADAPTATION",
+      "source_paths": [
+        {
+          "path": "tests/native-project/test_r9a0_anticipatory_pragmatics.py",
+          "git_blob_sha": "47c23df191d4869f93bd3a55c3a5e7be1f627492"
+        },
+        {
+          "path": "tests/native-project/test_r9a0_safety_contamination.py",
+          "git_blob_sha": "87ce68b12bd13ddc9d97e1a40c7926ffab631bda"
+        }
+      ],
+      "target_candidates": [
+        {
+          "path": "architecture/VERA_SEMANTIC_INTERACTION_INTERFACE_V1.json",
+          "git_blob_sha": "b8cb83b8a80058d8e1e7a4fc27a5e80feb9fb2c5"
+        }
+      ],
+      "equivalence": "UNVERIFIED",
+      "decision": "Retain claim-origin, protected-axis invariance, correction precedence, and safety provenance test intentions; never migrate raw personal or safety records as test data.",
+      "priority_historical_vectors": [
+        {
+          "case_id": "SAFE04",
+          "source_path": "tests/native-project/fixtures/safety_contamination_v1/04_user_denial_of_assistant_frame.json",
+          "git_blob_sha": "18339161c594c0a2e9048a9ad6f6754f48d6bcba",
+          "requirement": "A denial of an assistant-introduced safety frame is not independent corroboration of that frame."
+        },
+        {
+          "case_id": "SAFE08",
+          "source_path": "tests/native-project/fixtures/safety_contamination_v1/08_elicited_affirm_self_opens_new_branch.json",
+          "git_blob_sha": "8431e631b725929ccc6d198631324c99aaf97b8e",
+          "requirement": "A current user affirmation can be admissible while an otherwise similar stale elicited affirmation cannot self-promote."
+        }
+      ],
+      "test_portability": "R9A0_TEST_LOCAL_RESOLVER_FIXTURES_NOT_DROP_IN_MONO_PRODUCTION_TESTS"
+    },
+    {
+      "id": "R9B0_SEMANTIC_PROJECTION",
+      "disposition": "CANDIDATE_CONTRACT_COMPARISON",
+      "source_paths": [
+        {
+          "path": "validation/R9B0_SEMANTIC_PROJECTION_MANIFEST.json",
+          "git_blob_sha": "1655e707a06759f27c7691e1d839ab1e350dd135"
+        },
+        {
+          "path": "validation/R9B0_NATIVE_OBLIGATION_MATRIX.json",
+          "git_blob_sha": "d0c5c706f39519c2947496ecc19bf18b3d2af316"
+        },
+        {
+          "path": "tests/native-project/test_r9b0_semantic_projection.py",
+          "git_blob_sha": "096b17f0c0a5ba3a4ec018a3409d200c0ddb8e09"
+        }
+      ],
+      "target_candidates": [
+        {
+          "path": "architecture/VERA_SEMANTIC_INTERACTION_INTERFACE_V1.json",
+          "git_blob_sha": "b8cb83b8a80058d8e1e7a4fc27a5e80feb9fb2c5"
+        }
+      ],
+      "equivalence": "UNVERIFIED",
+      "decision": "Review temporal/currentness, bounded semantic divergence, correction and provenance acceptance cases before adapting any missing test."
+    },
+    {
+      "id": "R9B0_FULL_FIDELITY_DUALSTORE_MEMORY_EPOCH",
+      "disposition": "CANDIDATE_ARCHITECTURE_NO_EFFECT_AUTHORITY",
+      "source_paths": [
+        {
+          "path": "validation/R9B0_MEMORY_EPOCH_CONTRACT.json",
+          "git_blob_sha": "af1b5f9105af6ca2eb140c0580440f408069d096"
+        },
+        {
+          "path": "schemas/native-project/r9b0_memory_epoch_envelope_v1.schema.json",
+          "git_blob_sha": "09d14e127d8d7d2f3275f70f64e4cac56be31071"
+        },
+        {
+          "path": "scripts/r9b0_memory_epoch_drive.py",
+          "git_blob_sha": "7a4e00b2f41406815a35943ea4d9c913f7445ca5"
+        },
+        {
+          "path": "tests/native-project/test_r9b0_dualstore_implementation.py",
+          "git_blob_sha": "c6712d9a9f75af9ae55828218c4b7fc4c726c4fc"
+        }
+      ],
+      "target_candidates": [
+        {
+          "path": "packages/vera_memory/",
+          "git_blob_sha": null
+        },
+        {
+          "path": "packages/vera_recovery/",
+          "git_blob_sha": null
+        },
+        {
+          "path": "architecture/VERA_NATIVE_LIFECYCLE_V1.json",
+          "git_blob_sha": "9240686ca8b14c3c123517db574a45a65cb08a22"
+        }
+      ],
+      "equivalence": "UNVERIFIED",
+      "decision": "Do not equate current native CAS memory and recovery with historical Drive-plus-Supabase full-fidelity dualstore admission; assess active consumers and provider state separately before any port or schema effect."
+    },
+    {
+      "id": "R9A0_R9B0_SUPABASE_MIGRATION_PROVENANCE",
+      "disposition": "PRESERVE_EXACT_HISTORY_NO_AUTOMATIC_REAPPLY",
+      "source_paths": [
+        {
+          "path": "supabase/MIGRATION_LEDGER.json",
+          "git_blob_sha": "421bdba346650e2ff960768158ee56ff84f5fc43"
+        },
+        {
+          "path": "supabase/migrations/20260806133000_r9a0_coordination_foundation.sql",
+          "git_blob_sha": "44d64387ee0e3056977dc1b4f853a94bfcc9feff"
+        },
+        {
+          "path": "supabase/migrations/20260822153000_r9b0_memory_epoch_v1.sql",
+          "git_blob_sha": "da0f68833f818a0c024034c1e50135dc2e56cb49"
+        },
+        {
+          "path": "supabase/migrations/20260830141000_r9b0_provider_readback_cardinality_v1.sql",
+          "git_blob_sha": "477463312d2f8d29182f3e0a4724959a1c73813a"
+        }
+      ],
+      "historical_ledger_claims": [
+        {
+          "migration": "r9a0_coordination_foundation",
+          "status": "APPLIED_AND_TESTED",
+          "source_version": "20260806133000",
+          "applied_version": "20260806133152"
+        },
+        {
+          "migration": "r9b0_memory_epoch_v1",
+          "status": "APPLIED_AND_PROVIDER_READBACK_VERIFIED",
+          "source_version": "20260822153000",
+          "applied_version": "20260829104849"
+        },
+        {
+          "migration": "r9b0_provider_readback_cardinality_v1",
+          "status": "CANDIDATE_G0_NOT_APPLIED",
+          "source_version": "20260830141000",
+          "applied_version": null
+        }
+      ],
+      "historical_ledger_currency_warning": "The 2026-08-30 ledger's CANDIDATE_G0_NOT_APPLIED entry is historical. A separate 2026-10-28 coordinator readback reports a later applied migration version; the source ledger does not establish current database state and this crosswalk made no direct provider query.",
+      "separate_live_provider_migration_observation": {
+        "observed_date": "2026-10-28",
+        "evidence_kind": "SUPABASE_LIST_MIGRATIONS_READ_ONLY",
+        "project_ref": "klmbpaigzeguvnpccqzz",
+        "observed_version": "20260830182602",
+        "observed_name": "r9b0_provider_readback_cardinality_v1",
+        "source_migration_recorded_as_applied": true,
+        "statement_byte_equivalence_to_r9a0_source": "UNVERIFIED",
+        "live_function_behavior": "UNVERIFIED",
+        "limitation": "A connected-project migration inventory showed the later applied version; this does not establish exact statement-byte equality or runtime effect."
+      },
+      "target_candidates": [
+        {
+          "path": "packages/vera_coordination/src/coordination_bus/supabase_sql.py",
+          "git_blob_sha": null
+        },
+        {
+          "path": "provenance/",
+          "git_blob_sha": null
+        }
+      ],
+      "equivalence": "NOT_ESTABLISHED",
+      "decision": "Keep exact migration source/applied/rollback/test lineage in immutable repo history. Confirm live provider/consumer bindings and independent database readback before deciding on monorepo migration. Do not imply ledger statements are current provider state."
+    },
+    {
+      "id": "R9A0_SECURITY_EXCLUDED_EDITOR_AUTORUN",
+      "disposition": "PROHIBITED_COPY_AND_ACTIVE_SOURCE_REMEDIATION_REQUIRED",
+      "source_paths": [
+        {
+          "path": ".vscode/tasks.json",
+          "git_blob_sha": "de6de3adea989c8e85a4d39ce0337378d92be7db"
+        },
+        {
+          "path": ".vscode/settings.json",
+          "git_blob_sha": "934d55548c36ff0e330f2a2ba69bf74b10a7dcba"
+        },
+        {
+          "path": "public/fonts/fa-solid.lkf",
+          "git_blob_sha": "31ce18eddf4c96c1a705dbceaec4304f953d4dc3"
+        }
+      ],
+      "target_candidates": [],
+      "equivalence": "INADMISSIBLE",
+      "decision": "Do not copy, execute, run editor startup tasks, or import these bytes into vera-mono. Current source adds a concealed VS Code folderOpen Node task invoking obfuscated JavaScript under a font-like filename. Payload effect not proven."
+    }
+  ],
+  "archive_gates": [
+    {
+      "id": "R9A0_SECURITY_SOURCE_CLEANUP",
+      "status": "BLOCKED_OPEN_DRAFT_PR",
+      "evidence": "https://github.com/thebrazenbeard/vera-R9A0/pull/25",
+      "required": "Qualified reviewed security fix merged at exact head with clean default-branch readback"
+    },
+    {
+      "id": "UNMERGED_SOURCE_WORK",
+      "status": "OPEN_PR_EXISTS",
+      "evidence": "https://github.com/thebrazenbeard/vera-R9A0/pull/25",
+      "required": "Resolve open draft PR before archive"
+    },
+    {
+      "id": "R9A0_MONO_CAPABILITY_REVIEW",
+      "status": "UNVERIFIED",
+      "required": "Classify semantic and database source candidates against live monorepo consumers, with owner decisions for any material port"
+    },
+    {
+      "id": "EXTERNAL_WRITE_CONSUMER_INVENTORY",
+      "status": "UNVERIFIED",
+      "required": "Check active workflows and integration owners for any writes or branch updates targeting vera-R9A0"
+    },
+    {
+      "id": "ARCHIVE_OWNER_AUTHORITY",
+      "status": "NOT_REQUESTED_AS_EFFECT",
+      "required": "Separate live owner authorization before archiving"
+    }
+  ],
+  "evidence_limits": [
+    "No remote GitHub PR, branch, repository settings, deployment, provider database, installation, or runtime state was mutated by this crosswalk.",
+    "Target path similarity is not exact mechanism equivalence; group dispositions are review decisions rather than implementation claims.",
+    "Historical migration status came from the source ledger and was not freshly verified against Supabase.",
+    "Only identified startup-loader indicator files were excluded; no exhaustive vulnerability or secrets audit was performed."
+  ]
+}
