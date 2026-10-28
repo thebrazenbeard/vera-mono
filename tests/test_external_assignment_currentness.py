@@ -100,6 +100,31 @@ class ExternalAssignmentCurrentnessTests(unittest.TestCase):
         self._assert_fail_closed(result)
         self.assertEqual(result.reason, "SOURCE_COMPLETENESS_NOT_ESTABLISHED")
 
+    def test_spoofed_completeness_class_does_not_trigger_attribute_access(self):
+        class SpoofedCompleteness:
+            @property
+            def __class__(self):
+                return ExternalSourceCompletenessClaim
+
+            @property
+            def status(self):
+                raise AssertionError("spoofed status access must not run")
+
+        result = assess_external_assignment_currentness(
+            self._observation(), SpoofedCompleteness()
+        )
+        self._assert_fail_closed(result)
+        self.assertEqual(result.reason, "SOURCE_COMPLETENESS_NOT_ESTABLISHED")
+
+    def test_spoofed_observation_class_is_not_accepted_as_typed_input(self):
+        class SpoofedObservation:
+            @property
+            def __class__(self):
+                return ExternalAssignmentObservation
+
+        with self.assertRaisesRegex(TypeError, "ExternalAssignmentObservation"):
+            assess_external_assignment_currentness(SpoofedObservation())
+
     def test_conflicting_successors_cannot_establish_owner_even_if_claimed_complete(self):
         observation = self._observation(
             ExternalAssignmentEvent("root", "ASSIGN", owner="bob"),
