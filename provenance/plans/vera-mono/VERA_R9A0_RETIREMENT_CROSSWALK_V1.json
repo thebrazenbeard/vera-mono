@@ -257,6 +257,22 @@
         }
       ],
       "historical_ledger_currency_warning": "The 2026-08-30 ledger's CANDIDATE_G0_NOT_APPLIED entry is historical. A separate 2026-10-28 coordinator readback reports a later applied migration version; the source ledger does not establish current database state and this crosswalk made no direct provider query.",
+      "separate_github_provider_custody_comparison": {
+        "evidence_kind": "IMMUTABLE_GITHUB_FILE_BYTE_COMPARISON",
+        "r9a0_source_commit": "80379b7b6caeebb610debf572f50fd9f4f378563",
+        "r9a0_source_path": "supabase/migrations/20260830141000_r9b0_provider_readback_cardinality_v1.sql",
+        "r9a0_source_git_blob_sha": "477463312d2f8d29182f3e0a4724959a1c73813a",
+        "vera_custody_commit": "4c0887e4c54084bcce8a4e1d10135df4667e4bd0",
+        "vera_custody_path": "supabase/provider-custody/klmbpaigzeguvnpccqzz/applied/20260830182602_r9b0_provider_readback_cardinality_v1.sql",
+        "vera_custody_git_blob_sha": "477463312d2f8d29182f3e0a4724959a1c73813a",
+        "source_to_custody_file_bytes": "VERIFIED_IDENTICAL",
+        "historical_custody_ledger_path": "supabase/provider-custody/klmbpaigzeguvnpccqzz/VERA_FULL_PROVIDER_LEDGER_CUSTODY_V4.json",
+        "historical_custody_ledger_git_blob_sha": "971b3cb483d7d68abed6e954412ef6068449e26e",
+        "historical_custody_record_version": "20260830182602",
+        "historical_custody_record_class": "EXACT_PROVIDER_SOURCE_RECOVERED",
+        "source_and_custody_ledger_sha256": "13c40c22554ac476e4019e00c75d1630d56c71b5aa5cb11f0735bfd197e72af3",
+        "limitation": "Identical immutable GitHub file bytes and historical custody-ledger assertions do not establish current live provider SQL bytes, function behavior, source-version application, or installation."
+      },
       "separate_live_provider_migration_observation": {
         "observed_date": "2026-10-28",
         "evidence_kind": "SUPABASE_LIST_MIGRATIONS_READ_ONLY",
@@ -264,7 +280,7 @@
         "observed_version": "20260830182602",
         "observed_name": "r9b0_provider_readback_cardinality_v1",
         "matching_named_migration_recorded_as_applied": true,
-        "statement_byte_equivalence_to_r9a0_source": "UNVERIFIED",
+        "live_provider_statement_byte_equivalence_to_r9a0_source": "UNVERIFIED",
         "live_function_behavior": "UNVERIFIED",
         "limitation": "A connected-project migration inventory showed the later applied version; this does not establish exact statement-byte equality or runtime effect."
       },
