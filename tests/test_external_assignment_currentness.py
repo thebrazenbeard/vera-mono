@@ -81,6 +81,25 @@ class ExternalAssignmentCurrentnessTests(unittest.TestCase):
         result = assess_external_assignment_currentness(observation)
         self._assert_fail_closed(result)
 
+    def test_invalid_observation_is_rejected_without_authority(self):
+        with self.assertRaisesRegex(TypeError, "ExternalAssignmentObservation"):
+            assess_external_assignment_currentness(None)
+
+    def test_untrusted_completeness_status_does_not_run_custom_equality(self):
+        class UntrustedStatus:
+            def __eq__(self, other):
+                raise AssertionError("untrusted equality must not run")
+
+        result = assess_external_assignment_currentness(
+            self._observation(),
+            ExternalSourceCompletenessClaim(
+                source_ref="feed:malformed",
+                status=UntrustedStatus(),
+            ),
+        )
+        self._assert_fail_closed(result)
+        self.assertEqual(result.reason, "SOURCE_COMPLETENESS_NOT_ESTABLISHED")
+
     def test_conflicting_successors_cannot_establish_owner_even_if_claimed_complete(self):
         observation = self._observation(
             ExternalAssignmentEvent("root", "ASSIGN", owner="bob"),
