@@ -69,22 +69,46 @@ class SemanticKnowledgeStore:
             sort_keys=True, separators=(",", ":"),
         )
 
-    def admit(self, value: dict[str, object]) -> SemanticAdmissionReceipt:
+    def _prepare(self, value: dict[str, object]) -> tuple[str, str, str, str]:
         self._validator.validate(value)
         object_id = str(value["id"])
         object_type = str(value["object_type"])
         canonical = self._canonical(value)
         digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return object_id, object_type, canonical, digest
+
+    @staticmethod
+    def _reject_rebinding(row, *, object_type: str, digest: str) -> None:
+        if row is not None and (
+            row["digest"] != digest or row["object_type"] != object_type
+        ):
+            raise SemanticKnowledgeConflict(
+                "semantic object id cannot be rebound to different content"
+            )
+
+    def check_admissible(self, value: dict[str, object]) -> None:
+        """Validate schema and immutable ID without persisting an object.
+
+        This is a preflight, not a reservation, truth claim, or authority grant.
+        Final admission independently repeats validation and conflict checks.
+        """
+        object_id, object_type, _, digest = self._prepare(value)
         with self._connect() as db:
             row = db.execute(
                 "SELECT object_type,digest FROM semantic_objects WHERE object_id=?",
                 (object_id,),
             ).fetchone()
+        self._reject_rebinding(row, object_type=object_type, digest=digest)
+
+    def admit(self, value: dict[str, object]) -> SemanticAdmissionReceipt:
+        object_id, object_type, canonical, digest = self._prepare(value)
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT object_type,digest FROM semantic_objects WHERE object_id=?",
+                (object_id,),
+            ).fetchone()
+            self._reject_rebinding(row, object_type=object_type, digest=digest)
             if row is not None:
-                if row["digest"] != digest or row["object_type"] != object_type:
-                    raise SemanticKnowledgeConflict(
-                        "semantic object id cannot be rebound to different content"
-                    )
                 status = "DUPLICATE"
             else:
                 db.execute(

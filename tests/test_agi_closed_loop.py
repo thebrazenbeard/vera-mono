@@ -187,11 +187,105 @@ def test_closed_loop_does_not_dispatch_unresolved_reasoning(tmp_path):
         assert "did not resolve" in str(exc)
     else:
         raise AssertionError("unresolved reasoning was dispatched")
+    with pytest.raises(KeyError):
+        # Reopen from disk to prove rejected reasoning did not persist the
+        # caller's semantic object across process boundaries.
+        vera_core.ClosedLoopFrontier(tmp_path).semantic.get(
+            task.semantic_object["id"]
+        )
     admission = gate.claim(
         work_id="proof-no-prior-dispatch", holder="worker", now=11.0,
         ttl=30.0, expected_generation=0, retry=False,
     )
     assert admission.remaining_active == 0
+
+
+def test_closed_loop_does_not_dispatch_exhausted_low_confidence_answer(tmp_path):
+    from rezon.cascade import CascadeEngine, LayerResult, LayerSpec
+    from vera_core import ClosedLoopTask, DurableDispatchGate
+
+    loop = vera_core.ClosedLoopFrontier(tmp_path)
+    task = ClosedLoopTask(
+        task_id="weak-answer-1", prompt="Unknown action.",
+        semantic_object={
+            "schema_version": "0.1", "object_type": "node",
+            "id": "NODE-99999999-9999-4999-8999-999999999999",
+            "primary_label": "weak cue", "aliases": [],
+            "node_kind": "concept", "notes": None,
+        },
+    )
+    cascade = CascadeEngine((
+        LayerSpec(
+            "low-confidence",
+            lambda req: LayerResult(
+                answer="act", unresolved=(), confidence=0.10,
+            ),
+            min_confidence=0.80,
+        ),
+    ))
+    gate = DurableDispatchGate(
+        tmp_path / "dispatch.db", lineage_id="agi-loop",
+        remaining_active=1, remaining_retries=0, remaining_backend_jobs=1,
+    )
+    observed_actions = []
+
+    with pytest.raises(ValueError, match="did not resolve"):
+        loop.run_bounded(
+            task, cascade=cascade, dispatch_gate=gate, holder="worker",
+            now=10.0, ttl=30.0, expected_generation=0,
+            act=lambda action: observed_actions.append(action),
+        )
+
+    assert observed_actions == []
+    admission = gate.claim(
+        work_id="weak-answer-gate-not-used", holder="worker", now=11.0,
+        ttl=30.0, expected_generation=0, retry=False,
+    )
+    assert admission.remaining_active == 0
+
+
+def test_closed_loop_validates_semantics_without_admitting_before_reason(tmp_path):
+    from jsonschema import ValidationError
+    from rezon.cascade import CascadeEngine, LayerResult, LayerSpec
+    from vera_core import ClosedLoopTask, DurableDispatchGate
+    from vera_identity.semantic_knowledge import SemanticKnowledgeConflict
+
+    loop = vera_core.ClosedLoopFrontier(tmp_path / "loop")
+    valid = {
+        "schema_version": "0.1", "object_type": "node",
+        "id": "NODE-77777777-7777-4777-8777-777777777778",
+        "primary_label": "preflight cue", "aliases": [],
+        "node_kind": "concept", "notes": None,
+    }
+    seen = []
+
+    def reason(request):
+        seen.append(request.prompt)
+        return LayerResult(
+            answer="inspect", unresolved=(), confidence=0.9,
+            evidence=("preflight:test",),
+        )
+
+    cascade = CascadeEngine((LayerSpec("reason", reason, min_confidence=0.8),))
+    gate = DurableDispatchGate(
+        tmp_path / "dispatch.db", lineage_id="preflight",
+        remaining_active=1, remaining_retries=0, remaining_backend_jobs=1,
+    )
+
+    def invoke(semantic_object):
+        loop.run_bounded(
+            ClosedLoopTask("preflight", "inspect?", semantic_object),
+            cascade=cascade, dispatch_gate=gate, holder="worker",
+            now=10.0, ttl=30.0, expected_generation=0,
+            act=lambda action: pytest.fail("invalid input was dispatched"),
+        )
+
+    with pytest.raises(ValidationError):
+        invoke({"not_schema_valid": True})
+    loop.semantic.admit(valid)
+    with pytest.raises(SemanticKnowledgeConflict):
+        invoke(dict(valid, primary_label="incompatible rewrite"))
+    assert seen == []
 
 
 def test_closed_loop_task_rejects_hidden_evaluator_target():
