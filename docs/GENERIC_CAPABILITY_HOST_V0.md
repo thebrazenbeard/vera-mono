@@ -24,14 +24,16 @@ For the optional **real two-Ollama-model** local experiment, first provide a sep
 
 ```powershell
 $env:PLEASURE_SOURCE_ROOT = "D:\path\to\pleasure"
-$env:PLEASURE_SOURCE_SHA = "9f7ab6f5aa5516f7fead2a8a1dd92dbf3802cf60"
+$env:PLEASURE_SOURCE_SHA = "db3d05da63b18193633a607b870e9942700602ff"
 $env:GENERIC_HOST_ACCEPTANCE_STATE_ROOT = "D:\scratch\new-synthetic-acceptance"
 $env:GENERIC_HOST_MODEL_A = "qwen2.5-coder:1.5b-instruct-q8_0"
 $env:GENERIC_HOST_MODEL_B = "vera-qwen35:trial-20261029"
+$env:GENERIC_HOST_MODEL_A_DIGEST = "00f372390c1dac8c6d0cca549d683475d5854c0f0d77d5f5368e0ffe4724fe8b"
+$env:GENERIC_HOST_MODEL_B_DIGEST = "ec53876a6cb69c8c1d41ed122a2fda761b4dd65d0772cb5383ba8458f0b77466"
 py -3 tools/generic_host_two_model_acceptance.py
 ```
 
-The script obtains *self-reported* Ollama registry digests, composes two separate synthetic `VeraStateDirectory`/qualified runtimes and host-issued provider verifiers, performs a neutral bounded generation for each model, exercises independent Sexuality metadata and Pleasure sidecar state, and attempts one tampered cross-model grant. It outputs hashes, statuses, and test identity data—not model responses, host signing keys, or private user content.
+The script verifies caller-pinned *self-reported* Ollama registry digests and an exactly pinned clean Pleasure Git checkout, then composes two separate synthetic `VeraStateDirectory`/qualified runtimes and host-issued provider verifiers, performs a neutral bounded generation for each model, exercises independent Sexuality metadata and Pleasure sidecar state, and attempts one tampered cross-model grant. It outputs hashes, statuses, and test identity data—not model responses, host signing keys, or private user content.
 ## Explicit release blockers
 
 This host test uses synthetic host-controlled signing keys and synthetic working-project fixtures in its own scratch directories. Those are not real participant consent or production authority. The host signer must be established outside model output, and real consent must be separately sourced, scoped, verified, and revocable for any protected interaction.

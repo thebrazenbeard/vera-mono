@@ -6,6 +6,7 @@ Only synthetic records are admitted to temporary test state, never Vera memory.
 """
 from pathlib import Path
 import sys
+sys.dont_write_bytecode = True  # Keep the pinned sibling source checkout unchanged.
 import os
 import gc
 import time
@@ -25,6 +26,10 @@ observed=subprocess.run(["git","-C",str(PLEASURE_SOURCE_ROOT),"rev-parse","HEAD"
                         capture_output=True,text=True,check=True).stdout.strip()
 if observed != EXPECTED_PLEASURE_HEAD:
     raise RuntimeError("Pleasure checkout head differs from exact user-selected source")
+changed=subprocess.run(["git","-C",str(PLEASURE_SOURCE_ROOT),"status","--porcelain",
+                        "--untracked-files=all"],capture_output=True,text=True,check=True).stdout
+if changed.strip():
+    raise RuntimeError("Pleasure source checkout is dirty; exact HEAD is not sufficient")
 mono=ROOT
 for p in (mono/"packages").glob("*/src"):
     sys.path.insert(0,str(p))
@@ -40,19 +45,23 @@ from pleasure_experiment import ExperimentalPleasureRuntime, PilotConfig, Observ
 def configured_models():
     from urllib.request import urlopen
     tags=(os.environ["GENERIC_HOST_MODEL_A"],os.environ["GENERIC_HOST_MODEL_B"])
+    expected=(os.environ["GENERIC_HOST_MODEL_A_DIGEST"],
+              os.environ["GENERIC_HOST_MODEL_B_DIGEST"])
     if tags[0] == tags[1]:
         raise ValueError("two distinct model names required")
     with urlopen("http://127.0.0.1:11434/api/tags",timeout=5) as response:
         payload=json.load(response)
     models=payload.get("models",[])
     chosen=[]
-    for tag in tags:
+    for tag, pinned_digest in zip(tags, expected):
         matches=[x for x in models if x.get("name")==tag]
         if len(matches)!=1:
             raise ValueError("selected model not uniquely present in local registry")
         digest=matches[0].get("digest")
         if type(digest) is not str or len(digest)!=64 or any(x not in "0123456789abcdef" for x in digest):
             raise ValueError("invalid registry digest")
+        if digest != pinned_digest:
+            raise ValueError("local model digest differs from explicit pin")
         chosen.append((tag,digest))
     if chosen[0][1] == chosen[1][1]:
         raise ValueError("two model aliases share the same registry digest")
