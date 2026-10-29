@@ -123,14 +123,30 @@ class HostGatewayTests(unittest.TestCase):
                                  evidence_id="new"),elapsed_ms=100)
         self.assertEqual(bind.sidecar.count,0)
 
-    def test_generation_requires_host_preparation_and_exact_model(self):
-        grant=self.grant(0,"model","GENERATE_CANDIDATE","generate")
-        result=self.gateway.generate_candidate(grant,"Produce a short neutral token.",max_tokens=16)
-        self.assertEqual(result["model"],self.adapters[0].model_tag)
-        self.assertEqual([x[0] for x in self.bindings[0].runtime.invocations],
-                         ["prepare","execute"])
+    def test_host_binding_substitution_denied_even_with_matching_identity(self):
+        original=self.bindings[0]
+        replacement=HostModelBinding(
+            adapter=original.adapter, runtime=FakeQualifiedRuntime(original.adapter),
+            provider_authority=original.provider_authority,
+            sidecar=original.sidecar, session_id=original.session_id)
+        self.gateway.sessions[0]=replacement
+        grant=self.authority.issue(original, domain="sexuality",
+            operation="DESCRIBE_RESEARCH", grant_id="swapped-host", expires_epoch=1100)
+        with self.assertRaisesRegex(ValueError, "host binding changed"):
+            self.gateway.describe_sexuality(grant)
+
+    def test_fake_runtime_cannot_claim_qualified_dispatch(self):
+        grant=self.grant(0,"model","GENERATE_CANDIDATE","fake-host")
+        with self.assertRaisesRegex(ValueError,"QualifiedVeraRuntime"):
+            self.gateway.generate_candidate(grant,"neutral request",max_tokens=8)
+        self.assertEqual(self.bindings[0].runtime.invocations,[])
+
+    def test_generation_requires_separate_model_domain_grant(self):
+        research=self.grant(0,"sexuality","DESCRIBE_RESEARCH","wrong-generation")
+        with self.assertRaisesRegex(ValueError,"cross-domain"):
+            self.gateway.generate_candidate(research,"neutral",max_tokens=8)
+        self.assertEqual(self.bindings[0].runtime.invocations,[])
         self.assertEqual(self.bindings[1].runtime.invocations,[])
-        self.assertIs(result["qualified"],False)
 
     def test_research_only_binding_requires_no_pleasure_engine(self):
         binding = HostModelBinding(

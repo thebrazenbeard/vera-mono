@@ -11,7 +11,7 @@ The optional `vera_core.generic_capability_host` module binds reusable Sexuality
 - **Sexuality:** `describe_sexuality` returns bounded research/qualification metadata only. A model may use this without installing Pleasure, Ollama, or an affective state.
 - **Pleasure:** `step_pleasure` passes an *externally measured* and subject/evaluator-matched Observation to an injected `pleasure_experiment.ExperimentalPleasureRuntime`. Output is a nonpersistent computational proxy, never a preference, consent grant, memory admission, or feeling claim.
 - **Local model inference:** `generate_candidate` uses the injected `QualifiedVeraRuntime.prepare_provider_effect` and `execute_provider_effect` path with its separately host-injected provider authority. The bridge never calls the Ollama transport directly.
-- **Host scope:** the HMAC test grant signs model tag, registry digest, adapter ID, runtime instance, subject, session, domain, operation, nonce, and expiry. The gateway rejects modified, expired, replayed, revoked, cross-model, and cross-domain grants. Sidecar instances and host runtimes cannot be shared between bound models.
+- **Host scope:** the HMAC test grant signs model tag, registry digest, adapter ID, runtime instance, subject, session, domain, operation, nonce, and expiry. The gateway rejects modified, expired, replayed, revoked, cross-model, and cross-domain grants. Sidecar instances and host runtimes cannot be shared between bound models. Provider inference additionally requires the exact `QualifiedVeraRuntime` class rather than a method-compatible fake, and replacement of a host binding object after gateway construction is rejected even if its identity strings match.
 ## Reproduce focused checks
 
 Run from a clean Vera Mono checkout:

@@ -166,6 +166,7 @@ class GenericCapabilityGateway:
         if len({id(b.runtime) for b in bindings if b.runtime is not None}) != sum(b.runtime is not None for b in bindings):
             raise ValueError("host runtime cannot be shared across models")
         self.sessions = list(bindings)
+        self._binding_snapshots = tuple(bindings)
         self._identity_snapshots = tuple(ids)
         self._config_snapshots = tuple(
             b.sidecar.config if b.sidecar is not None else None for b in bindings)
@@ -186,6 +187,8 @@ class GenericCapabilityGateway:
         if grant.grant_id in self._used or grant.grant_id in self._revoked:
             raise ValueError("used or revoked grant denied")
         for i, binding in enumerate(self.sessions):
+            if binding is not self._binding_snapshots[i]:
+                raise ValueError("host binding changed after gateway construction")
             if (_identity(binding) != self._identity_snapshots[i]
                 or (binding.sidecar.config if binding.sidecar is not None else None) != self._config_snapshots[i]):
                 raise ValueError("model/sidecar binding changed")
@@ -225,6 +228,9 @@ class GenericCapabilityGateway:
     def generate_candidate(self, grant: CapabilityGrant, prompt: str,
                            *, max_tokens: int = 16) -> dict[str, Any]:
         binding = self._require(grant, domain="model", operation="GENERATE_CANDIDATE")
+        from .qualified_runtime import QualifiedVeraRuntime
+        if type(binding.runtime) is not QualifiedVeraRuntime:
+            raise ValueError("actual QualifiedVeraRuntime host required for provider effects")
         if (type(prompt) is not str or not prompt.strip() or len(prompt.encode("utf-8")) > 1024
             or type(max_tokens) is not int or not 1 <= max_tokens <= 32):
             raise ValueError("bounded prompt/token budget required")
