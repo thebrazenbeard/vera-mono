@@ -24,6 +24,7 @@ For the optional **real two-Ollama-model** local experiment, first provide a sep
 
 ```powershell
 $env:PLEASURE_SOURCE_ROOT = "D:\path\to\pleasure"
+$env:PLEASURE_SOURCE_SHA = "9f7ab6f5aa5516f7fead2a8a1dd92dbf3802cf60"
 $env:GENERIC_HOST_ACCEPTANCE_STATE_ROOT = "D:\scratch\new-synthetic-acceptance"
 $env:GENERIC_HOST_MODEL_A = "qwen2.5-coder:1.5b-instruct-q8_0"
 $env:GENERIC_HOST_MODEL_B = "vera-qwen35:trial-20261029"

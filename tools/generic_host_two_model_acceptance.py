@@ -10,6 +10,7 @@ import os
 import gc
 import time
 import json
+import subprocess
 from hashlib import sha256
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -19,6 +20,11 @@ if TEST_STATE_ROOT.exists():
 PLEASURE_SOURCE_ROOT=Path(os.environ["PLEASURE_SOURCE_ROOT"]).resolve()
 if not (PLEASURE_SOURCE_ROOT / "pleasure_experiment" / "runtime.py").is_file():
     raise RuntimeError("explicit Pleasure source checkout required")
+EXPECTED_PLEASURE_HEAD=os.environ["PLEASURE_SOURCE_SHA"]
+observed=subprocess.run(["git","-C",str(PLEASURE_SOURCE_ROOT),"rev-parse","HEAD"],
+                        capture_output=True,text=True,check=True).stdout.strip()
+if observed != EXPECTED_PLEASURE_HEAD:
+    raise RuntimeError("Pleasure checkout head differs from exact user-selected source")
 mono=ROOT
 for p in (mono/"packages").glob("*/src"):
     sys.path.insert(0,str(p))
@@ -48,6 +54,8 @@ def configured_models():
         if type(digest) is not str or len(digest)!=64 or any(x not in "0123456789abcdef" for x in digest):
             raise ValueError("invalid registry digest")
         chosen.append((tag,digest))
+    if chosen[0][1] == chosen[1][1]:
+        raise ValueError("two model aliases share the same registry digest")
     return tuple(chosen)
 
 def qualified_test_host(i,tag,digest):
