@@ -23,6 +23,13 @@ import sys
 import threading
 from typing import Any
 
+from .peer_isolation import (
+    HostPeerIsolationPlan,
+    PeerIsolationDenied,
+    receive_authenticated_linux_frame,
+)
+from .unified_service import UnifiedAuthorizationService
+
 
 _REQUEST_KEYS = frozenset({
     "signed_grant_b64", "provider_id", "operation", "request_payload"
@@ -145,25 +152,7 @@ def handle_connection(
         connection.settimeout(float(timeout_seconds))
         peer_key = authenticated_peer_key(connection)
         request = _read_single_frame(connection, max_message_bytes)
-        signed_grant, provider_id, operation, payload = _decode_request(request)
-        receipt = service.execute(
-            peer_key=peer_key,
-            signed_grant=signed_grant,
-            provider_id=provider_id,
-            operation=operation,
-            request_payload=payload,
-        )
-        public = receipt.public_body()
-        if type(public) is not dict:
-            raise HostIPCError("invalid public receipt")
-        response = (json.dumps(
-            {"ok": True, "receipt": public},
-            allow_nan=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        ) + "\n").encode("utf-8")
-        if len(response) > MAX_RESPONSE_BYTES:
-            raise HostIPCError("oversized public receipt")
+        response = _execute_request(service, peer_key, request)
     except Exception:
         response = _DENIED
     try:
@@ -172,13 +161,39 @@ def handle_connection(
         pass
 
 
+def _execute_request(service: Any, peer_key: str, request: bytes) -> bytes:
+    """Shared request validation; the caller supplies only kernel peer identity."""
+    signed_grant, provider_id, operation, payload = _decode_request(request)
+    receipt = service.execute(
+        peer_key=peer_key,
+        signed_grant=signed_grant,
+        provider_id=provider_id,
+        operation=operation,
+        request_payload=payload,
+    )
+    public = receipt.public_body()
+    if type(public) is not dict:
+        raise HostIPCError("invalid public receipt")
+    response = (json.dumps(
+        {"ok": True, "receipt": public},
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ) + "\n").encode("utf-8")
+    if len(response) > MAX_RESPONSE_BYTES:
+        raise HostIPCError("oversized public receipt")
+    return response
+
+
 class UnixAuthorityServer:
-    """Synchronous bounded Unix server; no privilege or grant admin RPCs.
+    """LEGACY low-level Unix server; NOT a qualified multi-model boundary.
 
     `socket_path` must be inside a pre-provisioned host-owned directory whose
     permissions prevent group/world writes. The server refuses an existing
     path and only unlinks the exact socket inode it created. Production host
     provisioning, UID isolation and provider custody require separate tests.
+    This class verifies only connection-time SO_PEERCRED. A child inheriting a
+    connected FD is not distinguished; deploy QualifiedUnixAuthorityServer.
     """
 
     def __init__(
@@ -252,6 +267,14 @@ class UnixAuthorityServer:
         except FileNotFoundError:
             pass
 
+    def _handle(self, connection: socket.socket) -> None:
+        handle_connection(
+            connection,
+            self._service,
+            max_message_bytes=self._max_bytes,
+            timeout_seconds=self._timeout_seconds,
+        )
+
     def serve_once(self, *, ready: threading.Event | None = None) -> None:
         listener, inode = self._listen()
         try:
@@ -259,12 +282,7 @@ class UnixAuthorityServer:
                 ready.set()
             connection, _ = listener.accept()
             with connection:
-                handle_connection(
-                    connection,
-                    self._service,
-                    max_message_bytes=self._max_bytes,
-                    timeout_seconds=self._timeout_seconds,
-                )
+                self._handle(connection)
         finally:
             self._cleanup(listener, inode)
 
@@ -281,11 +299,88 @@ class UnixAuthorityServer:
                 except socket.timeout:
                     continue
                 with connection:
-                    handle_connection(
-                        connection,
-                        self._service,
-                        max_message_bytes=self._max_bytes,
-                        timeout_seconds=self._timeout_seconds,
-                    )
+                    self._handle(connection)
         finally:
             self._cleanup(listener, inode)
+
+
+class QualifiedUnixAuthorityServer(UnixAuthorityServer):
+    """Host-launched, per-message kernel-credential authorization endpoint.
+
+    Requires a trusted immutable plan pinned to dedicated model UID/PID/start
+    evidence and a separate service OS identity. The plan is verified at
+    startup, *before* socket creation. Model-side UID/SID/PID claims are never
+    parsed as authority. Linux-only; no unqualified Windows/TCP fallback.
+
+    The host may pre-provision the Unix socket's group through its directory,
+    or explicitly bind it to a dedicated model group at startup. Group access
+    is not identity admission: exact UID and live PID/start must still match.
+    """
+
+    def __init__(
+        self,
+        socket_path: str | Path,
+        service: UnifiedAuthorizationService,
+        *,
+        plan: HostPeerIsolationPlan,
+        socket_group_id: int | None = None,
+        max_message_bytes: int = DEFAULT_MAX_MESSAGE_BYTES,
+        timeout_seconds: float = 5.0,
+    ) -> None:
+        if type(plan) is not HostPeerIsolationPlan or plan.platform != "linux":
+            raise PeerIsolationDenied("qualified Unix endpoint requires host Linux plan")
+        if type(service) is not UnifiedAuthorizationService:
+            raise HostIPCError(
+                "qualified Unix endpoint requires coherent unified authorization service"
+            )
+        if service._unqualified_in_process_fixture:
+            raise HostIPCError(
+                "qualified Unix endpoint requires independently isolated provider RPC"
+            )
+        if service._authority.bindings is not plan.bindings:
+            raise HostIPCError("qualified service and peer admission use different host snapshots")
+        if socket_group_id is not None and (
+            type(socket_group_id) is not int or socket_group_id < 0
+        ):
+            raise ValueError("socket_group_id must be a host-provisioned integer")
+        super().__init__(
+            socket_path,
+            service,
+            max_message_bytes=max_message_bytes,
+            timeout_seconds=timeout_seconds,
+            socket_mode=0o660,
+        )
+        self._peer_plan = plan
+        self._socket_gid = socket_group_id
+
+    def _listen(self) -> tuple[socket.socket, int]:
+        self._peer_plan.assert_host_process_identity()
+        listener, inode = super()._listen()
+        try:
+            # Linux passes SO_PASSCRED to accepted sockets. Set it on the
+            # listener BEFORE accept: a model may write immediately after
+            # connecting, before the daemon enters its per-peer reader.
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_PASSCRED, 1)
+            if self._socket_gid is not None:
+                meta = self._path.lstat()
+                if not stat.S_ISSOCK(meta.st_mode) or meta.st_ino != inode:
+                    raise HostIPCError("qualified socket identity changed")
+                os.chown(self._path, -1, self._socket_gid, follow_symlinks=False)
+        except BaseException:
+            self._cleanup(listener, inode)
+            raise
+        return listener, inode
+
+    def _handle(self, connection: socket.socket) -> None:
+        try:
+            connection.settimeout(self._timeout_seconds)
+            principal, request = receive_authenticated_linux_frame(
+                connection, self._peer_plan, max_message_bytes=self._max_bytes
+            )
+            response = _execute_request(self._service, principal.peer_key, request)
+        except Exception:
+            response = _DENIED
+        try:
+            connection.sendall(response)
+        except (OSError, TimeoutError):
+            pass
