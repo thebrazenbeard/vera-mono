@@ -23,7 +23,7 @@ from portfolio_runtime.lantern.canonical import canonical_json_bytes
 from vera_core.host_authz.bindings import HostBindingSnapshot, PrincipalBinding, ProviderBinding
 from vera_core.host_authz.grants import ApprovedGrant, SignedGrantVerifier, SIGNATURE_CONTEXT as GRANT_CONTEXT, SIGNED_GRANT_SCHEMA
 from vera_core.host_authz.peer_isolation import read_linux_process_identity
-from vera_core.host_authz.provider_custody import HostDispatchSigner, ProviderCustodyWorker
+from vera_core.host_authz.provider_custody import HostDispatchSigner, ProviderCustodyWorker, STATUS_CONTEXT
 from vera_core.host_authz.provider_rpc import (
     ProviderCustodyRPCClient, ProviderCustodyRPCServer, ProviderRPCDenied,
 )
@@ -234,3 +234,108 @@ def test_provider_rpc_fails_closed_without_pinned_distinct_process(tmp_path):
             receipt_public_key_bytes=b"x" * 32,
             host_command_public_key_bytes=b"y" * 32,
             witness_start_public_key=b"z" * 32, witness_leader_epoch=1)
+
+
+@pytest.mark.skipif(os.name != "posix" or not hasattr(os, "fork") or
+                    not hasattr(socket, "SO_PEERCRED"),
+                    reason="Linux pinned-process RPC needed")
+@pytest.mark.parametrize("attack,expected", [
+    ("forged_body", "not signed"),
+    ("wrong_signer", "not signed"),
+    ("mismatched_challenge", "challenge mismatch"),
+    ("malformed_reply", "malformed"),
+])
+def test_signed_status_rpc_rejects_forgery_challenge_swap_and_malformed_reply(attack, expected):
+    """Adversarial provider-PID replies must not become trusted recovery data.
+
+    The transport is a *real* pinned separate-UID Linux process. No physical
+    provider is invoked, and all signing keys and status bodies are synthetic.
+    """
+    if os.geteuid() != 0:
+        pytest.skip("separate provider UID test needs ephemeral setuid from root")
+    host_pid, host_uid = os.getpid(), os.geteuid()
+    _host_uid, host_start = read_linux_process_identity(host_pid)
+    test_dir = Path(tempfile.mkdtemp(prefix="host-authz-status-adversary-", dir="/tmp"))
+    test_dir.chmod(0o711)
+    provider_dir = test_dir / "provider"
+    provider_dir.mkdir(mode=0o700)
+    os.chown(provider_dir, 65534, 65534)
+    endpoint = provider_dir / "status.sock"
+    trusted_signer, attacker_signer = Ed25519PrivateKey.generate(), Ed25519PrivateKey.generate()
+    ready_r, ready_w = os.pipe()
+    provider_pid = os.fork()
+    if provider_pid == 0:
+        try:
+            os.close(ready_r)
+            os.setgroups([])
+            os.setgid(65534)
+            os.setuid(65534)
+            with socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET) as listener:
+                listener.setsockopt(socket.SOL_SOCKET, socket.SO_PASSCRED, 1)
+                listener.bind(str(endpoint))
+                os.chmod(endpoint, 0o600)
+                listener.listen(1)
+                listener.settimeout(5.0)
+                os.write(ready_w, b"R")
+                connection, _ = listener.accept()
+                with connection:
+                    request = json.loads(connection.recv(192 * 1024))
+                    assert request["schema"] == "HOST_AUTHZ_PROVIDER_STATUS_REQUEST_V1"
+                    body = {
+                        "schema": "HOST_AUTHZ_PROVIDER_STATUS_V1",
+                        "challenge": request["challenge"],
+                        "host_id": "host-X", "epoch": 5,
+                        "provider_id": "provider-X", "provider_instance_id": "instance-X",
+                        "effect_id": request["effect_id"],
+                        "command_digest": "a" * 64, "claim_sequence": 17,
+                        "state": "COMMITTED", "provider_result_digest": "b" * 64,
+                    }
+                    signed = trusted_signer.sign(STATUS_CONTEXT + canonical_json_bytes(body))
+                    if attack == "forged_body":
+                        body["provider_result_digest"] = "c" * 64
+                    elif attack == "wrong_signer":
+                        signed = attacker_signer.sign(STATUS_CONTEXT + canonical_json_bytes(body))
+                    elif attack == "mismatched_challenge":
+                        body["challenge"] = "f" * 64 if body["challenge"] != "f" * 64 else "e" * 64
+                        signed = trusted_signer.sign(STATUS_CONTEXT + canonical_json_bytes(body))
+                    else:
+                        body.pop("provider_result_digest")
+                        signed = trusted_signer.sign(STATUS_CONTEXT + canonical_json_bytes(body))
+                    response = canonical_json_bytes({
+                        "schema": "HOST_AUTHZ_PROVIDER_STATUS_REPLY_V1", "ok": True,
+                        "status": body,
+                        "signature": base64.urlsafe_b64encode(signed).rstrip(b"=").decode(),
+                    })
+                    assert connection.send(response) == len(response)
+            os._exit(0)
+        except BaseException:
+            os._exit(92)
+    os.close(ready_w)
+    try:
+        assert _read(ready_r, 1) == b"R"
+        provider_uid, provider_start = read_linux_process_identity(provider_pid)
+        assert provider_uid == 65534 and provider_uid != host_uid
+        client = ProviderCustodyRPCClient(
+            endpoint, provider_pid=provider_pid, provider_uid=provider_uid,
+            provider_start=provider_start, provider_id="provider-X",
+            provider_instance_id="instance-X", host_id="host-X", epoch=5,
+            receipt_public_key_bytes=trusted_signer.public_key().public_bytes_raw(),
+            host_command_public_key_bytes=Ed25519PrivateKey.generate().public_key().public_bytes_raw(),
+            witness_start_public_key=Ed25519PrivateKey.generate().public_key().public_bytes_raw(),
+            witness_leader_epoch=11,
+        )
+        with pytest.raises(ProviderRPCDenied, match=expected):
+            client.read_signed_status("effect-X")
+        _done_pid, status = os.waitpid(provider_pid, 0)
+        provider_pid = -1
+        assert os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0
+    finally:
+        os.close(ready_r)
+        if provider_pid > 0:
+            import signal
+            os.kill(provider_pid, signal.SIGTERM)
+            os.waitpid(provider_pid, 0)
+        if endpoint.exists():
+            endpoint.unlink()
+        provider_dir.rmdir()
+        test_dir.rmdir()
