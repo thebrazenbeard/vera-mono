@@ -23,6 +23,11 @@ to a different model identity or adapter by changing request metadata.
    host-signed command AND external witness-signed START preimage, consumes its
    one-use physical fence before any effect, and signs the exact ACK. A missing
    or ambiguous response is non-retryable without independent reconciliation.
+   The challenged Ed25519-signed provider status RPC reports only a recorded
+   provider-fence row under the pinned provider process/key. It is **not** an
+   independent physical-effect probe or a recovery decision; RESERVED,
+   AMBIGUOUS, unknown, and lost-provider states remain held. Even a COMMITTED
+   provider row does not alone prove that an external system applied the effect.
 4. An independently administered witness leader owns its signing key and
    monotonic ledger, verifies registered issuer grants and provider ACKs, and
    fences physical effect reservations. A clone of *both* the leader's ledger
@@ -49,6 +54,10 @@ to a different model identity or adapter by changing request metadata.
 - [ ] Demonstrate one completed effect, pre-START revocation denial, simultaneous
       claims from cloned host ledgers, replay after crash, certificate/key
       rotation denial, and ambiguous effect recovery across real processes.
+- [ ] Implement and qualify independently owned external-effect readback and a
+      separately authorized, irreversible reconciliation transition. The
+      provider-signed fence-status RPC does not satisfy this condition and MUST
+      NOT trigger an automatic dispatch, retry, or declaration of no effect.
 - [ ] Repeat the five recorded hostile attacks against the *qualified path*,
       with reviewer identity, exact Git SHA, hardware/process topology, test
       commands and outcomes. A legacy-path exploit must also be unreachable
