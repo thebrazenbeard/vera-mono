@@ -17,6 +17,8 @@ import binascii
 import json
 import os
 from pathlib import Path
+import re
+import secrets
 import socket
 import stat
 import struct
@@ -28,7 +30,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from portfolio_runtime.lantern.canonical import canonical_json_bytes
 
 from .peer_isolation import read_linux_process_identity
-from .provider_custody import ProviderCustodyWorker
+from .provider_custody import ProviderCustodyWorker, STATUS_CONTEXT, STATUS_SCHEMA
 from .service import ProviderAcknowledgement
 from .unified_authority import WitnessEventReceipt
 
@@ -36,7 +38,10 @@ from .unified_authority import WitnessEventReceipt
 _WIRE_SCHEMA = "HOST_AUTHZ_PROVIDER_RPC_V1"
 _ACK_SCHEMA = "HOST_AUTHZ_PROVIDER_RPC_ACK_V1"
 _ACK_CONTEXT = b"VERA_HOST_AUTHZ_PROVIDER_ACK_V1\0"
+_STATUS_REQUEST_SCHEMA = "HOST_AUTHZ_PROVIDER_STATUS_REQUEST_V1"
+_STATUS_REPLY_SCHEMA = "HOST_AUTHZ_PROVIDER_STATUS_REPLY_V1"
 _MAX_FRAME = 192 * 1024
+_SHA256_HEX = re.compile(r"[0-9a-f]{64}\Z")
 
 
 class ProviderRPCDenied(PermissionError):
@@ -187,16 +192,25 @@ class ProviderCustodyRPCServer:
                 try:
                     authenticated = _peer(connection, self.host_peer)
                     body = _decode(_receive(connection, authenticated_sender=authenticated))
-                    if set(body) != {"schema", "command", "start_receipt", "start_event"} or body["schema"] != _WIRE_SCHEMA:
-                        raise ProviderRPCDenied("unknown provider RPC request")
-                    lease = WitnessEventReceipt(raw=_unb64(body["start_receipt"]),
-                                                event=_unb64(body["start_event"]), body={})
-                    acknowledgement = self.worker.dispatch(_unb64(body["command"]), start_lease=lease)
-                    response = canonical_json_bytes({
-                        "schema": _ACK_SCHEMA, "ok": True,
-                        "ack": {**acknowledgement.signed_body(),
-                                "signature": _b64(acknowledgement.receipt_signature)},
-                    })
+                    if body.get("schema") == _STATUS_REQUEST_SCHEMA:
+                        if set(body) != {"schema", "effect_id", "challenge"}:
+                            raise ProviderRPCDenied("unknown status request fields")
+                        observed, signature = self.worker.signed_status(body["effect_id"], body["challenge"])
+                        response = canonical_json_bytes({
+                            "schema": _STATUS_REPLY_SCHEMA, "ok": True,
+                            "status": observed, "signature": _b64(signature),
+                        })
+                    else:
+                        if set(body) != {"schema", "command", "start_receipt", "start_event"} or body["schema"] != _WIRE_SCHEMA:
+                            raise ProviderRPCDenied("unknown provider RPC request")
+                        lease = WitnessEventReceipt(raw=_unb64(body["start_receipt"]),
+                                                    event=_unb64(body["start_event"]), body={})
+                        acknowledgement = self.worker.dispatch(_unb64(body["command"]), start_lease=lease)
+                        response = canonical_json_bytes({
+                            "schema": _ACK_SCHEMA, "ok": True,
+                            "ack": {**acknowledgement.signed_body(),
+                                    "signature": _b64(acknowledgement.receipt_signature)},
+                        })
                 except Exception:
                     response = canonical_json_bytes({"schema": _ACK_SCHEMA, "ok": False})
                 _send(connection, response)
@@ -298,3 +312,62 @@ class ProviderCustodyRPCClient:
         if (ack.provider_id, ack.provider_instance_id) != (self.provider_id, self.provider_instance_id):
             raise ProviderRPCDenied("provider ACK identity substituted")
         return ack
+
+    def read_signed_status(self, effect_id: str) -> dict[str, Any]:
+        """Read one signed, challenged provider *fence observation*.
+
+        A COMMITTED record is not independent physical-effect evidence; a
+        RESERVED/AMBIGUOUS record must stay blocked. No status permits replay.
+        The provider's OS identity and Ed25519 receipt root are pinned by the
+        same boundary as execution RPC.
+        """
+        if type(effect_id) is not str or not effect_id or len(effect_id) > 256:
+            raise ProviderRPCDenied("invalid effect id for provider status")
+        challenge = secrets.token_hex(32)
+        try:
+            meta = self.path.lstat()
+        except OSError as exc:
+            raise ProviderRPCDenied("provider socket missing") from exc
+        if not stat.S_ISSOCK(meta.st_mode) or meta.st_uid != self._provider_uid or meta.st_mode & 0o077:
+            raise ProviderRPCDenied("provider socket ownership changed")
+        _assert_live(self._provider_pid, self._provider_uid, self._provider_start)
+        request = canonical_json_bytes({
+            "schema": _STATUS_REQUEST_SCHEMA, "effect_id": effect_id, "challenge": challenge,
+        })
+        with socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET) as connection:
+            connection.settimeout(self._timeout)
+            connection.setsockopt(socket.SOL_SOCKET, socket.SO_PASSCRED, 1)
+            connection.connect(str(self.path))
+            authenticated = _peer(connection, (self._provider_pid, self._provider_uid, self._provider_start))
+            _send(connection, request)
+            response = _decode(_receive(connection, authenticated_sender=authenticated))
+        if (type(response) is not dict or set(response) != {"schema", "ok", "status", "signature"}
+                or response["schema"] != _STATUS_REPLY_SCHEMA or response["ok"] is not True):
+            raise ProviderRPCDenied("provider status unavailable; do not retry effect")
+        body = response["status"]
+        expected_fields = {"schema", "challenge", "host_id", "epoch", "provider_id",
+                           "provider_instance_id", "effect_id", "command_digest",
+                           "claim_sequence", "state", "provider_result_digest"}
+        if type(body) is not dict or set(body) != expected_fields or body["schema"] != STATUS_SCHEMA:
+            raise ProviderRPCDenied("provider signed status malformed")
+        if (body["challenge"] != challenge or body["effect_id"] != effect_id
+                or body["host_id"] != self.host_id or body["epoch"] != self.epoch
+                or body["provider_id"] != self.provider_id
+                or body["provider_instance_id"] != self.provider_instance_id
+                or type(body["claim_sequence"]) is not int or body["claim_sequence"] <= 0
+                or type(body["state"]) is not str
+                or body["state"] not in {"RESERVED", "AMBIGUOUS", "COMMITTED"}
+                or type(body["command_digest"]) is not str
+                or _SHA256_HEX.fullmatch(body["command_digest"]) is None
+                or (body["provider_result_digest"] is not None and
+                    (type(body["provider_result_digest"]) is not str or
+                     _SHA256_HEX.fullmatch(body["provider_result_digest"]) is None))
+                or (body["state"] == "COMMITTED" and body["provider_result_digest"] is None)
+                or (body["state"] != "COMMITTED" and body["provider_result_digest"] is not None)):
+            raise ProviderRPCDenied("provider status identity, state or challenge mismatch")
+        try:
+            Ed25519PublicKey.from_public_bytes(self.receipt_public_key_bytes).verify(
+                _unb64(response["signature"]), STATUS_CONTEXT + canonical_json_bytes(body))
+        except (InvalidSignature, TypeError, ValueError) as exc:
+            raise ProviderRPCDenied("provider status not signed by pinned receipt key") from exc
+        return body
