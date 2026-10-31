@@ -22,6 +22,7 @@ from vera_core.host_authz.provider_custody import (
     HostDispatchSigner,
     ProviderCustodyDenied,
     ProviderCustodyWorker,
+    STATUS_CONTEXT,
 )
 from vera_core.host_authz.service import ProviderDispatch, ProviderAcknowledgement
 from vera_core.host_authz.unified_authority import (
@@ -176,6 +177,44 @@ def test_valid_host_signed_command_goes_through_provider_fence_and_receipt(tmp_p
             b"VERA_HOST_AUTHZ_PROVIDER_ACK_V1\0"
             + canonical_json_bytes(acknowledgement.signed_body()),
         )
+
+
+def test_signed_status_challenges_recorded_commit_but_cannot_reauthorize_dispatch(tmp_path):
+    signer, worker, effects, provider_signer, _ = setup(tmp_path)
+    command = instruction()
+    trusted_dispatch(worker, signer.sign(command), command=command)
+    challenge = "a" * 64
+    observed, signature = worker.signed_status(command.effect_id, challenge)
+    assert observed["state"] == "COMMITTED"
+    assert observed["challenge"] == challenge
+    assert observed["provider_result_digest"] is not None
+    provider_signer.public_key().verify(signature, STATUS_CONTEXT + canonical_json_bytes(observed))
+    with pytest.raises(InvalidSignature):
+        provider_signer.public_key().verify(signature, STATUS_CONTEXT
+                                           + canonical_json_bytes({**observed, "challenge": "b" * 64}))
+    with pytest.raises(ProviderCustodyDenied):
+        trusted_dispatch(worker, signer.sign(command), command=command)
+    assert len(effects) == 1
+
+
+def test_signed_status_never_proves_effect_absence_or_resolves_ambiguous_state(tmp_path):
+    def failing_provider(_command):
+        raise RuntimeError("synthetic provider outcome unknown")
+
+    signer, worker, _effects, provider_signer, _ = setup(tmp_path, execute=failing_provider)
+    with pytest.raises(ProviderCustodyDenied):
+        worker.signed_status("effect-1", "c" * 64)
+    with pytest.raises(ProviderCustodyDenied):
+        worker.signed_status("effect-1", "not-a-challenge")
+    command = instruction()
+    with pytest.raises(ProviderCustodyDenied):
+        trusted_dispatch(worker, signer.sign(command), command=command)
+    observed, signature = worker.signed_status("effect-1", "d" * 64)
+    assert observed["state"] == "AMBIGUOUS"
+    assert observed["provider_result_digest"] is None
+    provider_signer.public_key().verify(signature, STATUS_CONTEXT + canonical_json_bytes(observed))
+    with pytest.raises(ProviderCustodyDenied):
+        trusted_dispatch(worker, signer.sign(command), command=command)
 
 
 def test_start_lease_is_mandatory_even_for_valid_host_signed_dispatch(tmp_path):
