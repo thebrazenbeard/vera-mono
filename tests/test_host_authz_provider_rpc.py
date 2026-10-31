@@ -114,8 +114,10 @@ def test_unified_service_uses_real_separate_provider_uid_and_signed_rpc(tmp_path
             class Ready:
                 def set(self):
                     os.write(ready_w, b"R")
-            ProviderCustodyRPCServer(endpoint, worker, host_pid=host_pid,
-                                     host_uid=host_uid, host_start=host_start).serve_once(ready=Ready())
+            provider_server = ProviderCustodyRPCServer(endpoint, worker, host_pid=host_pid,
+                                                      host_uid=host_uid, host_start=host_start)
+            provider_server.serve_once(ready=Ready())
+            provider_server.serve_once(ready=Ready())
             os._exit(0)
         except BaseException:
             os._exit(92)
@@ -185,6 +187,14 @@ def test_unified_service_uses_real_separate_provider_uid_and_signed_rpc(tmp_path
                   provider_id="provider-X", operation="inspect", request_payload=_PAYLOAD)
         assert result.state == "ACKNOWLEDGED"
         assert authority.read("grant-X").state == "COMPLETED"
+        assert _read(ready_r, 1) == b"R"
+        status = client.read_signed_status(result.effect_id)
+        assert status["schema"] == "HOST_AUTHZ_PROVIDER_STATUS_V1"
+        assert status["state"] == "COMMITTED"
+        assert status["effect_id"] == result.effect_id
+        assert status["provider_result_digest"] is not None
+        assert status["provider_id"] == "provider-X"
+        assert status["provider_instance_id"] == "instance-X"
         assert not hasattr(client, "_execute")
         with pytest.raises((AttributeError, TypeError)):
             client._execute = lambda _: "retargeted"
