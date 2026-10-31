@@ -49,6 +49,8 @@ from .unified_authority import (
 COMMAND_SCHEMA = "HOST_AUTHZ_PROVIDER_COMMAND_V1"
 COMMAND_CONTEXT = b"VERA_HOST_AUTHZ_PROVIDER_COMMAND_V1\0"
 ACK_CONTEXT = b"VERA_HOST_AUTHZ_PROVIDER_ACK_V1\0"
+STATUS_CONTEXT = b"VERA_HOST_AUTHZ_PROVIDER_STATUS_V1\0"
+STATUS_SCHEMA = "HOST_AUTHZ_PROVIDER_STATUS_V1"
 _EXPECTED_FIELDS = frozenset({
     "effect_id", "grant_id", "provider_id", "provider_instance_id",
     "operation", "request_digest", "claim_sequence", "participant_id",
@@ -375,6 +377,41 @@ class ProviderCustodyWorker:
         with self._db() as db:
             row = db.execute("SELECT state FROM provider_effects WHERE effect_id=?", (effect_id,)).fetchone()
         return str(row["state"]) if row is not None else None
+
+    def signed_status(self, effect_id: str, challenge: str) -> tuple[dict[str, Any], bytes]:
+        """Attest a *recorded* fence state, never absence or external effect truth.
+
+        The caller must authenticate through the provider RPC OS peer boundary.
+        A fresh challenge prevents replaying a previous status as a new readback.
+        An unknown effect is denied: missing local state must never authorize
+        another attempt or be interpreted as proof that nothing happened.
+        """
+        effect_id = _id(effect_id, "effect id")
+        if type(challenge) is not str or _DIGEST.fullmatch(challenge) is None:
+            raise ProviderCustodyDenied("status challenge must be 32 random bytes in hex")
+        with self._db() as db:
+            row = db.execute(
+                "SELECT effect_id,command_digest,claim_sequence,state,provider_result_digest "
+                "FROM provider_effects WHERE effect_id=?", (effect_id,),
+            ).fetchone()
+        if row is None:
+            raise ProviderCustodyDenied("provider effect status unavailable; hold for reconciliation")
+        if row["state"] not in {"RESERVED", "AMBIGUOUS", "COMMITTED"}:
+            raise ProviderCustodyDenied("unknown provider effect state")
+        body = {
+            "schema": STATUS_SCHEMA,
+            "challenge": challenge,
+            "host_id": self.host_id,
+            "epoch": self.epoch,
+            "provider_id": self.provider_id,
+            "provider_instance_id": self.provider_instance_id,
+            "effect_id": str(row["effect_id"]),
+            "command_digest": str(row["command_digest"]),
+            "claim_sequence": int(row["claim_sequence"]),
+            "state": str(row["state"]),
+            "provider_result_digest": row["provider_result_digest"],
+        }
+        return body, self._receipt_key.sign(STATUS_CONTEXT + canonical_json_bytes(body))
 
     def dispatch(
         self, signed_command: bytes, *, start_lease: WitnessEventReceipt | None = None,
