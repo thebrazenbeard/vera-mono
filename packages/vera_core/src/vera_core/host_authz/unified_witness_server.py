@@ -23,6 +23,7 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import sqlite3
 import ssl
 import stat
@@ -44,6 +45,7 @@ from .unified_authority import (
 
 FENCE_REQUEST_SCHEMA = "HOST_AUTHZ_UNIFIED_PROVIDER_FENCE_REQUEST_V1"
 FENCE_RESPONSE_SCHEMA = "HOST_AUTHZ_UNIFIED_PROVIDER_FENCE_RESPONSE_V1"
+FENCE_ACK_CONTEXT = b"VERA_HOST_AUTHZ_UNIFIED_PROVIDER_FENCE_ACK_V1\0"
 _DIGEST = re.compile(r"[a-f0-9]{64}\Z")
 _MAX_BODY = 64 * 1024
 _REQUEST_FIELDS = frozenset({
@@ -540,13 +542,37 @@ class _WitnessMTLSHandler(BaseHTTPRequestHandler):
                 result = server.leader.allocate_event(raw)
             else:
                 req = _decode(raw)
-                if set(req) != _FENCE_FIELDS or req["schema"] != FENCE_REQUEST_SCHEMA:
+                if set(req) != _FENCE_FIELDS | {"challenge"} or req["schema"] != FENCE_REQUEST_SCHEMA:
                     raise WitnessLeaderDenied("invalid physical fence request")
+                challenge = req["challenge"]
+                if (type(challenge) is not str or len(challenge) != 48
+                        or any(ch not in "0123456789abcdef" for ch in challenge)):
+                    raise WitnessLeaderDenied("invalid physical fence challenge")
                 if server.leader.config.provider_client_sha256.get(req.get("provider_id")) != fingerprint:
                     raise WitnessLeaderDenied("provider certificate not bound to requested provider")
-                server.leader.reserve_provider_effect(**{k: v for k, v in req.items() if k != "schema"})
-                result = _canonical({"schema": FENCE_RESPONSE_SCHEMA, "approved": True,
-                                     "effect_id": req["effect_id"]})
+                server.leader.reserve_provider_effect(**{
+                    k: v for k, v in req.items() if k not in ("schema", "challenge")
+                })
+                fence_body = {
+                    "schema": FENCE_RESPONSE_SCHEMA,
+                    "approved": True,
+                    "host_id": req["host_id"],
+                    "epoch": req["epoch"],
+                    "leader_epoch": server.leader.config.leader_epoch,
+                    "provider_id": req["provider_id"],
+                    "provider_instance_id": req["provider_instance_id"],
+                    "grant_id": req["grant_id"],
+                    "effect_id": req["effect_id"],
+                    "challenge": challenge,
+                    "fence_request_digest": sha256(raw).hexdigest(),
+                }
+                signature = server.leader._key.sign(
+                    FENCE_ACK_CONTEXT + _canonical(fence_body))
+                result = _canonical({
+                    "schema": FENCE_RESPONSE_SCHEMA,
+                    "body": fence_body,
+                    "signature": base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii"),
+                })
         except (WitnessLeaderDenied, ValueError, TypeError, sqlite3.DatabaseError, TimeoutError, OSError):
             self._reply(403, b"")
             return
@@ -594,17 +620,24 @@ class UnifiedWitnessHTTPServer(ThreadingHTTPServer):
 class UnifiedWitnessMTLSClient:
     """Host-configured authenticated leader transport; no redirects or proxy."""
 
-    __slots__ = ("_host", "_port", "_context", "_timeout")
+    __slots__ = ("_host", "_port", "_context", "_timeout", "_leader_key", "_leader_epoch")
 
     def __init__(self, host: str, port: int, context: ssl.SSLContext,
-                 *, timeout: float = 3.0):
+                 *, leader_public_key: bytes, leader_epoch: int,
+                 timeout: float = 3.0):
         if type(host) is not str or not host or type(port) is not int or not 0 < port < 65536:
             raise ValueError("leader endpoint not pinned")
         if type(context) is not ssl.SSLContext or context.verify_mode != ssl.CERT_REQUIRED or not context.check_hostname:
             raise ValueError("leader certificate hostname and trust verification mandatory")
         if timeout <= 0 or timeout > 30:
             raise ValueError("bounded network timeout required")
+        if type(leader_public_key) is not bytes or len(leader_public_key) != 32:
+            raise ValueError("pinned independent leader Ed25519 root required")
+        if type(leader_epoch) is not int or leader_epoch < 1:
+            raise ValueError("pinned external leader epoch required")
         self._host, self._port, self._context, self._timeout = host, port, context, timeout
+        self._leader_key = Ed25519PublicKey.from_public_bytes(leader_public_key)
+        self._leader_epoch = leader_epoch
 
     def _post(self, endpoint: str, body: bytes) -> bytes:
         conn = http.client.HTTPSConnection(self._host, self._port, context=self._context,
@@ -630,9 +663,34 @@ class UnifiedWitnessMTLSClient:
     def reserve_provider_effect(self, **kwargs: Any) -> bool:
         if set(kwargs) != _FENCE_FIELDS - {"schema"}:
             raise WitnessLeaderDenied("missing provider fence fields")
-        request = _canonical({"schema": FENCE_REQUEST_SCHEMA, **kwargs})
+        challenge = secrets.token_hex(24)
+        request = _canonical({"schema": FENCE_REQUEST_SCHEMA,
+                              "challenge": challenge, **kwargs})
         reply = _decode(self._post("/v1/reserve-effect", request))
-        if reply != {"schema": FENCE_RESPONSE_SCHEMA, "approved": True,
-                     "effect_id": kwargs["effect_id"]}:
-            raise WitnessLeaderDenied("provider fence response not bound to effect")
+        if set(reply) != {"schema", "body", "signature"} or reply["schema"] != FENCE_RESPONSE_SCHEMA:
+            raise WitnessLeaderDenied("unsigned provider fence response")
+        body = reply["body"]
+        expected = {
+            "schema": FENCE_RESPONSE_SCHEMA,
+            "approved": True,
+            "host_id": kwargs["host_id"],
+            "epoch": kwargs["epoch"],
+            "leader_epoch": self._leader_epoch,
+            "provider_id": kwargs["provider_id"],
+            "provider_instance_id": kwargs["provider_instance_id"],
+            "grant_id": kwargs["grant_id"],
+            "effect_id": kwargs["effect_id"],
+            "challenge": challenge,
+            "fence_request_digest": sha256(request).hexdigest(),
+        }
+        if type(body) is not dict or body != expected or type(reply["signature"]) is not str:
+            raise WitnessLeaderDenied("provider fence response not bound to signed request")
+        signature_text = reply["signature"]
+        try:
+            signature = base64.urlsafe_b64decode(signature_text + "=" * (-len(signature_text) % 4))
+            if len(signature) != 64 or base64.urlsafe_b64encode(signature).rstrip(b"=").decode() != signature_text:
+                raise ValueError("noncanonical fence signature")
+            self._leader_key.verify(signature, FENCE_ACK_CONTEXT + _canonical(body))
+        except (InvalidSignature, ValueError, TypeError) as exc:
+            raise WitnessLeaderDenied("provider fence receipt not signed by pinned leader") from exc
         return True

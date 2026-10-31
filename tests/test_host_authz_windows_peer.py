@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+import sys
 
 import pytest
 
@@ -43,6 +44,7 @@ def test_rejects_without_prior_server_read_even_on_windows(monkeypatch):
         )
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="non-Windows fallback test")
 def test_non_windows_does_not_fall_back_to_self_reported_identity():
     with pytest.raises(windows_peer.WindowsPeerUnavailable, match="unavailable"):
         windows_peer.authenticated_named_pipe_peer(

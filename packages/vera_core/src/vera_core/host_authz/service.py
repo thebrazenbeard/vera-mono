@@ -148,11 +148,14 @@ class _PinnedProvider:
 
 @dataclass(frozen=True, slots=True, init=False)
 class HostAuthorizationService:
-    """One coherent, host-owned authorization service.
+    """LEGACY, unqualified callback-based authorization service.
 
     Provider and consent callbacks must be acquired by the host service before
     untrusted models are connected. A mapping-copy stops ordinary provider-map
-    rebinding; separate OS process identity/custody is still a deployment gate.
+    rebinding but NOT closure retargeting, consent-start races, or same-process
+    verifier mutation. A qualified listener MUST use ``UnifiedAuthorizationService``
+    with separately isolated provider RPC, never this class. This legacy class
+    remains for source compatibility; no deployment entitlement is conferred.
     """
 
     bindings: HostBindingSnapshot

@@ -30,6 +30,7 @@ from vera_core.host_authz.provider_custody import HostDispatchSigner, ProviderCu
 from vera_core.host_authz.service import ProviderAcknowledgement
 from vera_core.host_authz.unified_service import UnifiedAuthorizationService
 from vera_core.host_authz.unified_witness_server import (
+    FENCE_ACK_CONTEXT, FENCE_RESPONSE_SCHEMA,
     UnifiedWitnessHTTPServer, UnifiedWitnessLeader, UnifiedWitnessMTLSClient,
     WitnessLeaderConfig, WitnessLeaderDenied,
 )
@@ -132,7 +133,9 @@ def _leader_network(tmp_path, clock=None):
     thread.start()
     port = listener.server_address[1]
     clients = {name: UnifiedWitnessMTLSClient("localhost", port,
-                                              _ssl_client_context(ca, leaves, name))
+                                              _ssl_client_context(ca, leaves, name),
+                                              leader_public_key=signer.public_key().public_bytes_raw(),
+                                              leader_epoch=11)
                for name in ("host", "provider", "rogue")}
     try:
         yield leader, signer, issuer_key, bindings, verifier, clients, state, provider_signer
@@ -492,3 +495,47 @@ def test_leader_denies_physical_reservation_past_signed_start_deadline(tmp_path)
                 claim_sequence=claim.claim_sequence, request_digest=grant.request_digest,
                 grant_id=grant.grant_id, participant_id=grant.participant_id,
                 purpose=grant.purpose, operation=grant.operation)
+
+
+@pytest.mark.parametrize("rogue_signs", [False, True])
+def test_provider_fence_refuses_unsigned_or_wrong_leader_ack(monkeypatch, rogue_signs):
+    """A CA-trusted but non-leader endpoint cannot authorize an effect."""
+    pinned = ed25519.Ed25519PrivateKey.generate()
+    rogue = ed25519.Ed25519PrivateKey.generate()
+    client = UnifiedWitnessMTLSClient(
+        "localhost", 443, ssl.create_default_context(),
+        leader_public_key=pinned.public_key().public_bytes_raw(), leader_epoch=11,
+    )
+    fields = {
+        "host_id": "host-a", "epoch": 4, "provider_id": "provider-a",
+        "provider_instance_id": "instance-a", "effect_id": "effect-a",
+        "claim_sequence": 9, "request_digest": "f" * 64,
+        "grant_id": "grant-a", "participant_id": "participant-a",
+        "purpose": "research", "operation": "execute",
+    }
+
+    def counterfeit(_client, endpoint, request):
+        assert endpoint == "/v1/reserve-effect"
+        if not rogue_signs:
+            return canonical_json_bytes({
+                "schema": FENCE_RESPONSE_SCHEMA, "approved": True,
+                "effect_id": fields["effect_id"],
+            })
+        challenge = json.loads(request)["challenge"]
+        body = {
+            "schema": FENCE_RESPONSE_SCHEMA, "approved": True,
+            "host_id": fields["host_id"], "epoch": fields["epoch"],
+            "leader_epoch": 11, "provider_id": fields["provider_id"],
+            "provider_instance_id": fields["provider_instance_id"],
+            "grant_id": fields["grant_id"], "effect_id": fields["effect_id"],
+            "challenge": challenge, "fence_request_digest": sha256(request).hexdigest(),
+        }
+        sig = rogue.sign(FENCE_ACK_CONTEXT + canonical_json_bytes(body))
+        return canonical_json_bytes({
+            "schema": FENCE_RESPONSE_SCHEMA, "body": body,
+            "signature": base64.urlsafe_b64encode(sig).rstrip(b"=").decode(),
+        })
+
+    monkeypatch.setattr(UnifiedWitnessMTLSClient, "_post", counterfeit)
+    with pytest.raises(WitnessLeaderDenied):
+        client.reserve_provider_effect(**fields)

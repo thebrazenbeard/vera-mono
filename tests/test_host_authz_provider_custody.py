@@ -9,6 +9,7 @@ import base64
 import json
 import multiprocessing
 import os
+import sys
 from pathlib import Path
 import shutil
 
@@ -27,6 +28,11 @@ from vera_core.host_authz.unified_authority import (
     WitnessEventReceipt,
     RECEIPT_SCHEMA,
     SIGNATURE_CONTEXT,
+)
+
+pytestmark = pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="provider custody's protected fence and process tests require Linux/POSIX",
 )
 
 TEST_NOW = lambda: 2000  # synthetic clock; not a production trusted time source

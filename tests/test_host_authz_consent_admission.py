@@ -24,6 +24,12 @@ from test_host_authz_service import _make, _sign
 from vera_core.host_authz.consent_admission import ConsentScope, ConsentAdmission
 
 
+requires_linux_posix_state = pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="consent admission's durable store and flock need a Linux/POSIX host",
+)
+
+
 def test_scope_digest_is_exact_and_stable():
     scope = ConsentScope(
         participant_id="person-a", purpose="research", model_id="model-a",
@@ -94,6 +100,7 @@ def setup(tmp_path, *, provider=None, witness=None):
     return coordinator, token, instruction, calls, real_witness, ctx
 
 
+@requires_linux_posix_state
 def test_durable_start_precedes_handoff_and_cannot_replay(tmp_path):
     coordinator, token, instruction, calls, witness, _ = setup(tmp_path)
     assert coordinator.perform(token, instruction) == "host-observed-response-unverified"
@@ -110,6 +117,7 @@ def test_durable_start_precedes_handoff_and_cannot_replay(tmp_path):
     assert len(calls) == 1
 
 
+@requires_linux_posix_state
 def test_revocation_before_start_denies_effect(tmp_path):
     coordinator, token, instruction, calls, witness, _ = setup(tmp_path)
     scope = ConsentScope.from_grant(coordinator._verifier.verify(token))
@@ -123,6 +131,7 @@ def test_revocation_before_start_denies_effect(tmp_path):
     assert [item[0] for item in witness.calls] == ["REVOKE"]
 
 
+@requires_linux_posix_state
 def test_revocation_waits_for_started_provider_and_only_linearizes_later(tmp_path):
     started = threading.Event()
     release = threading.Event()
@@ -150,6 +159,7 @@ def test_revocation_waits_for_started_provider_and_only_linearizes_later(tmp_pat
     assert coordinator.revoked(scope)
 
 
+@requires_linux_posix_state
 def test_claim_ledger_revocation_cannot_overtake_started_provider(tmp_path):
     started = threading.Event()
     release = threading.Event()
@@ -183,6 +193,7 @@ def test_claim_ledger_revocation_cannot_overtake_started_provider(tmp_path):
     assert coordinator.read(instruction.effect_id).state == "RETURNED_UNVERIFIED"
 
 
+@requires_linux_posix_state
 def test_failed_external_witness_denies_without_start(tmp_path):
     witness = SyntheticOnlyWitness()
     witness.allowed = False
@@ -195,6 +206,7 @@ def test_failed_external_witness_denies_without_start(tmp_path):
         coordinator.revoke_scope(ConsentScope.from_grant(coordinator._verifier.verify(token)))
 
 
+@requires_linux_posix_state
 def test_grant_that_expires_while_waiting_for_host_lock_denied(tmp_path, monkeypatch):
     coordinator, token, instruction, calls, _, ctx = setup(tmp_path)
     first_verified = threading.Event()
@@ -220,6 +232,7 @@ def test_grant_that_expires_while_waiting_for_host_lock_denied(tmp_path, monkeyp
     assert coordinator.read(instruction.effect_id) is None
 
 
+@requires_linux_posix_state
 def test_witness_absent_fails_closed(tmp_path):
     coordinator, token, instruction, calls, _, ctx = setup(tmp_path)
     denied = ConsentAdmission(
@@ -233,6 +246,7 @@ def test_witness_absent_fails_closed(tmp_path):
     assert not calls
 
 
+@requires_linux_posix_state
 def test_claim_binding_and_effect_identity_tamper_denied(tmp_path):
     coordinator, token, instruction, calls, _, ctx = setup(tmp_path)
     for changed in (
@@ -246,6 +260,7 @@ def test_claim_binding_and_effect_identity_tamper_denied(tmp_path):
     assert not calls
 
 
+@requires_linux_posix_state
 def test_provider_exception_consumes_start_without_retry(tmp_path):
     calls = []
 
@@ -262,6 +277,7 @@ def test_provider_exception_consumes_start_without_retry(tmp_path):
     assert calls == [True]
 
 
+@requires_linux_posix_state
 def test_interrupted_provider_no_repeat(tmp_path):
     def interrupted(_instruction):
         raise KeyboardInterrupt()
@@ -274,6 +290,7 @@ def test_interrupted_provider_no_repeat(tmp_path):
         coordinator.perform(token, instruction)
 
 
+@requires_linux_posix_state
 def test_scope_revocation_is_exact_idempotent_and_model_isolated(tmp_path):
     coordinator, token, instruction, _, witness, _ = setup(tmp_path)
     scope = ConsentScope.from_grant(coordinator._verifier.verify(token))
@@ -283,6 +300,7 @@ def test_scope_revocation_is_exact_idempotent_and_model_isolated(tmp_path):
     assert [entry[0] for entry in witness.calls] == ["REVOKE"]
 
 
+@requires_linux_posix_state
 def test_host_owned_db_path_replacement_and_symlink_denied(tmp_path):
     coordinator, token, instruction, _, _, ctx = setup(tmp_path)
     saved = coordinator.path.with_suffix(".saved")
@@ -299,6 +317,7 @@ def test_host_owned_db_path_replacement_and_symlink_denied(tmp_path):
         )
 
 
+@requires_linux_posix_state
 def test_claim_ledger_replacement_before_physical_handoff_denied(tmp_path):
     coordinator, token, instruction, calls, _, ctx = setup(tmp_path)
     claim_path = ctx["ledger"].path

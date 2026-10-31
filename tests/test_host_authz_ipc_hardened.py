@@ -10,6 +10,7 @@ from pathlib import Path
 import signal
 import socket
 import sqlite3
+import sys
 import tempfile
 import threading
 
@@ -322,6 +323,7 @@ def test_qualified_server_dedicated_model_uid_and_inherited_fd(tmp_path, inherit
         test_dir.rmdir()
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="qualified Unix endpoint requires Linux kernel credentials")
 def test_qualified_server_must_have_host_plan(tmp_path):
     service = RecordingService()
     with pytest.raises((TypeError, ValueError, PermissionError)):

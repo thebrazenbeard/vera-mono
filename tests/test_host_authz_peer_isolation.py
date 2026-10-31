@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import socket
+import sys
 import tempfile
 
 import pytest
@@ -94,6 +95,7 @@ def test_unsupported_identity_and_mixed_platform_denied():
         )
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux /proc PID-start identity probe")
 def test_linux_proc_reader_rejects_symlink_and_real_self_is_stable(tmp_path):
     root = tmp_path / "proc"
     root.symlink_to("/proc", target_is_directory=True)

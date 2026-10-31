@@ -2,6 +2,7 @@
 
 import base64
 import json
+import sys
 from types import MappingProxyType
 
 import pytest
@@ -91,6 +92,11 @@ def payload(**extra):
 
 
 def server(api, service=None, **kw):
+    # Production explicitly rejects injected APIs on native Windows. These
+    # tests exercise the synthetic call-order seam on non-Windows only; the
+    # real Windows constructor-denial tests below remain enabled on Windows.
+    if sys.platform == "win32":
+        pytest.skip("synthetic pipe API injection is forbidden on native Windows")
     service = service or FakeService()
     return WindowsAuthorityPipeServer(
         PIPE, HOST, (MODEL_A, MODEL_B), service,

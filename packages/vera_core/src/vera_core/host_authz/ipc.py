@@ -186,14 +186,16 @@ def _execute_request(service: Any, peer_key: str, request: bytes) -> bytes:
 
 
 class UnixAuthorityServer:
-    """LEGACY low-level Unix server; NOT a qualified multi-model boundary.
+    """LEGACY one-request test/prototype server; NOT a deployable daemon.
 
     `socket_path` must be inside a pre-provisioned host-owned directory whose
     permissions prevent group/world writes. The server refuses an existing
     path and only unlinks the exact socket inode it created. Production host
     provisioning, UID isolation and provider custody require separate tests.
     This class verifies only connection-time SO_PEERCRED. A child inheriting a
-    connected FD is not distinguished; deploy QualifiedUnixAuthorityServer.
+    connected FD is not distinguished. Only the exact
+    ``QualifiedUnixAuthorityServer`` may enter the persistent service loop;
+    using this legacy class as a daemon is denied before a socket is bound.
     """
 
     def __init__(
@@ -287,7 +289,17 @@ class UnixAuthorityServer:
             self._cleanup(listener, inode)
 
     def serve_forever(self, stop: threading.Event, *, ready: threading.Event | None = None) -> None:
-        """Run until explicit host-owned stop event; no background threads."""
+        """Run a qualified daemon; legacy persistent listeners are forbidden.
+
+        The legacy one-shot test seam remains for compatibility with existing
+        source tests, not for host deployment. In particular, repeated calls
+        to ``serve_once`` do not constitute a qualified deployment.
+        """
+        if type(self) is not QualifiedUnixAuthorityServer:
+            raise HostIPCError(
+                "legacy persistent authorization listener disabled; "
+                "use the qualified unified authority endpoint"
+            )
         listener, inode = self._listen()
         listener.settimeout(0.5)
         try:

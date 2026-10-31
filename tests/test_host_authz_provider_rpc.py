@@ -210,9 +210,16 @@ def test_unified_service_uses_real_separate_provider_uid_and_signed_rpc(tmp_path
 
 
 def test_provider_rpc_fails_closed_without_pinned_distinct_process(tmp_path):
-    with pytest.raises(ProviderRPCDenied, match="separate OS uid"):
+    # On Windows there is no SO_PEERCRED/SCM_CREDENTIALS backend; rejection of
+    # the transport itself is the required fail-closed behavior.
+    linux_credentials = (
+        os.name == "posix"
+        and all(hasattr(socket, name) for name in
+                ("SO_PEERCRED", "SCM_CREDENTIALS", "SO_PASSCRED"))
+    )
+    with pytest.raises(ProviderRPCDenied, match="separate OS uid" if linux_credentials else "Linux-only"):
         ProviderCustodyRPCClient(tmp_path / "provider.sock", provider_pid=os.getpid(),
-            provider_uid=os.geteuid(), provider_start=1, provider_id="p",
+            provider_uid=os.geteuid() if linux_credentials else 0, provider_start=1, provider_id="p",
             provider_instance_id="i", host_id="h", epoch=1,
             receipt_public_key_bytes=b"x" * 32,
             host_command_public_key_bytes=b"y" * 32,

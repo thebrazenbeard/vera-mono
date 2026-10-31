@@ -36,6 +36,11 @@ from vera_core.host_authz.unified_authority import (
 )
 from vera_core.host_authz.unified_service import UnifiedAuthorizationService
 
+pytestmark = pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "O_NOFOLLOW"),
+    reason="coherent service tests require a protected POSIX authority/provider store",
+)
+
 
 NOW = 2000
 PAYLOAD = {"item": "synthetic"}

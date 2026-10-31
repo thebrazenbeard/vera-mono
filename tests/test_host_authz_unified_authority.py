@@ -8,6 +8,7 @@ from dataclasses import replace
 from hashlib import sha256
 import json
 import shutil
+import sys
 import threading
 
 from cryptography.hazmat.primitives import serialization
@@ -27,6 +28,11 @@ from vera_core.host_authz.unified_authority import (
     RECEIPT_SCHEMA, SIGNATURE_CONTEXT, UnifiedAuthorityDenied,
     UnifiedAuthorityUnavailable, UnifiedHostAuthority,
     verify_provider_start_lease,
+)
+
+pytestmark = pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="unified authority tests require a protected POSIX SQLite trust store",
 )
 
 
