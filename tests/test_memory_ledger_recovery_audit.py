@@ -105,6 +105,34 @@ def test_extra_receipt_authority_field_fails_closed(tmp_path):
         _scan(ledger)
 
 
+def test_rowid_reordering_does_not_invalidate_receipt_generation(tmp_path):
+    ledger = _ledger(tmp_path)
+    _admit(ledger, "one")
+    _admit(ledger, "two", supersedes="one")
+    expected_head = ledger.current_head
+    with sqlite3.connect(ledger.path) as db:
+        # SQLite rowid is a mutable storage locator, not admission order.
+        db.execute("UPDATE operations SET rowid=100 WHERE operation_id='op-one'")
+    report = _scan(ledger)
+    assert report["head"] == expected_head
+    assert report["generation"] == 2
+
+
+def test_duplicate_receipt_generation_rejected(tmp_path):
+    ledger = _ledger(tmp_path)
+    _admit(ledger, "one")
+    _admit(ledger, "two")
+    import json
+    with sqlite3.connect(ledger.path) as db:
+        raw = db.execute("SELECT receipt_json FROM operations WHERE operation_id='op-two'").fetchone()[0]
+        item = json.loads(raw)
+        item["generation"] = 1
+        db.execute("UPDATE operations SET receipt_json=? WHERE operation_id='op-two'",
+                   (json.dumps(item, sort_keys=True, separators=(",", ":")),))
+    with pytest.raises(MemoryLedgerError, match="generation"):
+        _scan(ledger)
+
+
 def test_missing_operation_fails(tmp_path):
     ledger = _ledger(tmp_path)
     _admit(ledger, "one")
