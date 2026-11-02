@@ -75,6 +75,22 @@ def test_corrupted_operation_receipt_fails(tmp_path):
         _scan(ledger)
 
 
+def test_receipt_privacy_ref_disagreement_fails(tmp_path):
+    ledger = _ledger(tmp_path)
+    _admit(ledger, "one")
+    with sqlite3.connect(ledger.path) as db:
+        old = db.execute("SELECT receipt_json FROM operations").fetchone()[0]
+        # A different but canonical JSON document should not override the
+        # admission request fields committed in the hashed record.
+        import json
+        receipt = json.loads(old)
+        receipt["privacy_ref"] = "privacy:forged"
+        db.execute("UPDATE operations SET receipt_json=?",
+                   (json.dumps(receipt, sort_keys=True, separators=(",", ":")),))
+    with pytest.raises(MemoryLedgerError, match="receipt"):
+        _scan(ledger)
+
+
 def test_missing_operation_fails(tmp_path):
     ledger = _ledger(tmp_path)
     _admit(ledger, "one")
