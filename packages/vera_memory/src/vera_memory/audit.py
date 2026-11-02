@@ -89,6 +89,14 @@ def audit_memory_ledger(path: str | Path, *, project_id: str,
             raise MemoryLedgerError("duplicate record")
         payload = _strict_record_payload(row["payload_json"], record_id=rid,
                                          digest=row["record_digest"])
+        # The record hash commits to the stored request_digest field, but
+        # does not prove that the field was computed from AdmissionRequest.
+        # Check the same canonical request payload used by admission.
+        request_fields = {key: value for key, value in payload.items()
+                          if key != "request_digest"}
+        expected_request_digest = sha256_hex(canonical_json_bytes(request_fields))
+        if payload.get("request_digest") != expected_request_digest:
+            raise MemoryLedgerError("stored request digest differs from admitted fields")
         if payload["project_id"] != project_id or payload["governed_identity_id"] != identity_id:
             raise MemoryLedgerError("project or identity mismatch")
         parent = payload.get("supersedes")
