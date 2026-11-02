@@ -59,6 +59,7 @@ def audit_memory_ledger(path: str | Path, *, project_id: str,
         db.row_factory = sqlite3.Row
         try:
             db.execute("PRAGMA query_only=ON")
+            db.execute("BEGIN")
             meta = dict(db.execute("SELECT key,value FROM meta").fetchall())
             try:
                 generation = int(meta["generation"])
@@ -125,6 +126,11 @@ def audit_memory_ledger(path: str | Path, *, project_id: str,
             ("record_digest", row["record_digest"]),
             ("project_id", project_id),
             ("governed_identity_id", identity_id),
+            ("memory_class", payload["memory_class"]),
+            ("authority_ref", payload["authority_ref"]),
+            ("privacy_ref", payload["privacy_ref"]),
+            ("provenance_refs", payload["provenance_refs"]),
+            ("claim_ceiling", "LOCAL_DURABLE_RECORD_NOT_SELF_AUTHENTICATING_POLICY_OR_CURRENT_TRUTH"),
             ("generation", n),
         ):
             if type(receipt.get(key)) is not type(expected) or receipt.get(key) != expected:
