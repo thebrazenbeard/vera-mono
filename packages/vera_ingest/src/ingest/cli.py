@@ -18,6 +18,7 @@ from .model import (
 from .pipeline import Ingestor
 from .policy import IngestPolicy
 from .storage import FileSystemStore
+from .export_inventory import inventory_exports
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -59,6 +60,15 @@ def _parser() -> argparse.ArgumentParser:
 
     inspect = sub.add_parser("inspect", help="read a stored ingest record")
     inspect.add_argument("ingest_id")
+
+    exports = sub.add_parser("export-inventory", help="read-only local historical export inventory; no admission or store writes")
+    exports.add_argument("directory")
+    exports.add_argument("--max-files", type=int, default=500)
+    exports.add_argument("--max-depth", type=int, default=1)
+    exports.add_argument("--max-read-bytes", type=int, default=1024 * 1024)
+    exports.add_argument("--hash-local", action="store_true", help="opt in to bounded reads of non-cloud local files")
+    exports.add_argument("--inspect-zip-local", action="store_true", help="opt in to bounded ZIP central-directory reads")
+    exports.add_argument("--include-names", action="store_true", help="include private relative names in local-only output")
     return parser
 
 
@@ -100,6 +110,28 @@ def _emit_result(result: IngestResult, human: bool) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "export-inventory":
+        # Deliberately before FileSystemStore construction: even its
+        # constructor creates directories, which is not a dry run.
+        try:
+            payload = inventory_exports(
+                args.directory,
+                max_files=args.max_files,
+                max_depth=args.max_depth,
+                max_read_bytes=args.max_read_bytes,
+                hash_local=args.hash_local,
+                inspect_zip_local=args.inspect_zip_local,
+                include_names=args.include_names,
+            )
+        except (ValueError, OSError) as exc:
+            print(json.dumps({
+                "schema": "VERA_EXPORT_INVENTORY_V1",
+                "status": "REJECTED",
+                "error": type(exc).__name__,
+            }, sort_keys=True, separators=(",", ":")))
+            return 2
+        print(json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
+        return 0
     store = FileSystemStore(args.store)
 
     if args.command == "inspect":
