@@ -4,8 +4,8 @@ This is a **read-only compatibility tool** for six-file historical Project
 projection directories. It does not reinstall the historical projection
 adapter or import the old memory kernel.
 
-**Private source provenance:** Patrick's local
-C:\Users\patri\OneDrive\Downloads\VERA_PROJECT_PROJECTION_ADAPTER_V0.2.0_VALIDATED.zip
+**Private source provenance:** the locally inspected archive named
+VERA_PROJECT_PROJECTION_ADAPTER_V0.2.0_VALIDATED.zip
 (SHA-256: 4741579ae7a90722578c6e543f88c7e3f14e8ce6d7eb5eda88d9a934d27bc64f).
 Source was inspected as **archival reference data**, not current authority.
 
