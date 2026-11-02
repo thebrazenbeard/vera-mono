@@ -8,6 +8,8 @@ from .ledger import (
     StaleMemoryHead,
 )
 
+from .historical_search import search_historical_evidence
+
 from .historical_evidence import (
     CHRONOLOGY_SEMANTICS,
     RESULT_SEMANTICS,
@@ -43,6 +45,7 @@ __all__ = [
     "HistoricalEvidenceRecord",
     "HistoricalEvidenceResult",
     "query_historical_evidence",
+    "search_historical_evidence",
     "DurableLearnedInfluenceGate",
     "LearnedInfluenceBlocked",
     "LearnedInfluenceError",
