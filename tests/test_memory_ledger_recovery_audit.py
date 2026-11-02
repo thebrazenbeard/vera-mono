@@ -91,6 +91,20 @@ def test_receipt_privacy_ref_disagreement_fails(tmp_path):
         _scan(ledger)
 
 
+def test_extra_receipt_authority_field_fails_closed(tmp_path):
+    ledger = _ledger(tmp_path)
+    _admit(ledger, "one")
+    import json
+    with sqlite3.connect(ledger.path) as db:
+        old = db.execute("SELECT receipt_json FROM operations").fetchone()[0]
+        data = json.loads(old)
+        data["authorization_effect"] = "TRAIN"
+        db.execute("UPDATE operations SET receipt_json=?",
+                   (json.dumps(data, sort_keys=True, separators=(",", ":")),))
+    with pytest.raises(MemoryLedgerError, match="receipt"):
+        _scan(ledger)
+
+
 def test_missing_operation_fails(tmp_path):
     ledger = _ledger(tmp_path)
     _admit(ledger, "one")
