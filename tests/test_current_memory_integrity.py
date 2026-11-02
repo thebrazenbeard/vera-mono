@@ -1,6 +1,8 @@
 """Historical-kernel-inspired audit for the current governed ledger: tests first."""
 from __future__ import annotations
 
+from contextlib import closing
+from pathlib import Path
 import json
 import sqlite3
 
@@ -140,3 +142,31 @@ def test_record_json_duplicate_key_fails_closed(tmp_path):
         db.execute("UPDATE records SET payload_json=? WHERE record_id='new'", (poisoned,))
     with pytest.raises(CurrentMemoryAuditError, match="record"):
         audit(path)
+
+def test_wal_mode_database_rejected_without_sidecar_creation(tmp_path):
+    """A read-only SQL connection may CREATE -wal/-shm on a WAL-mode file."""
+    path, _ = setup_two(tmp_path)
+    with closing(sqlite3.connect(path)) as db:
+        assert db.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+        db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    assert path.read_bytes()[18:20] == bytes((2, 2))
+    before = path.read_bytes()
+    assert not (tmp_path / "memory.sqlite-wal").exists()
+    assert not (tmp_path / "memory.sqlite-shm").exists()
+    with pytest.raises(CurrentMemoryAuditError, match="WAL|journal"):
+        audit(path)
+    assert path.read_bytes() == before
+    assert not (tmp_path / "memory.sqlite-wal").exists()
+    assert not (tmp_path / "memory.sqlite-shm").exists()
+
+
+def test_reject_active_sqlite_sidecar_without_touching_it(tmp_path):
+    path, _ = setup_two(tmp_path)
+    for suffix in ("-wal", "-shm", "-journal"):
+        sidecar = Path(str(path) + suffix)
+        sidecar.write_bytes(b"synthetic-test-sidecar")
+        original = sidecar.read_bytes()
+        with pytest.raises(CurrentMemoryAuditError, match="sidecar|active"):
+            audit(path)
+        assert sidecar.read_bytes() == original
+        sidecar.unlink()

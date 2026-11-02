@@ -9,6 +9,7 @@ with unrestricted database access can rewrite records, receipts, and heads.
 """
 from __future__ import annotations
 
+from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
@@ -80,9 +81,10 @@ def audit_current_memory_ledger(
 ) -> dict[str, object]:
     """Audit existing SQLite records, operations, supersession and CAS chain.
 
-    Uses an SQLite read-only URI and read transaction; never calls MemoryLedger's
-    initializer, executes a migration, returns memory content, or writes data.
-    Does not compare to an independently trusted previously witnessed head.
+    Accepts only quiescent offline rollback-journal-mode SQLite files, with
+    no active sidecars. An immutable read-only URI prevents journal creation.
+    Never initializes, migrates, returns memory content or writes data.
+    Does not compare to an independently witnessed trusted head.
     """
     if (type(project_id) is not str or not project_id or
         type(identity_id) is not str or not identity_id):
@@ -99,11 +101,30 @@ def audit_current_memory_ledger(
     if not 0 < target.stat().st_size <= max_database_bytes:
         raise CurrentMemoryAuditError("current ledger file size limit exceeded")
 
-    # Do not allow a corrupt or old file to be auto-initialized as new memory.
+    # SQLite read-only connections can still create -wal/-shm sidecars for a
+    # WAL-mode database. Reject active/non-quiescent inputs before opening SQL;
+    # inspect only a detached rollback-journal-mode snapshot. This is a local
+    # consistency audit, not a live-service or concurrent-writer probe.
+    if any(Path(str(target) + suffix).exists() for suffix in ("-wal", "-shm", "-journal")):
+        raise CurrentMemoryAuditError("active SQLite sidecar prevents read-only audit")
     try:
-        with sqlite3.connect(target.as_uri() + "?mode=ro", uri=True) as db:
+        with target.open("rb") as stream:
+            header = stream.read(20)
+    except OSError as exc:
+        raise CurrentMemoryAuditError("unreadable SQLite audit file") from exc
+    if len(header) != 20 or header[:16] != b"SQLite format 3\x00":
+        raise CurrentMemoryAuditError("invalid SQLite database header")
+    if header[18:20] != bytes((1, 1)):
+        raise CurrentMemoryAuditError("WAL or unsupported SQLite journal mode")
+
+    # Immutable read-only URI prevents SQLite from creating lock/journal files.
+    # Source must be a quiescent offline snapshot; no concurrent writer assumed.
+    try:
+        with closing(sqlite3.connect(target.as_uri() + "?mode=ro&immutable=1",
+                                     uri=True, timeout=1)) as db:
             db.row_factory = sqlite3.Row
             db.execute("PRAGMA query_only=ON")
+            db.execute("PRAGMA trusted_schema=OFF")
             db.execute("BEGIN")
             meta = dict(db.execute("SELECT key,value FROM meta"))
             _require("generation" in meta and "head" in meta,

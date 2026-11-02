@@ -31,15 +31,18 @@ snapshot, verifies:
   each receipt's intermediate head and the final meta head.
 - All stored supersession references, predecessor ordering, and mutable
   CURRENT/SUPERSEDED column state.
-- Bounded record and database sizes; rejects missing files and symlink
-  paths. No hidden migrations, writes or fallback initialization.
+- Bounded record and database sizes; rejects missing files, symlink paths,
+  WAL-mode headers, and SQLite `-wal`/`-shm`/`-journal` sidecars. No hidden
+  migrations, writes or fallback initialization. The auditor uses an immutable
+  read-only connection to prevent SQLite from creating sidecar files.
 
 Returns only `ok`, counts, generation, the local head digest, and a
 bounded evidence class. Memory text and raw provenance references are
 **never included in the report**. On corruption, raises
 `CurrentMemoryAuditError` without the record text or private values.
 
-Example on an explicitly authorized **existing local ledger**:
+Example on an explicitly authorized **quiescent, offline copy** of an
+existing local ledger (rollback-journal format, with no active sidecars):
 
 ```python
 from vera_memory import audit_current_memory_ledger
@@ -54,7 +57,7 @@ assert result["ok"]
 
 ## Claims and boundary
 
-This verifies **self-consistency inside one local database snapshot**, not
+This verifies **self-consistency inside one detached offline database snapshot**, not
 external authenticity, writer identity, canonical-memory admission,
 historical migration, or continuity of experience. A writer with full
 database access can replace rows, receipts, metadata and hashes together.
