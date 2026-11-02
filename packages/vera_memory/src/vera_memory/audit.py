@@ -5,13 +5,14 @@ migration of old memory contents, evidence of provenance, or admission authority
 """
 from __future__ import annotations
 
+from dataclasses import fields
 import json
 from pathlib import Path
 import sqlite3
 from typing import Any
 
 from portfolio_runtime.lantern.canonical import canonical_json, canonical_json_bytes, sha256_hex
-from .ledger import MemoryLedgerError, _strict_record_payload
+from .ledger import AdmissionRequest, MemoryClass, MemoryLedgerError, _strict_record_payload
 
 
 GENESIS_HEAD = sha256_hex(b"vera-memory-genesis-v1")
@@ -94,7 +95,27 @@ def audit_memory_ledger(path: str | Path, *, project_id: str,
         # Check the same canonical request payload used by admission.
         request_fields = {key: value for key, value in payload.items()
                           if key != "request_digest"}
-        expected_request_digest = sha256_hex(canonical_json_bytes(request_fields))
+        # A recomputed digest alone accepts coherent records that admission
+        # could never create (unknown fields, empty text, invalid classes,
+        # duplicate provenance). Enforce the exact current API schema too.
+        expected_fields = {field.name for field in fields(AdmissionRequest)}
+        if set(request_fields) != expected_fields:
+            raise MemoryLedgerError("stored admission payload has missing or extra fields")
+        if (type(request_fields["memory_class"]) is not str or
+                type(request_fields["provenance_refs"]) is not list):
+            raise MemoryLedgerError("stored admission payload has invalid field types")
+        try:
+            request = AdmissionRequest(
+                **{**request_fields,
+                   "memory_class": MemoryClass(request_fields["memory_class"]),
+                   "provenance_refs": tuple(request_fields["provenance_refs"])},
+            )
+            validated_fields = request.payload()
+        except (TypeError, ValueError) as exc:
+            raise MemoryLedgerError("stored admission payload fails request validation") from exc
+        if validated_fields != request_fields:
+            raise MemoryLedgerError("stored admission payload differs from request schema")
+        expected_request_digest = sha256_hex(canonical_json_bytes(validated_fields))
         if payload.get("request_digest") != expected_request_digest:
             raise MemoryLedgerError("stored request digest differs from admitted fields")
         if payload["project_id"] != project_id or payload["governed_identity_id"] != identity_id:
