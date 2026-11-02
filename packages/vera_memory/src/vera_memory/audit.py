@@ -118,6 +118,14 @@ def audit_memory_ledger(path: str | Path, *, project_id: str,
             raise MemoryLedgerError("operation missing or repeated record")
         payload, row = records[rid]
         receipt = _receipt(op["receipt_json"])
+        allowed_receipt_keys = {
+            "schema", "operation_id", "record_id", "request_digest",
+            "record_digest", "memory_class", "project_id",
+            "governed_identity_id", "authority_ref", "privacy_ref",
+            "provenance_refs", "store_head", "generation", "claim_ceiling",
+        }
+        if set(receipt) != allowed_receipt_keys:
+            raise MemoryLedgerError("operation receipt has missing or extra fields")
         for key, expected in (
             ("schema", "VERA_MONO_MEMORY_ADMISSION_RECEIPT_V1"),
             ("operation_id", op["operation_id"]),
