@@ -74,7 +74,7 @@ def audit_memory_ledger(path: str | Path, *, project_id: str,
             ).fetchall()
             operations = db.execute(
                 "SELECT operation_id,request_digest,record_id,receipt_json "
-                "FROM operations ORDER BY rowid"
+                "FROM operations"
             ).fetchall()
         finally:
             db.close()
@@ -110,14 +110,27 @@ def audit_memory_ledger(path: str | Path, *, project_id: str,
 
     if len(operations) != len(records) or len(operations) != generation:
         raise MemoryLedgerError("operation/record/generation count mismatch")
+    # SQLite rowid can change during maintenance. The signed-by-no-one but
+    # internally bound receipt generation, not physical storage order, is the
+    # only ordering value defined by this ledger's admission contract.
+    ordered = []
+    generations = set()
+    for op in operations:
+        receipt = _receipt(op["receipt_json"])
+        ordinal = receipt.get("generation")
+        if (type(ordinal) is not int or ordinal < 1 or ordinal > generation
+                or ordinal in generations):
+            raise MemoryLedgerError("invalid or duplicate receipt generation")
+        generations.add(ordinal)
+        ordered.append((ordinal, op, receipt))
+    ordered.sort(key=lambda row: row[0])
     head = GENESIS_HEAD
     admitted = set()
-    for n, op in enumerate(operations, start=1):
+    for n, op, receipt in ordered:
         rid = op["record_id"]
         if rid not in records or rid in admitted:
             raise MemoryLedgerError("operation missing or repeated record")
         payload, row = records[rid]
-        receipt = _receipt(op["receipt_json"])
         allowed_receipt_keys = {
             "schema", "operation_id", "record_id", "request_digest",
             "record_digest", "memory_class", "project_id",
