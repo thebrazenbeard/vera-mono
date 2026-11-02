@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-from ingest.cli import main
+from ingest.export_inventory_cli import main
 from ingest.export_inventory import inventory_exports, _is_cloud_or_reparse
 
 
@@ -20,7 +20,7 @@ class ExportInventoryTests(unittest.TestCase):
             output = io.StringIO()
             store = root / "should-not-exist"
             with patch("pathlib.Path.open", side_effect=AssertionError("unexpected byte read")), redirect_stdout(output):
-                code = main(["--store", str(store), "export-inventory", str(root)])
+                code = main([str(root)])
             self.assertEqual(code, 0)
             self.assertFalse(store.exists())
             payload = json.loads(output.getvalue())
@@ -81,6 +81,15 @@ class ExportInventoryTests(unittest.TestCase):
             self.assertEqual(row["archive"]["status"], "REJECTED_METADATA")
             self.assertIn("NESTED_ARCHIVE_MEMBER", row["archive"]["reasons"])
 
+    def test_jar_container_member_is_flagged_as_nested_archive(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with zipfile.ZipFile(root / "outer.zip", "w") as archive:
+                archive.writestr("lib/child.jar", b"nested archive bytes not inspected")
+            row = inventory_exports(root, inspect_zip_local=True)["files"][0]
+            self.assertEqual(row["archive"]["status"], "REJECTED_METADATA")
+            self.assertIn("NESTED_ARCHIVE_MEMBER", row["archive"]["reasons"])
+
     def test_zip_size_has_absolute_cap_even_with_large_user_limit(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -113,7 +122,7 @@ class ExportInventoryTests(unittest.TestCase):
             (root / "name-b.txt").touch()
             output = io.StringIO()
             with redirect_stdout(output):
-                code = main(["export-inventory", str(root), "--max-files", "1"])
+                code = main([str(root), "--max-files", "1"])
             self.assertEqual(code, 2)
             self.assertEqual(json.loads(output.getvalue())["status"], "REJECTED")
             self.assertNotIn("name-", output.getvalue())

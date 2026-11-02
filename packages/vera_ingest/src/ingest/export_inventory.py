@@ -25,7 +25,12 @@ _MAX_ARCHIVE_MEMBERS = 2048
 _MAX_ZIP_INPUT_BYTES = 2 * 1024 * 1024
 _MAX_UNCOMPRESSED_BYTES = 128 * 1024 * 1024
 _MAX_COMPRESSION_RATIO = 100
-_NESTED_ARCHIVE_SUFFIXES = (".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz")
+# Heuristic suffix denial, not a content-based proof that nested archives are absent.
+_NESTED_ARCHIVE_SUFFIXES = (
+    ".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz",
+    ".jar", ".war", ".ear", ".whl", ".apk", ".epub",
+    ".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp",
+)
 
 
 def _is_cloud_or_reparse(metadata: os.stat_result) -> bool:
