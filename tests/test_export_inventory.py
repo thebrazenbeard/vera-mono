@@ -14,7 +14,30 @@ from ingest.export_inventory_cli import main
 from ingest.export_inventory import inventory_exports, _is_cloud_or_reparse
 
 
+# These tests require an actual descriptor-pinned metadata inventory. Windows,
+# WSL, and POSIX runtimes missing fd-scandir/relative-stat intentionally HOLD.
+# Keep platform-independent fail-closed assertions running on every platform.
+requires_pinned_metadata = unittest.skipUnless(
+    export_inventory._has_nofollow_metadata_walk(),
+    "requires qualified POSIX descriptor-pinned metadata inventory",
+)
+
+
 class ExportInventoryTests(unittest.TestCase):
+    def test_windows_metadata_inventory_holds_before_native_filesystem_access(self):
+        # Simulate fd capabilities being available so os.name='nt' alone must
+        # enforce HOLD. Replacing os.open/os.scandir with mocks here would
+        # accidentally remove them from supports_* and give a false pass.
+        with patch.object(export_inventory.os, "name", "nt"), \
+                patch.object(export_inventory.os, "supports_dir_fd", frozenset({os.open, os.stat})), \
+                patch.object(export_inventory.os, "supports_fd", frozenset({os.scandir})), \
+                patch.object(export_inventory.os, "O_NOFOLLOW", 0x20000, create=True), \
+                patch.object(export_inventory.os, "O_DIRECTORY", 0x10000, create=True), \
+                patch.object(export_inventory, "Path", side_effect=lambda _: object()):
+            self.assertFalse(export_inventory._has_nofollow_metadata_walk())
+            with self.assertRaisesRegex(ValueError, "no-follow local directory"):
+                inventory_exports("C:\\synthetic\\not-accessed", hash_local=True, include_names=True)
+
     @unittest.skipUnless(os.name == "posix" and hasattr(os, "O_NOFOLLOW"), "POSIX no-follow probe")
     def test_queued_directory_symlink_retarget_never_leaks_metadata_names(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -232,6 +255,7 @@ class ExportInventoryTests(unittest.TestCase):
             row = next(item for item in result["files"] if item["extension"] == ".bin")
             self.assertEqual(row["status"], "SKIPPED_CHANGED_FILE")
             self.assertNotIn("sha256", row)
+    @requires_pinned_metadata
     def test_default_is_metadata_only_redacted_and_does_not_create_store(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -250,6 +274,7 @@ class ExportInventoryTests(unittest.TestCase):
             self.assertNotIn("Ada", output.getvalue())
             self.assertFalse(payload["public_release_authorized"])
 
+    @requires_pinned_metadata
     def test_explicit_bounded_hashes_are_stably_deduplicated(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -268,6 +293,7 @@ class ExportInventoryTests(unittest.TestCase):
                     self.assertNotIn("sha256", row)
             self.assertNotIn("relative_path", rows[0])
 
+    @requires_pinned_metadata
     def test_large_files_skipped_without_reading_even_with_opt_in(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -304,6 +330,7 @@ class ExportInventoryTests(unittest.TestCase):
                     self.assertIsNone(export_inventory._hash_small_local(root / "a.txt", 5, 4096))
                     self.assertEqual(export_inventory._inspect_zip_local(root / "b.zip", 100)["status"], "REJECTED_METADATA")
 
+    @requires_pinned_metadata
     def test_safe_and_malicious_zip_central_directory_only(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -324,6 +351,7 @@ class ExportInventoryTests(unittest.TestCase):
             self.assertEqual(safe["admission"], "NOT_GRANTED")
             self.assertNotIn("readme.txt", json.dumps(payload))
 
+    @requires_pinned_metadata
     def test_nested_zip_member_requires_manual_archive_review(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -337,6 +365,7 @@ class ExportInventoryTests(unittest.TestCase):
                 self.assertEqual(row["status"], "SKIPPED_NO_SAFE_NOFOLLOW_OPEN")
                 self.assertNotIn("archive", row)
 
+    @requires_pinned_metadata
     def test_jar_container_member_is_flagged_as_nested_archive(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -350,6 +379,7 @@ class ExportInventoryTests(unittest.TestCase):
                 self.assertEqual(row["status"], "SKIPPED_NO_SAFE_NOFOLLOW_OPEN")
                 self.assertNotIn("archive", row)
 
+    @requires_pinned_metadata
     def test_zip_size_has_absolute_cap_even_with_large_user_limit(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -362,6 +392,7 @@ class ExportInventoryTests(unittest.TestCase):
                 )["files"][0]
             self.assertEqual(row["status"], "SKIPPED_READ_SIZE_LIMIT")
 
+    @requires_pinned_metadata
     def test_symlink_target_outside_root_never_opened(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -375,6 +406,7 @@ class ExportInventoryTests(unittest.TestCase):
             self.assertEqual(rows[0]["status"], "SKIPPED_NONREGULAR")
             self.assertNotIn("sha256", rows[0])
 
+    @requires_pinned_metadata
     def test_hard_limit_rejects_with_no_private_path_echo(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -387,6 +419,7 @@ class ExportInventoryTests(unittest.TestCase):
             self.assertEqual(json.loads(output.getvalue())["status"], "REJECTED")
             self.assertNotIn("name-", output.getvalue())
 
+    @requires_pinned_metadata
     def test_file_limit_counts_cumulative_directories_not_just_files(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -398,6 +431,7 @@ class ExportInventoryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "entry limit"):
                 inventory_exports(root, max_files=5, max_depth=1)
 
+    @requires_pinned_metadata
     def test_root_symlink_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
