@@ -18,6 +18,12 @@ from .historical_evidence import (
     query_historical_evidence,
 )
 
+from .historical_export_projection import (
+    ExportProjectionError,
+    StagedExportEvidence,
+    project_staged_exports,
+)
+
 from .learned_influence import (
     DurableLearnedInfluenceGate,
     LearnedInfluenceBlocked,
@@ -43,6 +49,9 @@ __all__ = [
     "HistoricalEvidenceRecord",
     "HistoricalEvidenceResult",
     "query_historical_evidence",
+    "ExportProjectionError",
+    "StagedExportEvidence",
+    "project_staged_exports",
     "DurableLearnedInfluenceGate",
     "LearnedInfluenceBlocked",
     "LearnedInfluenceError",
