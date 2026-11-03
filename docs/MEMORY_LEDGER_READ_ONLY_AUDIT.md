@@ -67,6 +67,15 @@ after exact current `AdmissionRequest` semantic replay was added. Additional
 hostile regressions reject extra metadata, dangling sidecar symlinks and deeply
 nested invalid record/receipt JSON without leaking raw `RecursionError`.
 
+SQLite's connection context manager commits/rolls back but does **not** close
+the database handle. The current `MemoryLedger` now closes all four connection
+lifecycles explicitly *after* their transaction context exits, and closes a
+connection if setup fails before it can enter the caller's context; the synthetic
+fixture writers also close their connections. Tracked-connection regressions
+assert normal/exceptional ledger handles close, while a Windows-only test attempts to unlink
+the completed audit file. The latter requires a Windows CI run; a Linux pass
+cannot prove Win32 handle release behavior.
+
 Still unqualified: Windows/OneDrive path behavior, concurrent malicious
 filesystem writers, very large or adversarial SQLite database performance,
 external head custody and independent production-host readback. Keep the

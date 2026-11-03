@@ -71,7 +71,7 @@ def test_audit_reconstructs_admission_and_supersession_without_private_data(tmp_
 
 def test_corrupted_status_cannot_pass(tmp_path):
     path, _ = setup_two(tmp_path)
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.execute("UPDATE records SET status='CURRENT',superseded_by=NULL WHERE record_id='old'")
     with pytest.raises(CurrentMemoryAuditError, match="supersession"):
         audit(path)
@@ -79,7 +79,7 @@ def test_corrupted_status_cannot_pass(tmp_path):
 
 def test_corrupted_record_digest_or_duplicate_json_key_cannot_pass(tmp_path):
     path, _ = setup_two(tmp_path)
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.execute("UPDATE records SET record_digest='wrong' WHERE record_id='new'")
     with pytest.raises(CurrentMemoryAuditError, match="record"):
         audit(path)
@@ -87,7 +87,7 @@ def test_corrupted_record_digest_or_duplicate_json_key_cannot_pass(tmp_path):
 
 def test_noncanonical_receipt_and_header_mismatch_fail(tmp_path):
     path, _ = setup_two(tmp_path)
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         receipt = db.execute("SELECT receipt_json FROM operations WHERE operation_id='op-new'").fetchone()[0]
         db.execute("UPDATE operations SET receipt_json=? WHERE operation_id='op-new'",
                    ('{"generation":999,' + receipt[1:],))
@@ -97,7 +97,7 @@ def test_noncanonical_receipt_and_header_mismatch_fail(tmp_path):
 
 def test_missing_operation_and_forged_meta_fail(tmp_path):
     path, _ = setup_two(tmp_path)
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.execute("DELETE FROM operations WHERE operation_id='op-new'")
     with pytest.raises(CurrentMemoryAuditError, match="count|operation"):
         audit(path)
@@ -105,7 +105,7 @@ def test_missing_operation_and_forged_meta_fail(tmp_path):
     db2 = tmp_path / "forged.sqlite"
     store = MemoryLedger(db2, project_id="vera-mono", identity_id="vera")
     store.admit(admission("old"), expected_head=store.current_head)
-    with sqlite3.connect(db2) as db:
+    with closing(sqlite3.connect(db2)) as db, db:
         db.execute("UPDATE meta SET value=? WHERE key='head'", ("f" * 64,))
     with pytest.raises(CurrentMemoryAuditError, match="head"):
         audit(db2)
@@ -136,7 +136,7 @@ def test_missing_file_and_symlink_rejected(tmp_path):
 
 def test_record_json_duplicate_key_fails_closed(tmp_path):
     path, _ = setup_two(tmp_path)
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         raw = db.execute("SELECT payload_json FROM records WHERE record_id='new'").fetchone()[0]
         poisoned = raw.replace('"supersedes":', '"supersedes":"old","supersedes":', 1)
         db.execute("UPDATE records SET payload_json=? WHERE record_id='new'", (poisoned,))

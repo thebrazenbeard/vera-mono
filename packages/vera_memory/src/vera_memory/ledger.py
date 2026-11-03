@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 import json
@@ -149,12 +150,19 @@ class MemoryLedger:
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
+        try:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys = ON")
+        except BaseException:
+            # The caller cannot enter its closing context until setup returns.
+            connection.close()
+            raise
         return connection
 
     def _init_db(self) -> None:
-        with self._connect() as db:
+        # sqlite3.Connection.__exit__ commits/rolls back but does not close.
+        # Close explicitly so Windows can unlink completed test/snapshot files.
+        with closing(self._connect()) as db, db:
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS meta (
@@ -217,7 +225,7 @@ class MemoryLedger:
 
     @property
     def current_head(self) -> str:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             return self._meta(db)[1]
 
     @staticmethod
@@ -244,7 +252,7 @@ class MemoryLedger:
         if type(expected_head) is not str or not expected_head:
             raise MemoryLedgerError("expected_head is required")
 
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             replay = db.execute(
                 "SELECT request_digest,receipt_json FROM operations WHERE operation_id=?",
@@ -317,7 +325,7 @@ class MemoryLedger:
             return receipt
 
     def read(self, record_id: str, *, expected_head: str | None = None) -> MemoryRecord:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             _, head = self._meta(db)
             if expected_head is not None and expected_head != head:
                 raise StaleMemoryHead("memory head mismatch")

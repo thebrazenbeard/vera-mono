@@ -1,15 +1,18 @@
 """Synthetic regression for bounded canonical current-ledger structural audit."""
 from __future__ import annotations
 
+from contextlib import closing
 import json
+import os
 from dataclasses import replace
 from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from portfolio_runtime.lantern.canonical import canonical_json, canonical_json_bytes, sha256_hex
-from vera_memory import AdmissionRequest, MemoryClass, MemoryLedger
+from vera_memory import AdmissionRequest, MemoryClass, MemoryLedger, StaleMemoryHead
 from vera_memory.integrity import CurrentMemoryAuditError, audit_current_memory_ledger
 
 
@@ -28,7 +31,7 @@ def _rewrite_consistent_invalid_payload(path: Path, change) -> None:
     The audit must still reject payloads that the public AdmissionRequest API
     would reject, even if the internal hashes and receipt chain agree.
     """
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         payload = json.loads(db.execute("SELECT payload_json FROM records").fetchone()[0])
         change(payload)
         request_fields = {k: v for k, v in payload.items() if k != "request_digest"}
@@ -95,7 +98,7 @@ class CanonicalMemoryAuditTests(unittest.TestCase):
 
     def test_record_digest_and_receipt_mutations_fail(self):
         self.ledger.admit(_request(), expected_head=self.ledger.current_head)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE records SET record_digest='wrong'")
         with self.assertRaises(CurrentMemoryAuditError):
             self._audit()
@@ -103,7 +106,7 @@ class CanonicalMemoryAuditTests(unittest.TestCase):
         fresh = Path(self.tmp.name) / "receipt.sqlite"
         ledger = MemoryLedger(fresh, project_id="project", identity_id="identity")
         ledger.admit(_request(), expected_head=ledger.current_head)
-        with sqlite3.connect(fresh) as db:
+        with closing(sqlite3.connect(fresh)) as db, db:
             db.execute("UPDATE operations SET request_digest='wrong'")
         with self.assertRaises(CurrentMemoryAuditError):
             audit_current_memory_ledger(fresh, project_id="project", identity_id="identity")
@@ -112,14 +115,14 @@ class CanonicalMemoryAuditTests(unittest.TestCase):
         self.ledger.admit(_request(), expected_head=self.ledger.current_head)
         with self.assertRaises(CurrentMemoryAuditError):
             audit_current_memory_ledger(self.path, project_id="project", identity_id="wrong")
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE meta SET value=? WHERE key='head'", ("f" * 64,))
         with self.assertRaises(CurrentMemoryAuditError):
             self._audit()
 
     def test_wal_header_refused_without_creating_sidecars(self):
         self.ledger.admit(_request(), expected_head=self.ledger.current_head)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             self.assertEqual(db.execute("PRAGMA journal_mode=WAL").fetchone()[0], "wal")
             db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         self.assertEqual(self.path.read_bytes()[18:20], bytes((2, 2)))
@@ -138,6 +141,71 @@ class CanonicalMemoryAuditTests(unittest.TestCase):
             if sidecar.exists():
                 self.assertEqual(sidecar.read_bytes(), before_sidecars[suffix])
 
+    def test_memory_ledger_closes_every_connection(self):
+        # Unlike a file-unlink check, this catches the leak deterministically
+        # on Linux too: SQLite's connection context manager only commits.
+        underlying_connect = sqlite3.connect
+        connections = []
+
+        class TrackingConnection(sqlite3.Connection):
+            closed_explicitly = False
+
+            def close(self):
+                self.closed_explicitly = True
+                super().close()
+
+        def tracked_connect(*args, **kwargs):
+            connection = underlying_connect(*args, factory=TrackingConnection, **kwargs)
+            connections.append(connection)
+            return connection
+
+        tracked_path = Path(self.tmp.name) / "tracked.sqlite"
+        with patch("vera_memory.ledger.sqlite3.connect", side_effect=tracked_connect):
+            ledger = MemoryLedger(tracked_path, project_id="project", identity_id="identity")
+            ledger.admit(_request(), expected_head=ledger.current_head)
+            ledger.read("one")
+            with self.assertRaises(StaleMemoryHead):
+                ledger.admit(replace(_request(), record_id="two",
+                                     operation_id="operation-stale"), expected_head="stale")
+        self.assertEqual(len(connections), 5)
+        self.assertTrue(all(conn.closed_explicitly for conn in connections))
+
+    def test_connect_setup_exception_closes_connection(self):
+        underlying_connect = sqlite3.connect
+        connections = []
+
+        class FailingSetupConnection(sqlite3.Connection):
+            closed_explicitly = False
+
+            def execute(self, sql, *args, **kwargs):
+                if sql == "PRAGMA foreign_keys = ON":
+                    raise sqlite3.OperationalError("synthetic PRAGMA failure")
+                return super().execute(sql, *args, **kwargs)
+
+            def close(self):
+                self.closed_explicitly = True
+                super().close()
+
+        def failing_connect(*args, **kwargs):
+            connection = underlying_connect(*args, factory=FailingSetupConnection, **kwargs)
+            connections.append(connection)
+            return connection
+
+        with patch("vera_memory.ledger.sqlite3.connect", side_effect=failing_connect):
+            with self.assertRaises(sqlite3.OperationalError):
+                MemoryLedger(Path(self.tmp.name) / "setup-failure.sqlite",
+                             project_id="project", identity_id="identity")
+        self.assertEqual(len(connections), 1)
+        self.assertTrue(connections[0].closed_explicitly)
+
+    @unittest.skipUnless(os.name == "nt", "Windows file-lock semantics required")
+    def test_windows_completed_audit_releases_ledger_file(self):
+        self.ledger.admit(_request(), expected_head=self.ledger.current_head)
+        self._audit()
+        # Windows refuses unlink when a SQLite connection still holds the file.
+        self.path.unlink()
+        self.assertFalse(self.path.exists())
+
     def test_symlink_and_missing_file_refused(self):
         with self.assertRaises(CurrentMemoryAuditError):
             audit_current_memory_ledger(Path(self.tmp.name) / "absent.sqlite",
@@ -152,7 +220,7 @@ class CanonicalMemoryAuditTests(unittest.TestCase):
 
     def test_unexpected_meta_key_fails_closed(self):
         self.ledger.admit(_request(), expected_head=self.ledger.current_head)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("INSERT INTO meta(key,value) VALUES('unrecognized-future-key','synthetic')")
         with self.assertRaises(CurrentMemoryAuditError):
             self._audit()
@@ -176,7 +244,7 @@ class CanonicalMemoryAuditTests(unittest.TestCase):
     def test_deeply_nested_invalid_json_returns_declared_audit_error(self):
         self.ledger.admit(_request(), expected_head=self.ledger.current_head)
         nested = "[" * 10_000 + "0" + "]" * 10_000
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE records SET payload_json=?", (nested,))
         with self.assertRaises(CurrentMemoryAuditError):
             self._audit()
@@ -184,7 +252,7 @@ class CanonicalMemoryAuditTests(unittest.TestCase):
         fresh = Path(self.tmp.name) / "bad-receipt.sqlite"
         ledger = MemoryLedger(fresh, project_id="project", identity_id="identity")
         ledger.admit(_request(), expected_head=ledger.current_head)
-        with sqlite3.connect(fresh) as db:
+        with closing(sqlite3.connect(fresh)) as db, db:
             db.execute("UPDATE operations SET receipt_json=?", (nested,))
         with self.assertRaises(CurrentMemoryAuditError):
             audit_current_memory_ledger(fresh, project_id="project", identity_id="identity")
