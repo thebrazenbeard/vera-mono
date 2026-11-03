@@ -158,11 +158,16 @@ def project_staged_exports(
             raise ExportProjectionError("source ID rebinds to a different digest")
         if row.source_id not in selected_sources:
             continue
-        # NUL is forbidden in the identity fields, keeping namespacing unique.
-        key = sha256((row.source_id + "\x00" + row.item_id).encode("utf-8")).hexdigest()
+        # Include the source content revision: two separately staged batches
+        # can bind the same source/item IDs to different source digests, and
+        # must not silently reuse a historical-evidence memory identity.
+        # NUL is forbidden in identity fields, keeping delimiters unambiguous.
+        key = sha256(
+            (row.source_id + "\x00" + row.source_sha256 + "\x00" + row.item_id).encode("utf-8")
+        ).hexdigest()
         visible.append(
             HistoricalEvidenceRecord(
-                memory_id="staged-export:" + key,
+                memory_id="staged-export:v2:" + key,
                 privacy_scope=row.privacy_scope,
                 event_time=row.event_time,
                 recorded_at=row.recorded_at,

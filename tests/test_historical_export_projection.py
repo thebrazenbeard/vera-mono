@@ -1,6 +1,7 @@
 """Synthetic-only tests: no personal export data or host filesystem access."""
 
 from dataclasses import replace
+from hashlib import sha256
 import unittest
 
 from vera_memory.historical_evidence import HistoricalEvidenceAccessError
@@ -89,6 +90,25 @@ class HistoricalExportProjectionTests(unittest.TestCase):
         self.assertEqual(len({r.memory_id for r in different.records}), 2)
         with self.assertRaisesRegex(ExportProjectionError, "rebinds"):
             project((first, replace(first, item_id="row-2", source_sha256="b" * 64)))
+
+    def test_cross_batch_source_revision_does_not_reuse_memory_identity(self):
+        # A revised source digest can arrive in a later bounded batch, outside
+        # the within-batch collision check. The historical evidence identities
+        # must not silently alias across those distinct source revisions.
+        original = candidate()
+        revised = replace(original, source_sha256="b" * 64)
+        original_id = project((original,)).records[0].memory_id
+        revised_id = project((revised,)).records[0].memory_id
+        self.assertTrue(original_id.startswith("staged-export:v2:"))
+        self.assertTrue(revised_id.startswith("staged-export:v2:"))
+        self.assertNotEqual(original_id, revised_id)
+        self.assertEqual(original_id, project((original,)).records[0].memory_id)
+        # Legacy v1 IDs excluded the corpus digest and are intentionally not
+        # treated as aliases; migration requires separate authority.
+        legacy_v1_id = "staged-export:" + sha256(
+            (original.source_id + "\x00" + original.item_id).encode("utf-8")
+        ).hexdigest()
+        self.assertNotEqual(original_id, legacy_v1_id)
 
     def test_large_rows_and_untrusted_shapes_rejected(self):
         with self.assertRaisesRegex(ValueError, "text"):

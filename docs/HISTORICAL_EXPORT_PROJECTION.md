@@ -26,8 +26,17 @@ The API enforces at most 1,024 rows, at most 8,192 UTF-8 bytes of text per
 row, 512-byte source/row IDs and review references, 128-byte privacy scope
 names, and 64-byte time fields (all measured in UTF-8). Authorization inputs
 are limited to 256 source IDs and 64 privacy scopes, with duplicate rejection.
-The adapter also enforces unique `(source_id, item_id)` pairs, consistent
-source digest binding, and exact scope filtering. It makes no network or
+The adapter also enforces unique `(source_id, item_id)` pairs within a batch,
+consistent source digest binding, and exact scope filtering. Historical
+evidence IDs are revision-specific to `(source_id, source_sha256, item_id)`,
+so separate source versions cannot silently reuse one memory identity. A
+reissued source digest may therefore change every row ID even when some rows
+are unchanged; downstream consumers must not infer semantic change from an ID
+change alone. These identifiers use the explicit `staged-export:v2:` namespace.
+Older `staged-export:<hash>` (v1) identities remain historical artifacts: this
+source-only projection does **not** rewrite, alias, migrate, or reconcile them.
+Any consumer with persisted v1 references requires a separately authorized
+version-aware migration and collision review. It makes no network or
 storage calls. Content,
 source names, sizes and even hashes can be personally identifying: keep
 instances and output private. Do **not** put projection results into public
