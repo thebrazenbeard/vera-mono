@@ -7,6 +7,7 @@ revision, subject to review state, and at most once per cue event.
 
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -163,7 +164,7 @@ class DurableLearnedInfluenceGate:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS learned_reviews (
@@ -229,7 +230,7 @@ class DurableLearnedInfluenceGate:
                 raise ValueError(f"{label} must be a non-empty exact string")
         if type(disposition) is not ReviewDisposition:
             raise TypeError("disposition must be exact ReviewDisposition")
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             db.execute(
                 """
