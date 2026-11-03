@@ -12,6 +12,20 @@ Run on a specifically chosen Windows test host:
 python -m unittest tests.test_windows_nt_reparse_probe -v
 ```
 
+To print an exact, sanitized JSON receipt and fail if the synthetic fixture
+cannot demonstrate the expected behavior, run:
+
+```powershell
+python -m tools.security.windows_nt_reparse_probe
+```
+
+The Windows GitHub Actions job runs this command after the test suite. Its
+visible job log contains the observed native status pair, OS build,
+architecture, pointer width, and explicit negative Lappy/OneDrive authority
+flags. No source paths, usernames, private filenames, or file bytes enter
+that receipt. A green test count by itself is not substituted for this
+per-run evidence.
+
 The result is **synthetic build evidence only**:
 
 - `SYNTHETIC_BUILD_PROBE_PASS`: genuine child opened and symlink child was

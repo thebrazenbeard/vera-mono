@@ -10,6 +10,7 @@ contract in the official documentation.
 from __future__ import annotations
 
 import ctypes
+import json
 import os
 from pathlib import Path
 import platform
@@ -19,6 +20,11 @@ import tempfile
 
 STATUS_SUCCESS = 0x00000000
 STATUS_REPARSE_POINT_ENCOUNTERED = 0xC000050B
+_PUBLIC_RECEIPT_FIELDS = (
+    "status", "windows_build", "architecture", "python_pointer_bits",
+    "genuine_child_status", "reparse_child_status",
+    "live_host_qualified", "onedrive_hydration_proven_safe",
+)
 
 
 def _synthetic_pair_status(genuine: int, reparse: int) -> str:
@@ -197,3 +203,17 @@ def run_synthetic_reparse_probe() -> dict[str, object]:
             "genuine_child_status": f"0x{real_status:08x}",
             "reparse_child_status": f"0x{link_status:08x}",
         }
+
+
+def main() -> int:
+    """Emit a bounded, non-sensitive CI receipt even when the probe fails."""
+
+    result = run_synthetic_reparse_probe()
+    receipt = {key: result[key] for key in _PUBLIC_RECEIPT_FIELDS if key in result}
+    print(json.dumps(receipt, sort_keys=True, separators=(",", ":")), flush=True)
+    require_synthetic_build_pass(result)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
