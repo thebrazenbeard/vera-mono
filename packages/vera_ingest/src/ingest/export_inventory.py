@@ -34,13 +34,25 @@ _NESTED_ARCHIVE_SUFFIXES = (
 
 
 def _is_cloud_or_reparse(metadata: os.stat_result) -> bool:
-    return bool(getattr(metadata, "st_file_attributes", 0) & _WINDOWS_CLOUD_FLAGS)
+    attributes = getattr(metadata, "st_file_attributes", None)
+    # Missing file-attribute evidence must not make a Windows placeholder
+    # appear safe. POSIX stat results ordinarily have no such attribute.
+    if attributes is None:
+        return os.name == "nt"
+    return bool(attributes & _WINDOWS_CLOUD_FLAGS)
+
+
+def _has_nofollow_open() -> bool:
+    # Windows Python builds ordinarily omit O_NOFOLLOW. Without an atomic
+    # no-follow open, a path can become a cloud/reparse link after stat and
+    # before os.open, potentially hydrating bytes before fstat can reject it.
+    return bool(getattr(os, "O_NOFOLLOW", 0))
 
 
 def _hash_small_local(path: Path, expected_size: int, limit: int) -> str | None:
-    if expected_size > limit:
+    if expected_size > limit or not _has_nofollow_open():
         return None
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | os.O_NOFOLLOW
     fd = os.open(path, flags)
     try:
         before = os.fstat(fd)
@@ -83,8 +95,10 @@ def _unsafe_zip_name(name: str) -> bool:
 def _inspect_zip_local(path: Path, expected_size: int) -> dict:
     result = {"status": "METADATA_ONLY", "members": 0, "declared_uncompressed_bytes": 0}
     reasons: set[str] = set()
+    if not _has_nofollow_open():
+        return {**result, "status": "REJECTED_METADATA", "reasons": ["NO_SAFE_NOFOLLOW_OPEN"]}
     try:
-        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | os.O_NOFOLLOW
         fd = os.open(path, flags)
         with os.fdopen(fd, "rb") as handle:
             metadata = os.fstat(handle.fileno())
@@ -197,6 +211,8 @@ def inventory_exports(
                 )
                 if metadata.st_size > archive_limit:
                     record["status"] = "SKIPPED_READ_SIZE_LIMIT"
+                elif not _has_nofollow_open():
+                    record["status"] = "SKIPPED_NO_SAFE_NOFOLLOW_OPEN"
                 else:
                     try:
                         if hash_local:

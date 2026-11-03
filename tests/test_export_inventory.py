@@ -6,8 +6,10 @@ import os
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 import zipfile
 
+from ingest import export_inventory
 from ingest.export_inventory_cli import main
 from ingest.export_inventory import inventory_exports, _is_cloud_or_reparse
 
@@ -56,6 +58,29 @@ class ExportInventoryTests(unittest.TestCase):
         for flag in (0x1000, 0x400, 0x00040000, 0x00400000):
             fake_stat = type("Stat", (), {"st_file_attributes": flag})()
             self.assertTrue(_is_cloud_or_reparse(fake_stat))
+
+    def test_missing_windows_attribute_evidence_fails_closed(self):
+        unknown = SimpleNamespace(st_mode=0, st_size=1)
+        with patch.object(export_inventory, "os", SimpleNamespace(name="nt")):
+            self.assertTrue(_is_cloud_or_reparse(unknown))
+            self.assertFalse(_is_cloud_or_reparse(SimpleNamespace(st_file_attributes=0)))
+        with patch.object(export_inventory, "os", SimpleNamespace(name="posix")):
+            self.assertFalse(_is_cloud_or_reparse(unknown))
+
+    def test_missing_nofollow_prevents_opted_in_hash_and_zip_opens(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "a.txt").write_bytes(b"local")
+            with zipfile.ZipFile(root / "b.zip", "w") as archive:
+                archive.writestr("file.txt", "local")
+            with patch.object(export_inventory.os, "O_NOFOLLOW", 0, create=True):
+                with patch("ingest.export_inventory.os.open", side_effect=AssertionError("unsafe os.open")):
+                    rows = inventory_exports(root, hash_local=True, inspect_zip_local=True)["files"]
+                    self.assertEqual(
+                        [row["status"] for row in rows],
+                        ["SKIPPED_NO_SAFE_NOFOLLOW_OPEN", "SKIPPED_NO_SAFE_NOFOLLOW_OPEN"],
+                    )
+                    self.assertTrue(all("sha256" not in row and "archive" not in row for row in rows))
 
     def test_safe_and_malicious_zip_central_directory_only(self):
         with tempfile.TemporaryDirectory() as temp:
