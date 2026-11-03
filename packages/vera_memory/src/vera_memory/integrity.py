@@ -130,6 +130,32 @@ def audit_current_memory_ledger(
             db.execute("PRAGMA query_only=ON")
             db.execute("PRAGMA trusted_schema=OFF")
             db.execute("BEGIN")
+            # A table with the same SELECT-able columns but no primary key can
+            # contain duplicate operation identities (or record identities).
+            # That would make the row-count check insufficient to prove each
+            # admitted record has exactly one operation. Check these current
+            # writer-owned key contracts before interpreting receipt chains.
+            for table, key, names in (
+                ("records", "record_id", {
+                    "record_id", "payload_json", "status", "superseded_by",
+                    "record_digest", "supersedes_id",
+                }),
+                ("operations", "operation_id", {
+                    "operation_id", "request_digest", "record_id", "receipt_json",
+                }),
+            ):
+                # table_info silently omits generated/hidden columns. xinfo
+                # exposes the whole schema surface so unexpected computed
+                # fields cannot masquerade as the current writer's tables.
+                columns = db.execute(f"PRAGMA table_xinfo({table})").fetchall()
+                _require(
+                    len(columns) == len(names) and
+                    {column["name"] for column in columns} == names and
+                    all(column["hidden"] == 0 for column in columns) and
+                    {(column["name"], column["pk"]) for column in columns
+                     if column["pk"]} == {(key, 1)},
+                    "current ledger primary-key schema integrity failed",
+                )
             # The current schema owns exactly two keys. Do not materialize
             # arbitrary extra metadata in an otherwise bounded audit.
             meta_rows = db.execute("SELECT key,value FROM meta LIMIT 3").fetchall()
@@ -257,6 +283,8 @@ def audit_current_memory_ledger(
             for index in range(1, generation + 1):
                 _require(index in ordered, "current ledger admission generation gap")
                 receipt, payload = ordered[index]
+                _require(payload["record_id"] not in seen,
+                         "current ledger repeated admission record")
                 parent = payload["supersedes"]
                 _require(parent is None or parent in seen,
                          "current ledger successor precedes predecessor")
@@ -269,6 +297,7 @@ def audit_current_memory_ledger(
                 _require(receipt["store_head"] == head,
                          "current ledger receipt head chain mismatch")
                 seen.add(payload["record_id"])
+            _require(seen == set(records), "current ledger unadmitted record")
             _require(meta["head"] == head, "current ledger final head mismatch")
             return {
                 "ok": True,

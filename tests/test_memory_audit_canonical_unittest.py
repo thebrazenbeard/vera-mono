@@ -277,6 +277,87 @@ class CanonicalMemoryAuditTests(unittest.TestCase):
         with self.assertRaises(CurrentMemoryAuditError):
             self._audit()
 
+    def test_forged_duplicate_record_operations_are_rejected(self):
+        """Counts and coherent head hashes do not prove one admission per record.
+
+        A forged SQLite file can keep two records, but replace the operations
+        table with identical columns lacking the operation-id primary key.
+        Two receipts then claim the same record and omit the other entirely.
+        """
+        self.ledger.admit(_request(), expected_head=self.ledger.current_head)
+        other = replace(_request(), record_id="two", operation_id="operation-two",
+                        text="another synthetic record")
+        self.ledger.admit(other, expected_head=self.ledger.current_head)
+        with closing(sqlite3.connect(self.path)) as db, db:
+            first = db.execute(
+                "SELECT operation_id,request_digest,record_id,receipt_json "
+                "FROM operations WHERE operation_id='operation-one'"
+            ).fetchone()
+            first_receipt = json.loads(first[3])
+            forged_receipt = dict(first_receipt)
+            forged_receipt["generation"] = 2
+            forged_head = sha256_hex(canonical_json_bytes({
+                "previous_head": first_receipt["store_head"], "generation": 2,
+                "record_id": "one", "record_digest": first_receipt["record_digest"],
+                "supersedes": None,
+            }))
+            forged_receipt["store_head"] = forged_head
+            db.execute("DROP TABLE operations")
+            db.execute(
+                "CREATE TABLE operations (operation_id TEXT, request_digest TEXT NOT NULL, "
+                "record_id TEXT NOT NULL, receipt_json TEXT NOT NULL)"
+            )
+            db.execute(
+                "INSERT INTO operations VALUES (?,?,?,?)", tuple(first)
+            )
+            db.execute(
+                "INSERT INTO operations VALUES (?,?,?,?)",
+                (first[0], first[1], first[2], canonical_json(forged_receipt)),
+            )
+            db.execute("UPDATE meta SET value=? WHERE key='head'", (forged_head,))
+
+        with self.assertRaises(CurrentMemoryAuditError):
+            self._audit()
+
+    def test_operation_primary_key_contract_is_required(self):
+        self.ledger.admit(_request(), expected_head=self.ledger.current_head)
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("ALTER TABLE operations RENAME TO old_operations")
+            db.execute(
+                "CREATE TABLE operations (operation_id TEXT, request_digest TEXT NOT NULL, "
+                "record_id TEXT NOT NULL, receipt_json TEXT NOT NULL)"
+            )
+            db.execute("INSERT INTO operations SELECT * FROM old_operations")
+            db.execute("DROP TABLE old_operations")
+        with self.assertRaises(CurrentMemoryAuditError):
+            self._audit()
+
+    def test_record_primary_key_contract_is_required(self):
+        self.ledger.admit(_request(), expected_head=self.ledger.current_head)
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("PRAGMA foreign_keys=OFF")
+            db.execute("ALTER TABLE records RENAME TO old_records")
+            db.execute(
+                "CREATE TABLE records (record_id TEXT, payload_json TEXT NOT NULL, "
+                "status TEXT NOT NULL, superseded_by TEXT, "
+                "record_digest TEXT NOT NULL, supersedes_id TEXT)"
+            )
+            db.execute("INSERT INTO records SELECT * FROM old_records")
+            db.execute("DROP TABLE old_records")
+        with self.assertRaises(CurrentMemoryAuditError):
+            self._audit()
+
+    def test_generated_operation_column_is_not_hidden_from_schema_audit(self):
+        # PRAGMA table_info omits generated/hidden columns even though they
+        # change the live SQLite schema surface.
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute(
+                "ALTER TABLE operations ADD COLUMN hidden_calc TEXT "
+                "GENERATED ALWAYS AS (record_id) VIRTUAL"
+            )
+        with self.assertRaises(CurrentMemoryAuditError):
+            self._audit()
+
     def test_hard_row_cap_and_sidecar_refusal(self):
         self.ledger.admit(_request(), expected_head=self.ledger.current_head)
         with self.assertRaises(CurrentMemoryAuditError):

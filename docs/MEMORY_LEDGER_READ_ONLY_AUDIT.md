@@ -35,6 +35,9 @@ The audit checks:
   bounded to exactly the current two keys (`generation`, `head`), rejecting
   unexpected extra keys;
 - bounded record/operation counts and generation consistency;
+- exact current record/operation primary-key column contracts, unique
+  record admission across all receipts, and no records omitted from admission
+  history (including coherently rehashed forged chains);
 - canonical record and receipt JSON, digests, request digest, and exact
   `AdmissionRequest` field **and semantic** validation;
 - project/identity bindings, operation/receipt correspondences, supersession
@@ -66,6 +69,12 @@ three were intentionally red against the bounded-only baseline and green
 after exact current `AdmissionRequest` semantic replay was added. Additional
 hostile regressions reject extra metadata, dangling sidecar symlinks and deeply
 nested invalid record/receipt JSON without leaking raw `RecursionError`.
+An additional forged-schema negative control replaces the operation primary key
+with a non-unique column and writes two internally consistent receipts for one
+record while omitting another. The auditor now rejects both this duplicate
+admission and a primary-key downgrade even when the exposed column names match.
+The schema check uses SQLite `table_xinfo`, rather than `table_info`, so
+unexpected virtual generated/hidden columns are not silently omitted.
 
 SQLite's connection context manager commits/rolls back but does **not** close
 the database handle. The current `MemoryLedger` now closes all four connection
