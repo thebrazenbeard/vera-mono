@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 import stat
 import zipfile
@@ -33,6 +34,14 @@ _NESTED_ARCHIVE_SUFFIXES = (
 )
 
 
+@contextmanager
+def _held_fd(fd: int):
+    try:
+        yield fd
+    finally:
+        os.close(fd)
+
+
 def _is_cloud_or_reparse(metadata: os.stat_result) -> bool:
     attributes = getattr(metadata, "st_file_attributes", None)
     # Missing file-attribute evidence must not make a Windows placeholder
@@ -46,19 +55,130 @@ def _has_nofollow_open() -> bool:
     # Windows Python builds ordinarily omit O_NOFOLLOW. Without an atomic
     # no-follow open, a path can become a cloud/reparse link after stat and
     # before os.open, potentially hydrating bytes before fstat can reject it.
-    return bool(getattr(os, "O_NOFOLLOW", 0))
+    # WSL/DrvFs can expose cloud placeholders without the corresponding
+    # Windows Cloud Files attributes. Do not opt in to byte reads there.
+    if os.name != "posix" or os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSL_INTEROP"):
+        return False
+    uname = getattr(os, "uname", None)
+    if callable(uname):
+        try:
+            release = uname().release.casefold()
+        except OSError:
+            return False
+        if "microsoft" in release or "wsl" in release:
+            return False
+    return bool(getattr(os, "O_NOFOLLOW", 0) and getattr(os, "O_DIRECTORY", 0)
+                and os.open in os.supports_dir_fd)
 
 
-def _hash_small_local(path: Path, expected_size: int, limit: int) -> str | None:
+def _has_nofollow_metadata_walk() -> bool:
+    return (
+        _has_nofollow_open()
+        and os.scandir in os.supports_fd
+        and os.stat in os.supports_dir_fd
+    )
+
+
+def _open_file_without_ancestor_links(path: Path) -> int:
+    """Open a local regular-file candidate beneath held no-follow directories.
+
+    A final-component ``O_NOFOLLOW`` alone is unsafe: an ancestor may be a
+    symlink (or become one between metadata inspection and byte opening).
+    This walk pins each ancestor descriptor before opening the next child.
+    """
+    if not _has_nofollow_open():
+        raise OSError("descriptor-relative no-follow opening unavailable")
+    candidate = Path(path)
+    if ".." in candidate.parts or "\x00" in str(candidate):
+        raise OSError("unsafe local byte-read path")
+    absolute = Path(os.path.abspath(candidate))
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    directory_fd = os.open(absolute.anchor, directory_flags)
+    try:
+        for component in absolute.parts[1:-1]:
+            next_fd = os.open(component, directory_flags, dir_fd=directory_fd)
+            os.close(directory_fd)
+            directory_fd = next_fd
+        final = absolute.parts[-1]
+        if final in ("", ".", ".."):
+            raise OSError("unsafe local byte-read component")
+        return os.open(
+            final,
+            os.O_RDONLY | getattr(os, "O_BINARY", 0) | os.O_NOFOLLOW
+            | getattr(os, "O_NONBLOCK", 0),
+            dir_fd=directory_fd,
+        )
+    finally:
+        os.close(directory_fd)
+
+
+def _open_directory_without_ancestor_links(path: Path) -> int:
+    """Pin a metadata root from the filesystem anchor without traversing links."""
+    if not _has_nofollow_metadata_walk():
+        raise OSError("descriptor-relative no-follow metadata walk unavailable")
+    candidate = Path(path)
+    if ".." in candidate.parts or "\x00" in str(candidate):
+        raise OSError("unsafe metadata root path")
+    absolute = Path(os.path.abspath(candidate))
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    current_fd = os.open(absolute.anchor, flags)
+    try:
+        for component in absolute.parts[1:]:
+            next_fd = os.open(component, flags, dir_fd=current_fd)
+            os.close(current_fd)
+            current_fd = next_fd
+        return current_fd
+    except BaseException:
+        os.close(current_fd)
+        raise
+
+
+def _open_pinned_subdirectory(
+    root_fd: int, components: tuple[tuple[str, tuple[int, int]], ...]
+) -> int:
+    """Reopen a queued folder relative to its pinned root, checking every inode.
+
+    Reopening from a path string would let a renamed ancestor redirect a queued
+    metadata enumeration into an unrelated folder. Descriptor-relative opens
+    and identity checks reject both symlink and real-directory replacements.
+    This is not a mount-namespace boundary or a filesystem snapshot: bind
+    mounts and concurrent in-place file mutation need separate qualification.
+    """
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    current_fd = os.dup(root_fd)
+    try:
+        for component, expected_identity in components:
+            next_fd = os.open(component, flags, dir_fd=current_fd)
+            os.close(current_fd)
+            current_fd = next_fd
+            metadata = os.fstat(current_fd)
+            if (
+                not stat.S_ISDIR(metadata.st_mode)
+                or _is_cloud_or_reparse(metadata)
+                or (metadata.st_dev, metadata.st_ino) != expected_identity
+            ):
+                raise OSError("queued directory identity changed")
+        return current_fd
+    except BaseException:
+        os.close(current_fd)
+        raise
+
+
+def _hash_small_local(path: Path, expected_size: int, limit: int, *,
+                      expected_identity: tuple[int, int] | None = None) -> str | None:
     if expected_size > limit or not _has_nofollow_open():
         return None
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | os.O_NOFOLLOW
-    fd = os.open(path, flags)
+    try:
+        fd = _open_file_without_ancestor_links(path)
+    except OSError:
+        return None
     try:
         before = os.fstat(fd)
         if not stat.S_ISREG(before.st_mode) or _is_cloud_or_reparse(before):
             return None
-        if before.st_size != expected_size or before.st_size > limit:
+        if (before.st_size != expected_size or before.st_size > limit
+                or (expected_identity is not None
+                    and (before.st_dev, before.st_ino) != expected_identity)):
             return None
         digest = hashlib.sha256()
         counted = 0
@@ -92,20 +212,22 @@ def _unsafe_zip_name(name: str) -> bool:
     )
 
 
-def _inspect_zip_local(path: Path, expected_size: int) -> dict:
+def _inspect_zip_local(path: Path, expected_size: int, *,
+                       expected_identity: tuple[int, int] | None = None) -> dict:
     result = {"status": "METADATA_ONLY", "members": 0, "declared_uncompressed_bytes": 0}
     reasons: set[str] = set()
     if not _has_nofollow_open():
         return {**result, "status": "REJECTED_METADATA", "reasons": ["NO_SAFE_NOFOLLOW_OPEN"]}
     try:
-        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | os.O_NOFOLLOW
-        fd = os.open(path, flags)
+        fd = _open_file_without_ancestor_links(path)
         with os.fdopen(fd, "rb") as handle:
             metadata = os.fstat(handle.fileno())
             if (
                 not stat.S_ISREG(metadata.st_mode)
                 or _is_cloud_or_reparse(metadata)
                 or metadata.st_size != expected_size
+                or (expected_identity is not None
+                    and (metadata.st_dev, metadata.st_ino) != expected_identity)
             ):
                 reasons.add("CHANGED_OR_UNSAFE_FILE")
             else:
@@ -155,81 +277,96 @@ def inventory_exports(
     if max_files < 1 or max_depth < 0 or max_depth > 4 or max_read_bytes < 1:
         raise ValueError("invalid inventory limit")
     directory = Path(root)
+    # Metadata-only operation is not exempt from cloud/reparse safety: an
+    # attacker can swap a queued directory for a link to unrelated private
+    # filenames. Windows/WSL do not have a qualified no-follow metadata walk.
     try:
-        root_stat = directory.lstat()
+        root_fd = _open_directory_without_ancestor_links(directory)
     except OSError as exc:
-        raise ValueError("root must be an existing local directory") from exc
-    if not stat.S_ISDIR(root_stat.st_mode) or _is_cloud_or_reparse(root_stat):
-        raise ValueError("root must be a non-reparse local directory")
-    queue: list[tuple[Path, int]] = [(directory, 0)]
+        raise ValueError("root must be an existing no-follow local directory") from exc
+    queue: list[tuple[tuple[tuple[str, tuple[int, int]], ...], int]] = [((), 0)]
     entries: list[dict] = []
     scanned_entries = 0
     dirs_seen = 0
     duplicates: dict[str, str] = {}
-    while queue:
-        folder, depth = queue.pop(0)
-        with os.scandir(folder) as iterator:
-            children = []
-            for child in iterator:
-                children.append(child)
-                scanned_entries += 1
-                if scanned_entries > max_files:
-                    raise ValueError("inventory entry limit exceeded")
-            children.sort(key=lambda x: (x.name.casefold(), x.name))
-        for child in children:
+    with _held_fd(root_fd):
+        while queue:
+            components, depth = queue.pop(0)
             try:
-                metadata = child.stat(follow_symlinks=False)
-            except OSError:
-                # Preserve existence without exposing OS errors or paths.
-                entries.append({"entry_id": f"f{len(entries)+1:05d}", "status": "UNREADABLE_METADATA"})
-                continue
-            if stat.S_ISDIR(metadata.st_mode) and not child.is_symlink() and not _is_cloud_or_reparse(metadata):
-                dirs_seen += 1
-                if depth < max_depth:
-                    queue.append((Path(child.path), depth + 1))
-                continue
-            record = {
-                "entry_id": f"f{len(entries)+1:05d}",
-                "extension": Path(child.name).suffix.lower(),
-                "size_bytes": metadata.st_size,
-                "status": "METADATA_ONLY",
-                "privacy": "UNREVIEWED",
-                "data_rights": "UNVERIFIED",
-                "admission": "NOT_GRANTED",
-            }
-            if include_names:
-                record["relative_path"] = str(Path(child.path).relative_to(directory))
-            if child.is_symlink() or not stat.S_ISREG(metadata.st_mode):
-                record["status"] = "SKIPPED_NONREGULAR"
-            elif _is_cloud_or_reparse(metadata):
-                record["status"] = "SKIPPED_CLOUD_OR_REPARSE"
-            elif hash_local or (inspect_zip_local and record["extension"] == ".zip"):
-                archive_limit = (
-                    min(max_read_bytes, _MAX_ZIP_INPUT_BYTES)
-                    if inspect_zip_local and record["extension"] == ".zip"
-                    else max_read_bytes
-                )
-                if metadata.st_size > archive_limit:
-                    record["status"] = "SKIPPED_READ_SIZE_LIMIT"
-                elif not _has_nofollow_open():
-                    record["status"] = "SKIPPED_NO_SAFE_NOFOLLOW_OPEN"
-                else:
+                folder_fd = _open_pinned_subdirectory(root_fd, components)
+            except OSError as exc:
+                raise ValueError("inventory directory changed or inaccessible") from exc
+            with _held_fd(folder_fd):
+                with os.scandir(folder_fd) as iterator:
+                    children = []
+                    for child in iterator:
+                        children.append(child.name)
+                        scanned_entries += 1
+                        if scanned_entries > max_files:
+                            raise ValueError("inventory entry limit exceeded")
+                    children.sort(key=lambda x: (x.casefold(), x))
+                for name in children:
                     try:
-                        if hash_local:
-                            digest = _hash_small_local(Path(child.path), metadata.st_size, max_read_bytes)
-                            if digest is None:
-                                record["status"] = "SKIPPED_CHANGED_FILE"
-                            else:
-                                record["sha256"] = digest
-                                if digest in duplicates:
-                                    record["duplicate_of"] = duplicates[digest]
-                                else:
-                                    duplicates[digest] = record["entry_id"]
-                        if inspect_zip_local and record["extension"] == ".zip" and record["status"] == "METADATA_ONLY":
-                            record["archive"] = _inspect_zip_local(Path(child.path), metadata.st_size)
+                        metadata = os.stat(name, dir_fd=folder_fd, follow_symlinks=False)
                     except OSError:
-                        record["status"] = "SKIPPED_READ_FAILURE"
-            entries.append(record)
+                        # Preserve existence without exposing OS errors or paths.
+                        entries.append({"entry_id": f"f{len(entries)+1:05d}", "status": "UNREADABLE_METADATA"})
+                        continue
+                    if stat.S_ISDIR(metadata.st_mode) and not _is_cloud_or_reparse(metadata):
+                        dirs_seen += 1
+                        if depth < max_depth:
+                            queue.append((
+                                components + ((name, (metadata.st_dev, metadata.st_ino)),),
+                                depth + 1,
+                            ))
+                        continue
+                    relative = Path(*(part for part, _ in components), name)
+                    record = {
+                        "entry_id": f"f{len(entries)+1:05d}",
+                        "extension": Path(name).suffix.lower(),
+                        "size_bytes": metadata.st_size,
+                        "status": "METADATA_ONLY",
+                        "privacy": "UNREVIEWED",
+                        "data_rights": "UNVERIFIED",
+                        "admission": "NOT_GRANTED",
+                    }
+                    if include_names:
+                        record["relative_path"] = str(relative)
+                    if not stat.S_ISREG(metadata.st_mode):
+                        record["status"] = "SKIPPED_NONREGULAR"
+                    elif _is_cloud_or_reparse(metadata):
+                        record["status"] = "SKIPPED_CLOUD_OR_REPARSE"
+                    elif hash_local or (inspect_zip_local and record["extension"] == ".zip"):
+                        archive_limit = (
+                            min(max_read_bytes, _MAX_ZIP_INPUT_BYTES)
+                            if inspect_zip_local and record["extension"] == ".zip"
+                            else max_read_bytes
+                        )
+                        if metadata.st_size > archive_limit:
+                            record["status"] = "SKIPPED_READ_SIZE_LIMIT"
+                        else:
+                            try:
+                                if hash_local:
+                                    digest = _hash_small_local(
+                                        directory / relative, metadata.st_size, max_read_bytes,
+                                        expected_identity=(metadata.st_dev, metadata.st_ino),
+                                    )
+                                    if digest is None:
+                                        record["status"] = "SKIPPED_CHANGED_FILE"
+                                    else:
+                                        record["sha256"] = digest
+                                        if digest in duplicates:
+                                            record["duplicate_of"] = duplicates[digest]
+                                        else:
+                                            duplicates[digest] = record["entry_id"]
+                                if inspect_zip_local and record["extension"] == ".zip" and record["status"] == "METADATA_ONLY":
+                                    record["archive"] = _inspect_zip_local(
+                                        directory / relative, metadata.st_size,
+                                        expected_identity=(metadata.st_dev, metadata.st_ino),
+                                    )
+                            except OSError:
+                                record["status"] = "SKIPPED_READ_FAILURE"
+                    entries.append(record)
     return {
         "schema": "VERA_EXPORT_INVENTORY_V1",
         "mode": "READ_ONLY_LOCAL_MANIFEST",
