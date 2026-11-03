@@ -8,6 +8,11 @@ from .ledger import (
     StaleMemoryHead,
 )
 
+from .integrity import (
+    CurrentMemoryAuditError,
+    audit_current_memory_ledger,
+)
+
 from .historical_evidence import (
     CHRONOLOGY_SEMANTICS,
     RESULT_SEMANTICS,
@@ -42,6 +47,8 @@ __all__ = [
     "MemoryLedger",
     "MemoryRecord",
     "StaleMemoryHead",
+    "CurrentMemoryAuditError",
+    "audit_current_memory_ledger",
     "CHRONOLOGY_SEMANTICS",
     "RESULT_SEMANTICS",
     "HistoricalEvidenceAccessError",
