@@ -6,8 +6,10 @@ import os
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 import zipfile
 
+from ingest import export_inventory
 from ingest.export_inventory_cli import main
 from ingest.export_inventory import inventory_exports, _is_cloud_or_reparse
 
@@ -40,8 +42,13 @@ class ExportInventoryTests(unittest.TestCase):
             payload = inventory_exports(root, hash_local=True, max_depth=0)
             rows = payload["files"]
             self.assertEqual(len(rows), 3)
-            self.assertEqual(rows[1]["duplicate_of"], rows[0]["entry_id"])
-            self.assertNotEqual(rows[2]["sha256"], rows[0]["sha256"])
+            if export_inventory._has_nofollow_open():
+                self.assertEqual(rows[1]["duplicate_of"], rows[0]["entry_id"])
+                self.assertNotEqual(rows[2]["sha256"], rows[0]["sha256"])
+            else:
+                for row in rows:
+                    self.assertEqual(row["status"], "SKIPPED_NO_SAFE_NOFOLLOW_OPEN")
+                    self.assertNotIn("sha256", row)
             self.assertNotIn("relative_path", rows[0])
 
     def test_large_files_skipped_without_reading_even_with_opt_in(self):
@@ -57,6 +64,29 @@ class ExportInventoryTests(unittest.TestCase):
             fake_stat = type("Stat", (), {"st_file_attributes": flag})()
             self.assertTrue(_is_cloud_or_reparse(fake_stat))
 
+    def test_missing_windows_attribute_evidence_fails_closed(self):
+        unknown = SimpleNamespace(st_mode=0, st_size=1)
+        with patch.object(export_inventory, "os", SimpleNamespace(name="nt")):
+            self.assertTrue(_is_cloud_or_reparse(unknown))
+            self.assertFalse(_is_cloud_or_reparse(SimpleNamespace(st_file_attributes=0)))
+        with patch.object(export_inventory, "os", SimpleNamespace(name="posix")):
+            self.assertFalse(_is_cloud_or_reparse(unknown))
+
+    def test_missing_nofollow_prevents_opted_in_hash_and_zip_opens(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "a.txt").write_bytes(b"local")
+            with zipfile.ZipFile(root / "b.zip", "w") as archive:
+                archive.writestr("file.txt", "local")
+            with patch.object(export_inventory.os, "O_NOFOLLOW", 0, create=True):
+                with patch("ingest.export_inventory.os.open", side_effect=AssertionError("unsafe os.open")):
+                    rows = inventory_exports(root, hash_local=True, inspect_zip_local=True)["files"]
+                    self.assertEqual(
+                        [row["status"] for row in rows],
+                        ["SKIPPED_NO_SAFE_NOFOLLOW_OPEN", "SKIPPED_NO_SAFE_NOFOLLOW_OPEN"],
+                    )
+                    self.assertTrue(all("sha256" not in row and "archive" not in row for row in rows))
+
     def test_safe_and_malicious_zip_central_directory_only(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -66,9 +96,14 @@ class ExportInventoryTests(unittest.TestCase):
                 archive.writestr("../escape.txt", "test")
             payload = inventory_exports(root, inspect_zip_local=True)
             safe, malicious = payload["files"]
-            self.assertEqual(safe["archive"]["status"], "STRUCTURE_BOUNDED")
-            self.assertEqual(malicious["archive"]["status"], "REJECTED_METADATA")
-            self.assertIn("UNSAFE_MEMBER_PATH", malicious["archive"]["reasons"])
+            if export_inventory._has_nofollow_open():
+                self.assertEqual(safe["archive"]["status"], "STRUCTURE_BOUNDED")
+                self.assertEqual(malicious["archive"]["status"], "REJECTED_METADATA")
+                self.assertIn("UNSAFE_MEMBER_PATH", malicious["archive"]["reasons"])
+            else:
+                for row in (safe, malicious):
+                    self.assertEqual(row["status"], "SKIPPED_NO_SAFE_NOFOLLOW_OPEN")
+                    self.assertNotIn("archive", row)
             self.assertEqual(safe["admission"], "NOT_GRANTED")
             self.assertNotIn("readme.txt", json.dumps(payload))
 
@@ -78,8 +113,12 @@ class ExportInventoryTests(unittest.TestCase):
             with zipfile.ZipFile(root / "nested.zip", "w") as archive:
                 archive.writestr("data/child.zip", b"not extracted")
             row = inventory_exports(root, inspect_zip_local=True)["files"][0]
-            self.assertEqual(row["archive"]["status"], "REJECTED_METADATA")
-            self.assertIn("NESTED_ARCHIVE_MEMBER", row["archive"]["reasons"])
+            if export_inventory._has_nofollow_open():
+                self.assertEqual(row["archive"]["status"], "REJECTED_METADATA")
+                self.assertIn("NESTED_ARCHIVE_MEMBER", row["archive"]["reasons"])
+            else:
+                self.assertEqual(row["status"], "SKIPPED_NO_SAFE_NOFOLLOW_OPEN")
+                self.assertNotIn("archive", row)
 
     def test_jar_container_member_is_flagged_as_nested_archive(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -87,8 +126,12 @@ class ExportInventoryTests(unittest.TestCase):
             with zipfile.ZipFile(root / "outer.zip", "w") as archive:
                 archive.writestr("lib/child.jar", b"nested archive bytes not inspected")
             row = inventory_exports(root, inspect_zip_local=True)["files"][0]
-            self.assertEqual(row["archive"]["status"], "REJECTED_METADATA")
-            self.assertIn("NESTED_ARCHIVE_MEMBER", row["archive"]["reasons"])
+            if export_inventory._has_nofollow_open():
+                self.assertEqual(row["archive"]["status"], "REJECTED_METADATA")
+                self.assertIn("NESTED_ARCHIVE_MEMBER", row["archive"]["reasons"])
+            else:
+                self.assertEqual(row["status"], "SKIPPED_NO_SAFE_NOFOLLOW_OPEN")
+                self.assertNotIn("archive", row)
 
     def test_zip_size_has_absolute_cap_even_with_large_user_limit(self):
         with tempfile.TemporaryDirectory() as temp:

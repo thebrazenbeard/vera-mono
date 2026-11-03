@@ -34,8 +34,21 @@ absent**. ZIP inputs have an absolute 2 MiB limit even
 when the caller asks for a larger general file-byte cap. Known Windows
 offline/reparse/recall placeholders and reparse roots are skipped/rejected
 before any opted-in file read; large files are skipped rather than downloaded.
-The size cap and metadata guards do not replace an OS-level sandbox when
-untrusted software can race/change files during the inspection.
+If Windows attributes are missing, a Windows entry/root is treated as unsafe,
+not as a local file. Opted-in byte inspection also requires `os.O_NOFOLLOW`:
+without it, files are reported `SKIPPED_NO_SAFE_NOFOLLOW_OPEN` and never
+opened for hashes or ZIP metadata. Common Windows Python builds lack that
+flag, so Windows byte-read options may remain unavailable even for online
+files. This deliberate fail-closed behavior is not a qualification of Windows
+or OneDrive inspection.
+
+The size cap, metadata guards and final-component no-follow flag do not
+provide atomic confinement to the inventory root: a queued parent directory
+can be swapped to a junction/symlink between enumeration and traversal, even
+in metadata-only mode. Do not scan concurrently mutable or untrusted trees
+under this source-only contract. A native handle-based, no-reparse traversal
+and independent Windows/OneDrive host qualification are still required before
+claiming safety against such races or cloud hydration.
 
 `--include-names` is an explicit **local-only** option. Even redacted
 manifests may contain identifying file sizes and content hashes. Keep all
