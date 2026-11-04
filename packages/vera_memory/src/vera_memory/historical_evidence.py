@@ -90,12 +90,40 @@ class HistoricalEvidenceResult:
     authorization_effect: str = "NONE"
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "records", tuple(self.records))
-        object.__setattr__(
-            self,
-            "authorized_privacy_scopes",
-            tuple(self.authorized_privacy_scopes),
-        )
+        # A result's claimed scopes are metadata, not an authentication grant.
+        # Still, a directly constructed result must not contain out-of-scope rows.
+        if type(self.result_semantics) is not str or self.result_semantics != RESULT_SEMANTICS:
+            raise HistoricalEvidenceError("historical evidence cannot override result semantics")
+        if (
+            type(self.current_memory_effect) is not str
+            or self.current_memory_effect != "NONE"
+            or type(self.authorization_effect) is not str
+            or self.authorization_effect != "NONE"
+        ):
+            raise HistoricalEvidenceError("historical evidence cannot claim memory or authority effects")
+        if type(self.records) is not tuple:
+            raise TypeError("records must be an exact tuple")
+        if type(self.authorized_privacy_scopes) is not tuple:
+            raise TypeError("authorized_privacy_scopes must be an exact tuple")
+        if not self.authorized_privacy_scopes or any(
+            type(scope) is not str or not scope
+            for scope in self.authorized_privacy_scopes
+        ):
+            raise HistoricalEvidenceAccessError(
+                "authorized privacy scopes must be non-empty exact strings"
+            )
+        if len(self.authorized_privacy_scopes) != len(set(self.authorized_privacy_scopes)):
+            raise HistoricalEvidenceAccessError("authorized privacy scopes must be unique")
+        if type(self.retrieved_at) is not str or not self.retrieved_at:
+            raise ValueError("retrieved_at must be a non-empty exact string")
+        allowed = set(self.authorized_privacy_scopes)
+        for record in self.records:
+            if type(record) is not HistoricalEvidenceRecord:
+                raise TypeError("records must contain exact HistoricalEvidenceRecord values")
+            if record.privacy_scope not in allowed:
+                raise HistoricalEvidenceAccessError(
+                    "historical evidence result contains an unauthorized privacy scope"
+                )
 
 
 def query_historical_evidence(
