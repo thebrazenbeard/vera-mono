@@ -247,3 +247,65 @@ def test_quoted_subject_reaches_pure_detector_and_negated_request_skips():
     console.dispatch("The phrase 'who am I to you' is a quote.")
     console.dispatch("Do not explain the silver staircase.")
     assert calls == ["The phrase 'who am I to you' is a quote."]
+
+
+def test_search_with_zero_candidates_fails_closed():
+    from types import SimpleNamespace
+    from vera_core.provenance_preflight import RootsSearchResult, build_roots_preflight
+
+    hit = SimpleNamespace(query="relational history", scope_key="consented")
+    preflight = build_roots_preflight(
+        resolve_trigger=lambda _raw: SimpleNamespace(
+            status="LOOKUP_REQUESTED", hits=(hit,)
+        ),
+        search_candidates=lambda _query, _scope: RootsSearchResult(),
+    )
+    console = VeraConsole.source_only(provenance_preflight=preflight)
+    response = console.dispatch("Who am I to you?")
+    assert "PROVENANCE_NO_EVIDENCE" in response.text
+    assert "Patrick" not in response.text
+    assert console.last_provenance_preflight.status is ProvenancePreflightStatus.NO_EVIDENCE
+
+
+def test_searched_receipt_rejects_zero_candidates():
+    try:
+        ProvenancePreflight(status=ProvenancePreflightStatus.SEARCHED)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("empty search claims must be rejected")
+
+
+def test_roots_explicit_opt_out_is_source_only_not_a_failed_lookup():
+    from types import SimpleNamespace
+    from vera_core.provenance_preflight import build_roots_preflight
+
+    def forbidden_search(_query, _scope):
+        raise AssertionError("suppressed lookup must not search")
+
+    preflight = build_roots_preflight(
+        resolve_trigger=lambda _raw: SimpleNamespace(status="SUPPRESSED", hits=()),
+        search_candidates=forbidden_search,
+    )
+    console = VeraConsole.source_only(provenance_preflight=preflight)
+    response = console.dispatch("Who am I to you?")
+    assert response.text.startswith("SOURCE_ONLY")
+    assert "suppressed" in response.text
+    assert "Patrick" not in response.text
+    assert console.last_provenance_preflight.status is ProvenancePreflightStatus.SUPPRESSED
+
+
+def test_negative_sentiment_and_short_correction_still_reach_roots_detector():
+    calls = []
+
+    def detector(raw):
+        calls.append(raw)
+        return ProvenancePreflight(status=ProvenancePreflightStatus.NOT_REQUIRED)
+
+    console = VeraConsole.source_only(provenance_preflight=detector)
+    console.dispatch("You don't sound like yourself")
+    console.dispatch("not the Inner Council I meant")
+    assert calls == [
+        "You don't sound like yourself",
+        "not the Inner Council I meant",
+    ]
