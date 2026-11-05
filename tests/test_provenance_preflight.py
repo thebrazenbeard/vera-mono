@@ -169,7 +169,7 @@ def test_roots_trigger_adapter_searches_only_matched_query_and_scope():
 
 def test_roots_no_trigger_does_not_silence_ordinary_questions():
     from types import SimpleNamespace
-    from vera_core.provenance_preflight import RootsSearchResult, build_roots_preflight
+    from vera_core.provenance_preflight import build_roots_preflight
 
     def forbidden_search(_query, _scope):
         raise AssertionError("no-trigger text must not cause Roots corpus search")
