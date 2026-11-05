@@ -141,3 +141,34 @@ def test_historical_retrieval_does_not_mutate_governed_memory_head(tmp_path):
     assert ledger.current_head == original_head
     with pytest.raises(KeyError):
         ledger.read("history:1")
+
+
+def test_authorized_privacy_scope_string_cannot_split_into_matching_characters():
+    record = HistoricalEvidenceRecord(
+        memory_id="m-private", privacy_scope="P", event_time=None,
+        recorded_at=None, effective_from=None, source_ids=("source:private",),
+        provenance_ceiling="HISTORICAL", currentness_rule="HISTORICAL_ONLY",
+    )
+    # Before this guard, tuple("PRIVATE") admitted the one-letter scope "P".
+    for malformed in ("PRIVATE", ["P"], b"PRIVATE", (" ",)):
+        with pytest.raises(HistoricalEvidenceAccessError):
+            query_historical_evidence(
+                (record,), authorized_privacy_scopes=malformed,
+                retrieved_at="2026-11-05T17:00:00Z",
+            )
+    assert query_historical_evidence(
+        (record,), authorized_privacy_scopes=("P",),
+        retrieved_at="2026-11-05T17:00:00Z",
+    ).records == (record,)
+
+
+def test_source_ids_must_be_exact_tuple_not_split_text():
+    kwargs = dict(
+        memory_id="m-source", privacy_scope="PRIVATE", event_time=None,
+        recorded_at=None, effective_from=None,
+        provenance_ceiling="HISTORICAL", currentness_rule="HISTORICAL_ONLY",
+    )
+    for malformed in ("abc", ["source:a"], b"abc", (" ",)):
+        with pytest.raises(ValueError, match="source_ids"):
+            HistoricalEvidenceRecord(**kwargs, source_ids=malformed)
+    assert HistoricalEvidenceRecord(**kwargs, source_ids=("source:a",)).source_ids == ("source:a",)

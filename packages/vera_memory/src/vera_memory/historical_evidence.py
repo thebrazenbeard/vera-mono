@@ -92,10 +92,13 @@ class HistoricalEvidenceRecord:
             ("provenance_ceiling", self.provenance_ceiling),
             ("currentness_rule", self.currentness_rule),
         ):
-            if type(value) is not str or not value:
+            if type(value) is not str or not value.strip():
                 raise ValueError(f"{label} must be a non-empty exact string")
-        object.__setattr__(self, "source_ids", tuple(self.source_ids))
-        if any(type(item) is not str or not item for item in self.source_ids):
+        if type(self.source_ids) is not tuple:
+            # tuple("source") would silently split provenance into character
+            # IDs, just as tuple("PRIVATE") can widen a privacy scope.
+            raise ValueError("source_ids must be an exact tuple")
+        if any(type(item) is not str or not item.strip() for item in self.source_ids):
             raise ValueError("source_ids must contain non-empty exact strings")
         if len(self.source_ids) != len(set(self.source_ids)):
             raise ValueError("source_ids must be unique")
@@ -138,11 +141,15 @@ class HistoricalEvidenceResult:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "records", tuple(self.records))
-        object.__setattr__(
-            self,
-            "authorized_privacy_scopes",
-            tuple(self.authorized_privacy_scopes),
-        )
+        if type(self.authorized_privacy_scopes) is not tuple:
+            raise HistoricalEvidenceAccessError(
+                "authorized privacy scopes must be an exact tuple"
+            )
+        if any(type(scope) is not str or not scope.strip()
+               for scope in self.authorized_privacy_scopes):
+            raise HistoricalEvidenceAccessError(
+                "authorized privacy scopes must contain non-empty exact strings"
+            )
 
 
 def query_historical_evidence(
@@ -158,13 +165,15 @@ def query_historical_evidence(
     """
 
     if type(authorized_privacy_scopes) is not tuple:
-        authorized_privacy_scopes = tuple(authorized_privacy_scopes)
+        raise HistoricalEvidenceAccessError(
+            "authorized privacy scopes must be an exact tuple"
+        )
     if not authorized_privacy_scopes:
         raise HistoricalEvidenceAccessError(
             "historical evidence retrieval requires explicit privacy scope authorization"
         )
     if any(
-        type(scope) is not str or not scope
+        type(scope) is not str or not scope.strip()
         for scope in authorized_privacy_scopes
     ):
         raise HistoricalEvidenceAccessError(
