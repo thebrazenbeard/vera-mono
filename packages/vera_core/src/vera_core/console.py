@@ -286,7 +286,7 @@ class VeraConsole:
                 SpeechAct.GREETING,
                 SpeechAct.INVOCATION,
             }
-            and not envelope.action_forbidden
+            and not envelope.negation_cues
             and envelope.fidelity is not TransferFidelity.EXACT
             and envelope.target is not InteractionTarget.MEANING
         ):
