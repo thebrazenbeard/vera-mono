@@ -19,7 +19,8 @@ def test_relational_question_triggers_bound_roots_lookup_before_answer():
     console = VeraConsole.source_only(provenance_preflight=lookup)
     response = console.dispatch("Who am I to you?")
     assert called == ["Who am I to you?"]
-    assert "Patrick" in response.text
+    assert "PROVENANCE_SEARCHED" in response.text
+    assert "Patrick" not in response.text
     assert console.last_provenance_preflight is not None
     assert console.last_provenance_preflight.candidate_refs == (
         "roots:conversation:123",
@@ -99,6 +100,7 @@ def test_lookup_receipt_does_not_survive_next_unrelated_dispatch():
     console = VeraConsole.source_only(
         provenance_preflight=lambda _raw: ProvenancePreflight(
             status=ProvenancePreflightStatus.SEARCHED,
+            candidate_refs=("roots:test",),
         )
     )
     console.dispatch("Who am I to you?")
@@ -159,7 +161,8 @@ def test_roots_trigger_adapter_searches_only_matched_query_and_scope():
         )
     )
     answer = console.dispatch("Who am I to you?")
-    assert "Patrick" in answer.text
+    assert "PROVENANCE_SEARCHED" in answer.text
+    assert "Patrick" not in answer.text
     assert calls == [
         ("detect", "Who am I to you?"),
         ("search", "origin of our relational naming", "private-consented-history"),
