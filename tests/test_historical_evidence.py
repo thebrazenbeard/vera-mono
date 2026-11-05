@@ -1,5 +1,6 @@
 import pytest
 
+from vera_memory import MemoryLedger
 from vera_memory.historical_evidence import (
     HistoricalEvidenceAccessError,
     HistoricalEvidenceRecord,
@@ -83,3 +84,60 @@ def test_historical_evidence_preserves_explicit_unknown_record_time_status():
     assert item.recorded_at_status == "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"
     assert item.effective_from is None
     assert item.effective_from_status == "UNKNOWN_NOT_RECORDED_IN_SOURCE_ROW"
+
+
+def test_historical_evidence_recursively_snapshots_nested_untrusted_content():
+    original = {"account": {"roles": ["historical"], "annotations": [{"status": "unreviewed"}]}}
+    record = HistoricalEvidenceRecord(
+        memory_id="m-nested", privacy_scope="PRIVATE", event_time=None,
+        recorded_at=None, effective_from=None, source_ids=("source:nested",),
+        provenance_ceiling="UNVERIFIED", currentness_rule="HISTORICAL_ONLY",
+        content=original,
+    )
+    original["account"]["roles"].append("current")
+    original["account"]["annotations"][0]["status"] = "approved"
+    result = query_historical_evidence(
+        (record,), authorized_privacy_scopes=("PRIVATE",),
+        retrieved_at="2026-11-05T17:00:00Z",
+    )
+    snapshot = result.records[0].content
+    assert snapshot["account"]["roles"] == ("historical",)
+    assert snapshot["account"]["annotations"][0]["status"] == "unreviewed"
+    with pytest.raises(TypeError):
+        snapshot["account"]["annotations"][0]["status"] = "forged"
+    with pytest.raises(AttributeError):
+        snapshot["account"]["roles"].append("forged")
+
+
+def test_historical_evidence_rejects_cycles_and_unsupported_mutable_values():
+    kwargs = dict(
+        memory_id="m-malformed", privacy_scope="PRIVATE", event_time=None,
+        recorded_at=None, effective_from=None, source_ids=("source:one",),
+        provenance_ceiling="UNVERIFIED", currentness_rule="HISTORICAL_ONLY",
+    )
+    cyclic = {}
+    cyclic["self"] = cyclic
+    for bad in (cyclic, {"mutable_set": {"surprise"}}, {"nan": float("nan")},
+                {1: "non-string-key"}, {"opaque": object()}):
+        with pytest.raises((TypeError, ValueError)):
+            HistoricalEvidenceRecord(**kwargs, content=bad)
+
+
+def test_historical_retrieval_does_not_mutate_governed_memory_head(tmp_path):
+    ledger = MemoryLedger(tmp_path / "governed.sqlite", project_id="vera-mono", identity_id="vera")
+    original_head = ledger.current_head
+    historical = HistoricalEvidenceRecord(
+        memory_id="history:1", privacy_scope="PRIVATE", event_time="2026-01-01T00:00:00Z",
+        recorded_at="2026-01-02T00:00:00Z", effective_from=None,
+        source_ids=("source:historical",), provenance_ceiling="UNVERIFIED",
+        currentness_rule="HISTORICAL_ONLY", content={"text": "a past claim"},
+    )
+    result = query_historical_evidence(
+        (historical,), authorized_privacy_scopes=("PRIVATE",),
+        retrieved_at="2026-11-05T17:00:00Z",
+    )
+    assert result.current_memory_effect == "NONE"
+    assert result.authorization_effect == "NONE"
+    assert ledger.current_head == original_head
+    with pytest.raises(KeyError):
+        ledger.read("history:1")
