@@ -1,0 +1,50 @@
+{
+  "schema": "VERA_MONO_DONOR_BINDING_V1",
+  "candidate_id": "vera_os_wsl_ipc_fixture_v1",
+  "donor_repository": "thebrazenbeard/vera-os",
+  "donor_head": "624da853340a1fdc3ce606ff38f2adb751dc7fc9",
+  "donor_base_draft_head": "6e3925314781b9e288a11ff0e0799e53217e94c3",
+  "donor_accepted_main_at_review": "31b66b6ff317eb981c4bd8fcc4ae6e5db1d21adf",
+  "source_blob_ids": {
+    "src/veraos/wsl_pilot.py": "f7361d208cf8b20a9b0be2ad679f362dc0d0c011",
+    "src/veraos/wsl_ipc.py": "704259f3e346e59b3f6d221119fd00db8e8d4116",
+    "tests/test_wsl_ipc.py": "a12c304f130d0f783c8332a888beb857e3067c78",
+    "tests/test_wsl_ipc_replay_gap.py": "a1dd879cc79d88c253647168b7f5307c0d64f4aa",
+    "docs/14-wsl2-next-gates.md": "417f6baf5bf61ec005969f0384f3da4e1acd4d2e",
+    "docs/15-wsl2-windows-identity-and-worker-isolation.md": "71906ae425a6df9db7aea4e72de42cbba9c2fe59"
+  },
+  "admission_state": "EXPERIMENTING",
+  "mode": "SOURCE_REVIEW_ONLY_NO_CODE_COPY",
+  "absorbed_target": null,
+  "runtime_dependency_on_donor": false,
+  "authority_effect": "NONE",
+  "observed_mechanisms": [
+    "private Linux AF_UNIX fixture transport with SO_PEERCRED same-UID gate",
+    "bounded fixed-operation JSON requests and deny-all protected effects",
+    "two fixture-only SQLite-backed workers with conservative interrupted-work hold",
+    "regression characterization of duplicate submit after a lost response"
+  ],
+  "evidence": {
+    "source_inspected_at": "thebrazenbeard/vera-os@624da853340a1fdc3ce606ff38f2adb751dc7fc9",
+    "host_tests": "PR_REPORTED_LAPPY_WSL2_40_OF_40_PASS_AT_CODE_HEAD_1fcd862a1803c05c9b8d080e150c6bc06fa184e1",
+    "independent_host_reproduction": false,
+    "real_cross_uid_denial": false
+  },
+  "unqualified_boundaries": [
+    "no durable per-client session or owner mapping",
+    "no durable principal/request-id/payload-digest idempotent admission",
+    "no independent Linux worker UID or protected state-service UID",
+    "same-UID process can bypass IPC and tamper with pilot SQLite",
+    "no Windows SID or Patrick consent authentication",
+    "no qualified Vera Mono execution, effect, memory or task-ledger admission",
+    "no Windows cold-start, backup restore or production supervision"
+  ],
+  "excluded_imports_and_effects": [
+    "no veraos package import, Git submodule, runtime git clone or sibling checkout",
+    "no binding as vera_core.PCExecutionTransport or ProviderExecutionTransport",
+    "no writes to vera_core.TaskExecutionLedger or VeraStateDirectory",
+    "no replacement of QualifiedVeraRuntime, lifecycle or outbound effect fence",
+    "no model inference, STM ingestion, credentials, host effects or financial actions"
+  ],
+  "claim_ceiling": "EXACT_DONOR_SOURCE_CANDIDATE_ONLY_NOT_ABSORBED_NOT_HOST_IDENTITY_NOT_RUNTIME_OR_EFFECT_AUTHORITY"
+}

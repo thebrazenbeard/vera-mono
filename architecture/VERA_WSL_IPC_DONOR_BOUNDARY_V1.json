@@ -1,0 +1,25 @@
+{
+  "schema": "VERA_MONO_WSL_IPC_DONOR_BOUNDARY_V1",
+  "donor_binding": "provenance/donors/vera_os_wsl_ipc_candidate.json",
+  "donor_subject": "thebrazenbeard/vera-os@624da853340a1fdc3ce606ff38f2adb751dc7fc9",
+  "state": "SOURCE_CANDIDATE_NOT_ADMITTED",
+  "canonical_runtime": "vera_core.QualifiedVeraRuntime",
+  "canonical_task_ledger": "vera_core.TaskExecutionLedger",
+  "canonical_effect_boundary": "vera_core.LifecycleEffectGateway",
+  "current_transport_admission": "NONE",
+  "current_host_identity_qualification": false,
+  "future_admission_conditions": [
+    "host-injected adapter and contracts implemented inside vera-mono with no runtime donor checkout",
+    "separate admitted host identity and authority verifier for a matching transport",
+    "durable idempotent request/receipt binding and ambiguous-response reconciliation",
+    "real different-UID and OS-level worker/state-owner isolation tests",
+    "approved Windows-user-to-Linux-owner mapping if Windows clients are ever admitted",
+    "source, runtime, restart, and protected-effect evidence kept as distinct qualifications"
+  ],
+  "forbidden_promotions": [
+    "SO_PEERCRED Linux UID is not a Windows SID or Vera owner authorization",
+    "pilot SQLite receipts are not Vera Mono task-ledger or effect-fence receipts",
+    "a WSL development smoke test is not production installation or runtime consumption",
+    "a source donor pin is not provider activation, deployment or protected effect approval"
+  ]
+}
