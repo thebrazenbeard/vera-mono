@@ -31,7 +31,10 @@ class ProvenancePreflight:
     def __post_init__(self) -> None:
         if not isinstance(self.status, ProvenancePreflightStatus):
             raise TypeError("status must be ProvenancePreflightStatus")
-        if type(self.source_repository) is not str or self.source_repository != "thebrazenbeard/roots":
+        if (
+            type(self.source_repository) is not str
+            or self.source_repository != "thebrazenbeard/roots"
+        ):
             raise ValueError("source_repository must be the exact roots repository")
         if type(self.candidate_refs) is not tuple or any(
             type(item) is not str or not item.strip()
