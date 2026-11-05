@@ -282,12 +282,11 @@ class VeraConsole:
         # an implicit provenance search.
         if (
             self._provenance_preflight is not None
-            and envelope.speech_act in {
-                SpeechAct.QUESTION,
-                SpeechAct.REQUEST,
-                SpeechAct.CORRECTION,
+            and envelope.speech_act not in {
+                SpeechAct.GREETING,
+                SpeechAct.INVOCATION,
             }
-            and not envelope.negation_cues
+            and not envelope.action_forbidden
             and envelope.fidelity is not TransferFidelity.EXACT
             and envelope.target is not InteractionTarget.MEANING
         ):
