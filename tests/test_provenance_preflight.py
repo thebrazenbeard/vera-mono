@@ -83,7 +83,7 @@ def test_exact_controls_and_diagnostic_operand_are_not_roots_searches():
     assert calls == []
 
 
-def test_assertions_and_negated_requests_do_not_invoke_provenance():
+def test_assertions_reach_pure_detector_but_negated_commands_do_not_search():
     calls = []
     console = VeraConsole.source_only(
         provenance_preflight=lambda raw: (
@@ -93,7 +93,7 @@ def test_assertions_and_negated_requests_do_not_invoke_provenance():
     )
     console.dispatch("the string :status is an example")
     console.dispatch("do not show me your status")
-    assert calls == []
+    assert calls == ["the string :status is an example"]
 
 
 def test_lookup_receipt_does_not_survive_next_unrelated_dispatch():
