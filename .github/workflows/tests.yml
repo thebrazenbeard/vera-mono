@@ -40,6 +40,10 @@ jobs:
       - name: Run monorepo test suite
         run: python -m pytest -q
 
+      - name: Emit exact Windows synthetic reparse receipt
+        if: ${{ always() && matrix.os == 'windows-latest' }}
+        run: python -m tools.security.windows_nt_reparse_probe
+
       - name: Build self-contained monorepo wheel
         run: |
           python -c "import shutil; shutil.rmtree('dist', ignore_errors=True); shutil.rmtree('.wheel-install', ignore_errors=True)"
