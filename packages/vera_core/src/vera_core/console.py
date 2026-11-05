@@ -262,20 +262,6 @@ class VeraConsole:
                 envelope,
             )
 
-        if (
-            envelope.target not in {
-                InteractionTarget.UNKNOWN,
-                InteractionTarget.AMBIGUOUS,
-            }
-            and not envelope.dispatch_permitted
-        ):
-            return ConsoleResponse(
-                f"NOT DISPATCHED — {envelope.target.value} was interpreted "
-                "as a referenced subject inside an assertion, not as a "
-                "question, request, correction, or exact console command.",
-                envelope,
-            )
-
         # The host owns Roots trigger detection and candidate retrieval. No
         # generic prose may bypass a configured pre-answer lookup failure;
         # exact console controls and :meaning diagnostic operands do not run
@@ -314,6 +300,20 @@ class VeraConsole:
                     "needs resolution before an ordinary reply.",
                     envelope,
                 )
+
+        if (
+            envelope.target not in {
+                InteractionTarget.UNKNOWN,
+                InteractionTarget.AMBIGUOUS,
+            }
+            and not envelope.dispatch_permitted
+        ):
+            return ConsoleResponse(
+                f"NOT DISPATCHED — {envelope.target.value} was interpreted "
+                "as a referenced subject inside an assertion, not as a "
+                "question, request, correction, or exact console command.",
+                envelope,
+            )
 
         if envelope.target is InteractionTarget.EXIT:
             return ConsoleResponse(
