@@ -86,6 +86,7 @@ def build_roots_preflight(
         try:
             decision = resolve_trigger(text)
             status = getattr(decision, "status", None)
+            status = getattr(status, "value", status)
             if status == "NO_TRIGGER":
                 return ProvenancePreflight(
                     status=ProvenancePreflightStatus.NOT_REQUIRED,
