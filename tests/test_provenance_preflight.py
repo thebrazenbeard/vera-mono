@@ -236,7 +236,7 @@ def test_unknown_high_value_question_still_reaches_roots_preflight():
     assert "PROVENANCE_UNAVAILABLE" in response.text
 
 
-def test_quoted_subject_assertion_and_unknown_negation_do_not_search():
+def test_quoted_subject_reaches_pure_detector_and_negated_request_skips():
     calls = []
     console = VeraConsole.source_only(
         provenance_preflight=lambda raw: (
@@ -246,4 +246,4 @@ def test_quoted_subject_assertion_and_unknown_negation_do_not_search():
     )
     console.dispatch("The phrase 'who am I to you' is a quote.")
     console.dispatch("Do not explain the silver staircase.")
-    assert calls == []
+    assert calls == ["The phrase 'who am I to you' is a quote."]
