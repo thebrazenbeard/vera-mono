@@ -302,6 +302,12 @@ class VeraConsole:
                     envelope,
                 )
             self._last_provenance_preflight = preflight
+            if preflight.status.value == "SUPPRESSED":
+                return ConsoleResponse(
+                    "SOURCE_ONLY — Roots lookup deliberately suppressed. "
+                    "No conversational provenance was consulted.",
+                    envelope,
+                )
             if not preflight.answer_may_continue:
                 status = preflight.status.value
                 return ConsoleResponse(
