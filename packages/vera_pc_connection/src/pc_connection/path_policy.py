@@ -11,11 +11,14 @@ class PathPolicyError(ValueError):
 
 
 READ_ROOTS: Final[dict[str, PureWindowsPath]] = {
-    "VERA_ROOT": PureWindowsPath("C:/VERA"),
-    "USER_VERA_ROOT": PureWindowsPath("C:/Users/patri/VERA"),
+    "VERA_ROOT": PureWindowsPath("D:/VERA"),
 }
+# Kept as an API identifier for legacy callers, NOT an admitted capability.
 WRITE_ROOT_ID: Final[str] = "PCCC_WRITE_ROOT_V1"
-WRITE_ROOT: Final[PureWindowsPath] = PureWindowsPath("C:/VERA/PCCC")
+WRITE_ROOT: Final[None] = None
+# Continue to deny reading the potential runtime subtree even though writes
+# are disabled; D:\VERA is not a blanket license to expose sensitive state.
+_RESERVED_RUNTIME_SUBTREE: Final[PureWindowsPath] = PureWindowsPath("D:/VERA/PCCC")
 
 _RESERVED_NAMES = {
     "CON", "PRN", "AUX", "NUL",
@@ -76,13 +79,11 @@ class AuthorizedPath:
 
 
 def resolve_remote_read(root_id: str, relative_path: str) -> AuthorizedPath:
-    """Resolve a remote read without exposing the writable runtime subtree.
+    """Lexical precheck only; Windows host must still validate real handles.
 
-    This is a lexical precheck only. The Windows adapter must additionally open
-    by handle, reject reparse points and hard links, inspect the final path and
-    file identity, and revalidate after the operation.
+    The D: drive designation is Patrick's project orientation, not proof of
+    filesystem permissions or a live, authenticated PC execution transport.
     """
-
     try:
         root = READ_ROOTS[root_id]
     except KeyError as exc:
@@ -92,21 +93,14 @@ def resolve_remote_read(root_id: str, relative_path: str) -> AuthorizedPath:
 
     if not _is_within(absolute, root):
         raise PathPolicyError("path escaped the selected read root")
-    if _is_within(absolute, WRITE_ROOT):
-        raise PathPolicyError(
-            "remote reads may not expose the writable PCCC runtime subtree"
-        )
+    if _is_within(absolute, _RESERVED_RUNTIME_SUBTREE):
+        raise PathPolicyError("remote reads may not expose PCCC runtime subtree")
     return AuthorizedPath(root_id, str(relative), absolute)
 
 
 def resolve_runtime_write(relative_path: str) -> AuthorizedPath:
-    """Resolve an agent-owned write below the one authorized writable root."""
-
-    relative = _validate_relative(relative_path)
-    absolute = WRITE_ROOT / relative
-    if not _is_within(absolute, WRITE_ROOT):
-        raise PathPolicyError("path escaped the PCCC write root")
-    return AuthorizedPath(WRITE_ROOT_ID, str(relative), absolute)
+    """Explicitly retired until a new owner-approved writable root exists."""
+    raise PathPolicyError("PCCC runtime write root is not authorized")
 
 
 __all__ = [

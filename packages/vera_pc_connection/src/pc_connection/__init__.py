@@ -3,11 +3,13 @@ from __future__ import annotations
 BRIDGE_ID = "VERA_PC_CONNECTION_BRIDGE_V1"
 VERSION = "0.1.0.dev0"
 
-READ_ONLY_ROOTS = (
-    r"C:\VERA",
-    r"C:\Users\patri\VERA",
-)
-WRITABLE_ROOT = r"C:\VERA\PCCC"
+# Authoritative Windows project root is D:\VERA. This is a source-level
+# allowlist, not evidence that a host has mounted, authorized or served it.
+READ_ONLY_ROOTS = (r"D:\VERA",)
+
+# The prior C:\VERA\PCCC write path is retired. No replacement writable
+# location has been explicitly approved; absence is an intentional HOLD.
+WRITABLE_ROOT = None
 
 REMOTE_TRANSFER_OPERATIONS = frozenset(
     {"UPLOAD_ARTIFACT", "DOWNLOAD_ARTIFACT"}

@@ -1,0 +1,35 @@
+{
+  "schema": "VERA_MONO_PCCC_PATH_ROOT_MIGRATION_V1",
+  "status": "DRAFT_SOURCE_POLICY_HOLD",
+  "owner": "thebrazenbeard/vera-mono/packages/vera_pc_connection",
+  "accepted_base": "2cf4c42525998cf298e465f294fb45c4624e1a7c",
+  "authority_root": "D:\\VERA",
+  "read_only_root_aliases": {
+    "VERA_ROOT": "D:\\VERA"
+  },
+  "host_read_authorized": false,
+  "retired_aliases": [
+    "USER_VERA_ROOT"
+  ],
+  "write_root": null,
+  "host_write_authorized": false,
+  "write_root_admitted": false,
+  "reserved_read_subtrees": [
+    "D:\\VERA\\PCCC"
+  ],
+  "migration_risks": [
+    "Older C-drive clients and USER_VERA_ROOT aliases now fail instead of silently reading obsolete state.",
+    "The historical PCCC_WRITE_ROOT_V1 identifier is retained for API diagnostics, but any runtime-write resolution fails closed.",
+    "This is an incompatible source-policy change for callers expecting a writable PCCC path; no replacement D-drive write location has been authorized.",
+    "Read policy is lexical only; Windows host must validate actual handles, reparse points, ACLs, trusted identity and current root state before any read.",
+    "Source changes do not migrate existing C-drive files or verify D-drive data, deployments, signatures or host permissions.",
+    "An old installed package can retain old C-drive behavior until separately updated and independently verified."
+  ],
+  "non_effects": [
+    "no filesystem movement/deletion",
+    "no user account or ACL change",
+    "no network or remote host action",
+    "no writable root promotion",
+    "no production deployment or memory admission"
+  ]
+}
