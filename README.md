@@ -21,6 +21,20 @@ Vera's implementation lives here. External repositories are research labs, donor
 - `packages/vera_pc_connection` â€” local PC-connection contracts, path policy, journal, envelopes, and state machine.
 - `packages/portfolio_runtime` â€” absorbed reusable mechanisms from Lantern, Roots, SkeletonKey, Attune, Intranel, and Vera Works.
 
+### Inert DRIVE outcome-feedback reference (source only)
+
+`vera_core.drive_feedback.DriveFeedbackStore` is an additive SQLite reference
+for verifying caller-supplied outcome claims through an injected host verifier,
+atomically updating a need projection and exact goal-instance credit, rejecting
+stale observations, handling matching replays idempotently, and retaining an idempotent pending outbox.
+See [DRIVE feedback reference](docs/DRIVE_FEEDBACK_REFERENCE_V1.md).
+
+**This module is not imported by the qualified Vera runtime, installed in
+PORTAL, or connected to live MESO/Volition.** Unit tests use a synthetic
+verifier, not independently authenticated physical outcome custody. The
+host/verifier/consumer trust contract and recovery/authorization qualification
+are separate prerequisites for any runtime installation or protected effects.
+
 ## Boundary
 
 Donor references are preserved under `provenance/` and inside historical source artifacts. Their presence records where mechanisms came from; it does not make those repositories runtime dependencies.
