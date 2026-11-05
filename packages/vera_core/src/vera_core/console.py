@@ -8,6 +8,8 @@ from typing import Callable
 from vera_identity.loader import load_json_resource
 
 from .registry import CAPABILITIES, validate_registry
+from .provenance_preflight import ProvenancePreflight, ProvenancePreflightStatus
+from .semantic_transfer import TransferFidelity
 
 from .interaction_semantics import (
     InteractionEnvelope,
@@ -32,27 +34,40 @@ class ConsoleResponse:
 class VeraConsole:
     mode: str
     _context_provider: Callable[[], dict] | None = None
+    _provenance_preflight: Callable[[str], ProvenancePreflight] | None = None
     _history: list[InteractionEnvelope] = field(default_factory=list, init=False)
+    _last_provenance_preflight: ProvenancePreflight | None = field(default=None, init=False)
 
     @classmethod
-    def source_only(cls) -> "VeraConsole":
-        return cls(mode="SOURCE_ONLY")
+    def source_only(
+        cls,
+        *,
+        provenance_preflight: Callable[[str], ProvenancePreflight] | None = None,
+    ) -> "VeraConsole":
+        return cls(mode="SOURCE_ONLY", _provenance_preflight=provenance_preflight)
 
     @classmethod
     def runtime_bound(
         cls,
         context_provider: Callable[[], dict],
+        *,
+        provenance_preflight: Callable[[str], ProvenancePreflight] | None = None,
     ) -> "VeraConsole":
         if not callable(context_provider):
             raise TypeError("context_provider must be callable")
         return cls(
             mode="QUALIFIED_STATE_BOUND",
             _context_provider=context_provider,
+            _provenance_preflight=provenance_preflight,
         )
 
     @property
     def history(self) -> tuple[InteractionEnvelope, ...]:
         return tuple(self._history)
+
+    @property
+    def last_provenance_preflight(self) -> ProvenancePreflight | None:
+        return self._last_provenance_preflight
 
     def _context(self) -> dict | None:
         if self._context_provider is None:
@@ -236,6 +251,7 @@ class VeraConsole:
             previous_interaction_id=previous,
         )
         self._history.append(envelope)
+        self._last_provenance_preflight = None
 
         if envelope.action_forbidden:
             cues = ", ".join(envelope.negation_cues) or "negation"
@@ -259,6 +275,35 @@ class VeraConsole:
                 "question, request, correction, or exact console command.",
                 envelope,
             )
+
+        # The host owns Roots trigger detection and candidate retrieval. No
+        # generic prose may bypass a configured pre-answer lookup failure;
+        # exact console controls and :meaning diagnostic operands do not run
+        # an implicit provenance search.
+        if (
+            self._provenance_preflight is not None
+            and envelope.dispatch_permitted
+            and envelope.fidelity is not TransferFidelity.EXACT
+            and envelope.target is not InteractionTarget.MEANING
+        ):
+            try:
+                preflight = self._provenance_preflight(envelope.raw_text)
+                if type(preflight) is not ProvenancePreflight:
+                    raise TypeError("preflight provider returned invalid result")
+            except Exception:
+                return ConsoleResponse(
+                    "PROVENANCE_LOOKUP_UNAVAILABLE — the configured roots "
+                    "pre-answer check failed. No substantive reply was generated.",
+                    envelope,
+                )
+            self._last_provenance_preflight = preflight
+            if not preflight.answer_may_continue:
+                status = preflight.status.value
+                return ConsoleResponse(
+                    f"PROVENANCE_{status} — roots candidate provenance "
+                    "needs resolution before an ordinary reply.",
+                    envelope,
+                )
 
         if envelope.target is InteractionTarget.EXIT:
             return ConsoleResponse(
