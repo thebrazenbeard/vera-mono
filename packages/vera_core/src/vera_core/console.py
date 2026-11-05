@@ -8,7 +8,7 @@ from typing import Callable
 from vera_identity.loader import load_json_resource
 
 from .registry import CAPABILITIES, validate_registry
-from .provenance_preflight import ProvenancePreflight, ProvenancePreflightStatus
+from .provenance_preflight import ProvenancePreflight
 from .semantic_transfer import TransferFidelity
 
 from .interaction_semantics import (
