@@ -218,3 +218,29 @@ def test_roots_search_must_return_typed_evidence_metadata():
         provenance_preflight=preflight
     ).dispatch("Who am I to you?")
     assert "PROVENANCE_UNAVAILABLE" in response.text
+
+
+def test_unknown_high_value_question_still_reaches_roots_preflight():
+    calls = []
+
+    def unavailable(raw):
+        calls.append(raw)
+        return ProvenancePreflight(status=ProvenancePreflightStatus.UNAVAILABLE)
+
+    console = VeraConsole.source_only(provenance_preflight=unavailable)
+    response = console.dispatch("What does the silver staircase mean to us?")
+    assert calls == ["What does the silver staircase mean to us?"]
+    assert "PROVENANCE_UNAVAILABLE" in response.text
+
+
+def test_quoted_subject_assertion_and_unknown_negation_do_not_search():
+    calls = []
+    console = VeraConsole.source_only(
+        provenance_preflight=lambda raw: (
+            calls.append(raw)
+            or ProvenancePreflight(status=ProvenancePreflightStatus.NOT_REQUIRED)
+        )
+    )
+    console.dispatch("The phrase 'who am I to you' is a quote.")
+    console.dispatch("Do not explain the silver staircase.")
+    assert calls == []
