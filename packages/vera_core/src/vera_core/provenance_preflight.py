@@ -25,7 +25,7 @@ class ProvenancePreflight:
 
     status: ProvenancePreflightStatus
     candidate_refs: tuple[str, ...] = ()
-    source_repository: str = "thebrazenbeard/roots"
+    source_repository: str = "roots"
     source_head: str | None = None
 
     def __post_init__(self) -> None:
@@ -33,7 +33,7 @@ class ProvenancePreflight:
             raise TypeError("status must be ProvenancePreflightStatus")
         if (
             type(self.source_repository) is not str
-            or self.source_repository != "thebrazenbeard/roots"
+            or self.source_repository != "roots"
         ):
             raise ValueError("source_repository must be the exact roots repository")
         if type(self.candidate_refs) is not tuple or any(
