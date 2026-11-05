@@ -10,6 +10,8 @@ class ProvenancePreflightStatus(StrEnum):
 
     NOT_REQUIRED = "NOT_REQUIRED"
     SEARCHED = "SEARCHED"
+    NO_EVIDENCE = "NO_EVIDENCE"
+    SUPPRESSED = "SUPPRESSED"
     UNAVAILABLE = "UNAVAILABLE"
     AMBIGUOUS = "AMBIGUOUS"
 
@@ -45,6 +47,8 @@ class ProvenancePreflight:
             type(self.source_head) is not str or not self.source_head.strip()
         ):
             raise ValueError("source_head must be null or nonempty")
+        if self.status is ProvenancePreflightStatus.SEARCHED and not self.candidate_refs:
+            raise ValueError("SEARCHED requires at least one candidate reference")
         if self.status is not ProvenancePreflightStatus.SEARCHED and (
             self.candidate_refs or self.source_head is not None
         ):
@@ -52,10 +56,8 @@ class ProvenancePreflight:
 
     @property
     def answer_may_continue(self) -> bool:
-        return self.status in {
-            ProvenancePreflightStatus.NOT_REQUIRED,
-            ProvenancePreflightStatus.SEARCHED,
-        }
+        # Candidate references are not verified grounding or a response.
+        return self.status is ProvenancePreflightStatus.NOT_REQUIRED
 
 
 
@@ -94,6 +96,10 @@ def build_roots_preflight(
                 return ProvenancePreflight(
                     status=ProvenancePreflightStatus.NOT_REQUIRED,
                 )
+            if status == "SUPPRESSED":
+                return ProvenancePreflight(
+                    status=ProvenancePreflightStatus.SUPPRESSED,
+                )
             if status == "AMBIGUOUS":
                 return ProvenancePreflight(
                     status=ProvenancePreflightStatus.AMBIGUOUS,
@@ -123,6 +129,10 @@ def build_roots_preflight(
             searched = search_candidates(query, scope_key)
             if type(searched) is not RootsSearchResult:
                 raise TypeError("Roots search provider returned malformed result")
+            if not searched.candidate_refs:
+                return ProvenancePreflight(
+                    status=ProvenancePreflightStatus.NO_EVIDENCE,
+                )
             return ProvenancePreflight(
                 status=ProvenancePreflightStatus.SEARCHED,
                 candidate_refs=searched.candidate_refs,
