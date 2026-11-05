@@ -126,3 +126,95 @@ def test_provenance_receipts_reject_authority_like_untyped_data():
         pass
     else:
         raise AssertionError("non-search decision claimed retrieved evidence")
+
+
+
+def test_roots_trigger_adapter_searches_only_matched_query_and_scope():
+    from types import SimpleNamespace
+    from vera_core.provenance_preflight import RootsSearchResult, build_roots_preflight
+
+    calls = []
+
+    def detect(raw):
+        calls.append(("detect", raw))
+        return SimpleNamespace(
+            status="LOOKUP_REQUESTED",
+            hits=(
+                SimpleNamespace(
+                    concept_id="relational_pragmatics",
+                    query="origin of our relational naming",
+                    scope_key="private-consented-history",
+                ),
+            ),
+        )
+
+    def search(query, scope_key):
+        calls.append(("search", query, scope_key))
+        return RootsSearchResult(candidate_refs=("roots:record:2",), source_head="head")
+
+    console = VeraConsole.source_only(
+        provenance_preflight=build_roots_preflight(
+            resolve_trigger=detect,
+            search_candidates=search,
+        )
+    )
+    answer = console.dispatch("Who am I to you?")
+    assert "Patrick" in answer.text
+    assert calls == [
+        ("detect", "Who am I to you?"),
+        ("search", "origin of our relational naming", "private-consented-history"),
+    ]
+    assert console.last_provenance_preflight.candidate_refs == ("roots:record:2",)
+
+
+def test_roots_no_trigger_does_not_silence_ordinary_questions():
+    from types import SimpleNamespace
+    from vera_core.provenance_preflight import RootsSearchResult, build_roots_preflight
+
+    def forbidden_search(_query, _scope):
+        raise AssertionError("no-trigger text must not cause Roots corpus search")
+
+    preflight = build_roots_preflight(
+        resolve_trigger=lambda _raw: SimpleNamespace(status="NO_TRIGGER", hits=()),
+        search_candidates=forbidden_search,
+    )
+    console = VeraConsole.source_only(provenance_preflight=preflight)
+    response = console.dispatch("what is your status?")
+    assert "SOURCE_ONLY" in response.text
+    assert console.last_provenance_preflight.status is (
+        ProvenancePreflightStatus.NOT_REQUIRED
+    )
+
+
+def test_roots_ambiguous_trigger_blocks_without_archive_search():
+    from types import SimpleNamespace
+    from vera_core.provenance_preflight import build_roots_preflight
+
+    def forbidden_search(_query, _scope):
+        raise AssertionError("ambiguous provenance must not initiate corpus search")
+
+    preflight = build_roots_preflight(
+        resolve_trigger=lambda _raw: SimpleNamespace(status="AMBIGUOUS", hits=()),
+        search_candidates=forbidden_search,
+    )
+    response = VeraConsole.source_only(
+        provenance_preflight=preflight
+    ).dispatch("Who am I to you?")
+    assert "PROVENANCE_AMBIGUOUS" in response.text
+
+
+def test_roots_search_must_return_typed_evidence_metadata():
+    from types import SimpleNamespace
+    from vera_core.provenance_preflight import build_roots_preflight
+
+    hit = SimpleNamespace(query="relationship provenance", scope_key="private")
+    preflight = build_roots_preflight(
+        resolve_trigger=lambda _raw: SimpleNamespace(
+            status="LOOKUP_REQUESTED", hits=(hit,)
+        ),
+        search_candidates=lambda _query, _scope: {"source": "claimed"},
+    )
+    response = VeraConsole.source_only(
+        provenance_preflight=preflight
+    ).dispatch("Who am I to you?")
+    assert "PROVENANCE_UNAVAILABLE" in response.text
