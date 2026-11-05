@@ -27,16 +27,20 @@ archive, move, provider, import, or memory-admission operation.
 ## Decision semantics
 
 `PRESERVE` wins whenever active work, unique material, outstanding references,
-or a Project-only/Library-disabled boundary is explicitly present.
+or **any Project-only memory boundary** is explicitly present, regardless of
+whether Library access is enabled.
 `INSPECT_MISSING_EVIDENCE` retains incomplete, unknown, or unresolved target
 cases. `REVIEW_FOR_CONSOLIDATION` asks for duplicate evidence and a separately
-verified private custody copy. Only a complete, otherwise quiet inventory with
-both *claimed* duplicate review and archive-copy receipt references can yield
-`REVIEW_FOR_RETIREMENT`. The latter is an investigative queue entry, not a
-conclusion that two native Projects are truly redundant and certainly not a
-delete authorization. Receipt strings supplied by callers are not verified.
+verified private custody copy. **Caller-supplied review or archive receipt strings
+can never elevate a Project to retirement review.** This source-only V1 never
+emits `REVIEW_FOR_RETIREMENT`. That would require a separately authenticated
+verifier which does not exist in this module; deletion remains unavailable.
 Any Project named as a proposed duplicate target is preserved, and duplicate
 cycles are rejected: an audit must never nominate every copy for retirement.
+
+Output rows carry deterministic ordinal references rather than repeating private
+Project IDs, source hashes, duplicate target IDs or receipt strings. The private
+input inventory retains exact identity correlation. Do not publish manifests.
 
 No state is promoted to governed current Vera memory; no model training is
 authorized; no actual project is modified. A separately trusted host must

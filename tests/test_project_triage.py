@@ -24,10 +24,12 @@ class ProjectTriageTests(unittest.TestCase):
                 self.assertEqual(result["records"][0]["disposition"], "PRESERVE")
                 self.assertFalse(result["records"][0]["delete_authorized"])
 
-    def test_project_only_memory_without_file_library_is_protected(self):
-        result = triage_projects((project(memory_scope="PROJECT_ONLY", file_library_enabled=False),))
-        self.assertEqual(result["records"][0]["disposition"], "PRESERVE")
-        self.assertIn("PROJECT_ONLY_WITHOUT_FILE_LIBRARY", result["records"][0]["reasons"])
+    def test_all_project_only_memory_is_protected_regardless_of_library_access(self):
+        for enabled in (False, True, None):
+            with self.subTest(enabled=enabled):
+                result = triage_projects((project(memory_scope="PROJECT_ONLY", file_library_enabled=enabled),))
+                self.assertEqual(result["records"][0]["disposition"], "PRESERVE")
+                self.assertIn("PROJECT_ONLY_MEMORY_BOUNDARY", result["records"][0]["reasons"])
 
     def test_partial_or_unknown_inventory_is_not_eligible(self):
         for candidate in (project(coverage="PARTIAL"), project(active_work=None),
@@ -36,16 +38,18 @@ class ProjectTriageTests(unittest.TestCase):
                 result = triage_projects((candidate,))
                 self.assertEqual(result["records"][0]["disposition"], "INSPECT_MISSING_EVIDENCE")
 
-    def test_only_review_receipts_nominate_retirement_without_effect(self):
+    def test_caller_claimed_receipts_cannot_nominate_retirement(self):
         original = project("project:a")
         redundant = project("project:b", duplicate_of="project:a",
                             duplicate_review_ref="review:1", archive_copy_receipt_ref="archive:1")
         result = triage_projects((redundant, original))
         self.assertEqual(result["records"][0]["disposition"], "PRESERVE")
         self.assertIn("DUPLICATE_TARGET_MUST_BE_RETAINED", result["records"][0]["reasons"])
-        self.assertEqual(result["records"][1]["disposition"], "REVIEW_FOR_RETIREMENT")
+        self.assertEqual(result["records"][1]["disposition"], "REVIEW_FOR_CONSOLIDATION")
+        self.assertIn("UNVERIFIED_CALLER_RECEIPTS", result["records"][1]["reasons"])
         self.assertFalse(result["records"][1]["delete_authorized"])
         self.assertFalse(result["delete_api_available"])
+        self.assertFalse(result["retirement_review_available"])
         self.assertEqual(result["native_project_effect"], "NONE")
         self.assertEqual(result["memory_admission_effect"], "NONE")
         self.assertEqual(result["status"], "DRY_RUN_ONLY")
@@ -61,8 +65,34 @@ class ProjectTriageTests(unittest.TestCase):
         first, second = project("project:a"), project("project:b", source_digest="b" * 64)
         result = triage_projects((second, first))
         self.assertEqual(result, triage_projects((first, second)))
-        self.assertEqual([r["project_id"] for r in result["records"]], ["project:a", "project:b"])
+        self.assertEqual([r["record_ref"] for r in result["records"]], ["item:0001", "item:0002"])
         self.assertEqual(len(result["sha256"]), 64)
+
+    def test_report_does_not_echo_private_ids_or_receipt_values(self):
+        sensitive = "PRIVATE-ID-DO-NOT-COPY"
+        result = triage_projects((
+            project("project:a"),
+            project(sensitive, duplicate_of="project:a",
+                    duplicate_review_ref="review:PRIVATE-ID-DO-NOT-COPY",
+                    archive_copy_receipt_ref="archive:PRIVATE-ID-DO-NOT-COPY"),
+        ))
+        import json
+        encoded = json.dumps(result)
+        self.assertNotIn(sensitive, encoded)
+        self.assertNotIn("project:a", encoded)
+        self.assertNotIn("archive:PRIVATE", encoded)
+        self.assertNotIn('"source_digest"', encoded)
+        self.assertNotIn('"duplicate_of"', encoded)
+        self.assertTrue(all(not r["delete_authorized"] for r in result["records"]))
+
+    def test_project_only_cannot_be_retired_even_with_claimed_receipts(self):
+        result = triage_projects((
+            project("project:a"),
+            project("project:b", memory_scope="PROJECT_ONLY", file_library_enabled=True,
+                    duplicate_of="project:a", duplicate_review_ref="review:arbitrary",
+                    archive_copy_receipt_ref="archive:arbitrary"),
+        ))
+        self.assertEqual(result["records"][1]["disposition"], "PRESERVE")
 
     def test_malformed_sources_and_duplicate_ids_fail_closed(self):
         with self.assertRaises(ProjectTriageError):

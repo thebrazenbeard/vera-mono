@@ -108,7 +108,7 @@ def triage_projects(projects: tuple[ProjectEvidence, ...]) -> dict:
             target = by_id[target].duplicate_of
     referenced_targets = {item.duplicate_of for item in projects if item.duplicate_of is not None}
     rows: list[dict] = []
-    for item in sorted(projects, key=lambda row: row.project_id):
+    for index, item in enumerate(sorted(projects, key=lambda row: row.project_id), start=1):
         reasons: list[str] = []
         if item.project_id in referenced_targets:
             reasons.append("DUPLICATE_TARGET_MUST_BE_RETAINED")
@@ -118,8 +118,10 @@ def triage_projects(projects: tuple[ProjectEvidence, ...]) -> dict:
             reasons.append("UNIQUE_MATERIAL")
         if item.outstanding_references is True:
             reasons.append("OUTSTANDING_REFERENCES")
-        if item.memory_scope == "PROJECT_ONLY" and item.file_library_enabled is False:
-            reasons.append("PROJECT_ONLY_WITHOUT_FILE_LIBRARY")
+        if item.memory_scope == "PROJECT_ONLY":
+            # Project-only memory is not a reconstructible export artifact,
+            # whether or not the File Library happens to be enabled.
+            reasons.append("PROJECT_ONLY_MEMORY_BOUNDARY")
         if reasons:
             disposition = "PRESERVE"
         elif item.coverage != "COMPLETE" or any(
@@ -137,17 +139,22 @@ def triage_projects(projects: tuple[ProjectEvidence, ...]) -> dict:
             disposition = "REVIEW_FOR_CONSOLIDATION"
             reasons.append("NO_COPY_RECEIPT_REFERENCE")
         else:
-            disposition = "REVIEW_FOR_RETIREMENT"
-            reasons.append("CLAIMED_DUPLICATE_AND_COPY_RECEIPTS_REQUIRE_INDEPENDENT_CHECK")
+            # Caller-supplied strings are not independently authenticated.
+            # A retirement review requires a separately trusted verification
+            # step that does not exist in this source-only module.
+            disposition = "REVIEW_FOR_CONSOLIDATION"
+            reasons.append("UNVERIFIED_CALLER_RECEIPTS")
         rows.append({
-            "project_id": item.project_id,
-            "source_digest": item.source_digest,
+            # Do not echo raw Project IDs, source hashes, duplicate targets or
+            # receipt identifiers in a report that might be copied elsewhere.
+            # The private input inventory owns exact identity correlation.
+            "record_ref": f"item:{index:04d}",
             "disposition": disposition,
             "reasons": reasons,
-            "duplicate_of": item.duplicate_of,
-            "receipt_refs_claimed_only": {
-                "duplicate_review": item.duplicate_review_ref,
-                "archive_copy": item.archive_copy_receipt_ref,
+            "claim_presence": {
+                "duplicate_target": item.duplicate_of is not None,
+                "duplicate_review": item.duplicate_review_ref is not None,
+                "archive_copy": item.archive_copy_receipt_ref is not None,
             },
             "delete_authorized": False,
         })
@@ -159,6 +166,7 @@ def triage_projects(projects: tuple[ProjectEvidence, ...]) -> dict:
         "memory_admission_effect": "NONE",
         "native_project_effect": "NONE",
         "delete_api_available": False,
+        "retirement_review_available": False,
         "records": rows,
     }
     body["sha256"] = sha256(json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
