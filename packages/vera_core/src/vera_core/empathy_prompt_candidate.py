@@ -9,11 +9,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 import json
+import math
 import re
 from typing import Callable
 
 
 _OPAQUE_COMMIT = re.compile(r"[0-9a-f]{40}\Z")
+_PINNED_EMPATHY_COMMIT = "a115c675622662d1a7d58f58dbdb0eb9003d61b4"
+_OPAQUE_ID = re.compile(r"ev_[0-9a-f]{32}\Z")
 _POLICIES = frozenset({
     "CLARIFY_MEANING", "TASK_DIRECT", "REPAIR_FIRST", "CELEBRATE_FIRST",
     "TRUTHFUL_CHALLENGE", "PRESERVE_PLAY", "STOP_PLAY",
@@ -37,6 +40,7 @@ class HostReportedEmpathySource:
             or self.repository != "thebrazenbeard/empathy"
             or type(self.commit_sha) is not str
             or _OPAQUE_COMMIT.fullmatch(self.commit_sha) is None
+            or self.commit_sha != _PINNED_EMPATHY_COMMIT
             or type(self.source_path) is not str
             or self.source_path != "empathy_research/cognitive_donor_probe.py"
         ):
@@ -55,6 +59,56 @@ class EmpathyPromptCandidate:
     effect_authority: bool = False
     model_generated: bool = False
     model_identity: str = "UNQUALIFIED"
+
+
+def _admitted_evidence_binding(assessment: object, task: str) -> tuple[str, list[dict[str, object]]]:
+    """Require a complete, immutable, same-person current input snapshot.
+
+    This is only a syntactic correlation of a caller claim. It does not
+    authenticate the person, exact utterance, or host source custody.
+    """
+    person = getattr(assessment, "person_id", None)
+    current = getattr(assessment, "current_evidence", None)
+    historical = getattr(assessment, "historical_evidence", None)
+    hypotheses = getattr(assessment, "hypotheses", None)
+    stakes = getattr(assessment, "stakes", None)
+    if (
+        type(person) is not str or not person.strip()
+        or type(current) is not tuple or not current
+        or type(historical) is not tuple or historical
+        or type(hypotheses) is not tuple or hypotheses
+        or type(stakes) is not str or stakes not in {"low", "medium", "high"}
+    ):
+        raise EmpathyPromptBoundaryError("bounded immutable current assessment required")
+    seen: set[str] = set()
+    canonical: list[dict[str, object]] = []
+    for e in current:
+        item = {key: getattr(e, key, None) for key in (
+            "evidence_id", "kind", "referent", "value", "confidence",
+            "source", "scope_person_id", "active",
+        )}
+        ident = item["evidence_id"]
+        if (
+            type(ident) is not str or _OPAQUE_ID.fullmatch(ident) is None
+            or ident in seen
+            or any(type(item[k]) is not str or not item[k] for k in
+                   ("kind", "referent", "value", "source", "scope_person_id"))
+            or type(item["confidence"]) not in (float, int)
+            or not math.isfinite(item["confidence"])
+            or not 0 <= item["confidence"] <= 1
+            or item["source"] != "current"
+            or item["scope_person_id"] != person
+            or item["active"] is not True
+        ):
+            raise EmpathyPromptBoundaryError("invalid, duplicate or cross-person current evidence")
+        seen.add(ident)
+        canonical.append(item)
+    # The task is incorporated in the causal digest, but never copied into
+    # a donor prompt while host same-turn authenticity is unverified.
+    material = {"person_id": person, "stakes": stakes, "task": task,
+                "current_evidence": canonical}
+    return sha256(json.dumps(material, sort_keys=True, ensure_ascii=True,
+                            allow_nan=False).encode("utf-8")).hexdigest(), canonical
 
 
 def build_empathy_prompt_candidate(
@@ -88,14 +142,23 @@ def build_empathy_prompt_candidate(
     ):
         raise EmpathyPromptBoundaryError("host supplied evidence/evaluator/source required")
     host_reported_source.validate()
+    binding_digest, evidence = _admitted_evidence_binding(host_admitted_assessment, task)
     result = empathy_evaluator(host_admitted_assessment)
     # Output shape cannot prove the evaluator is genuine; it does enforce the
     # only permitted authority/data contract and narrows prompt contents.
     policy = getattr(result, "policy", None)
     reason = getattr(result, "reason_code", None)
+    supporting = getattr(result, "supporting_evidence_ids", None)
     if (
         type(policy) is not str or policy not in _POLICIES
         or type(reason) is not str or _REASON.fullmatch(reason) is None
+        or getattr(result, "donor", None) != "empathy"
+        or getattr(result, "provenance", None) != "CALLER_SUPPLIED_CURRENT_EVIDENCE_UNVERIFIED"
+        or getattr(result, "evaluation", None) != "CANONICAL_EMPATHY_RESPONSE_POLICY_HINT_EXECUTED"
+        or type(supporting) is not tuple or not supporting
+        or any(type(i) is not str or _OPAQUE_ID.fullmatch(i) is None for i in supporting)
+        or len(set(supporting)) != len(supporting)
+        or not set(supporting).issubset({e["evidence_id"] for e in evidence})
         or getattr(result, "authority", None) != "NONE"
         or getattr(result, "memory_admission", None) != "NONE"
         or getattr(result, "effect_authority", None) is not False
@@ -103,17 +166,35 @@ def build_empathy_prompt_candidate(
         or getattr(result, "source_proof", None) != "SOURCE_ONLY_NOT_HOST_ATTESTED"
     ):
         raise EmpathyPromptBoundaryError("donor output is not an effectless source-only hint")
+    # No STOP_PLAY or external-fact policy may hitchhike on an unrelated task.
+    # These decisions require an authenticated, exact host referent binding
+    # before prompt construction, which this prototype does not have.
+    by_id = {e["evidence_id"]: e for e in evidence}
+    selected = [by_id[i] for i in supporting]
+    bound_task = (
+        policy == "TASK_DIRECT"
+        and all(e["kind"] == "task_request" and e["referent"] == "task"
+                and e["value"] == task for e in selected)
+    )
+    if not bound_task:
+        return EmpathyPromptCandidate(
+            status="UNBOUND_POLICY_HOLD",
+            input_sha256=sha256((binding_digest + policy + reason).encode("utf-8")).hexdigest(),
+            prompt_data="",
+            source=host_reported_source,
+        )
     payload = {
         "schema": "VERA_UNTRUSTED_EMPATHY_PROMPT_CANDIDATE_V1",
         "provenance": "CALLER_REPORTED_UNVERIFIED",
         "authority": "NONE",
         "advisory_policy": policy,
         "advisory_reason": reason,
-        "user_task": task,
+        # Not the raw user text: only host-bound runtime may concatenate it.
+        "causal_evidence_digest": binding_digest,
     }
     return EmpathyPromptCandidate(
         status="CANDIDATE_PROMPT_DATA_NOT_EXECUTED",
-        input_sha256=sha256(task.encode("utf-8")).hexdigest(),
+        input_sha256=sha256((binding_digest + policy + reason).encode("utf-8")).hexdigest(),
         prompt_data=json.dumps(payload, sort_keys=True, ensure_ascii=True),
         source=host_reported_source,
     )
