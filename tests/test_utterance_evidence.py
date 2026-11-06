@@ -40,7 +40,9 @@ def test_same_referent_stop_play_and_different_referent():
     )
     assert stopped.observed_speech_act == "STOP_PLAY"
     assert stopped.stop_play == "EXPLICIT"
-    assert stopped.same_referent_stop
+    # A caller-provided literal and ID are not custody/currentness proof.
+    assert not stopped.same_referent_stop
+    assert stopped.ambiguity == "PRIOR_CURRENTNESS_UNVERIFIED"
     assert changed.stop_play == "EXPLICIT"
     assert not changed.same_referent_stop
     assert stopped.authorization_effect == changed.authorization_effect == "NONE"
@@ -66,6 +68,33 @@ def test_quoted_negation_is_not_an_executable_prohibition_or_retrieval():
     assert e.action_lexeme is None
 
 
+@pytest.mark.parametrize("text", [
+    "explain 'do not search' as a phrase",
+    "explain ‘do not search’ as a phrase",
+    "explain `do not search` as a phrase",
+    "explain the phrase 'don't search' without doing it",
+])
+def test_single_quoted_or_code_negation_is_not_a_prohibition(text):
+    e = observe_utterance(text)
+    assert e.lookup_prohibition == "UNKNOWN"
+    assert e.private_lookup_permission == "NONE"
+
+
+def test_apostrophe_contraction_still_vetoes_lookup():
+    e = observe_utterance("Don't search my files")
+    assert e.lookup_prohibition == "EXPLICIT"
+
+
+def test_no_prior_custody_from_arbitrary_caller_values():
+    e = observe_utterance(
+        "STOP_PLAY: diagnose a broken pump",
+        prior_task_object="a broken pump",
+    )
+    assert e.stop_play == "EXPLICIT"
+    assert e.same_referent_stop is False
+    assert e.ambiguity == "PRIOR_CURRENTNESS_UNVERIFIED"
+
+
 def test_double_negative_is_ambiguous_and_never_becomes_permission():
     e = observe_utterance("Do not not search the private file")
     assert e.ambiguity == "AMBIGUOUS_NEGATION"
@@ -86,6 +115,14 @@ def test_correction_requires_authenticated_antecedent_to_resolve():
     assert e.ambiguity == "CORRECTION_WITHOUT_ANTECEDENT"
     assert e.correction_of is None
     assert e.literal_task_object is None
+
+
+def test_arbitrary_correction_id_does_not_become_verified_history():
+    e = observe_utterance("No, I meant the pump", prior_interaction_id="f" * 64)
+    assert e.observed_speech_act == "CORRECTION"
+    assert e.correction_of is None
+    assert e.ambiguity == "ANTECEDENT_ID_UNVERIFIED"
+    assert e.as_five_donor_input()["claimed_correction_of"] is None
 
 
 @pytest.mark.parametrize("text", ["write\u200ba poem", "write\ud800a poem", "\x00write a poem"])
