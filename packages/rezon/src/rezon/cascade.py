@@ -177,7 +177,10 @@ class CascadeEngine:
             )
         return CascadeOutcome(
             answer=result.answer,
-            resolved=result.resolved,
+            # A layer's answer can clear every unresolved dimension without
+            # meeting its confidence threshold. Only the explicit gated
+            # success path may mark the whole cascade resolved.
+            resolved=reason == "resolved" and result.resolved,
             confidence=result.confidence,
             unresolved=result.unresolved,
             layers_used=tuple(used),

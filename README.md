@@ -163,6 +163,20 @@ From a Windows PowerShell terminal opened in a clone of this repository:
 
 On first run the script creates a repository-local `.venv`, installs the current checkout into that environment, and opens the Vera Mono semantic console. No external LLM, model server, API key, or pretrained model is required.
 
+For separately staged wheel installations made with `pip install --target TARGET_ROOT`, invoke the installed launcher from the wheel's `bin` (or `Scripts`) directory:
+
+```powershell
+python TARGET_ROOT/bin/launch_target_monorepo.py status --state-root STATE_ROOT --project-id PROJECT_ID --identity-id IDENTITY_ID
+```
+
+On Windows, substitute `Scripts` for `bin` if that is where pip staged it. Alternatively run the source copy with `--target-root TARGET_ROOT` when developing. Use `shell` for the semantic console. Pip's generated
+`vera-mono` executable does not automatically include an arbitrary target
+directory in Python's import path, so invoking that executable directly from
+an off-tree target can fail with `ModuleNotFoundError: vera_core`. The launcher
+validates the exact installed package location and uses it only for the child
+process. This is an entrypoint repair, not provider activation or runtime
+qualification.
+
 The console is deliberately semantics-first rather than generator-first. Raw text is preserved, then mapped conservatively into a typed semantic/pragmatic interaction envelope. Exact commands are available immediately:
 
 ```text

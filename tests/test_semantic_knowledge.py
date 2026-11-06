@@ -20,6 +20,13 @@ def test_semantic_node_admission_returns_a_receipt():
         "node_kind": "concept",
         "notes": None,
     }
+    assert store.check_admissible(node) is None
+    try:
+        store.get(node["id"])
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("semantic preflight silently wrote the node")
     assert store.admit(node) is not None
 
 
@@ -41,6 +48,12 @@ def test_semantic_store_persists_and_rejects_id_rebinding(tmp_path):
     assert reopened.get(node["id"]) == node
     assert reopened.admit(node).status == "DUPLICATE"
     changed = dict(node, primary_label="rewritten provenance")
+    try:
+        reopened.check_admissible(changed)
+    except SemanticKnowledgeConflict:
+        pass
+    else:
+        raise AssertionError("read-only preflight permitted semantic id rebinding")
     try:
         reopened.admit(changed)
     except SemanticKnowledgeConflict:

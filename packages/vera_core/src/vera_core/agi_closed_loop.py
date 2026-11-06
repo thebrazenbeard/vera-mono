@@ -200,10 +200,13 @@ class ClosedLoopFrontier:
         expected_generation: int,
         act: Callable[[str], dict[str, object]],
     ) -> ClosedLoopResult:
-        receipt = self.semantic.admit(task.semantic_object)
+        # Reject malformed or conflicting caller input before model work, but
+        # do not persist it unless bounded reasoning actually resolves.
+        self.semantic.check_admissible(task.semantic_object)
         reasoning = cascade.resolve(task.prompt)
         if not reasoning.resolved or reasoning.answer is None:
             raise ValueError("reasoning did not resolve a bounded action")
+        receipt = self.semantic.admit(task.semantic_object)
         admission = dispatch_gate.claim(
             work_id=task.task_id,
             holder=holder,
