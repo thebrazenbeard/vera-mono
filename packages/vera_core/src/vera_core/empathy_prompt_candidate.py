@@ -196,8 +196,17 @@ def build_empathy_prompt_candidate(
     )
     if policy == "TASK_DIRECT" and reason != "EXPLICIT_TASK":
         raise EmpathyPromptBoundaryError("TASK_DIRECT reason inconsistent with canonical donor")
+    # The canonical selector can prioritize a present correction, withdrawal,
+    # uncertainty or unsupported-fact evidence above an earlier task_request.
+    # A supplied callback is not independently authenticated, so any other
+    # current evidence kind makes the selection unqualified for prompt data.
+    # This intentionally holds some benign mixed-evidence inputs.
+    pure_task_bank = all(
+        e["kind"] == "task_request" and e["referent"] == "task"
+        and e["value"] == task for e in evidence
+    )
     bound_task = (
-        policy == "TASK_DIRECT" and not current_stop
+        policy == "TASK_DIRECT" and not current_stop and pure_task_bank
         and all(e["kind"] == "task_request" and e["referent"] == "task"
                 and e["value"] == task for e in selected)
     )
