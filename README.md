@@ -374,6 +374,38 @@ training, or model promotion here.
 
 `chat` uses the same bounded HTTP `/v1/chat/completions` adapter as `advise`. It sends no tool definitions, rejects model responses containing tool/function calls, never admits the exchange into Vera memory, and grants no provider, PC, Bus, or external filesystem effect authority. Opening a previously empty state directory can initialize QVR's local SQLite bookkeeping. Reconstructing an interrupted lifecycle can also repair local audit records or append `RESTART_RECONCILED_COMMITTED` to its lifecycle journal when a currentness commit is already durable but its final journal event is missing. These local recovery writes are not memory-item admission or authorization of an external effect. A missing binding, non-loopback address, unavailable model endpoint, or invalid QVR reconstruction fails without fallback. The output remains `UNVERIFIED_MODEL_OUTPUT`; even an accepted lifecycle status does not qualify the model, install it, or authorize its actions. Reinvocation after process restart reopens local state. `advise` remains intentionally state-free.
 
+### Opt-in public behavior-style baseline (no trained-persona claim)
+
+Add `--public-behavior-profile` to `vera-mono chat` to send a small, public
+style projection from the packaged canonical
+`VERA_BEHAVIOR_PROFILE_V1@1.0.1`. The packaged file must match its pinned
+SHA-256 `ec1defa8fcf96371a427991d40695842ffe6794aeb2e3f26c69ef5f528ee7d6d`
+or the request fails **before** state access or model contact. No custom
+profile path, private chat, user-memory record, or runtime identity proof is
+accepted for this flag. Without the flag, the original prompt is unchanged.
+
+For a bounded baseline, use an already running local server and the **same**
+public/synthetic prompt, exact model alias, endpoint, and generation settings
+twice: once without this flag and once with it. Example of the second arm:
+
+```powershell
+& .\.venv\Scripts\vera-mono.exe chat "How would you challenge a weak claim?" `
+  --state-root "D:\VERA\<existing-state-root>" --project-id "<actual-project-id>" `
+  --identity-id "<actual-identity-id>" --endpoint http://127.0.0.1:11434/v1 `
+  --model "<operator-selected-local-model>" --public-behavior-profile --json
+```
+
+The JSON output adds `public_behavior_style_source` only when opted in,
+recording the public profile ID/hash and `PUBLIC_SOURCE_ONLY_NOT_INSTALLED_IDENTITY`.
+The local model still receives the ordinary unverified-advisory system
+boundary; the style projection is a **candidate user-prompt context**, not a
+trusted system identity or evidence of weight updates. Outputs remain unverified,
+non-authoritative and unscored. The existing `--interactive` history option
+can resend earlier operator-provided text to the endpoint; leave that separate
+option off if no private conversation should be transmitted. Real behavioral
+claims still need approved independent held-out cases, controls, byte-level
+model provenance and blinded evaluation; this flag certifies none of them.
+
 ## Synthetic feedback lab (process-local, not self-learning)
 
 `vera-mono feedback-lab` exercises correction staging, source-disjoint exact-cue
