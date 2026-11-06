@@ -26,7 +26,7 @@ _PROHIBITED_LOOKUP = re.compile(
 )
 _STOP_PLAY = re.compile(r"^\s*(?:STOP_PLAY|stop\s+play(?:ing)?)\s*(?::\s*(?P<subject>.+))?$", re.I)
 _DOUBLE_NEGATION = re.compile(r"\b(?:do\s+not|don't|dont|never|not)\s+not\s+", re.I)
-_QUOTES = {'"': '"', '“': '”', '`': '`'}
+_QUOTES = {'"': '"', '“': '”', "'": "'", '‘': '’', '`': '`'}
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +91,9 @@ def _outside_quotes(text: str) -> tuple[str, bool]:
             masked[i] = " "
             if char == closing:
                 closing = None
-        elif char in _QUOTES:
+        elif char in _QUOTES and not (
+            char == "'" and i > 0 and text[i - 1].isalnum()
+        ):
             closing = _QUOTES[char]
             masked[i] = " "
     return "".join(masked), closing is not None
@@ -143,14 +145,19 @@ def observe_utterance(
         action, task_object = _task_from_exact_command(stop.group("subject") or "")
         if stop.group("subject") and not action:
             ambiguity = ambiguity or "UNBOUND_STOP_SUBJECT"
-    if correction and not prior_interaction_id:
-        ambiguity = ambiguity or "CORRECTION_WITHOUT_ANTECEDENT"
+    if correction:
+        ambiguity = ambiguity or (
+            "ANTECEDENT_ID_UNVERIFIED" if prior_interaction_id
+            else "CORRECTION_WITHOUT_ANTECEDENT"
+        )
     if unbalanced:
         action, task_object, stop = None, None, None
-    match_previous = bool(
-        stop and prior_task_object and task_object
-        and task_object.casefold() == _safe_normalize(prior_task_object).casefold()
-    )
+    if stop and (prior_task_object is not None or prior_interaction_id is not None):
+        ambiguity = ambiguity or "PRIOR_CURRENTNESS_UNVERIFIED"
+    # A supplied prior object/ID is a caller assertion, never a verified
+    # prior-turn readback. Keep same-referent affinity UNKNOWN until a real
+    # host-owned custody/currentness contract exists; STOP_PLAY itself survives.
+    match_previous = False
     speech_act = (
         "STOP_PLAY" if stop else "CORRECTION" if correction else "REQUEST" if action
         else "QUESTION" if direct.endswith("?") else "UNKNOWN"
@@ -162,7 +169,7 @@ def observe_utterance(
         observed_speech_act=speech_act,
         action_lexeme=action,
         literal_task_object=task_object,
-        correction_of=prior_interaction_id if correction else None,
+        correction_of=None,
         lookup_prohibition=prohibition,
         stop_play="EXPLICIT" if stop else "UNKNOWN",
         same_referent_stop=match_previous,
