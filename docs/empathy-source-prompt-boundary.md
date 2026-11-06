@@ -43,11 +43,18 @@ source execution, **not** an installed model path or host-authenticated input.
 
 - is disabled by default;
 - requires the caller to supply a typed, host-admitted Assessment, an executable
-  Empathy evaluator callback, and a host-reported exact repository/source ref;
+  Empathy evaluator callback, and a host-reported exact repository/source ref
+  pinned to the exact reviewed Empathy #15 source revision;
 - really invokes the supplied evaluator when enabled, then validates its
-  effectless `CognitiveDonorResult`-shaped output;
-- serializes only the narrow policy, reason, and current bounded task into
-  `VERA_UNTRUSTED_EMPATHY_PROMPT_CANDIDATE_V1` JSON;
+  effectless `CognitiveDonorResult`-shaped output plus source/donor provenance;
+- cryptographically binds caller-supplied typed current evidence to the input
+  digest, not merely the raw task string;
+- serializes only TASK_DIRECT policy, reason, and causal digest into
+  `VERA_UNTRUSTED_EMPATHY_PROMPT_CANDIDATE_V1` JSON when a selected
+  same-person current task_request exactly matches the proposed task;
+- returns `UNBOUND_POLICY_HOLD` and **no prompt** for STOP_PLAY, mismatched
+  task text, or other unrelated policies until a host can authenticate
+  referent and conversation-currentness;
 - returns **candidate prompt data only**. It does not invoke a model or mint a
   STOP_PLAY enforcement decision.
 
@@ -59,13 +66,15 @@ model call, or network effect occurs in this module.
 
 ## Tests and remaining HOLD
 
-Eight self-contained contract tests verify disabled behavior, bounded inputs,
-fake source rejection, callback output validation, and advisory-only STOP_PLAY.
+Thirteen self-contained contract tests verify disabled behavior, bounded
+inputs, fake source rejection, callback output validation, causal input
+hashing, task/referent correlation, and unbound STOP_PLAY rejection.
 These are **stub tests**; they cannot prove the injected callback is Empathy.
 
 Six separate scratch integration tests exercised this adapter with the
-**real, exact PR #15 Empathy source** and checked TASK_DIRECT and STOP_PLAY
-counterfactuals. Four additional source-composition tests demonstrated the
+**real, exact PR #15 Empathy source** and checked TASK_DIRECT produces
+candidate data while STOP_PLAY (without authenticated same-referent binding)
+is held. Four additional source-composition tests demonstrated the
 remaining unmapped host boundary. Total scratch tests: 10/10.
 
 > Hostile challenge: returning a plausible policy JSON is not proof a
