@@ -9,8 +9,12 @@ requires-python = ">=3.12"
 description = "Self-contained Vera monorepo"
 dependencies = ["jsonschema>=4.0", "cryptography>=43.0"]
 
+[project.optional-dependencies]
+presence-v2-mcp = ["mcp>=2.2,<3"]
+
 [project.scripts]
 vera-mono = "vera_core.cli:main"
+vera-presence-v2-mcp = "vera_core.presence_mcp_v2:main"
 
 [tool.setuptools]
 include-package-data = true
