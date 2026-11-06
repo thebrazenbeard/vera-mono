@@ -156,7 +156,9 @@ class CheckedInVeraMonoPackTests(unittest.TestCase):
     def test_checked_in_project_pack_is_integral_but_not_installed(self):
         root = Path(__file__).resolve().parents[1] / "architecture" / "chatgpt"
         if not root.is_dir():
-            self.skipTest("repository source tree absent in isolated test copy")
+            root = Path(__file__).resolve().parents[1] / "reference"
+        if not root.is_dir():
+            self.skipTest("no source pack available in isolated test copy")
         result = inspect_pack(root)
         self.assertEqual(result["source_integrity"], "PASS")
         self.assertEqual(result["native_project_owner_binding"], "UNRESOLVED")
