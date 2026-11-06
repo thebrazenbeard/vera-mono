@@ -22,8 +22,24 @@ SOURCE = HostReportedEmpathySource(
 )
 
 
+def assessment(task="write a poem about moonlight", *, person="SYNTHETIC_A",
+               kind="task_request", referent="task", value=None):
+    evidence = SimpleNamespace(
+        kind=kind, referent=referent, value=task if value is None else value,
+        confidence=0.95, source="current", scope_person_id=person,
+        active=True, evidence_id="ev_" + "b" * 32,
+    )
+    return SimpleNamespace(
+        person_id=person, current_evidence=(evidence,),
+        historical_evidence=(), hypotheses=(), stakes="low",
+    )
+
+
 def stub_policy(policy="TASK_DIRECT", reason="EXPLICIT_TASK"):
     return SimpleNamespace(
+        donor="empathy", provenance="CALLER_SUPPLIED_CURRENT_EVIDENCE_UNVERIFIED",
+        evaluation="CANONICAL_EMPATHY_RESPONSE_POLICY_HINT_EXECUTED",
+        supporting_evidence_ids=("ev_" + "b" * 32,),
         policy=policy, reason_code=reason, authority="NONE",
         memory_admission="NONE", effect_authority=False,
         model_identity="UNQUALIFIED",
@@ -32,10 +48,11 @@ def stub_policy(policy="TASK_DIRECT", reason="EXPLICIT_TASK"):
 
 
 class CandidateContractTests(unittest.TestCase):
-    def call(self, evaluator, **kwargs):
+    def call(self, evaluator, *, subject=None, **kwargs):
         return build_empathy_prompt_candidate(
             "write a poem about moonlight", enabled=True,
-            host_admitted_assessment=object(), empathy_evaluator=evaluator,
+            host_admitted_assessment=subject if subject is not None else assessment(),
+            empathy_evaluator=evaluator,
             host_reported_source=SOURCE, **kwargs,
         )
 
@@ -53,8 +70,12 @@ class CandidateContractTests(unittest.TestCase):
         self.assertFalse(value.model_generated or value.effect_authority)
 
     def test_stop_is_advice_not_effect_authority(self):
-        value = self.call(lambda _: stub_policy("STOP_PLAY", "DIRECT_PLAY_STOP"))
-        self.assertEqual(json.loads(value.prompt_data)["advisory_policy"], "STOP_PLAY")
+        value = self.call(
+            lambda _: stub_policy("STOP_PLAY", "DIRECT_PLAY_STOP"),
+            subject=assessment(kind="direct_correction", referent="play_frame", value="stop"),
+        )
+        self.assertEqual(value.status, "UNBOUND_POLICY_HOLD")
+        self.assertEqual(value.prompt_data, "")
         self.assertEqual(value.authority, "NONE")
 
     def test_forced_effect_claim_is_rejected(self):
@@ -68,7 +89,7 @@ class CandidateContractTests(unittest.TestCase):
         with self.assertRaisesRegex(EmpathyPromptBoundaryError, "unexpected source"):
             build_empathy_prompt_candidate(
                 "task", enabled=True,
-                host_admitted_assessment=object(),
+                host_admitted_assessment=assessment("task"),
                 empathy_evaluator=bomb,
                 host_reported_source=replace(SOURCE, repository="someone/empathy"),
             )
@@ -85,7 +106,7 @@ class CandidateContractTests(unittest.TestCase):
         with self.assertRaisesRegex(EmpathyPromptBoundaryError, "bounded task"):
             build_empathy_prompt_candidate(
                 "task\x00", enabled=True,
-                host_admitted_assessment=object(),
+                host_admitted_assessment=assessment("task"),
                 empathy_evaluator=lambda _: stub_policy(),
                 host_reported_source=SOURCE,
             )
@@ -93,6 +114,55 @@ class CandidateContractTests(unittest.TestCase):
     def test_nonboolean_enable_rejected(self):
         with self.assertRaisesRegex(EmpathyPromptBoundaryError, "literal bool"):
             build_empathy_prompt_candidate("task", enabled=1)
+
+    def test_different_task_does_not_inherit_person_a_stop(self):
+        value = build_empathy_prompt_candidate(
+            "write a poem for person_B", enabled=True,
+            host_admitted_assessment=assessment(
+                "stop play", person="person_A", kind="direct_correction",
+                referent="play_frame", value="stop",
+            ),
+            empathy_evaluator=lambda _: stub_policy("STOP_PLAY", "DIRECT_PLAY_STOP"),
+            host_reported_source=SOURCE,
+        )
+        self.assertEqual(value.status, "UNBOUND_POLICY_HOLD")
+        self.assertEqual(value.prompt_data, "")
+
+    def test_same_task_different_evidence_has_different_input_hash(self):
+        a = self.call(lambda _: stub_policy())
+        b = self.call(
+            lambda _: stub_policy("STOP_PLAY", "DIRECT_PLAY_STOP"),
+            subject=assessment(kind="direct_correction", referent="play_frame", value="stop"),
+        )
+        self.assertNotEqual(a.input_sha256, b.input_sha256)
+
+    def test_mismatched_task_request_is_withheld(self):
+        value = self.call(
+            lambda _: stub_policy(),
+            subject=assessment("draft a budget"),
+        )
+        self.assertEqual(value.status, "UNBOUND_POLICY_HOLD")
+        self.assertEqual(value.prompt_data, "")
+
+    def test_wrong_donor_or_provenance_rejected(self):
+        for override in (
+            {"donor": "not_empathy"},
+            {"provenance": "HISTORICAL_ONLY"},
+            {"supporting_evidence_ids": ()},
+        ):
+            with self.subTest(override=override), self.assertRaises(EmpathyPromptBoundaryError):
+                def liar(_):
+                    return SimpleNamespace(**{**stub_policy().__dict__, **override})
+                self.call(liar)
+
+    def test_zero_source_commit_rejected(self):
+        with self.assertRaises(EmpathyPromptBoundaryError):
+            build_empathy_prompt_candidate(
+                "write a poem about moonlight", enabled=True,
+                host_admitted_assessment=assessment(),
+                empathy_evaluator=lambda _: stub_policy(),
+                host_reported_source=replace(SOURCE, commit_sha="0" * 40),
+            )
 
 
 if __name__ == "__main__":
