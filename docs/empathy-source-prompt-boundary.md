@@ -59,6 +59,9 @@ source execution, **not** an installed model path or host-authenticated input.
   referent and conversation-currentness;
 - explicitly holds any current play-frame stop/possible withdrawal or correction
   independently of a possibly mistaken/forged injected evaluator;
+- additionally holds any mixed current evidence bank (including task correction,
+  withdrawal, ambiguity or unsupported-fact evidence) even when the callback
+  claims TASK_DIRECT, since selector priority is not independently attested;
 - requires canonical TASK_DIRECT / EXPLICIT_TASK consistency and binds the
   selected supporting evidence identifiers into the causal digest;
 - returns **candidate prompt data only**. It does not invoke a model or mint a
@@ -72,7 +75,7 @@ model call, or network effect occurs in this module.
 
 ## Tests and remaining HOLD
 
-Sixteen self-contained contract tests verify disabled behavior, bounded
+Eighteen self-contained contract tests verify disabled behavior, bounded
 inputs, fake source rejection, callback output validation, causal input
 hashing, task/referent correlation, and unbound STOP_PLAY rejection.
 These are **stub tests**; they cannot prove the injected callback is Empathy.
