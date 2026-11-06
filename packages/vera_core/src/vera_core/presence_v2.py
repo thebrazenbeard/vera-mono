@@ -12,16 +12,18 @@ import re
 SCHEMA = "vera.presence.v2"
 
 # Frozen review inputs, NOT dynamic latest-head assertions or host probes.
-# This is deliberately not extensible through model or caller parameters.
+# Runtime code stores project slugs only; full repository identities and their
+# review provenance are documented in docs/PRESENCE_V2_CANDIDATE.md. This keeps
+# sibling-repository identity in the monorepo's provenance boundary.
 _SOURCE_CANDIDATES = (
     (
         "pre_active_observation",
-        "thebrazenbeard/pre-active",
+        "pre-active",
         "e306c251a4da44125ee58c311a35120084da8e4b",
     ),
     (
         "conations_appraisal",
-        "thebrazenbeard/conations",
+        "conations",
         "73295039e7a1710c5bb73666e665cef80c40aa5d",
     ),
 )
@@ -44,7 +46,7 @@ def presence_capabilities_v2():
         "capabilities": [
             {
                 "capability_id": capability_id,
-                "source_repository": repo,
+                "source_repository_slug": repo,
                 "source_git_commit": commit,
                 "source_status": "SOURCE_INSPECTED",
                 "installed": "UNKNOWN",

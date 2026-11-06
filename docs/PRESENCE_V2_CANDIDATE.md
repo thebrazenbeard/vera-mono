@@ -12,6 +12,14 @@ The two pinned source-review inputs (not implied installed states) were:
 - [`thebrazenbeard/pre-active@e306c251`](https://github.com/thebrazenbeard/pre-active/tree/e306c251a4da44125ee58c311a35120084da8e4b)
 - [`thebrazenbeard/conations@73295039`](https://github.com/thebrazenbeard/conations/tree/73295039e7a1710c5bb73666e665cef80c40aa5d)
 
+The runtime manifest deliberately exposes only the short project slugs
+(`pre-active`, `conations`) and exact inspected source commits. This document
+is the provenance mapping to the canonical GitHub repository identities; the
+runtime does not contain cross-repository URLs or full sibling-repository IDs.
+Its JSON key is `source_repository_slug`, not a claim of a globally qualified
+repository identifier. The provenance document is not installed in the wheel,
+so a consumer cannot derive full repository provenance from the runtime alone.
+
 The Conations **main** source pinned above is `history_only`. A separate agent has opened [Conations Draft PR #12](https://github.com/thebrazenbeard/conations/pull/12) with an unmerged current-state candidate. That draft is **not imported, bundled, certified, installed, or treated as main**. The proposal's synthetic appraisal label is not a measured present conation, desire, feeling, consent, autobiographical memory, or Brigit state. No `brigit-unbound`, empathy, sexuality, pleasure, volition, meso-crct, memory, or other donor is loaded, and none gains identity or effect authority by source presence. A future adapter must have a distinct host-owned allowlist, exact source/build digest, explicit release binding, provider authorization and runtime qualification. No generic module loading, command invocation, network access, file I/O, or external state mutation is present in this slice.
 
 ## Evidence ladder and first executable oracle

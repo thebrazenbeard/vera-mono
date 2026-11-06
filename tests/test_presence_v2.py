@@ -34,6 +34,8 @@ def test_manifest_advertises_source_only_and_never_infers_host_or_model_authorit
         assert item["effect_authority"] == "NONE"
     assert by_id["pre_active_observation"]["source_git_commit"] == "e306c251a4da44125ee58c311a35120084da8e4b"
     assert by_id["conations_appraisal"]["source_git_commit"] == "73295039e7a1710c5bb73666e665cef80c40aa5d"
+    assert by_id["pre_active_observation"]["source_repository_slug"] == "pre-active"
+    assert by_id["conations_appraisal"]["source_repository_slug"] == "conations"
     assert by_id["conations_appraisal"]["available_to_route"] is False
 
 

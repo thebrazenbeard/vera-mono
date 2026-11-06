@@ -46,8 +46,8 @@ _SCHEMAS = {
     },
 }
 _SOURCE_ROWS = (
-    ("pre_active_observation", "thebrazenbeard/pre-active", "e306c251a4da44125ee58c311a35120084da8e4b"),
-    ("conations_appraisal", "thebrazenbeard/conations", "73295039e7a1710c5bb73666e665cef80c40aa5d"),
+    ("pre_active_observation", "pre-active", "e306c251a4da44125ee58c311a35120084da8e4b"),
+    ("conations_appraisal", "conations", "73295039e7a1710c5bb73666e665cef80c40aa5d"),
 )
 
 
@@ -100,7 +100,7 @@ def _valid_output(name: str, arguments: dict[str, Any], value: Any) -> bool:
             "capabilities": [
                 {
                     "capability_id": capability_id,
-                    "source_repository": repo,
+                    "source_repository_slug": repo,
                     "source_git_commit": commit,
                     "source_status": "SOURCE_INSPECTED",
                     "installed": "UNKNOWN", "active": "UNKNOWN",
