@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from hmac import compare_digest
 import json
 import math
 import re
@@ -98,7 +99,10 @@ def _validated_signal(donor: str, value: object) -> tuple[str, str | bool | floa
             raise DonorBoundaryError("volition eligibility must be literal boolean")
         return "volition_candidate_eligible", value
     if donor == "empathy":
-        if type(value) is not str or value not in {"ALLOW", "HOLD", "STOP_PLAY"}:
+        if type(value) is not str or value not in {
+            "CLARIFY_MEANING", "TASK_DIRECT", "REPAIR_FIRST", "CELEBRATE_FIRST",
+            "TRUTHFUL_CHALLENGE", "PRESERVE_PLAY", "STOP_PLAY",
+        }:
             raise DonorBoundaryError("empathy response policy outside bounded vocabulary")
         return "empathy_response_policy", value
     if donor == "pre-active":
@@ -128,6 +132,8 @@ def collect_five_donor_advisory(
         raise DonorBoundaryError("bounded explicit task text required")
     if any(ord(ch) < 32 and ch not in "\n\t" for ch in task):
         raise DonorBoundaryError("task text contains a control character")
+    if any(0xD800 <= ord(ch) <= 0xDFFF for ch in task):
+        raise DonorBoundaryError("task text contains invalid Unicode scalar values")
     if type(bindings) is not tuple or len(bindings) != len(DONORS):
         raise DonorBoundaryError("exactly five ordered donor bindings required")
     if not callable(readback):
@@ -141,18 +147,24 @@ def collect_five_donor_advisory(
     for binding in bindings:
         observed = readback(binding.source)
         if (type(observed) is not SourceReadback
-                or (observed.repository, observed.commit_sha, observed.source_path,
-                    observed.blob_sha256) != (
-                    binding.source.repository, binding.source.commit_sha,
-                    binding.source.source_path, binding.source.blob_sha256)):
+                or any(type(part) is not str for part in (
+                    observed.repository, observed.commit_sha, observed.source_path,
+                    observed.blob_sha256))
+                or _SHA.fullmatch(observed.commit_sha) is None
+                or _BLOB.fullmatch(observed.blob_sha256) is None
+                or observed.repository != binding.source.repository
+                or not compare_digest(observed.commit_sha, binding.source.commit_sha)
+                or observed.source_path != binding.source.source_path
+                or not compare_digest(observed.blob_sha256, binding.source.blob_sha256)):
             raise DonorBoundaryError("host source readback mismatch")
     signals = tuple(_validated_signal(binding.source.donor, binding.evaluate(task))
                     for binding in bindings)
     values = dict(signals)
-    if values["empathy_response_policy"] == "STOP_PLAY" and (
-        values["preactive_focus"] != "STOP_PLAY"
-        or values["volition_candidate_eligible"] is not False
-    ):
+    empathy_stop = values["empathy_response_policy"] == "STOP_PLAY"
+    preactive_stop = values["preactive_focus"] == "STOP_PLAY"
+    if (empathy_stop != preactive_stop or
+            (empathy_stop or preactive_stop) and
+            values["volition_candidate_eligible"] is not False):
         raise DonorBoundaryError("same-referent stop must veto motive candidate")
     return CognitiveAdvisory(
         status="CANDIDATE_ONLY", input_sha256=sha256(task.encode("utf-8")).hexdigest(),

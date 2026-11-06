@@ -13,7 +13,7 @@ from vera_core.five_donor_advisory import (
 class FiveDonorBoundaryTests(unittest.TestCase):
     def setUp(self):
         self.calls = []
-        self.values = [0.8, "INSPECT", True, "ALLOW", "INSPECT_OPTION"]
+        self.values = [0.8, "INSPECT", True, "TASK_DIRECT", "INSPECT_OPTION"]
         self.bindings = tuple(
             DonorBinding(
                 SourceRef(name, f"thebrazenbeard/{name}", f"{i + 1:040x}",
@@ -72,6 +72,18 @@ class FiveDonorBoundaryTests(unittest.TestCase):
             collect_five_donor_advisory("synthetic", enabled=True,
                                         bindings=self.bindings, readback=lambda _: True)
 
+    def test_forged_comparator_cannot_bypass_source_digest(self):
+        class AlwaysEqual:
+            def __eq__(self, _other):
+                return True
+        def hostile(source):
+            return SourceReadback(source.repository, source.commit_sha,
+                                  source.source_path, AlwaysEqual())
+        with self.assertRaisesRegex(DonorBoundaryError, "readback mismatch"):
+            collect_five_donor_advisory("synthetic", enabled=True,
+                                        bindings=self.bindings, readback=hostile)
+        self.assertFalse(any(row[0] == "donor" for row in self.calls))
+
     def test_missing_or_reordered_source_fails(self):
         with self.assertRaises(DonorBoundaryError):
             collect_five_donor_advisory("synthetic", enabled=True,
@@ -106,6 +118,10 @@ class FiveDonorBoundaryTests(unittest.TestCase):
         with self.assertRaisesRegex(DonorBoundaryError, "control"):
             collect_five_donor_advisory("synthetic\x1b", enabled=True,
                                         bindings=self.bindings, readback=self._readback)
+        with self.assertRaisesRegex(DonorBoundaryError, "Unicode"):
+            collect_five_donor_advisory("bad\ud800", enabled=True,
+                                        bindings=self.bindings, readback=self._readback)
+        self.assertFalse(any(row[0] == "donor" for row in self.calls))
 
     def test_same_referent_stop_vetoes_candidate(self):
         self.values = [0.8, "HOLD", False, "STOP_PLAY", "STOP_PLAY"]
@@ -113,6 +129,10 @@ class FiveDonorBoundaryTests(unittest.TestCase):
                                             bindings=self.bindings, readback=self._readback)
         self.assertEqual(dict(result.signals)["preactive_focus"], "STOP_PLAY")
         self.values[2] = True
+        with self.assertRaisesRegex(DonorBoundaryError, "veto"):
+            collect_five_donor_advisory("stop", enabled=True,
+                                        bindings=self.bindings, readback=self._readback)
+        self.values = [0.8, "INSPECT", True, "TASK_DIRECT", "STOP_PLAY"]
         with self.assertRaisesRegex(DonorBoundaryError, "veto"):
             collect_five_donor_advisory("stop", enabled=True,
                                         bindings=self.bindings, readback=self._readback)
