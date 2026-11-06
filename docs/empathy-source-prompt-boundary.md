@@ -44,7 +44,9 @@ source execution, **not** an installed model path or host-authenticated input.
 - is disabled by default;
 - requires the caller to supply a typed, host-admitted Assessment, an executable
   Empathy evaluator callback, and a host-reported exact repository/source ref
-  pinned to the exact reviewed Empathy #15 source revision;
+  pinned to the exact reviewed Empathy #15 source revision. Core code checks
+  the syntactic donor subject only; repository OWNER authentication belongs to
+  the monorepo's dedicated provenance gateway;
 - really invokes the supplied evaluator when enabled, then validates its
   effectless `CognitiveDonorResult`-shaped output plus source/donor provenance;
 - cryptographically binds caller-supplied typed current evidence to the input
@@ -55,6 +57,10 @@ source execution, **not** an installed model path or host-authenticated input.
 - returns `UNBOUND_POLICY_HOLD` and **no prompt** for STOP_PLAY, mismatched
   task text, or other unrelated policies until a host can authenticate
   referent and conversation-currentness;
+- explicitly holds any current play-frame stop/possible withdrawal or correction
+  independently of a possibly mistaken/forged injected evaluator;
+- requires canonical TASK_DIRECT / EXPLICIT_TASK consistency and binds the
+  selected supporting evidence identifiers into the causal digest;
 - returns **candidate prompt data only**. It does not invoke a model or mint a
   STOP_PLAY enforcement decision.
 
@@ -66,7 +72,7 @@ model call, or network effect occurs in this module.
 
 ## Tests and remaining HOLD
 
-Thirteen self-contained contract tests verify disabled behavior, bounded
+Sixteen self-contained contract tests verify disabled behavior, bounded
 inputs, fake source rejection, callback output validation, causal input
 hashing, task/referent correlation, and unbound STOP_PLAY rejection.
 These are **stub tests**; they cannot prove the injected callback is Empathy.
