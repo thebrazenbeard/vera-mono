@@ -84,14 +84,14 @@ class CandidateContractTests(unittest.TestCase):
                 **{**stub_policy().__dict__, "effect_authority": True}
             ))
 
-    def test_fake_repository_is_rejected_before_evaluator(self):
+    def test_wrong_repository_subject_is_rejected_before_evaluator(self):
         def bomb(_): raise AssertionError("source must reject first")
         with self.assertRaisesRegex(EmpathyPromptBoundaryError, "unexpected source"):
             build_empathy_prompt_candidate(
                 "task", enabled=True,
                 host_admitted_assessment=assessment("task"),
                 empathy_evaluator=bomb,
-                host_reported_source=replace(SOURCE, repository="someone/empathy"),
+                host_reported_source=replace(SOURCE, repository="someone/not-empathy"),
             )
 
     def test_no_admission_rejected_before_evaluator(self):
@@ -163,6 +163,45 @@ class CandidateContractTests(unittest.TestCase):
                 empathy_evaluator=lambda _: stub_policy(),
                 host_reported_source=replace(SOURCE, commit_sha="0" * 40),
             )
+
+    def test_fake_task_direct_cannot_override_current_stop(self):
+        current_task = assessment()
+        stop = SimpleNamespace(
+            kind="direct_correction", referent="play_frame", value="stop",
+            confidence=0.95, source="current", scope_person_id="SYNTHETIC_A",
+            active=True, evidence_id="ev_" + "c" * 32,
+        )
+        mixed = SimpleNamespace(
+            **{**current_task.__dict__,
+               "current_evidence": current_task.current_evidence + (stop,)}
+        )
+        outcome = self.call(lambda _: stub_policy(), subject=mixed)
+        self.assertEqual(outcome.status, "UNBOUND_POLICY_HOLD")
+        self.assertEqual(outcome.prompt_data, "")
+
+    def test_fake_task_direct_stop_reason_is_rejected(self):
+        with self.assertRaises(EmpathyPromptBoundaryError):
+            self.call(lambda _: stub_policy("TASK_DIRECT", "DIRECT_PLAY_STOP"))
+
+    def test_selected_support_ids_must_change_causal_digest(self):
+        first = assessment()
+        second = SimpleNamespace(
+            kind="task_request", referent="task", value="write a poem about moonlight",
+            confidence=0.95, source="current", scope_person_id="SYNTHETIC_A",
+            active=True, evidence_id="ev_" + "c" * 32,
+        )
+        mixed = SimpleNamespace(
+            **{**first.__dict__,
+               "current_evidence": first.current_evidence + (second,)}
+        )
+        one = self.call(lambda _: stub_policy(), subject=mixed)
+        def two(_):
+            return SimpleNamespace(**{
+                **stub_policy().__dict__,
+                "supporting_evidence_ids": ("ev_" + "b" * 32, "ev_" + "c" * 32),
+            })
+        both = self.call(two, subject=mixed)
+        self.assertNotEqual(one.input_sha256, both.input_sha256)
 
 
 if __name__ == "__main__":
