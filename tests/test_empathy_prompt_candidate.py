@@ -179,6 +179,36 @@ class CandidateContractTests(unittest.TestCase):
         self.assertEqual(outcome.status, "UNBOUND_POLICY_HOLD")
         self.assertEqual(outcome.prompt_data, "")
 
+    def test_forged_task_direct_cannot_override_current_task_correction(self):
+        current = assessment()
+        correction = SimpleNamespace(
+            kind="direct_correction", referent="task", value="cancel",
+            confidence=0.95, source="current", scope_person_id="SYNTHETIC_A",
+            active=True, evidence_id="ev_" + "c" * 32,
+        )
+        mixed = SimpleNamespace(
+            **{**current.__dict__,
+               "current_evidence": current.current_evidence + (correction,)}
+        )
+        outcome = self.call(lambda _: stub_policy(), subject=mixed)
+        self.assertEqual(outcome.status, "UNBOUND_POLICY_HOLD")
+        self.assertEqual(outcome.prompt_data, "")
+
+    def test_forged_task_direct_cannot_ignore_other_policy_evidence(self):
+        current = assessment()
+        contradiction = SimpleNamespace(
+            kind="unsupported_claim", referent="external_fact", value="false",
+            confidence=0.95, source="current", scope_person_id="SYNTHETIC_A",
+            active=True, evidence_id="ev_" + "c" * 32,
+        )
+        mixed = SimpleNamespace(
+            **{**current.__dict__,
+               "current_evidence": current.current_evidence + (contradiction,)}
+        )
+        outcome = self.call(lambda _: stub_policy(), subject=mixed)
+        self.assertEqual(outcome.status, "UNBOUND_POLICY_HOLD")
+        self.assertEqual(outcome.prompt_data, "")
+
     def test_fake_task_direct_stop_reason_is_rejected(self):
         with self.assertRaises(EmpathyPromptBoundaryError):
             self.call(lambda _: stub_policy("TASK_DIRECT", "DIRECT_PLAY_STOP"))
