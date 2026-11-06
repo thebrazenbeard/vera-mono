@@ -17,6 +17,7 @@ from typing import Callable
 _OPAQUE_COMMIT = re.compile(r"[0-9a-f]{40}\Z")
 _PINNED_EMPATHY_COMMIT = "a115c675622662d1a7d58f58dbdb0eb9003d61b4"
 _OPAQUE_ID = re.compile(r"ev_[0-9a-f]{32}\Z")
+_REPO_SUBJECT = re.compile(r"[A-Za-z0-9_.-]{1,80}/empathy\Z")
 _POLICIES = frozenset({
     "CLARIFY_MEANING", "TASK_DIRECT", "REPAIR_FIRST", "CELEBRATE_FIRST",
     "TRUTHFUL_CHALLENGE", "PRESERVE_PLAY", "STOP_PLAY",
@@ -37,7 +38,10 @@ class HostReportedEmpathySource:
     def validate(self) -> None:
         if (
             type(self.repository) is not str
-            or self.repository != "thebrazenbeard/empathy"
+            # The monorepo's source-owner identity belongs to its dedicated
+            # provenance gateway, not to this core policy module. This only
+            # verifies the expected donor subject in a caller's assertion.
+            or _REPO_SUBJECT.fullmatch(self.repository) is None
             or type(self.commit_sha) is not str
             or _OPAQUE_COMMIT.fullmatch(self.commit_sha) is None
             or self.commit_sha != _PINNED_EMPATHY_COMMIT
@@ -171,15 +175,36 @@ def build_empathy_prompt_candidate(
     # before prompt construction, which this prototype does not have.
     by_id = {e["evidence_id"]: e for e in evidence}
     selected = [by_id[i] for i in supporting]
+    causal_material = {
+        "assessment_digest": binding_digest,
+        "selected_supporting_evidence_ids": supporting,
+        "policy": policy,
+        "reason": reason,
+    }
+    causal_digest = sha256(json.dumps(
+        causal_material, sort_keys=True, ensure_ascii=True, allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    # Do not trust an injected evaluator to remember an active withdrawal or
+    # correction. This conservative fail-closed check deliberately accepts
+    # false HOLDs until the host has a stronger same-referent ordering contract.
+    current_stop = any(
+        e["kind"] in {"withdrawal", "direct_correction"}
+        and e["referent"] == "play_frame"
+        and e["value"] in {"stop", "possible"}
+        and e["confidence"] > 0
+        for e in evidence
+    )
+    if policy == "TASK_DIRECT" and reason != "EXPLICIT_TASK":
+        raise EmpathyPromptBoundaryError("TASK_DIRECT reason inconsistent with canonical donor")
     bound_task = (
-        policy == "TASK_DIRECT"
+        policy == "TASK_DIRECT" and not current_stop
         and all(e["kind"] == "task_request" and e["referent"] == "task"
                 and e["value"] == task for e in selected)
     )
     if not bound_task:
         return EmpathyPromptCandidate(
             status="UNBOUND_POLICY_HOLD",
-            input_sha256=sha256((binding_digest + policy + reason).encode("utf-8")).hexdigest(),
+            input_sha256=causal_digest,
             prompt_data="",
             source=host_reported_source,
         )
@@ -194,7 +219,7 @@ def build_empathy_prompt_candidate(
     }
     return EmpathyPromptCandidate(
         status="CANDIDATE_PROMPT_DATA_NOT_EXECUTED",
-        input_sha256=sha256((binding_digest + policy + reason).encode("utf-8")).hexdigest(),
+        input_sha256=causal_digest,
         prompt_data=json.dumps(payload, sort_keys=True, ensure_ascii=True),
         source=host_reported_source,
     )
