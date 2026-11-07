@@ -19,6 +19,12 @@ from typing import Any
 
 from . import artifact_binding, compose, loopback
 
+# Independently reviewed resource digests at the PR #201 source checkpoint.
+# These are code-pinned expectations, NOT a signature or host installation
+# attestation. Change them only with an explicitly reviewed source update.
+PINNED_IDENTITY_SHA256 = "b7fdd42bfcea319c27b405339de580c2c37879e8a19d5c4642739ae855875e7f"
+PINNED_BEHAVIOR_SHA256 = "ec1defa8fcf96371a427991d40695842ffe6794aeb2e3f26c69ef5f528ee7d6d"
+
 
 def empty_public_state() -> tuple[dict[str, Any], bytes]:
     """A process-local empty state, not a substitute persistent memory store."""
@@ -38,8 +44,8 @@ def compose_local_turn(*, text: str, turn_id: str, history: list[dict[str, str]]
     args = {
         "identity": identity, "identity_raw": identity_raw,
         "behavior": behavior, "behavior_raw": behavior_raw,
-        "expected_identity_sha256": compose.sha256(identity_raw),
-        "expected_behavior_sha256": compose.sha256(behavior_raw),
+        "expected_identity_sha256": PINNED_IDENTITY_SHA256,
+        "expected_behavior_sha256": PINNED_BEHAVIOR_SHA256,
         "state": state, "key": key, "expected_revision": revision,
         "turn": {"schema": "MINI_VERA_LOCAL_TURN_V1", "scope": "LOCAL_LOOPBACK_ONLY",
                  "turn_id": turn_id, "user_text": text},
@@ -102,8 +108,18 @@ def main(argv: list[str] | None = None, *,
         revision = 0
     if live_public_provider is None:
         compose.verify_state(state, key=key, expected_revision=revision)
-    identity, identity_raw = compose.read_object(compose.IDENTITY_PATH, 16_384)
-    behavior, behavior_raw = compose.read_object(compose.BEHAVIOR_PATH, 16_384)
+    try:
+        identity, identity_raw = compose.read_object(compose.IDENTITY_PATH, 16_384)
+        behavior, behavior_raw = compose.read_object(compose.BEHAVIOR_PATH, 16_384)
+        # Fail before any model HTTP request. Self-hashing the just-loaded files
+        # would accept arbitrary identity drift as its own expected provenance.
+        if compose.sha256(identity_raw) != PINNED_IDENTITY_SHA256:
+            raise compose.CompositionRejected("identity source drift from reviewed code pin")
+        if compose.sha256(behavior_raw) != PINNED_BEHAVIOR_SHA256:
+            raise compose.CompositionRejected("behavior source drift from reviewed code pin")
+    except compose.CompositionRejected as exc:
+        print(f"Local request refused: {exc}", file=sys.stderr)
+        return 2
 
     history: list[dict[str, str]] = []
     session_id = secrets.token_hex(4)

@@ -9,7 +9,10 @@ ledger binding (#200) with an explicit, *unqualified* local conversation mode.
 `tools/mini_vera/local_session.py` is an original Python-stdlib CLI that:
 
 - reads the pinned public Vera identity and behavior resources through the
-  existing composer, rather than using the Sol identity;
+  existing composer, rather than using the Sol identity; the local shell holds
+  independently hard-coded SHA-256 expectations for both resources and rejects
+  altered source bytes before HTTP inference, instead of computing an
+  "expected" digest from whatever bytes it just loaded;
 - accepts an operator-declared model alias/digest **or** verifies a locally
   pinned GGUF manifest once at startup (no model loading or weight changes);
 - uses a process-local empty HMAC-bound PUBLIC state by default; only an
@@ -30,6 +33,10 @@ The host-idle flag is an **operator assertion**, not a measured resource lease.
 Check free physical memory, model server residency and concurrent workloads
 independently before using it. A local model server may load weights on a
 request. Do not run this on a memory-constrained, busy Lappy.
+The resource pins are part of the reviewed local code, **not signatures** or
+proof that an installed executable is genuine. A hostile party capable of
+rewriting both Python code and JSON can replace both pins; a trusted host must
+anchor and verify installed code integrity independently.
 
 ## Runnable commands (from the repository root)
 

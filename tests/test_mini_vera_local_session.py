@@ -24,6 +24,43 @@ from vera_memory import AdmissionRequest, MemoryClass
 
 
 class LocalSessionIntegrationTests(unittest.TestCase):
+    def test_identity_and_behavior_drift_rejected_against_independent_code_pins(self):
+        with tempfile.TemporaryDirectory() as temp, FakeLocal(answer=response(model="vera:local")) as server:
+            directory = Path(temp)
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed",
+                    "--prompt", "Must not receive counterfeit identity"]
+            for source, field, value in (
+                (compose.IDENTITY_PATH, "canonical_statement", "COUNTERFEIT TEST IDENTITY"),
+                (compose.BEHAVIOR_PATH, "version", "counterfeit-version"),
+            ):
+                payload = json.loads(source.read_text(encoding="utf-8"))
+                payload[field] = value
+                copied = directory / source.name
+                copied.write_text(json.dumps(payload), encoding="utf-8")
+                patched_path = "IDENTITY_PATH" if source == compose.IDENTITY_PATH else "BEHAVIOR_PATH"
+                error = io.StringIO()
+                with patch.object(compose, patched_path, copied), redirect_stderr(error):
+                    self.assertEqual(2, local_session.main(args))
+                self.assertIn("source drift from reviewed code pin", error.getvalue())
+                self.assertEqual([], server.requests)
+
+    def test_direct_compose_local_turn_refuses_self_consistent_forged_identity(self):
+        identity, _ = compose.read_object(compose.IDENTITY_PATH, 16_384)
+        behavior, behavior_raw = compose.read_object(compose.BEHAVIOR_PATH, 16_384)
+        forged = deepcopy(identity)
+        forged["canonical_statement"] = "COUNTERFEIT TEST IDENTITY"
+        forged_raw = json.dumps(forged).encode("utf-8")
+        state, key = local_session.empty_public_state()
+        with self.assertRaisesRegex(compose.CompositionRejected, "identity source drift"):
+            local_session.compose_local_turn(
+                text="Check this", turn_id="local-test-forged", history=[],
+                identity=forged, identity_raw=forged_raw,
+                behavior=behavior, behavior_raw=behavior_raw,
+                state=state, key=key, revision=0,
+                model="vera:local", model_digest="b" * 64,
+            )
+
     def test_revocation_during_inference_withholds_reply_and_stops_session(self):
         with tempfile.TemporaryDirectory() as temp:
             ledger, head = ledger_fixture(Path(temp))
