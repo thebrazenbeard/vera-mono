@@ -63,8 +63,12 @@ class VoiceOutputTests(unittest.TestCase):
     def test_untrusted_text_never_in_command_or_script(self) -> None:
         text = 'Hello; \"; Remove-Item C:\\ | `$(bad)` 😀'
         request = SpeechRequest(text, "Microsoft Zira Desktop")
-        argv = _command()
-        self.assertEqual(argv[:3], ["powershell.exe", "-NoProfile", "-NonInteractive"])
+        argv = _command(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe")
+        self.assertEqual(argv[1:3], ["-NoProfile", "-NonInteractive"])
+        self.assertTrue(argv[0].lower().endswith(r"\windowspowershell\v1.0\powershell.exe"))
+        for unsafe in ("powershell.exe", r".\powershell.exe", ""):
+            with self.subTest(unsafe=unsafe), self.assertRaises(ValueError):
+                _command(unsafe)
         self.assertNotIn(text, repr(argv))
         script = base64.b64decode(argv[-1]).decode("utf-16-le")
         self.assertNotIn("Remove-Item", script)

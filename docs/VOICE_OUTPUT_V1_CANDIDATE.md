@@ -22,7 +22,9 @@ injection is explicitly marked `INJECTED_RUNNER_UNATTESTED`, never real audio
 qualification. A real Windows SAPI result is only local WAV evidence, not
 proof that a human heard it or that a target voice has been matched.
 
-The PowerShell command line contains **fixed code only**; caller text and
+The PowerShell command line contains **fixed code only** and binds the
+executable to a path under the system directory returned by the Windows API;
+no PATH/CWD executable search. Caller text and
 voice identifiers cross subprocess stdin as base64-encoded UTF-8 lines. The
 script reads them as literal data and uses `Speak($text)`, not a shell command.
 This removes the obvious process-argument exposure but does not claim full
@@ -39,7 +41,7 @@ timeout, 12 MB WAV cap and PCM/RIFF shape verification bound this baseline.
 | Voice identity | Private `VoiceProfile` research/provenance, permissions, QA | **Not implemented** |
 | Synthesis | `render_sapi_wave` → in-memory PCM/WAV | Source candidate |
 | Audio delivery | Explicit caller-controlled playback or file transport | **Not implemented** |
-| Matrix/Element X | Later separately authorized voice-message adapter | **Not implemented** |
+| `vera-apk` phone client and optional Matrix delivery | Separately assigned app/transport owner | **No APK or Matrix integration verified** |
 
 `ears` should not be treated as TTS by its name. `vera-mono` owns this small
 runtime-neutral synthesis adapter because that code is an output capability,

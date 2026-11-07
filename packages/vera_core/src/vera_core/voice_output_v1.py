@@ -10,6 +10,8 @@ import base64
 from dataclasses import dataclass
 import hashlib
 import io
+import ntpath
+import os
 import re
 import subprocess
 import sys
@@ -77,10 +79,32 @@ try {
 """.strip()
 
 
-def _command() -> list[str]:
+def _system_powershell() -> str:
+    """Bind real execution to the Windows-reported system directory.
+
+    A relative executable name would allow process-search-order planting.
+    Test injections deliberately bypass host resolution, never attest a host.
+    """
+    if sys.platform != "win32":
+        raise RuntimeError("Windows SAPI requires an authorized Windows host")
+    import ctypes
+
+    directory = ctypes.create_unicode_buffer(32768)
+    length = ctypes.windll.kernel32.GetSystemDirectoryW(directory, len(directory))
+    if length <= 0 or length >= len(directory):
+        raise RuntimeError("unable to resolve Windows system directory")
+    executable = ntpath.join(directory.value, "WindowsPowerShell", "v1.0", "powershell.exe")
+    if not os.path.isfile(executable):
+        raise RuntimeError("system Windows PowerShell is unavailable")
+    return executable
+
+
+def _command(executable: str) -> list[str]:
     """Produce a fixed argv vector without caller text or voice data."""
+    if type(executable) is not str or not ntpath.isabs(executable):
+        raise ValueError("Windows PowerShell requires an absolute executable path")
     encoded = base64.b64encode(_SCRIPT.encode("utf-16-le")).decode("ascii")
-    return ["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded]
+    return [executable, "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded]
 
 
 def _stdin_payload(request: SpeechRequest) -> bytes:
@@ -139,9 +163,15 @@ def render_sapi_wave(
     if runner is None and sys.platform != "win32":
         raise RuntimeError("Windows SAPI requires an authorized Windows host")
     invoke = runner if runner is not None else subprocess.run
+    # The fake path is observable synthetic test data only; real calls use the
+    # Windows API for an absolute system executable, never PATH/CWD search.
+    executable = (
+        _system_powershell() if runner is None else
+        r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+    )
     try:
         result = invoke(
-            _command(), input=_stdin_payload(request), capture_output=True,
+            _command(executable), input=_stdin_payload(request), capture_output=True,
             check=False, timeout=timeout_s,
         )
     except subprocess.TimeoutExpired as exc:
