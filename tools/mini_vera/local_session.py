@@ -135,6 +135,11 @@ def main(argv: list[str] | None = None, *,
                     previous_state_sha = None
                     raise compose.CompositionRejected(
                         f"live public-memory approval unavailable: {exc}") from exc
+                except Exception as exc:
+                    history.clear()
+                    previous_state_sha = None
+                    raise compose.CompositionRejected(
+                        "live public-memory provider failed; execution refused") from exc
                 current_state_sha = compose.sha256(compose.canonical(state))
                 if previous_state_sha is not None and current_state_sha != previous_state_sha:
                     history.clear()
@@ -165,6 +170,21 @@ def main(argv: list[str] | None = None, *,
         except loopback.LoopbackRejected as exc:
             print(f"Local inference failed: {exc}", file=sys.stderr)
             return 2
+        if live_public_provider is not None:
+            # A revocation during the HTTP call cannot retract data already
+            # sent to the local server. It CAN prevent the output being shown
+            # or added to local history if current approval has since changed.
+            try:
+                after_state, after_key, after_revision = live_public_provider()
+                compose.verify_state(after_state, key=after_key,
+                                     expected_revision=after_revision)
+                if compose.sha256(compose.canonical(after_state)) != previous_state_sha:
+                    raise compose.CompositionRejected("approved public source changed")
+            except Exception:
+                history.clear()
+                print("Local output withheld: post-inference public-memory approval "
+                      "or source integrity changed; session stopped.", file=sys.stderr)
+                return 2
         if result["status"] == "TRUNCATED_UNVERIFIED_OUTPUT":
             print("Vera [incomplete reply]> " + result["response"]["text"])
             history.clear()

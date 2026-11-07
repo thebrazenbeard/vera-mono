@@ -69,6 +69,11 @@ WORKING_PROJECT record **before every turn**. Head drift, supersession,
 privacy failure or revoked host approval blocks HTTP execution and discards
 volatile history. A changed approved state also discards history. The provider
 keeps the key in process memory; no intermediary key or state files are written.
+After each model request, it rechecks the provider *again* before displaying
+or retaining the response. A revocation during inference withholds output and
+terminates the session; this does not retract context already delivered to the
+local server. No software-only check eliminates the check-to-use race without
+a host-controlled lease or equivalent serialization.
 
 The API does **not** make a ledger's stored `PUBLIC` string authoritative:
 the host must independently verify rights, policy, external head/revision,

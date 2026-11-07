@@ -24,6 +24,46 @@ from vera_memory import AdmissionRequest, MemoryClass
 
 
 class LocalSessionIntegrationTests(unittest.TestCase):
+    def test_revocation_during_inference_withholds_reply_and_stops_session(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ledger, head = ledger_fixture(Path(temp))
+            approvals = {"count": 0}
+
+            def approval(record, current_head):
+                approvals["count"] += 1
+                return approvals["count"] == 1 and synthetic_approval(record, current_head)
+
+            provider = approved_ledger_provider(
+                ledger, record_ids=["work-1"], expected_head=head,
+                expected_revision=3, integrity_key=KEY,
+                host_public_project_approval=approval)
+            with FakeLocal(answer=response(model="vera:local", text="Never display this reply.")) as server:
+                output, errors = io.StringIO(), io.StringIO()
+                args = ["--endpoint", server.url, "--model", "vera:local",
+                        "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed",
+                        "--prompt", "One approved input"]
+                with redirect_stdout(output), redirect_stderr(errors):
+                    self.assertEqual(2, local_session.main(args, live_public_provider=provider))
+                self.assertEqual(1, len(server.requests))
+                self.assertNotIn("Never display", output.getvalue())
+                self.assertIn("post-inference", errors.getvalue())
+
+    def test_unexpected_host_approval_exception_is_controlled_refusal(self):
+        with FakeLocal(answer=response(model="vera:local")) as server:
+            errors = io.StringIO()
+
+            def broken_provider():
+                raise OSError("Sensitive exception text must not be echoed")
+
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed",
+                    "--prompt", "Should not reach transport"]
+            with redirect_stderr(errors):
+                self.assertEqual(2, local_session.main(args, live_public_provider=broken_provider))
+            self.assertEqual([], server.requests)
+            self.assertIn("provider failed", errors.getvalue())
+            self.assertNotIn("Sensitive exception", errors.getvalue())
+
     def test_live_public_ledger_head_drift_blocks_second_http_call(self):
         with tempfile.TemporaryDirectory() as temp:
             ledger, head = ledger_fixture(Path(temp))
