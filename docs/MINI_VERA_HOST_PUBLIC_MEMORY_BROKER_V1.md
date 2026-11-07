@@ -56,7 +56,11 @@ The embedding trusted host supplies:
    each selected record, covering authorized source, provenance, privacy,
    project/identity and currentness. `PUBLIC` in SQLite metadata alone is not
    approval. Every selected record is necessarily `CURRENT`, `WORKING_PROJECT`,
-   `PUBLIC`, source-backed and bounded even when the host callback errs.
+   `PUBLIC`, source-backed and bounded even when the host callback errs. The
+   callback receives an isolated `MemoryRecord` review copy; attempts to
+   mutate its fields (or the original selected record through a separate
+   alias) are detected before the original can be projected. Redaction must
+   be a fresh host-issued source/grant, not a post-digest callback mutation.
 
 The API is intended to be called from a host-owned Python entrypoint:
 

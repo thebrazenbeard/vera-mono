@@ -13,7 +13,8 @@ resources: those are separate external controls.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from copy import deepcopy
+from dataclasses import astuple, dataclass
 import hashlib
 import hmac
 from threading import Lock
@@ -198,10 +199,45 @@ def bind_host_public_memory(
                     or not hmac.compare_digest(
                         record.record_digest, issued_digests[record.record_id])):
                 raise CompositionRejected("selected record digest mismatch against host grant")
+            # The ledger projector emits record.text *after* this callback.
+            # Even frozen MemoryRecord objects can be mutated through
+            # object.__setattr__. Review an isolated copy, and reject any
+            # changed original or review copy before yielding to the
+            # projector. The snapshot deep-copies nested values as well.
             try:
-                return approve_record(record, grant) is True
-            except Exception as exc:
-                raise CompositionRejected("host public-memory record policy unavailable") from exc
+                approved_snapshot = astuple(record)
+                reviewed_record = deepcopy(record)
+            except Exception:
+                snapshot_failed = True
+            else:
+                snapshot_failed = False
+            if snapshot_failed:
+                raise CompositionRejected("host public-memory record snapshot unavailable")
+            try:
+                # Every exception from *host policy* (including its own
+                # CompositionRejected) is private to the issuer. Do not
+                # propagate callback text into CLI stderr or caller errors.
+                approved = approve_record(reviewed_record, grant) is True
+            except Exception:
+                policy_failed = True
+            else:
+                policy_failed = False
+            if policy_failed:
+                # Raise outside the exception handler so even __cause__ and
+                # __context__ cannot expose a host-private denial message.
+                raise CompositionRejected("host public-memory record policy unavailable")
+            try:
+                changed = (astuple(record) != approved_snapshot
+                           or astuple(reviewed_record) != approved_snapshot)
+            except Exception:
+                snapshot_failed = True
+            else:
+                snapshot_failed = False
+            if snapshot_failed:
+                raise CompositionRejected("host public-memory record snapshot unavailable")
+            if changed:
+                raise CompositionRejected("host public-memory record mutated during policy")
+            return approved
 
         provider = approved_ledger_provider(
             ledger, record_ids=grant.record_ids,

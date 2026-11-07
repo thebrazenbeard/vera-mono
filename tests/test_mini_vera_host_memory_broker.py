@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import closing, redirect_stderr, redirect_stdout
 from dataclasses import replace
 import hashlib
 import io
@@ -390,6 +390,23 @@ class HostMemoryBrokerTests(unittest.TestCase):
             self.broker()()
         self.assertEqual([], self.seen_records)
 
+    def test_host_policy_cannot_mutate_selected_text_after_record_digest_check(self):
+        # Hostile callback receives the MemoryRecord after digest matching;
+        # mutation at this point must not change the text later projected by
+        # ledger_bridge without an independently issued replacement digest.
+        def hostile_policy(record, _grant):
+            object.__setattr__(record, "text", "MUTATED AFTER MATCHING DIGEST")
+            return True
+
+        provider = bind_host_public_memory(
+            self.ledger, integrity_key=KEY,
+            current_grant=lambda: self.grant,
+            current_authority_revision=lambda: 10,
+            atomic_host_revision_floor=self.atomic_host_floor,
+            approve_record=hostile_policy, now_seconds=lambda: 1_000_000)
+        with self.assertRaisesRegex(CompositionRejected, "record mutated during policy"):
+            provider()
+
     def test_same_object_field_mutation_during_projection_is_detected(self):
         # Even a deliberately hostile Python callback that circumvents the
         # frozen dataclass via object.__setattr__ cannot rely on `grant == grant`.
@@ -500,7 +517,10 @@ class HostMemoryBrokerTests(unittest.TestCase):
         # in this fixture is deliberately permissive, so the broker itself
         # must pin the issued record digest, not only an ID and an event head.
         old_head = self.ledger.current_head
-        with sqlite3.connect(self.folder / "memory.sqlite") as db:
+        # sqlite3.Connection's context manager ends the transaction but does
+        # not close the handle. Windows cannot remove TemporaryDirectory while
+        # that handle remains open, so own its lifetime explicitly.
+        with closing(sqlite3.connect(self.folder / "memory.sqlite")) as db:
             raw = db.execute("SELECT payload_json FROM records WHERE record_id='work-1'").fetchone()[0]
             payload = json.loads(raw)
             payload["text"] = "Tampered row remains syntactically PUBLIC."
@@ -530,6 +550,32 @@ class HostMemoryBrokerTests(unittest.TestCase):
         with redirect_stderr(errors):
             self.assertEqual(2, local_session.main(args, live_public_provider=provider))
         self.assertNotIn("secret-policy", errors.getvalue())
+        self.assertIn("record policy unavailable", errors.getvalue())
+
+    def test_host_policy_composition_rejection_cannot_leak_sensitive_detail(self):
+        sentinel = "SYNTHETIC_INTERNAL_POLICY_SECRET_123"
+
+        def hidden_denial(_record, _grant):
+            raise CompositionRejected(sentinel)
+
+        provider = bind_host_public_memory(
+            self.ledger, integrity_key=KEY,
+            current_grant=lambda: self.grant,
+            current_authority_revision=lambda: 10,
+            atomic_host_revision_floor=self.atomic_host_floor,
+            approve_record=hidden_denial, now_seconds=lambda: 1_000_000)
+        with self.assertRaisesRegex(CompositionRejected, "record policy unavailable") as failure:
+            provider()
+        self.assertNotIn(sentinel, str(failure.exception))
+        self.assertIsNone(failure.exception.__cause__)
+        self.assertIsNone(failure.exception.__context__)
+
+        errors = io.StringIO()
+        args = ["--endpoint", "http://127.0.0.1:11434/v1", "--model", "vera:local",
+                "--model-digest", "b" * 64, "--prompt", "Do not contact model"]
+        with redirect_stderr(errors):
+            self.assertEqual(2, local_session.main(args, live_public_provider=provider))
+        self.assertNotIn(sentinel, errors.getvalue())
         self.assertIn("record policy unavailable", errors.getvalue())
 
     def test_new_ledger_instance_rehydrates_and_rechecks_host_grant(self):
