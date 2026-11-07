@@ -4,8 +4,14 @@
   "donor_ref": "078d2d7242384c58676305d47654406713e599cf",
   "source_subtree": "pc_connection/",
   "absorbed_target": "packages/vera_pc_connection/src/pc_connection",
-  "mode": "BYTE_COPY_SUBTREE_ABSORPTION",
+  "mode": "BYTE_COPY_SUBTREE_WITH_DERIVED_LOCAL_ROOT_POLICY",
   "source_file_count": 9,
+  "derived_local_paths": [
+    "packages/vera_pc_connection/src/pc_connection/__init__.py",
+    "packages/vera_pc_connection/src/pc_connection/path_policy.py"
+  ],
+  "local_derivation": "Retire obsolete C drive and user-specific path aliases, admit only D:/VERA lexical read scope, reserve PCCC subtree from reads, disable all runtime-write path resolution until separately authorized.",
   "runtime_dependency_on_donor": false,
-  "effect_boundary": "Package defines local contracts/state/journal mechanics. It does not connect to, authorize, or mutate a computer by itself."
+  "effect_boundary": "Package defines local contracts/state/journal mechanics. New root source is not a live host mount, credential, real file access approval, or runtime execution authority.",
+  "claim_ceiling": "SOURCE_LOCAL_PATH_POLICY_ONLY_NO_HOST_VERIFICATION_NO_WRITABLE_ROOT_NO_PROTECTED_EFFECT"
 }
