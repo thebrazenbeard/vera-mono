@@ -5,12 +5,15 @@ from __future__ import annotations
 from contextlib import redirect_stderr, redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import io
+import ctypes
 import hashlib
 import json
 from pathlib import Path
 import tempfile
+import sys
 import threading
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -557,13 +560,80 @@ class PreflightTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(preflight.PreflightRefused, "absolute"):
                 preflight._receipt_target(Path("relative.json"))
+            with self.assertRaisesRegex(preflight.PreflightRefused, "parent aliases"):
+                preflight._receipt_target(Path(directory) / ".." / "trial.json")
             alias = Path(directory) / "alias"
             try:
                 alias.symlink_to(Path(directory), target_is_directory=True)
             except OSError:
                 self.skipTest("host cannot create directory symlinks")
-            with self.assertRaisesRegex(preflight.PreflightRefused, "non-symlink"):
+            with self.assertRaisesRegex(preflight.PreflightRefused, "symlink or reparse"):
                 preflight._receipt_target(alias / "trial.json")
+
+    def test_parent_lexical_resolution_text_never_controls_custody(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "trial.json"
+            # A valid Windows 8.3 alias resolves to a different textual
+            # spelling; Path.resolve must not be a custody decision at all.
+            with patch.object(Path, "resolve", side_effect=AssertionError("lexical check")):
+                parent, identity = preflight._receipt_target(target)
+            self.assertEqual(target.parent, parent)
+            self.assertEqual(2, len(identity))
+
+    @unittest.skipUnless(sys.platform == "win32", "requires real Windows short paths")
+    def test_windows_8dot3_short_parent_is_accepted_when_not_reparse(self):
+        with tempfile.TemporaryDirectory(prefix="mini-vera-receipt-shortalias-") as directory:
+            buffer = ctypes.create_unicode_buffer(32768)
+            count = ctypes.windll.kernel32.GetShortPathNameW(
+                str(directory), buffer, len(buffer))
+            if not count or count >= len(buffer):
+                self.skipTest("Windows short-path alias unavailable")
+            short_parent = Path(buffer.value)
+            if str(short_parent).casefold() == str(directory).casefold():
+                self.skipTest("8.3 naming disabled on this test volume")
+            parent, identity = preflight._receipt_target(short_parent / "trial.json")
+            self.assertEqual(short_parent, parent)
+            self.assertEqual(2, len(identity))
+
+    def test_symlinked_ancestor_is_rejected_even_when_parent_is_real_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            real = Path(directory) / "real"
+            nested = real / "nested"
+            nested.mkdir(parents=True)
+            alias = Path(directory) / "alias"
+            try:
+                alias.symlink_to(real, target_is_directory=True)
+            except OSError:
+                self.skipTest("host cannot create directory symlinks")
+            self.assertFalse((alias / "nested").is_symlink())
+            with self.assertRaisesRegex(preflight.PreflightRefused, "symlink or reparse"):
+                preflight._receipt_target(alias / "nested" / "trial.json")
+
+    def test_windows_reparse_flag_on_nonfinal_ancestor_is_rejected(self):
+        # Model Windows junction/reparse metadata on every platform, including
+        # Linux CI where st_file_attributes is normally absent. A reparse
+        # ancestor must be rejected even if its final child is a plain dir.
+        with tempfile.TemporaryDirectory() as directory:
+            marked = Path(directory) / "junction-like"
+            ordinary_child = marked / "ordinary-child"
+            ordinary_child.mkdir(parents=True)
+            target = ordinary_child / "trial.json"
+            real_lstat = preflight.os.lstat
+            visited = []
+
+            def synthetic_reparse_ancestor(path):
+                visited.append(Path(path))
+                observed = real_lstat(path)
+                if Path(path) == marked:
+                    return SimpleNamespace(st_mode=observed.st_mode,
+                                           st_file_attributes=0x400)
+                return observed
+
+            with patch.object(preflight.os, "lstat", side_effect=synthetic_reparse_ancestor):
+                with self.assertRaisesRegex(preflight.PreflightRefused, "symlink or reparse"):
+                    preflight._receipt_target(target)
+            self.assertIn(ordinary_child, visited)
+            self.assertIn(marked, visited)
 
 
 if __name__ == "__main__":

@@ -48,10 +48,20 @@ def _receipt_target(path: Path) -> tuple[Path, tuple[int, int]]:
     """
     if not path.is_absolute() or path.name in {"", ".", ".."}:
         raise PreflightRefused("receipt output must be an absolute file path")
+    if ".." in path.parts:
+        raise PreflightRefused("receipt output must not traverse parent aliases")
     try:
         parent = path.parent
-        if parent.resolve(strict=True) != parent or parent.is_symlink():
-            raise PreflightRefused("receipt parent must be a direct, non-symlink path")
+        # A textual comparison with Path.resolve() is invalid on Windows:
+        # a legitimate 8.3 short pathname such as RUNNER~1 may resolve to its
+        # long spelling, although no link or junction exists. Inspect each
+        # actual ancestor instead, rejecting symlinks and Windows reparse
+        # points (including junctions) without requiring string equality.
+        for ancestor in (parent, *parent.parents):
+            entry = os.lstat(ancestor)
+            if (stat.S_ISLNK(entry.st_mode)
+                    or getattr(entry, "st_file_attributes", 0) & 0x400):
+                raise PreflightRefused("receipt parent contains a symlink or reparse point")
         parent_stat = os.stat(parent, follow_symlinks=False)
         if not stat.S_ISDIR(parent_stat.st_mode):
             raise PreflightRefused("receipt parent is not a directory")
