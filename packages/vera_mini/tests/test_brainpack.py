@@ -4,12 +4,23 @@ from __future__ import annotations
 
 import hashlib
 import gzip
+import os
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 
 from mini_vera.brainpack import BrainPack, BrainPackError, build_brainpack
+
+
+# BrainPack intentionally refuses platforms without atomic dir_fd/no-follow
+# traversal. Do not treat a platform refusal as evidence that package reads,
+# checksums, and budget checks successfully executed there.
+SECURE_BACKEND = (hasattr(os, "O_NOFOLLOW") and
+                  hasattr(os, "O_DIRECTORY") and
+                  os.open in os.supports_dir_fd)
+requires_secure_backend = unittest.skipUnless(
+    SECURE_BACKEND, "BrainPack secure descriptor backend unsupported here")
 
 
 class BrainPackTests(unittest.TestCase):
@@ -27,6 +38,7 @@ class BrainPackTests(unittest.TestCase):
         path.write_text(data, encoding="utf-8")
         return path
 
+    @requires_secure_backend
     def test_tiny_public_corpus_roundtrip_provenance_and_determinism(self):
         one = self.put("public/astronomy.md", "Earth orbits the Sun.\n")
         self.put("public/biology.txt", "Plants use sunlight.\n")
@@ -42,6 +54,7 @@ class BrainPackTests(unittest.TestCase):
         self.assertEqual((self.out / "manifest.json").read_bytes(),
                          (other / "manifest.json").read_bytes())
 
+    @requires_secure_backend
     def test_no_ambient_discovery_and_no_unallowlisted_read(self):
         self.put("public.txt", "Selected public text")
         self.put("private.txt", "Not selected")
@@ -61,6 +74,7 @@ class BrainPackTests(unittest.TestCase):
         with self.assertRaises(BrainPackError):
             build_brainpack(self.sources / ".." / "sources", ["ok.txt"], self.out)
 
+    @requires_secure_backend
     def test_rejects_symlink_and_hardlink_sources(self):
         private = self.base / "private.txt"
         private.write_text("do not ingest", encoding="utf-8")
@@ -76,6 +90,7 @@ class BrainPackTests(unittest.TestCase):
         with self.assertRaises(BrainPackError):
             build_brainpack(self.sources, ["alias/item.txt"], self.out)
 
+    @requires_secure_backend
     def test_budget_failure_leaves_no_partial_pack(self):
         self.put("huge.txt", "X" * 500)
         with self.assertRaises(BrainPackError):
@@ -85,6 +100,7 @@ class BrainPackTests(unittest.TestCase):
             build_brainpack(self.sources, ["huge.txt"], self.out, max_pack_bytes=100)
         self.assertFalse(self.out.exists())
 
+    @requires_secure_backend
     def test_blob_tampering_detected_on_read_and_verify(self):
         self.put("note.md", "A public educational note.")
         manifest = build_brainpack(self.sources, ["note.md"], self.out)
@@ -105,6 +121,7 @@ class BrainPackTests(unittest.TestCase):
             build_brainpack(self.sources, ["note.md"], self.out)
         self.assertEqual(marker.read_text(), "keep")
 
+    @requires_secure_backend
     def test_destination_appearing_during_build_is_refused(self):
         self.put("note.md", "public")
         compress = gzip.compress
