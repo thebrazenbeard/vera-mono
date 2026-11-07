@@ -156,6 +156,10 @@ def _parser() -> argparse.ArgumentParser:
     lab.add_argument("--fixture", required=True, help="explicit synthetic JSON fixture path")
     lab.add_argument("--approval-ref", help="caller-asserted review reference, not authenticated")
     lab.add_argument("--rollback-ref", help="distinct caller-asserted rollback reference")
+    for name in ("claim-assess", "opportunities"):
+        subparsers.add_parser(
+            name, help="opt-in, caller-supplied unverified advisory JSON from stdin",
+        )
     return parser
 
 
@@ -558,6 +562,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
     try:
+        if args.command in {"claim-assess", "opportunities"}:
+            from .optional_semantic_advisory import run_advisory
+            try:
+                payload = run_advisory(args.command, sys.stdin)
+            except KeyboardInterrupt:
+                sys.stderr.write("vera-mono: OPTIONAL_ADVISORY_INTERRUPTED: no assessment completed\n")
+                return 130
+            _write_json(payload)
+            return 0
         if args.command == "status":
             return _status(args)
         if args.command in {"shell", "console"}:
