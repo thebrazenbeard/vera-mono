@@ -1,0 +1,10 @@
+{
+  "resource": "VERA_BEHAVIOR_PROFILE_V1.json",
+  "donor_repository": "thebrazenbeard/vera-mono",
+  "donor_commit": "2cf4c42525998cf298e465f294fb45c4624e1a7c",
+  "donor_path": "packages/vera_identity/src/vera_identity/resources/architecture/identity/VERA_BEHAVIOR_PROFILE_V1.json",
+  "donor_git_blob_sha1": "0c79625b993a559bd22a6fbe68279450fc736eb2",
+  "import_method": "byte-preserving public source copy",
+  "scope": "portable personality configuration, not installed state or private memory",
+  "runtime_retrieval_required": false
+}
