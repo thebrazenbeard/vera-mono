@@ -103,6 +103,43 @@ class MiniVeraBlindCompareTests(unittest.TestCase):
             self.assertNotEqual(repeats.returncode, 0)
             self.assertEqual(len(fake.requests), 3)
 
+    def test_unwritable_or_missing_output_parent_refused_before_any_http_call(self):
+        with tempfile.TemporaryDirectory() as temp, FakeLocal() as fake:
+            root = Path(temp)
+            request_path = root / "synthetic-request.json"
+            request_path.write_bytes(loopback.canonical(candidate()))
+            key_path = root / "key.json"
+            sheet_path = root / "not-a-directory" / "rater.json"
+            command = [sys.executable, str(ROOT / "tools/mini_vera/blind_compare.py"),
+                       "--request", str(request_path), "--endpoint", fake.url,
+                       "--rater-sheet", str(sheet_path), "--private-key", str(key_path),
+                       "--execute", "--host-idle-confirmed"]
+            result = subprocess.run(command, capture_output=True, text=True, timeout=10)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(fake.requests, [])
+            self.assertFalse(key_path.exists())
+            self.assertFalse(sheet_path.exists())
+
+    def test_failed_call_leaves_two_incomplete_receipts_not_orphan_key(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            request_path = root / "synthetic-request.json"
+            request_path.write_bytes(loopback.canonical(candidate()))
+            sheet = root / "sheet.json"
+            key = root / "key.json"
+            argv = ["--request", str(request_path), "--endpoint",
+                    "http://127.0.0.1:11434/v1", "--rater-sheet", str(sheet),
+                    "--private-key", str(key), "--execute", "--host-idle-confirmed"]
+            with patch.object(blind_compare, "compare",
+                              side_effect=loopback.LoopbackRejected("synthetic outage")):
+                with self.assertRaises(loopback.LoopbackRejected):
+                    blind_compare.main(argv)
+            for path in (sheet, key):
+                saved = json.loads(path.read_text())
+                self.assertEqual(saved["status"], "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED")
+                self.assertEqual(saved["calls_completed"], "UNKNOWN_IF_INTERRUPTED")
+                self.assertNotIn("arm_by_label", saved)
+
     def test_no_nonloopback_or_local_history_or_forged_scope(self):
         request = candidate()
         with patch.object(blind_compare, "_one_call") as called:

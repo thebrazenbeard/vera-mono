@@ -54,7 +54,15 @@ python tools/mini_vera/blind_compare.py --request C:\temp\synthetic-request.json
 These paths are examples, not attestations that such files or directories exist.
 No overwrite, remote URLs, tool calls, memory admission, model weight
 changes, paid compute, or service manipulation is included. The operator flag
-is **not** an automated RAM/GPU qualification. The response sheet contains the
+is **not** an automated RAM/GPU qualification. Both target files are exclusively
+reserved **before** inference; missing output parents therefore abort with
+zero HTTP calls. An interruption leaves `INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED`
+receipts, and successful replacement of each output is staged atomically.
+If only one final receipt exists, the trial is incomplete and must not be scored.
+The CLI checks exact output readback before reporting success. On Windows,
+`0o600` alone does **not** attest to a restrictive NTFS DACL: choose a
+host-controlled private mapping directory and independently verify its ACL.
+The response sheet contains the
 common task/evidence plus opaque `A/B/C` labels, text, response hashes and
 finish reasons; latency is withheld because it can reveal treatment. The
 separately stored mapping contains the arms, wall-clock latency, request hashes,
@@ -73,7 +81,7 @@ needs a **separate** end-to-end track from this matched evidence track.
 ### Evidence as of this source
 
 - `SOURCE`: three-arm blinded-output harness with source-contract validator.
-- `TEST`: fake HTTP loopback model server only; 6 synthetic tests pass locally.
+- `TEST`: fake HTTP loopback model server only; see current test-run receipts.
 - `MODEL_INFERENCE`: none observed here.
 - `HUMAN_REVIEW`: none conducted here.
 - `BEHAVIORAL_QUALIFICATION`: not established.

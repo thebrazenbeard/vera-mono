@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import io
 import json
 import threading
+import time
 import unittest
 from unittest.mock import patch
 
@@ -76,6 +77,40 @@ class FakeOllama:
 
 
 class PreflightTests(unittest.TestCase):
+    def test_slow_trickle_response_has_absolute_two_second_deadline(self):
+        # A per-socket-read timeout would accept this valid 13-byte JSON
+        # after >4 seconds; the absolute deadline must refuse it near 2s.
+        class SlowHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                body = b'{"models":[]}'
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                for ch in body:
+                    try:
+                        self.wfile.write(bytes([ch]))
+                        self.wfile.flush()
+                    except (BrokenPipeError, ConnectionResetError):
+                        return
+                    time.sleep(.36)
+
+            def log_message(self, _format, *_args):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), SlowHandler)
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        try:
+            start = time.monotonic()
+            with self.assertRaisesRegex(preflight.PreflightRefused, "unavailable"):
+                preflight._read_ollama_json("127.0.0.1", server.server_port, "/api/tags")
+            elapsed = time.monotonic() - start
+            self.assertLess(elapsed, 3.0, f"read-only probe exceeded hard deadline: {elapsed:.2f}s")
+        finally:
+            server.shutdown()
+            server.server_close()
+            worker.join(timeout=3)
+
     def test_resident_model_ready_and_only_read_only_gets(self):
         tags, ps = inventory(resident=True)
         with FakeOllama(tags, ps) as server:

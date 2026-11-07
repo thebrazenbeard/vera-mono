@@ -19,6 +19,7 @@ import os
 from pathlib import Path
 import random
 import secrets
+import tempfile
 import time
 from typing import Any
 
@@ -157,10 +158,50 @@ def compare(request: dict[str, Any], *, endpoint: str, timeout_seconds: int = 30
     return sheet, key
 
 
-def _exclusive_write(path: Path, value: dict[str, Any]) -> None:
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, "wb") as handle:
-        handle.write(loopback.canonical(value) + b"\n")
+def _reserve_outputs(rater_sheet: Path, private_key: Path) -> None:
+    """Prove both paths creatable *before* inference and leave crash markers."""
+    if rater_sheet.resolve() == private_key.resolve():
+        raise loopback.LoopbackRejected("rater sheet and mapping must have separate paths")
+    paths = (rater_sheet, private_key)
+    for path in paths:
+        if not path.parent.is_dir():
+            raise loopback.LoopbackRejected("output parent directory missing")
+        if os.path.lexists(path):
+            raise loopback.LoopbackRejected("output already exists; refusing model calls")
+    created: list[Path] = []
+    try:
+        for path in paths:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            created.append(path)
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(loopback.canonical({
+                    "schema": "MINI_VERA_INCOMPLETE_TRIAL_V1",
+                    "status": "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
+                    "calls_completed": "UNKNOWN_IF_INTERRUPTED",
+                    "recovery": "DO_NOT_SCORE_OR_TREAT_AS_COMPLETE",
+                }) + b"\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+    except (OSError, ValueError):
+        # Reservation failed before any HTTP call. Only remove known files
+        # created by this invocation; never touch pre-existing user files.
+        for path in created:
+            path.unlink(missing_ok=True)
+        raise
+
+
+def _replace_reservation(path: Path, value: dict[str, Any]) -> None:
+    """Replace a crash marker atomically; the other marker survives failure."""
+    fd, temporary = tempfile.mkstemp(prefix=".mini-vera-receipt-", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(loopback.canonical(value) + b"\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.lexists(temporary):
+            os.unlink(temporary)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -187,15 +228,15 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--host-idle-confirmed required with --execute")
     if args.rater_sheet is None or args.private_key is None:
         parser.error("separate --rater-sheet and --private-key required with --execute")
-    if args.rater_sheet.resolve() == args.private_key.resolve():
-        raise loopback.LoopbackRejected("rater sheet and mapping must have separate paths")
-    for target in (args.rater_sheet, args.private_key):
-        if target.exists():
-            raise loopback.LoopbackRejected("output already exists; refusing model calls")
+    _reserve_outputs(args.rater_sheet, args.private_key)
     sheet, key = compare(request, endpoint=args.endpoint, timeout_seconds=args.timeout_seconds)
-    # A failure to write is NOT a successful evaluation; never overwrite files.
-    _exclusive_write(args.private_key, key)
-    _exclusive_write(args.rater_sheet, sheet)
+    # A failed/crashed trial retains an explicit incomplete marker, not an
+    # orphan mapping or a falsely successful qualification receipt.
+    _replace_reservation(args.rater_sheet, sheet)
+    _replace_reservation(args.private_key, key)
+    for target, expected in ((args.rater_sheet, sheet), (args.private_key, key)):
+        if target.read_bytes() != loopback.canonical(expected) + b"\n":
+            raise loopback.LoopbackRejected("output readback mismatch; do not score trial")
     print(json.dumps({"status": sheet["status"], "calls": 3,
                       "rater_sheet_sha256": loopback.sha256(loopback.canonical(sheet)),
                       "human_rating": "NOT_PERFORMED", "model_identity": "NOT_ATTESTED"}))

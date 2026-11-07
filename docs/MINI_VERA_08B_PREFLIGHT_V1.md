@@ -13,8 +13,10 @@ training receipt or host-owned exclusive resource lease.
 ## What it actually checks
 
 - Only canonical numeric loopback HTTP `/v1` endpoints are accepted.
-- The preflight makes **only GET `/api/tags` and GET `/api/ps`** with a 2-second
-  timeout and 64-KiB response cap. No prompt or private memory is sent.
+- The preflight makes **only GET `/api/tags` and GET `/api/ps`**, each with an
+  absolute 2-second monotonic deadline across connect, headers and body and a
+  64-KiB response cap. A slow byte-trickle cannot extend that deadline.
+  No prompt or private memory is sent.
 - The selected model must be installed, have a well-formed server-declared tag
   digest and fit a **2 GiB Ollama model-size ceiling** for this 0.8B path.
 - A *foreign resident Ollama model* causes refusal, even when RAM appears free.

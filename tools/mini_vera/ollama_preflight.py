@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
-from http.client import HTTPConnection, HTTPException
+from http.client import HTTPException
 import json
 import sys
 from collections.abc import Callable
@@ -62,7 +62,11 @@ def _read_ollama_json(host: str, port: int, path: str) -> dict[str, Any]:
     """A capped local GET; redirects, auth headers and arbitrary URLs forbidden."""
     if path not in {"/api/tags", "/api/ps"}:
         raise PreflightRefused("unsupported local Ollama probe path")
-    conn = HTTPConnection(host, port, timeout=2.0)
+    # HTTPConnection(timeout=2) is only a per-read socket timeout: a local
+    # server that trickles one byte every 0.4 seconds can keep the response
+    # alive indefinitely. Reuse the existing loopback absolute-deadline
+    # transport for headers and body, including the connection phase.
+    conn = loopback._DeadlineConnection(host, port, timeout=2)
     try:
         conn.request("GET", path, headers={"Accept": "application/json"})
         response = conn.getresponse()
