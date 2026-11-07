@@ -20,7 +20,13 @@ loopback model transport in draft PR #197. It does not implement either again.
    Mini-Vera candidate profile limits **combined** artifact bytes to
    `3_000_000_000` (decimal GB), checked before large-file hashing. The actual
    r13 pair has been reported as 2,723,780,640 bytes; this patch does not
-   independently rehash those host files.
+   independently rehash those host files. POSIX file verification now anchors
+   every model-root ancestor and relative directory via `openat` and
+   `O_NOFOLLOW`, rejecting a parent-symlink swap between path inspection and
+   opening the model file. On Windows the portable API does not prove safe
+   handle traversal through junctions/reparse points, so local artifact
+   verification **fails closed** until a native host-owned handle adapter is
+   qualified. This does not disable the operator-declared model path.
 2. The composer accepted an operator-exported HMAC project snapshot. The
    experimental `ledger_bridge.project_existing_ledger` can now select up to
    eight **specific current** `MemoryLedger` working-project records under an
@@ -71,8 +77,9 @@ licensed, compatible, currently loaded into the model server, free of model
 modifications, or safe to expose. It does not verify runtime provider
 identity. A writer controlling both manifest and expected hash can authorize
 its own invented manifest; trusted expected hashes must be anchored outside
-this code. A filesystem writer who races inspection or can rewrite content
-after inspection is outside this readback's assurance. The separate provider
+this code. The POSIX handle walk closes the reproduced parent-symlink race,
+but filesystem writes **after** the byte readback and model-server drift are
+outside this assurance. The separate provider
 and effect gates in `QualifiedVeraRuntime` remain necessary.
 
 Similarly, a valid HMAC does not prove currentness or privacy approval. The
@@ -101,6 +108,10 @@ The fixture uses **fake** byte arrays beginning `GGUF`, not a neural model.
 It verifies digest drift, symlink rejection, stale heads, superseded records,
 private-ref policy rejection, private input rejection and exact composition.
 Those tests do not validate actual neural inference or behavior.
+Manifest-success tests are explicitly skipped on Windows while native
+reparse-safe directory-handle traversal is unavailable. A separate Windows
+fail-closed test still runs; skips must never be reported as successful
+Windows artifact byte verification.
 
 ## Next real qualification
 

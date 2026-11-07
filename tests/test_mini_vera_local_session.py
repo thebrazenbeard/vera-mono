@@ -15,7 +15,8 @@ import unittest
 from unittest.mock import patch
 
 from tests.test_mini_vera_source_bindings import (
-    KEY, ledger_fixture, model_fixture, synthetic_approval, synthetic_composer_args,
+    KEY, SECURE_ARTIFACT_OPEN, ledger_fixture, model_fixture, synthetic_approval,
+    synthetic_composer_args,
 )
 from tests.test_mini_vera_loopback import FakeLocal, response
 from tools.mini_vera import artifact_binding, compose, ledger_bridge, local_session, loopback
@@ -287,6 +288,7 @@ raise SystemExit(local_session.main(['--endpoint', 'http://127.0.0.1:11434/v1', 
             self.assertEqual(2, caught.exception.code)
             self.assertEqual([], server.requests)
 
+    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "secure POSIX model file handle traversal only")
     def test_two_real_loopback_calls_with_local_in_memory_history(self):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)

@@ -8,6 +8,7 @@ started, downloaded, quantized, trained, or contacted.
 from __future__ import annotations
 
 import hashlib
+import errno
 import os
 from pathlib import Path
 import stat
@@ -54,6 +55,42 @@ def _hex64(s: object) -> bool:
     return type(s) is str and len(s) == 64 and all(c in "0123456789abcdef" for c in s)
 
 
+def _open_model_handle(root: Path, parts: tuple[str, ...]) -> int:
+    """Pin every directory component with POSIX openat/O_NOFOLLOW.
+
+    A prior `Path.is_symlink()` check is not a security boundary: another
+    process may swap a parent for a symlink after checking but before `open`.
+    On Windows, ordinary `os.open` has no equivalent verified directory-handle
+    walk for junction/reparse parents; fail closed pending a native host-owned
+    Win32 handle implementation. Never silently downgrade to path rechecks.
+    """
+    if (os.name != "posix" or not hasattr(os, "O_NOFOLLOW") or
+            not hasattr(os, "O_DIRECTORY") or os.open not in os.supports_dir_fd):
+        raise CompositionRejected("model-root handle containment unsupported on this host")
+    if not root.is_absolute() or not parts:
+        raise CompositionRejected("absolute model-root path required")
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    file_flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_BINARY", 0)
+    try:
+        directory_fd = os.open(root.anchor, directory_flags)
+        try:
+            # Anchor the FULL absolute root, not only its final component:
+            # the root's own parent path can otherwise be substituted too.
+            for component in (*root.parts[1:], *parts[:-1]):
+                next_fd = os.open(component, directory_flags, dir_fd=directory_fd)
+                os.close(directory_fd)
+                directory_fd = next_fd
+            return os.open(parts[-1], file_flags, dir_fd=directory_fd)
+        finally:
+            os.close(directory_fd)
+    except OSError as exc:
+        if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+            raise CompositionRejected("symlink or non-directory model path component rejected") from exc
+        if exc.errno == errno.ENOENT:
+            raise CompositionRejected("pinned local model artifact missing") from exc
+        raise CompositionRejected("cannot open pinned local model artifact") from exc
+
+
 def _hash_local_file(root: Path, relative: str, expected_size: int, expected_sha: str,
                      *, role: str, artifact_format: str) -> None:
     parts = Path(relative).parts
@@ -62,18 +99,7 @@ def _hash_local_file(root: Path, relative: str, expected_size: int, expected_sha
         raise CompositionRejected("invalid relative model artifact path")
     if not relative.endswith(FORMATS[role][artifact_format]):
         raise CompositionRejected("wrong artifact extension for role")
-    candidate = root
-    for component in parts:
-        candidate = candidate / component
-        if candidate.is_symlink():
-            raise CompositionRejected("symlink path component rejected")
-    if not candidate.is_file():
-        raise CompositionRejected("pinned local model artifact missing")
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
-    try:
-        fd = os.open(candidate, flags)
-    except OSError as exc:
-        raise CompositionRejected("cannot open pinned local model artifact") from exc
+    fd = _open_model_handle(root, parts)
     try:
         before = os.fstat(fd)
         if not stat.S_ISREG(before.st_mode) or before.st_size != expected_size:
@@ -123,7 +149,10 @@ def verify_local_manifest(root: Path, manifest_path: Path, *, expected_manifest_
     total = 0
     bound: list[dict[str, Any]] = []
     pending: list[tuple[str, str, str, int, str]] = []
-    root = root.resolve(strict=True)
+    # Do not resolve() symlinks here. Resolving them before the anchored walk
+    # would silently accept a substituted root/parent symlink as the declared
+    # root, defeating containment despite final-component O_NOFOLLOW.
+    root = Path(os.path.abspath(root))
     for item in artifacts:
         if type(item) is not dict or set(item) != {"role", "format", "path", "bytes", "sha256"}:
             raise CompositionRejected("invalid manifest artifact fields")

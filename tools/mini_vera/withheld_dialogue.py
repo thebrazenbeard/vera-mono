@@ -183,6 +183,8 @@ def compare(request: dict[str, Any], scenario: dict[str, Any], *, endpoint: str,
         "case_sha256": loopback.sha256(loopback.canonical(scenario)),
         "source_request_sha256": loopback.sha256(loopback.canonical(request)),
         "model_operator_declared": config["model"], "endpoint": canonical_endpoint,
+        "model_registry_digest_operator_declared": request["provenance"]["model_registry_digest"],
+        "decoding": dict(blind_compare.DECODING),
         "evidence": {
             "class": "REAL_LOOPBACK_HTTP_RESPONSE_ONLY",
             "calls": len(config["questions"]) * len(arms),
@@ -231,6 +233,8 @@ def main(argv: list[str] | None = None) -> int:
     except DialogueAborted as exc:
         base = {"schema": "MINI_VERA_ABORTED_DIALOGUE_V1",
                 "status": "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
+                "case_sha256": loopback.sha256(loopback.canonical(scenario)),
+                "case_id": scenario["case_id"],
                 "reason_code": exc.reason_code,
                 "calls_attempted_observed": exc.attempted,
                 "calls_completed": "NOT_ATTESTED",
