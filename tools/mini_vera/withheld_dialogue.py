@@ -136,6 +136,14 @@ def compare(request: dict[str, Any], scenario: dict[str, Any], *, endpoint: str,
             payload = {"model": config["model"], "messages": history[arm] + [user_message],
                        "stream": False, **blind_compare.DECODING}
             if len(loopback.canonical(payload)) > loopback.MAX_REQUEST_FILE:
+                if calls_attempted:
+                    # A response may be valid yet too long to replay in the
+                    # next turn. Once any HTTP call occurred, preserve its
+                    # attempted-call denominator and abort the whole trial.
+                    # Incomplete histories must never turn into a score.
+                    raise DialogueAborted("FOLLOWUP_HISTORY_EXCEEDS_BOUND", calls_attempted,
+                                          {label: name for name, label in label_by_arm.items()},
+                                          label_by_arm[arm])
                 raise loopback.LoopbackRejected("dialogue history exceeds bounded local payload")
             calls_attempted += 1
             try:

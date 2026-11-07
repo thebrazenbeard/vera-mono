@@ -16,6 +16,10 @@ scoring only complete trials would select on non-truncation and bias results.
 For controlled invalid/truncated replies, the failed receipt records exact
 observed HTTP **attempts** (not falsely claimed completions), a reason code,
 and the failed masked label; the arm mapping remains in the private receipt.
+Likewise, a valid but long first-turn model response can make a later replay
+request exceed the 32 KiB input budget. Once any call has occurred, this is a
+`FOLLOWUP_HISTORY_EXCEEDS_BOUND` aborted trial: the attempted-call count and
+private masked label are retained, and no partial transcript is scored.
 Unexpected crashes can still leave the honest `UNKNOWN_IF_INTERRUPTED` marker.
 
 An independent human evaluator controls a case JSON stored **outside Git**:

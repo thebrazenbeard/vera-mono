@@ -231,10 +231,20 @@ class MiniVeraBindingTests(unittest.TestCase):
             with self.assertRaisesRegex(compose.CompositionRejected, "bytes do not match"):
                 artifact_binding.verify_local_manifest(root, manifest, expected_manifest_sha256=expected)
             (root / "base.gguf").unlink()
-            (root / "base.gguf").symlink_to(root / value["artifacts"][1]["path"])
-            with self.assertRaisesRegex(compose.CompositionRejected, "symlink"):
-                artifact_binding.verify_local_manifest(root, manifest, expected_manifest_sha256=expected)
-            (root / "base.gguf").unlink()
+            # Windows runners may not grant SeCreateSymbolicLinkPrivilege.
+            # Preserve all non-symlink assertions in this test; a separate
+            # Windows junction test supplies an unprivileged reparse case.
+            link_created = False
+            try:
+                (root / "base.gguf").symlink_to(root / value["artifacts"][1]["path"])
+                link_created = True
+            except OSError as exc:
+                if os.name != "nt" or getattr(exc, "winerror", None) not in {5, 1314}:
+                    raise
+            if link_created:
+                with self.assertRaisesRegex(compose.CompositionRejected, "symlink|reparse"):
+                    artifact_binding.verify_local_manifest(root, manifest, expected_manifest_sha256=expected)
+                (root / "base.gguf").unlink()
             (root / "base.gguf").write_bytes(b"GGUF" + b"\0" * 64)
             value["artifacts"][1]["role"] = "base"
             new_raw = compose.canonical(value)

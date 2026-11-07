@@ -162,7 +162,74 @@ def _bootstrap(values: list[float], *, seed: bytes) -> list[float] | None:
     return [round(samples[74], 4), round(samples[2924], 4)]
 
 
-def aggregate(schedule: dict[str, Any], ledger: dict[str, Any]) -> dict[str, Any]:
+def _external_key_commitments(
+    schedule: dict[str, Any], scheduled_case_ids: set[str], *,
+    commitment: dict[str, Any] | None, expected_sha256: str | None,
+) -> dict[str, str] | None:
+    """Bind key bytes to an independently supplied exact SHA commitment.
+
+    The caller must have frozen ``expected_sha256`` outside this mutable
+    ledger *before ratings*. This function checks consistency, not chronology,
+    custody, human independence, or the authority of the caller's digest.
+    """
+    if commitment is None and expected_sha256 is None:
+        return None
+    if type(commitment) is not dict or expected_sha256 is None:
+        raise loopback.LoopbackRejected("external pre-rating key commitment and pinned SHA required together")
+    if loopback.sha256(loopback.canonical(commitment)) != _hex64(expected_sha256):
+        raise loopback.LoopbackRejected("external pre-rating key commitment drift")
+    if (set(commitment) != {"schema", "schedule_sha256", "key_sha256_by_case"}
+            or commitment["schema"] != "MINI_VERA_EXTERNAL_PRE_RATING_KEY_COMMITMENTS_V1"
+            or commitment["schedule_sha256"] != loopback.sha256(loopback.canonical(schedule))):
+        raise loopback.LoopbackRejected("external pre-rating key commitment schedule mismatch")
+    pinned = commitment["key_sha256_by_case"]
+    if (type(pinned) is not dict or not set(pinned).issubset(scheduled_case_ids)
+            or any(type(case_id) is not str or type(digest) is not str
+                   for case_id, digest in pinned.items())):
+        raise loopback.LoopbackRejected("invalid external pre-rating key commitment case inventory")
+    for digest in pinned.values():
+        _hex64(digest)
+    return pinned
+
+
+def _external_rating_commitments(
+    schedule: dict[str, Any], scheduled_case_ids: set[str], *,
+    commitment: dict[str, Any] | None, expected_sha256: str | None,
+) -> dict[str, list[str]] | None:
+    """Check caller-pinned post-rating, pre-unblinding receipt SHA manifest.
+
+    This is a consistency check conditional on an *independent external* SHA
+    anchor. The tool cannot attest rater authorship, signature or chronology.
+    """
+    if commitment is None and expected_sha256 is None:
+        return None
+    if type(commitment) is not dict or expected_sha256 is None:
+        raise loopback.LoopbackRejected("external rating commitments and pinned SHA required together")
+    if loopback.sha256(loopback.canonical(commitment)) != _hex64(expected_sha256):
+        raise loopback.LoopbackRejected("external rating receipt commitment drift")
+    if (set(commitment) != {"schema", "schedule_sha256", "rating_sha256_by_case"}
+            or commitment["schema"] != "MINI_VERA_EXTERNAL_POST_RATING_RECEIPT_COMMITMENTS_V1"
+            or commitment["schedule_sha256"] != loopback.sha256(loopback.canonical(schedule))):
+        raise loopback.LoopbackRejected("external rating receipt schedule mismatch")
+    pinned = commitment["rating_sha256_by_case"]
+    if (type(pinned) is not dict or not set(pinned).issubset(scheduled_case_ids)
+            or any(type(case_id) is not str or type(digests) is not list
+                   or not 1 <= len(digests) <= 8
+                   or any(type(digest) is not str for digest in digests)
+                   or len(digests) != len(set(digests))
+                   for case_id, digests in pinned.items())):
+        raise loopback.LoopbackRejected("invalid external rating receipt inventory")
+    for digests in pinned.values():
+        for digest in digests:
+            _hex64(digest)
+    return pinned
+
+
+def aggregate(schedule: dict[str, Any], ledger: dict[str, Any], *,
+              pre_rating_key_commitments: dict[str, Any] | None = None,
+              expected_pre_rating_key_commitment_sha256: str | None = None,
+              post_rating_receipt_commitments: dict[str, Any] | None = None,
+              expected_post_rating_receipt_commitment_sha256: str | None = None) -> dict[str, Any]:
     if (type(schedule) is not dict
             or schedule.get("schema") != "MINI_VERA_PRIVATE_CASE_SCHEDULE_V1"
             or type(schedule.get("cases_in_randomized_order")) is not list):
@@ -178,6 +245,14 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any]) -> dict[str, Any
         if row["case_id"] in scheduled_by_id:
             raise loopback.LoopbackRejected("duplicate scheduled case")
         scheduled_by_id[row["case_id"]] = row
+    pinned_keys = _external_key_commitments(
+        schedule, set(scheduled_by_id), commitment=pre_rating_key_commitments,
+        expected_sha256=expected_pre_rating_key_commitment_sha256,
+    )
+    pinned_ratings = _external_rating_commitments(
+        schedule, set(scheduled_by_id), commitment=post_rating_receipt_commitments,
+        expected_sha256=expected_post_rating_receipt_commitment_sha256,
+    )
     if (type(ledger) is not dict or set(ledger) != {"schema", "schedule_sha256", "cases"}
             or ledger["schema"] != "MINI_VERA_EXTERNAL_RESULT_LEDGER_V1"
             or ledger["schedule_sha256"] != loopback.sha256(loopback.canonical(schedule))
@@ -194,6 +269,17 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any]) -> dict[str, Any
         results[case_id] = row
     if set(results) != set(scheduled_by_id):
         raise loopback.LoopbackRejected("omitted scheduled case")
+    completed_ids = {case_id for case_id, row in results.items()
+                     if row.get("status") == "COMPLETED"}
+    if pinned_keys is not None and set(pinned_keys) != completed_ids:
+        raise loopback.LoopbackRejected(
+            "externally committed completed trial key must remain COMPLETED in result ledger"
+        )
+    if pinned_ratings is not None:
+        if set(pinned_ratings) != completed_ids:
+            raise loopback.LoopbackRejected(
+                "externally committed rated case must remain COMPLETED in result ledger"
+            )
 
     counts = {"scheduled": len(scheduled), "attempted": 0, "completed": 0,
               "aborted": 0, "not_attempted": 0, "fully_human_rated": 0}
@@ -222,6 +308,8 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any]) -> dict[str, Any
                 "case_id", "status", "private_key_path", "private_key_sha256",
                 "rater_sheet_path", "ratings"}:
             raise loopback.LoopbackRejected("invalid case outcome or missing attempt receipt")
+        if pinned_keys is not None and pinned_keys.get(case_id) != row["private_key_sha256"]:
+            raise loopback.LoopbackRejected("completed key differs from external pre-rating commitment")
         key = _read(_external(Path(row["private_key_path"])), MAX_TRIAL_BYTES)
         if loopback.sha256(loopback.canonical(key)) != _hex64(row["private_key_sha256"]):
             raise loopback.LoopbackRejected("private arm mapping/key drift after commitment")
@@ -269,6 +357,9 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any]) -> dict[str, Any
             receipt_hashes.append(sha)
             for label, dimensions in scores.items():
                 by_arm[mapping[label]].append(dimensions["overall"])
+        if (pinned_ratings is not None and
+                sorted(receipt_hashes) != sorted(pinned_ratings.get(case_id, []))):
+            raise loopback.LoopbackRejected("completed ratings differ from external pre-unblinding receipts")
         rating_hashes[case_id] = receipt_hashes
         means = {arm: sum(values) / len(values) for arm, values in by_arm.items()}
         paired["governed_minus_bare"].append(means["governed_natural"] - means["bare_natural"])
@@ -296,6 +387,25 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any]) -> dict[str, Any
         "model_alias_operator_declared": next(iter(models)) if models else None,
         "model_registry_digest_operator_declared": next(iter(model_registry_digests))
         if model_registry_digests else None,
+        "external_pre_rating_key_custody": {
+            "mode": ("EXACT_SHA_PINNED_EXTERNALLY_OPERATOR_SUPPLIED"
+                     if pinned_keys is not None else "NOT_PROVIDED"),
+            "commitment_sha256": expected_pre_rating_key_commitment_sha256,
+            "timestamp_and_immutability": "NOT_ATTESTED_BY_THIS_TOOL",
+        },
+        "external_post_rating_receipt_custody": {
+            "mode": ("EXACT_SHA_PINNED_EXTERNALLY_OPERATOR_SUPPLIED"
+                     if pinned_ratings is not None else "NOT_PROVIDED"),
+            "commitment_sha256": expected_post_rating_receipt_commitment_sha256,
+            "rater_authorship_and_timestamp": "NOT_ATTESTED_BY_THIS_TOOL",
+        },
+        "external_joint_custody_scope": (
+            "KEYS_AND_RATINGS_CALLER_SHA_PINNED_BUT_NOT_AUTHENTICATED"
+            if pinned_keys is not None and pinned_ratings is not None else
+            "KEYS_ONLY_RATINGS_MUTABLE" if pinned_keys is not None else
+            "RATINGS_ONLY_KEYS_MUTABLE" if pinned_ratings is not None else
+            "NO_EXTERNAL_PINNED_CUSTODY"
+        ),
         "denominator": counts,
         "completion_rate_among_attempted": round(counts["completed"] / counts["attempted"], 4)
         if counts["attempted"] else None,
@@ -333,6 +443,10 @@ def main(argv: list[str] | None = None) -> int:
     analyze = sub.add_parser("aggregate")
     analyze.add_argument("--schedule", type=Path, required=True)
     analyze.add_argument("--result-ledger", type=Path, required=True)
+    analyze.add_argument("--pre-rating-key-commitments", type=Path)
+    analyze.add_argument("--expected-pre-rating-key-commitment-sha256")
+    analyze.add_argument("--post-rating-receipt-commitments", type=Path)
+    analyze.add_argument("--expected-post-rating-receipt-commitment-sha256")
     analyze.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.command == "schedule":
@@ -344,7 +458,16 @@ def main(argv: list[str] | None = None) -> int:
     else:
         source = _read(_external(args.schedule), MAX_MANIFEST_BYTES)
         ledger = _read(_external(args.result_ledger), MAX_MANIFEST_BYTES)
-        result = aggregate(source, ledger)
+        pre_rating = (_read(_external(args.pre_rating_key_commitments), MAX_MANIFEST_BYTES)
+                      if args.pre_rating_key_commitments is not None else None)
+        post_rating = (_read(_external(args.post_rating_receipt_commitments), MAX_MANIFEST_BYTES)
+                       if args.post_rating_receipt_commitments is not None else None)
+        result = aggregate(
+            source, ledger, pre_rating_key_commitments=pre_rating,
+            expected_pre_rating_key_commitment_sha256=args.expected_pre_rating_key_commitment_sha256,
+            post_rating_receipt_commitments=post_rating,
+            expected_post_rating_receipt_commitment_sha256=args.expected_post_rating_receipt_commitment_sha256,
+        )
     _exclusive_output(args.output, result)
     print(json.dumps({"status": result.get("status", "PRIVATE_SCHEDULE_PREPARED"),
                       "output_sha256": loopback.sha256(loopback.canonical(result)),

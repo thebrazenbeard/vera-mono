@@ -145,6 +145,33 @@ class MiniVeraWithheldDialogueTests(unittest.TestCase):
         self.assertEqual(len(fake.requests), 1,
                          "abort on first truncated reply before it can contaminate history")
 
+    def test_oversized_followup_history_after_three_real_calls_has_abort_receipts(self):
+        """Valid long replies must not escape the attempted-call denominator."""
+        with tempfile.TemporaryDirectory() as temp, \
+                FakeLocal(answer=response(text="x" * 40_000)) as fake:
+            root = Path(temp)
+            request_path = root / "request.json"
+            scenario_path = root / "scenario.json"
+            sheet_path = root / "sheet.json"
+            key_path = root / "key.json"
+            request_path.write_bytes(loopback.canonical(candidate()))
+            scenario_path.write_bytes(loopback.canonical(synthetic_scenario()))
+            result = subprocess.run([
+                sys.executable, str(ROOT / "tools/mini_vera/withheld_dialogue.py"),
+                "--request", str(request_path), "--scenario", str(scenario_path),
+                "--endpoint", fake.url, "--rater-sheet", str(sheet_path),
+                "--private-key", str(key_path), "--execute", "--host-idle-confirmed",
+            ], capture_output=True, text=True, timeout=10)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(len(fake.requests), 3,
+                             "all first-turn arms were actually called before history overflow")
+            for path in (sheet_path, key_path):
+                aborted = json.loads(path.read_text())
+                self.assertEqual(aborted["schema"], "MINI_VERA_ABORTED_DIALOGUE_V1")
+                self.assertEqual(aborted["status"], "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED")
+                self.assertEqual(aborted["calls_attempted_observed"], 3)
+                self.assertEqual(aborted["reason_code"], "FOLLOWUP_HISTORY_EXCEEDS_BOUND")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -80,6 +80,85 @@ both the key and its ledger hash, the local test cannot establish chronology
 or immutability. A local JSON SHA alone is not independent proof of blind
 human evaluation; qualify only after external custody evidence exists.
 
+**Optional independently pinned key-checking seam (Wave 4):** Before a rater
+sees any transcript, an evaluator can assemble a *private* manifest using
+the already generated masked-dialogue keys:
+
+```json
+{
+  "schema": "MINI_VERA_EXTERNAL_PRE_RATING_KEY_COMMITMENTS_V1",
+  "schedule_sha256": "EXACT-CANONICAL-SCHEDULE-SHA256",
+  "key_sha256_by_case": {"PRIVATE-001": "EXACT-CANONICAL-PRIVATE-KEY-SHA256"}
+}
+```
+
+The manifest may contain a subset of scheduled cases, but every case later
+reported as COMPLETED must have a corresponding digest. **The inverse holds
+too:** a case with an externally pinned *completed-trial private key* must
+remain COMPLETED in the result ledger, not be downgraded to ABORTED or
+NOT_ATTEMPTED. The two case-ID sets must match exactly. This closes a hostile
+denominator-relabeling reproduction in which five finished keys were pinned,
+only four rating receipts were pinned, and the fifth completed case was
+silently relabeled NOT_ATTEMPTED. A source trial truly interrupted before a
+completed private key should use its separate aborted-attempt receipt.
+Keep the manifest
+outside Git, derive its canonical SHA-256 from sorted, compact UTF-8 JSON
+(the same form as `loopback.canonical`), and **pin that SHA independently of
+the mutable result ledger and the key files** before collecting ratings.
+Then supply the pinned digest *from that independent channel* when aggregating:
+
+```powershell
+python tools/mini_vera/qualification_workflow.py aggregate --schedule C:\private\schedule.json --result-ledger C:\private\results.json --pre-rating-key-commitments C:\private\keys-precommit.json --expected-pre-rating-key-commitment-sha256 PINNED_SHA256_FROM_INDEPENDENT_CUSTODIAN --output C:\private\summary.json
+```
+
+With this input, changing both private arm mappings and their mutable ledger
+hashes is **rejected** unless the separately pinned digest is also replaced.
+**This key-only anchor does not protect the rating receipts.** In hostile
+testing, replacing each rating's score values *and* its hash in the editable
+ledger still reversed the result from +2 to -2, even while the key pin held.
+
+**Optional post-rating, pre-unblinding receipt anchor:** After the independent
+raters have submitted their scored sheets, but *before* anyone exposes the
+arm mappings, an external custodian can pin the exact canonical SHA-256 of:
+
+```json
+{
+  "schema": "MINI_VERA_EXTERNAL_POST_RATING_RECEIPT_COMMITMENTS_V1",
+  "schedule_sha256": "EXACT-CANONICAL-SCHEDULE-SHA256",
+  "rating_sha256_by_case": {"PRIVATE-001": ["EXACT-CANONICAL-RATING-SHA256"]}
+}
+```
+
+Every later COMPLETED case must have exactly its independently pinned rating
+hashes (one per distinct rater, up to eight); omitted and altered receipts
+are rejected. Conversely, once a case is in the externally pinned rating
+manifest it **cannot be relabeled NOT_ATTEMPTED or ABORTED** in the result
+ledger; a hostile test reproduced this denominator-changing omission and its
+rejection. The manifest's case IDs must match the ledger's completed-case IDs
+exactly. This second manifest may include a subset of scheduled cases, but
+cannot refer to a foreign case. Keep its full private contents outside
+Git, and independently freeze the **manifest digest** outside the mutable
+ledger and rating files. To check *both* source and submitted-score custody:
+
+```powershell
+python tools/mini_vera/qualification_workflow.py aggregate --schedule C:\private\schedule.json --result-ledger C:\private\results.json --pre-rating-key-commitments C:\private\keys-precommit.json --expected-pre-rating-key-commitment-sha256 PINNED_KEY_MANIFEST_SHA256 --post-rating-receipt-commitments C:\private\rated-receipts.json --expected-post-rating-receipt-commitment-sha256 PINNED_RATING_MANIFEST_SHA256 --output C:\private\summary.json
+```
+
+The synthetic original joint key/ledger attack changes an unanchored result
+from +2 to -2, and the independent key digest rejects that attack. A second
+hostile reproduction changes rating files and their mutable ledger hashes;
+it still reverses a **key-only** anchored result, but is rejected when the
+separate rating-receipt digest is pinned. The output distinguishes **no pin,
+key-only, rating-only, and both**. None of these modes attests who supplied
+the SHA values, when they were frozen, or that raters were independently
+human and blind. Merely placing a digest on a CLI, in the same editable repo
+or same-operator file is not proof of external custody. A truly independent,
+timestamped and authenticated custodian is required for qualification.
+Separately, the *disposition* of cases never externally rated (claimed
+ABORTED/NOT_ATTEMPTED) is still operator-declared, not independently anchored
+by this rating-manifest seam; an authenticated trial-outcome ledger would be
+needed to establish noncompletion rates against adversarial omissions.
+
 Ledger envelope: `{"schema":"MINI_VERA_EXTERNAL_RESULT_LEDGER_V1",
 "schedule_sha256":"<canonical schedule digest>","cases":[...]}`.
 All paths and ledger contents remain private/off-repository.
