@@ -80,6 +80,34 @@ class FakeOllama:
 
 
 class PreflightTests(unittest.TestCase):
+    def test_receipt_exclusive_open_forces_binary_bytes_on_windows(self):
+        # Linux has no O_BINARY. Inject its value and strip that synthetic bit
+        # only when calling the real Linux os.open; on Windows the *real* flag
+        # reaches the CRT and prevents LF -> CRLF rewriting.
+        native_binary = getattr(preflight.os, "O_BINARY", 0)
+        binary_flag = native_binary or (1 << 27)
+        actual_open = preflight.os.open
+        created_flags: list[int] = []
+
+        def inspecting_open(path, flags, mode=0o777):
+            if str(path).endswith(".incomplete"):
+                created_flags.append(flags)
+            passed_flags = flags if native_binary else flags & ~binary_flag
+            return actual_open(path, passed_flags, mode)
+
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "receipt.json"
+            _, parent_identity = preflight._receipt_target(target)
+            receipt = {"schema": "SYNTHETIC", "status": "PUBLICATION_UNQUALIFIED"}
+            with patch.object(preflight.os, "O_BINARY", binary_flag, create=True), \
+                    patch.object(preflight.os, "open", side_effect=inspecting_open):
+                preflight._commit_receipt_atomically(target, receipt, parent_identity)
+            self.assertEqual(1, len(created_flags))
+            self.assertTrue(created_flags[0] & binary_flag)
+            self.assertEqual(preflight._receipt_bytes(receipt), target.read_bytes())
+            self.assertEqual(b"\n", target.read_bytes()[-1:])
+            self.assertNotEqual(b"\r\n", target.read_bytes()[-2:])
+
     def test_slow_trickle_response_has_absolute_two_second_deadline(self):
         # A per-socket-read timeout would accept this valid 13-byte JSON
         # after >4 seconds; the absolute deadline must refuse it near 2s.

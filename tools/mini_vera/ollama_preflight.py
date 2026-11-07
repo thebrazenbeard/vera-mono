@@ -77,8 +77,12 @@ def _commit_receipt_atomically(path: Path, payload: dict[str, Any],
     fd: int | None = None
     temp_identity: tuple[int, int] | None = None
     try:
+        # Windows CRT defaults os.open to O_TEXT: os.write then silently
+        # transforms our canonical terminal LF into CRLF, so the printed
+        # SHA-256 no longer matches the bytes on disk. Force raw byte writes.
         fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
-                     getattr(os, "O_NOFOLLOW", 0), 0o600)
+                     getattr(os, "O_NOFOLLOW", 0) |
+                     getattr(os, "O_BINARY", 0), 0o600)
         opened = os.fstat(fd)
         temp_identity = (opened.st_dev, opened.st_ino)
         remaining = memoryview(data)
