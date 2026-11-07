@@ -63,10 +63,22 @@ class MemoryJournal:
 
     def __init__(self, path: str | Path):
         self.path = Path(path).expanduser().absolute()
-        if self.path.is_symlink() or any(p.is_symlink() for p in self.path.parents):
-            raise MemoryError("journal path may not include a symbolic link")
+        self._require_safe_path()
+
+    def _require_safe_path(self) -> None:
+        """Recheck path components at each operation, not just construction.
+
+        On Windows, directory junctions are also reparse redirects. These
+        checks catch substituted parents between calls; they cannot promise
+        safety against a privileged adversary racing within one system call.
+        """
+        for component in (self.path, *self.path.parents):
+            if component.is_symlink() or (hasattr(component, "is_junction")
+                                       and component.is_junction()):
+                raise MemoryError("journal path may not traverse symbolic links or junctions")
 
     def _load(self) -> list[dict]:
+        self._require_safe_path()
         if not self.path.exists():
             return []
         if not self.path.is_file() or self.path.stat().st_size > _MAX_BYTES:
@@ -109,6 +121,7 @@ class MemoryJournal:
     def _append_event(self, fields: dict, *, consent: bool) -> dict:
         if consent is not True:
             raise PermissionError("explicit consent=True is required for persistent memory")
+        self._require_safe_path()
         previous = self._load()
         if len(previous) >= _MAX_RECORDS:
             raise MemoryError("journal record limit reached")
@@ -122,9 +135,9 @@ class MemoryJournal:
         data = b"".join(_canonical(item) + b"\n" for item in (*previous, record))
         if len(data) > _MAX_BYTES:
             raise MemoryError("journal size limit reached")
+        self._require_safe_path()
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        if self.path.is_symlink():
-            raise MemoryError("journal path must not be a symbolic link")
+        self._require_safe_path()
         temporary = None
         try:
             with tempfile.NamedTemporaryFile(mode="wb", dir=self.path.parent,
@@ -134,6 +147,7 @@ class MemoryJournal:
                 stream.write(data)
                 stream.flush()
                 os.fsync(stream.fileno())
+            self._require_safe_path()
             os.replace(temporary, self.path)
         finally:
             if temporary is not None and temporary.exists():

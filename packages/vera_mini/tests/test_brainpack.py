@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import mini_vera.brainpack as brainpack
 from mini_vera.brainpack import BrainPack, BrainPackError, build_brainpack
 
 
@@ -54,7 +55,10 @@ class BrainPackTests(unittest.TestCase):
     def test_rejects_traversal_hidden_absolute_and_duplicate_paths(self):
         self.put("ok.txt", "ok")
         for files in (["../secret.txt"], ["/etc/passwd"], [".secret.txt"],
-                      ["a//b.txt"], ["a/./b.txt"], ["ok.txt", "ok.txt"]):
+                      ["D:private.txt"], ["a/D:private.txt"], ["file.txt:stream"],
+                      ["CON.txt"], ["sub/LPT1.txt"],
+                      ["trailing. /file.txt"], ["a//b.txt"], ["a/./b.txt"],
+                      ["ok.txt", "ok.txt"]):
             with self.subTest(files=files), self.assertRaises(BrainPackError):
                 build_brainpack(self.sources, files, self.out)
             self.assertFalse(self.out.exists())
@@ -96,6 +100,41 @@ class BrainPackTests(unittest.TestCase):
         with self.assertRaises(BrainPackError):
             pack.verify()
 
+    def test_verify_rejects_unlisted_padding_even_over_physical_budget(self):
+        self.put("note.md", "A small public note.")
+        build_brainpack(self.sources, ["note.md"], self.out, max_pack_bytes=1024)
+        pack = BrainPack(self.out)
+        self.assertEqual(pack.verify()["verified_documents"], 1)
+        (self.out / "unused-padding.bin").write_bytes(b"x" * 1500)
+        with self.assertRaisesRegex(BrainPackError, "unexpected physical package entry"):
+            pack.verify()
+
+    def test_verify_rejects_unlisted_blob_and_hardlinked_blob(self):
+        self.put("note.md", "A small public note.")
+        manifest = build_brainpack(self.sources, ["note.md"], self.out)
+        pack = BrainPack(self.out)
+        extra = self.out / "blobs" / "unlisted.gz"
+        extra.write_bytes(b"x")
+        with self.assertRaisesRegex(BrainPackError, "unexpected or missing physical blob"):
+            pack.verify()
+        extra.unlink()
+        original = self.out / manifest["documents"][0]["blob"]
+        outside = self.base / "hardlinked-copy.gz"
+        outside.hardlink_to(original)
+        with self.assertRaisesRegex(BrainPackError, "invalid physical blob size or link count"):
+            pack.verify()
+
+    def test_verify_rejects_same_length_manifest_tampering(self):
+        self.put("note.md", "A small public note.")
+        build_brainpack(self.sources, ["note.md"], self.out)
+        pack = BrainPack(self.out)
+        manifest_file = self.out / "manifest.json"
+        raw = manifest_file.read_bytes()
+        self.assertIn(b'"version":1', raw)
+        manifest_file.write_bytes(raw.replace(b'"version":1', b'"version":2'))
+        with self.assertRaisesRegex(BrainPackError, "manifest content changed"):
+            pack.verify()
+
     def test_existing_destination_is_never_replaced(self):
         self.put("note.md", "public")
         self.out.mkdir()
@@ -120,12 +159,37 @@ class BrainPackTests(unittest.TestCase):
         self.assertEqual((self.out / "owned-by-other").read_text(), "keep")
         self.assertEqual(list(self.base.glob(".brainpack-build-*")), [])
 
-    def test_unsupported_secure_dir_fd_platform_fails_closed(self):
+    def test_path_checked_fallback_without_dir_fd(self):
         self.put("note.md", "public")
         with patch("mini_vera.brainpack.os.supports_dir_fd", set()):
-            with self.assertRaisesRegex(BrainPackError, "unavailable on this platform"):
-                build_brainpack(self.sources, ["note.md"], self.out)
+            build_brainpack(self.sources, ["note.md"], self.out)
+            self.assertEqual(BrainPack(self.out).read("note.md"), "public")
+
+    def test_path_checked_fallback_still_rejects_links(self):
+        outside = self.base / "outside.txt"
+        outside.write_text("private", encoding="utf-8")
+        (self.sources / "symlink.txt").symlink_to(outside)
+        (self.sources / "hardlink.txt").hardlink_to(outside)
+        with patch("mini_vera.brainpack.os.supports_dir_fd", set()):
+            for name in ("symlink.txt", "hardlink.txt"):
+                with self.subTest(name=name), self.assertRaises(BrainPackError):
+                    build_brainpack(self.sources, [name], self.out)
         self.assertFalse(self.out.exists())
+
+    def test_target_race_after_last_check_preserves_existing_empty_dir(self):
+        self.put("note.md", "public")
+        publish = brainpack._publish_no_replace
+
+        def last_instant_competitor(staging, target):
+            target.mkdir()  # Created after the final pre-publication lstat.
+            return publish(staging, target)
+
+        with patch("mini_vera.brainpack._publish_no_replace", side_effect=last_instant_competitor):
+            with self.assertRaises(BrainPackError):
+                build_brainpack(self.sources, ["note.md"], self.out)
+        self.assertTrue(self.out.is_dir())
+        self.assertEqual(list(self.out.iterdir()), [])
+        self.assertEqual(list(self.base.glob(".brainpack-build-*")), [])
 
 
 if __name__ == "__main__":

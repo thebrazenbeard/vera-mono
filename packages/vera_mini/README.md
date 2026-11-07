@@ -45,9 +45,17 @@ The trained release artifact is `dist/mini-vera-trained.pyz`; the
 
 The repository also contains a **source-only experimental** `brainpack.py`
 for explicitly selected UTF-8 documents with content hashes and a 3 GiB
-maximum budget. It has no CLI integration or SemanticAtlas adapter. Its secure
-descriptor-based packaging backend presently fails closed on unsupported
-platforms, including Windows; it is **not an installable Lappy feature** yet.
+maximum budget. It has no CLI integration or SemanticAtlas adapter. Linux
+uses descriptor-based traversal; a Windows path-checking fallback is included,
+but it has **not been executed on Lappy** and cannot guarantee safety against
+concurrent malicious path swaps. Neither backend has a proven crash-durable
+release protocol. Do not treat this as a deployed memory subsystem.
+
+The separate `evidence_bridge.py` is a read-only, opt-in projection of
+already-authorized STM/DeepMemoryStorage observations. It has no installed
+provider connection or automatic Mini-Vera runtime hook. Historical evidence
+does not establish current memory truth. Actual provider authorization and
+cross-repository runtime interoperability remain unverified.
 
 ## Learning, narrowly stated
 
@@ -63,6 +71,12 @@ baseline. This is a limited synthetic intent-routing result, **not** evidence
 of natural-language generalization or generative intelligence. See
 `data/training_receipt_v1.json` for the exact input/checkpoint hashes and class
 confusion matrices. `data/PROVENANCE.md` states the dataset's origin and limits.
+
+A separately frozen, naturally phrased 72-example out-of-distribution probe
+scored 41/72 (56.9%), versus its fixed 12/72 majority baseline. The original
+model was **not tuned on this set**. Clarification requests remained weak at
+4/12. This is still a small authored intent test, not proof of generalization
+to unconstrained user conversations. See `data/OOD_PROVENANCE.md`.
 
 To train a new local policy from an explicitly approved JSONL file containing
 `{"text": "...", "label": "..."}` records:
@@ -117,6 +131,9 @@ independently authenticated memory system.
   labels, not enforced access-control roles.
 - A successful software test does not demonstrate neural learning, transfer of
   model weights, or independent subjective experience.
+- The memory journal rejects symlinks and Windows junctions at construction,
+  read and write time. On Windows this is still vulnerable to sufficiently
+  privileged concurrent filesystem races; consent and file permissions matter.
 
 ## Source provenance
 
