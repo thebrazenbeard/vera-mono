@@ -34,6 +34,16 @@ def _surface(text: str) -> str:
     return " ".join(text.casefold().split())
 
 
+def _bounded_literal(haystack: str, needle: str) -> bool:
+    """Literal with Unicode word-token boundaries, not sentence meaning."""
+    return re.search(r"(?<!\w)" + re.escape(needle) + r"(?!\w)", haystack) is not None
+
+
+def _lexical_tokens(text: str) -> set[str]:
+    """Distinct Unicode word fragments; repetition metric, not paraphrase recognition."""
+    return set(re.findall(r"\w+", _surface(text)))
+
+
 def _sha(value: Any) -> str:
     return loopback.sha256(loopback.canonical(value))
 
@@ -93,7 +103,7 @@ def validate_instrument(instrument: dict[str, Any], scenario: dict[str, Any]) ->
 
 
 def _validate_receipts(request: dict[str, Any], scenario: dict[str, Any],
-                       sheet: dict[str, Any], key: dict[str, Any]) -> list[str]:
+                       sheet: dict[str, Any], key: dict[str, Any]) -> dict[str, Any]:
     """Fail closed on missing/misaligned *operator-declared* trial receipts."""
     config = withheld_dialogue.prepare(request, scenario)
     turn_kinds = [turn["kind"] for turn in scenario["turns"]]
@@ -167,7 +177,7 @@ def _validate_receipts(request: dict[str, Any], scenario: dict[str, Any],
                 raise loopback.LoopbackRejected(
                     "replayed transcript and recorded sent payload hashes disagree")
             history.extend([user_message, {"role": "assistant", "content": item["answer"]}])
-    return config["questions"]
+    return config
 
 
 def score_completed(request: dict[str, Any], scenario: dict[str, Any],
@@ -180,7 +190,16 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
         (not _hex64(expected_instrument_sha256) or
          expected_instrument_sha256 != _sha(instrument))):
         raise loopback.LoopbackRejected("external probe instrument changed from pinned digest")
-    questions = _validate_receipts(request, scenario, sheet, private_key)
+    prepared = _validate_receipts(request, scenario, sheet, private_key)
+    questions = prepared["questions"]
+    # Union across *all* arm instructions: scoring a system-echo condition
+    # against a private per-label mapping would partially unblind the report.
+    # This conservative flag can over-count possible contamination by design.
+    possible_system_contexts = [
+        _surface(message["content"])
+        for messages in prepared["instructions"].values()
+        for message in messages if message["role"] == "system"
+    ]
     by_label: dict[str, Any] = {}
     for label in ("A", "B", "C"):
         results = []
@@ -190,7 +209,21 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
             for left in range(len(outputs)) for right in range(left + 1, len(outputs))
             if _surface(outputs[left]["answer"]) == _surface(outputs[right]["answer"])
         ]
+        near_duplicate_pairs = []
+        for left in range(len(outputs)):
+            for right in range(left + 1, len(outputs)):
+                a, b = _surface(outputs[left]["answer"]), _surface(outputs[right]["answer"])
+                if a == b:
+                    continue  # exact repeats have their own independent receipt
+                at, bt = _lexical_tokens(a), _lexical_tokens(b)
+                union = at | bt
+                if (len(at) >= 8 and len(bt) >= 8 and union and
+                    len(at & bt) / len(union) >= 0.85):
+                    near_duplicate_pairs.append([left + 1, right + 1])
         prompt_overlap_rule_ids = []
+        prior_prompt_overlap_rule_ids = []
+        subtoken_only_rule_ids = []
+        system_context_overlap_rule_ids = []
         for rule in instrument["rules"]:
             answer = _surface(outputs[rule["turn"] - 1]["answer"])
             matches = [_surface(term) in answer for term in rule["literals"]]
@@ -206,13 +239,33 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
                     # is not independent response evidence. This is an
                     # objective overlap warning, not a plagiarism judgment.
                     prompt_overlap_rule_ids.append(rule["rule_id"])
+                if any(match and any(_surface(term) in _surface(prior)
+                                     for prior in questions[:rule["turn"] - 1])
+                       for term, match in zip(rule["literals"], matches)):
+                    prior_prompt_overlap_rule_ids.append(rule["rule_id"])
+                if any(match and not _bounded_literal(answer, _surface(term))
+                       for term, match in zip(rule["literals"], matches)):
+                    subtoken_only_rule_ids.append(rule["rule_id"])
+                if any(match and any(_surface(term) in context
+                                     for context in possible_system_contexts)
+                       for term, match in zip(rule["literals"], matches)):
+                    system_context_overlap_rule_ids.append(rule["rule_id"])
             results.append({"rule_id": rule["rule_id"], "dimension": rule["dimension"],
                             "turn": rule["turn"], "literal_surface_match": passed})
         diagnostics = {
             "verbatim_repeated_answer_turn_pairs": repeated_pairs,
+            "near_duplicate_token_overlap_pairs": near_duplicate_pairs,
             "positive_rule_ids_present_in_user_turn": prompt_overlap_rule_ids,
+            "positive_rule_ids_present_in_prior_user_turn": prior_prompt_overlap_rule_ids,
+            "positive_rule_ids_subtoken_only": subtoken_only_rule_ids,
+            "positive_rule_ids_present_in_any_arm_system_context": system_context_overlap_rule_ids,
             "warnings": (["REPEATED_VERBATIM_ANSWER_DIFFERENT_TURNS"] if repeated_pairs else [])
-            + (["POSITIVE_LITERAL_PRESENT_IN_USER_TURN"] if prompt_overlap_rule_ids else []),
+            + (["NEAR_DUPLICATE_LEXICAL_TOKENS_DIFFERENT_TURNS"] if near_duplicate_pairs else [])
+            + (["POSITIVE_LITERAL_PRESENT_IN_USER_TURN"] if prompt_overlap_rule_ids else [])
+            + (["POSITIVE_LITERAL_PRESENT_IN_PRIOR_USER_TURN"] if prior_prompt_overlap_rule_ids else [])
+            + (["POSITIVE_LITERAL_SUBTOKEN_ONLY"] if subtoken_only_rule_ids else [])
+            + (["POSITIVE_LITERAL_PRESENT_IN_SOME_ARM_SYSTEM_CONTEXT"]
+               if system_context_overlap_rule_ids else []),
         }
         by_label[label] = {"passed": sum(x["literal_surface_match"] for x in results),
                            "total": len(results), "rules": results,
@@ -236,6 +289,7 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
             "NO_INDEPENDENT_RATER_OR_BEHAVIORAL_QUALIFICATION",
             "ARM_MAPPING_REMAINS_IN_SEPARATE_PRIVATE_KEY",
             "SURFACE_DIAGNOSTICS_ARE_NOT_SEMANTIC_VERDICTS",
+            "TOKEN_SET_OVERLAP_AND_WORD_BOUNDARIES_ARE_NON_SEMANTIC_DIAGNOSTICS",
         ],
     }
 

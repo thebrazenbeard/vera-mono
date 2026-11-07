@@ -205,19 +205,39 @@ def main(argv: list[str] | None = None, *,
                           "status": "REFUSED", "reason": str(exc),
                           "model_inference_calls": 0}), file=sys.stderr)
         return 2
-    print(json.dumps(receipt, sort_keys=True))
     if not args.execute:
         # Probe mode does not send a chat completion or perform model loading.
+        print(json.dumps(receipt, sort_keys=True))
         return 0
     if receipt["status"] != "RESOURCE_PREFLIGHT_PASSED_NOT_A_LEASE":
         print("Model is cold; --allow-cold-load required before inference", file=sys.stderr)
         return 2
-    # TOCTOU remains: this is an immediate guard against known busy conditions,
-    # not coordination with unrelated inference/training processes. The digest
-    # forwarded to the composer is a declared tag, never a weight proof.
+    # The inventory and physical-RAM estimates can drift between the first
+    # preflight and actual request composition. Recheck immediately before the
+    # session handoff, with the exact original model-tag digest pinned; a
+    # residency transition is also grounds to refuse. This still provides no
+    # exclusive host lease and cannot close the final check-to-use race.
+    try:
+        final_receipt = probe(
+            endpoint=args.endpoint, model=args.model,
+            expected_tag_digest=receipt["ollama_tag_digest"],
+            memory_probe=memory_probe, get_json=get_json,
+            allow_cold_load=args.allow_cold_load,
+        )
+        if (final_receipt["status"] != "RESOURCE_PREFLIGHT_PASSED_NOT_A_LEASE"
+                or final_receipt["model_resident"] != receipt["model_resident"]):
+            raise PreflightRefused("Ollama residency or host readiness changed before handoff")
+    except (PreflightRefused, loopback.LoopbackRejected) as exc:
+        print(json.dumps({"schema": "MINI_VERA_08B_PREFLIGHT_V1",
+                          "status": "REFUSED", "reason": str(exc),
+                          "model_inference_calls": 0}), file=sys.stderr)
+        return 2
+    print(json.dumps(final_receipt, sort_keys=True))
+    # A race still remains after this final read-only observation. The digest
+    # forwarded to the composer is server-declared, never weight attestation.
     return local_session.main([
         "--endpoint", args.endpoint, "--model", args.model,
-        "--model-digest", receipt["ollama_tag_digest"],
+        "--model-digest", final_receipt["ollama_tag_digest"],
         "--execute", "--host-idle-confirmed", "--prompt", args.prompt,
     ])
 

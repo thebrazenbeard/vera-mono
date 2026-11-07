@@ -234,30 +234,30 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--host-idle-confirmed required with --execute")
     if args.rater_sheet is None or args.private_key is None:
         parser.error("separate --rater-sheet and --private-key required with --execute")
-    blind_compare._reserve_outputs(args.rater_sheet, args.private_key)
+    reservations = blind_compare._reserve_outputs(args.rater_sheet, args.private_key)
     try:
-        sheet, key = compare(request, scenario, endpoint=args.endpoint,
-                             timeout_seconds=args.timeout_seconds)
-    except DialogueAborted as exc:
-        base = {"schema": "MINI_VERA_ABORTED_DIALOGUE_V1",
-                "status": "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
-                "case_sha256": loopback.sha256(loopback.canonical(scenario)),
-                "case_id": scenario["case_id"],
-                "reason_code": exc.reason_code,
-                "calls_attempted_observed": exc.attempted,
-                "calls_completed": "NOT_ATTESTED",
-                "recovery": "COUNT_AS_INVALIDATED_TRIAL_NOT_A_SCORED_SUCCESS"}
-        blind_compare._replace_reservation(args.rater_sheet, base)
-        blind_compare._replace_reservation(args.private_key, {
-            **base, "arm_by_label": exc.arm_by_label,
-            "failed_label": exc.failed_label,
-        })
-        raise
-    blind_compare._replace_reservation(args.rater_sheet, sheet)
-    blind_compare._replace_reservation(args.private_key, key)
-    for target, expected in ((args.rater_sheet, sheet), (args.private_key, key)):
-        if target.read_bytes() != loopback.canonical(expected) + b"\n":
-            raise loopback.LoopbackRejected("output readback mismatch; do not score trial")
+        try:
+            sheet, key = compare(request, scenario, endpoint=args.endpoint,
+                                 timeout_seconds=args.timeout_seconds)
+        except DialogueAborted as exc:
+            base = {"schema": "MINI_VERA_ABORTED_DIALOGUE_V1",
+                    "status": "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
+                    "case_sha256": loopback.sha256(loopback.canonical(scenario)),
+                    "case_id": scenario["case_id"],
+                    "reason_code": exc.reason_code,
+                    "calls_attempted_observed": exc.attempted,
+                    "calls_completed": "NOT_ATTESTED",
+                    "recovery": "COUNT_AS_INVALIDATED_TRIAL_NOT_A_SCORED_SUCCESS"}
+            blind_compare._replace_reservation(args.rater_sheet, base, reservations=reservations)
+            blind_compare._replace_reservation(args.private_key, {
+                **base, "arm_by_label": exc.arm_by_label,
+                "failed_label": exc.failed_label,
+            }, reservations=reservations)
+            raise
+        blind_compare._replace_reservation(args.rater_sheet, sheet, reservations=reservations)
+        blind_compare._replace_reservation(args.private_key, key, reservations=reservations)
+    finally:
+        blind_compare._close_reservations(reservations)
     print(json.dumps({"status": sheet["status"], "calls": key["evidence"]["calls"],
                       "rater_sheet_sha256": key["rater_sheet_sha256"],
                       "human_ratings": "NOT_PERFORMED", "model_identity": "NOT_ATTESTED"}))

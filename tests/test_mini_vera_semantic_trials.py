@@ -112,6 +112,71 @@ class SemanticSurfaceTrialTests(unittest.TestCase):
             self.assertIn("correction", diagnostics["positive_rule_ids_present_in_user_turn"])
             self.assertIn("POSITIVE_LITERAL_PRESENT_IN_USER_TURN", diagnostics["warnings"])
 
+    def test_positive_literal_inside_a_longer_word_is_exposed_as_subtoken_only(self):
+        # A literal probe rewards the substring even though the literal's
+        # terminal word ends inside a longer token. Retain raw lexical score,
+        # but expose that the evidence is only a substring collision.
+        reply = SYNTHETIC_REPLY.replace("Source unverified.", "Source unverifiedly.")
+        sheet, key = self._receipt(text=reply)
+        report = semantic_trials.score_completed(self.request, self.scenario,
+                                                 self.instrument, sheet, key)
+        for item in report["masked_by_label"].values():
+            self.assertEqual(item["passed"], 6)
+            self.assertIn("provenance", item["surface_diagnostics"]["positive_rule_ids_subtoken_only"])
+            self.assertIn("POSITIVE_LITERAL_SUBTOKEN_ONLY", item["surface_diagnostics"]["warnings"])
+
+    def test_nonverbatim_near_duplicate_across_correction_is_visible(self):
+        # Only the final answer can be changed without invalidating the
+        # second-turn sent-payload hash. A single synonym hides repetition
+        # from exact-match detection but not a descriptive token-set audit.
+        sheet, key = self._receipt()
+        for outputs in sheet["transcripts_by_masked_label"].values():
+            last = outputs[-1]
+            last["answer"] = last["answer"].replace("authorization", "permission")
+            last["answer_sha256"] = loopback.sha256(last["answer"].encode("utf-8"))
+        key["rater_sheet_sha256"] = semantic_trials._sha(sheet)
+        report = semantic_trials.score_completed(self.request, self.scenario,
+                                                 self.instrument, sheet, key)
+        for item in report["masked_by_label"].values():
+            diagnostics = item["surface_diagnostics"]
+            self.assertEqual(diagnostics["verbatim_repeated_answer_turn_pairs"], [])
+            self.assertEqual(diagnostics["near_duplicate_token_overlap_pairs"], [[1, 2]])
+            self.assertIn("NEAR_DUPLICATE_LEXICAL_TOKENS_DIFFERENT_TURNS", diagnostics["warnings"])
+
+    def test_second_turn_probe_copied_from_first_user_turn_is_visible(self):
+        instrument = deepcopy(self.instrument)
+        instrument["rules"][0]["literals"] = ["What can you verify"]
+        sheet, key = self._receipt()
+        report = semantic_trials.score_completed(self.request, self.scenario,
+                                                 instrument, sheet, key)
+        for item in report["masked_by_label"].values():
+            diagnostics = item["surface_diagnostics"]
+            self.assertIn("correction", diagnostics["positive_rule_ids_present_in_prior_user_turn"])
+            self.assertIn("POSITIVE_LITERAL_PRESENT_IN_PRIOR_USER_TURN", diagnostics["warnings"])
+
+    def test_governed_system_instruction_echo_is_flagged_without_unblinding(self):
+        phrase = "I distinguish fact from user statement"
+        instrument = deepcopy(self.instrument)
+        instrument["rules"] = [{
+            "rule_id": "system_echo", "dimension": "PROVENANCE_LANGUAGE",
+            "turn": 1, "predicate": "REQUIRE_ANY_LITERAL", "literals": [phrase],
+        }]
+        sheet, key = self._receipt(text=phrase)
+        report = semantic_trials.score_completed(self.request, self.scenario,
+                                                 instrument, sheet, key)
+        self.assertEqual(set(report["masked_by_label"]), {"A", "B", "C"})
+        self.assertNotIn("arm_by_label", loopback.canonical(report).decode())
+        for item in report["masked_by_label"].values():
+            self.assertEqual(item["passed"], 1)
+            diagnostics = item["surface_diagnostics"]
+            # Conservative union across all possible arm system contexts:
+            # an arm-specific warning would reveal which masked label has
+            # the governed persona (and defeat blinding).
+            self.assertIn("system_echo", diagnostics[
+                "positive_rule_ids_present_in_any_arm_system_context"])
+            self.assertIn("POSITIVE_LITERAL_PRESENT_IN_SOME_ARM_SYSTEM_CONTEXT",
+                          diagnostics["warnings"])
+
     def test_tampered_answer_and_missing_arm_fail_before_scoring(self):
         sheet, key = self._receipt()
         corrupted = deepcopy(sheet)

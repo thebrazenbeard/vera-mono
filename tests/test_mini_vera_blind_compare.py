@@ -169,6 +169,59 @@ class MiniVeraBlindCompareTests(unittest.TestCase):
         self.assertEqual({item["finish_reason"] for item in sheet["entries"]}, {"length"})
         self.assertEqual(sheet["qualification"], "NOT_ESTABLISHED")
 
+    def test_unowned_receipt_path_is_never_overwritten(self):
+        with tempfile.TemporaryDirectory() as temp:
+            foreign = Path(temp) / "foreign-private-key.json"
+            foreign.write_text("OTHER_PROCESS_OWNED_CONTENT")
+            with self.assertRaises(loopback.LoopbackRejected):
+                blind_compare._replace_reservation(foreign, {"schema": "new-receipt"})
+            self.assertEqual(foreign.read_text(), "OTHER_PROCESS_OWNED_CONTENT")
+
+    def test_second_output_reservation_failure_does_not_delete_replaced_first_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            sheet = Path(temp) / "sheet.json"
+            key = Path(temp) / "key.json"
+            original_open = blind_compare.os.open
+
+            def injected_open(path, *args, **kwargs):
+                if Path(path) == key:
+                    sheet.write_text("OTHER_PROCESS_OWNED_CONTENT")
+                    raise PermissionError("synthetic second reservation failure")
+                return original_open(path, *args, **kwargs)
+
+            with patch.object(blind_compare.os, "open", side_effect=injected_open):
+                with self.assertRaises(PermissionError):
+                    blind_compare._reserve_outputs(sheet, key)
+            self.assertEqual(sheet.read_text(), "OTHER_PROCESS_OWNED_CONTENT")
+            self.assertFalse(key.exists())
+
+    def test_replaced_receipt_name_cannot_overwrite_other_process_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            sheet = Path(temp) / "sheet.json"
+            key = Path(temp) / "key.json"
+            reservations = blind_compare._reserve_outputs(sheet, key)
+            key.unlink()
+            key.write_text("OTHER_PROCESS_OWNED_CONTENT")
+            with self.assertRaisesRegex(loopback.LoopbackRejected, "identity changed"):
+                blind_compare._replace_reservation(
+                    key, {"schema": "new-private-key"}, reservations=reservations)
+            self.assertEqual(key.read_text(), "OTHER_PROCESS_OWNED_CONTENT")
+            self.assertEqual(
+                json.loads(sheet.read_text())["status"],
+                "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
+            )
+
+    def test_inplace_modified_reservation_cannot_be_finalized_as_owned_marker(self):
+        with tempfile.TemporaryDirectory() as temp:
+            sheet = Path(temp) / "sheet.json"
+            key = Path(temp) / "key.json"
+            reservations = blind_compare._reserve_outputs(sheet, key)
+            key.write_text("OTHER_PROCESS_OWNED_CONTENT")
+            with self.assertRaisesRegex(loopback.LoopbackRejected, "marker altered"):
+                blind_compare._replace_reservation(
+                    key, {"schema": "new-private-key"}, reservations=reservations)
+            self.assertEqual(key.read_text(), "OTHER_PROCESS_OWNED_CONTENT")
+
 
 if __name__ == "__main__":
     unittest.main()

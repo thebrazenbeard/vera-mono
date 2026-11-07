@@ -209,6 +209,34 @@ class HostMemoryBrokerTests(unittest.TestCase):
         with self.assertRaisesRegex(CompositionRejected, "rollback"):
             self.broker()()
 
+    def test_revocation_observation_must_durably_pin_new_revision_before_refusal(self):
+        # A revoked/absent grant is still evidence of a newer host authority
+        # revision. Dropping it before the atomic floor allows a cold broker
+        # to resurrect a revision-10 grant after revision 11 was observed.
+        self.broker()()
+        self.permission["authority_revision"] = 11
+        self.permission["grant"] = None
+        with self.assertRaisesRegex(CompositionRejected, "revoked"):
+            self.broker()()
+        self.assertEqual(11, self.host_floor)
+        self.permission["authority_revision"] = 10
+        self.permission["grant"] = self.grant
+        with self.assertRaisesRegex(CompositionRejected, "rollback"):
+            self.broker()()
+
+    def test_expired_grant_observation_still_durably_pins_new_revision(self):
+        self.broker()()
+        self.permission["authority_revision"] = 11
+        self.permission["grant"] = replace(
+            self.grant, authority_revision=11, expires_at_unix=1_000_000)
+        with self.assertRaisesRegex(CompositionRejected, "expired"):
+            self.broker()()
+        self.assertEqual(11, self.host_floor)
+        self.permission["authority_revision"] = 10
+        self.permission["grant"] = self.grant
+        with self.assertRaisesRegex(CompositionRejected, "rollback"):
+            self.broker()()
+
     def test_host_owned_floor_survives_discarded_broker_and_store_reopen(self):
         # The following SQLite table is a *synthetic host custody fixture*, not
         # an authorization provider installed in Vera. Distinct connections

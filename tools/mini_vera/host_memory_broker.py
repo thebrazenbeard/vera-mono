@@ -100,9 +100,32 @@ def bind_host_public_memory(
 
     def checked_grant() -> tuple[PublicMemoryGrant, int]:
         nonlocal highest_observed_revision
+        # A revocation can legitimately return no grant. The newer authority
+        # revision must still be durably observed, otherwise a fresh broker
+        # after a host-state rollback can resurrect the old grant.
+        try:
+            authority_revision = current_authority_revision()
+        except Exception as exc:
+            raise CompositionRejected("host public-memory authority unavailable") from exc
+        if (type(authority_revision) is not int
+                or not (0 <= authority_revision < 2**64)):
+            raise CompositionRejected("invalid host authority revision")
+        with revision_lock:
+            if authority_revision < highest_observed_revision:
+                raise CompositionRejected("host authority revision rollback")
+            try:
+                durable_floor = atomic_host_revision_floor(authority_revision)
+            except Exception as exc:
+                raise CompositionRejected("host durable authority floor unavailable") from exc
+            if type(durable_floor) is not int or not (0 <= durable_floor < 2**64):
+                raise CompositionRejected("invalid host durable authority floor")
+            if durable_floor > authority_revision:
+                raise CompositionRejected("host authority revision rollback across broker restart")
+            if durable_floor != authority_revision:
+                raise CompositionRejected("host durable authority floor mismatch")
+            highest_observed_revision = authority_revision
         try:
             grant = current_grant()
-            authority_revision = current_authority_revision()
             current_time = now_seconds()
         except Exception as exc:
             raise CompositionRejected("host public-memory authority unavailable") from exc
@@ -129,28 +152,11 @@ def bind_host_public_memory(
         if (type(grant.authority_revision) is not int
                 or not (0 <= grant.authority_revision < 2**64)):
             raise CompositionRejected("invalid issued host grant authority revision")
-        if (type(authority_revision) is not int
-                or not (0 <= authority_revision < 2**64)):
-            raise CompositionRejected("invalid host authority revision")
         if type(grant.expires_at_unix) is not int or type(current_time) not in (int, float):
             raise CompositionRejected("invalid host grant expiry or clock")
         # Limit lifetime to one hour; an authorized host can rotate leases.
         if not (0 < grant.expires_at_unix - current_time <= 3600):
             raise CompositionRejected("host public-memory grant expired or invalid")
-        with revision_lock:
-            if authority_revision < highest_observed_revision:
-                raise CompositionRejected("host authority revision rollback")
-            try:
-                durable_floor = atomic_host_revision_floor(authority_revision)
-            except Exception as exc:
-                raise CompositionRejected("host durable authority floor unavailable") from exc
-            if type(durable_floor) is not int or not (0 <= durable_floor < 2**64):
-                raise CompositionRejected("invalid host durable authority floor")
-            if durable_floor > authority_revision:
-                raise CompositionRejected("host authority revision rollback across broker restart")
-            if durable_floor != authority_revision:
-                raise CompositionRejected("host durable authority floor mismatch")
-            highest_observed_revision = authority_revision
         # The grant and independent revision reader are different host paths.
         # Never elevate a stale cached grant by HMAC-rebinding it to a new
         # authority revision. A new host-issued grant must carry that revision.

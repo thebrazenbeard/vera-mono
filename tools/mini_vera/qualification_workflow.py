@@ -534,94 +534,27 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any], *,
 
 
 def _windows_create_in_parent(parent: Path, name: str) -> int:
-    """Exclusively create child relative to a verified, pinned Windows parent.
+    """Fail closed until an atomic private Windows security descriptor exists.
 
-    A joined absolute CreateFileW child path would permit an ancestor-junction
-    swap after _external checked it. We use NtCreateFile RootDirectory on a
-    parent handle whose final path is checked *before* child creation.
+    NtCreateFile with a null SecurityDescriptor does not guarantee a private
+    DACL: an ordinary inherited parent DACL can grant other users read access
+    to the newly created external evaluation output. A full host-owned parent
+    handle plus explicit child DACL and independent Windows witness is required
+    before this operation can be enabled on Windows. No path-only downgrade.
     """
-    if os.name != "nt" or sys.platform != "win32" or not name or \
-            name in {".", ".."} or any(c in name for c in "/\\:\0") or \
-            name.endswith((".", " ")):
-        raise loopback.LoopbackRejected("Windows external output path unsupported")
-    import ctypes
-    from ctypes import wintypes
-    import msvcrt
-
-    class UnicodeString(ctypes.Structure):
-        _fields_ = [("Length", wintypes.USHORT), ("MaximumLength", wintypes.USHORT),
-                    ("Buffer", ctypes.c_wchar_p)]
-
-    class ObjectAttributes(ctypes.Structure):
-        _fields_ = [("Length", wintypes.ULONG), ("RootDirectory", wintypes.HANDLE),
-                    ("ObjectName", ctypes.POINTER(UnicodeString)),
-                    ("Attributes", wintypes.ULONG), ("SecurityDescriptor", ctypes.c_void_p),
-                    ("SecurityQualityOfService", ctypes.c_void_p)]
-
-    class IoStatusUnion(ctypes.Union):
-        _fields_ = [("Status", wintypes.LONG), ("Pointer", ctypes.c_void_p)]
-
-    class IoStatusBlock(ctypes.Structure):
-        _fields_ = [("u", IoStatusUnion), ("Information", ctypes.c_size_t)]
-
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-    native = ctypes.WinDLL("ntdll")
-    kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
-                                   ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD,
-                                   wintypes.HANDLE]
-    kernel.CreateFileW.restype = wintypes.HANDLE
-    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
-    kernel.CloseHandle.restype = wintypes.BOOL
-    native.NtCreateFile.argtypes = [ctypes.POINTER(wintypes.HANDLE), wintypes.DWORD,
-                                    ctypes.POINTER(ObjectAttributes),
-                                    ctypes.POINTER(IoStatusBlock), ctypes.c_void_p,
-                                    wintypes.DWORD, wintypes.DWORD, wintypes.DWORD,
-                                    wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD]
-    native.NtCreateFile.restype = wintypes.LONG
-    # Existing parent: share read/write but *not delete/rename* while held.
-    parent_handle = kernel.CreateFileW(
-        "\\\\?\\" + str(parent), 0x0080 | 0x0020 | 0x00100000, 0x3,
-        None, 3, 0x02000000, None)
-    if not parent_handle or parent_handle == ctypes.c_void_p(-1).value:
-        raise loopback.LoopbackRejected("Windows exclusive output parent open refused")
-    parent_fd = -1
-    new_handle = wintypes.HANDLE()
-    try:
-        parent_fd = msvcrt.open_osfhandle(parent_handle, os.O_RDONLY | os.O_BINARY)
-        parent_handle = 0
-        if _opened_final_path(parent_fd) != parent:
-            raise loopback.LoopbackRejected("Windows external output parent changed before open")
-        raw = ctypes.create_unicode_buffer(name)
-        length = len(name.encode("utf-16-le"))
-        if length > 510:
-            raise loopback.LoopbackRejected("Windows external output name too long")
-        u = UnicodeString(length, length + 2, ctypes.cast(raw, ctypes.c_wchar_p))
-        attrs = ObjectAttributes(ctypes.sizeof(ObjectAttributes),
-                                 wintypes.HANDLE(msvcrt.get_osfhandle(parent_fd)),
-                                 ctypes.pointer(u), 0x40, None, None)
-        ios = IoStatusBlock()
-        status = native.NtCreateFile(
-            ctypes.byref(new_handle), 0x0001 | 0x0002 | 0x0080 | 0x00100000,
-            ctypes.byref(attrs), ctypes.byref(ios), None,
-            0x80, 0, 2, 0x40 | 0x20, None, 0)
-        if status != 0 or not new_handle.value:
-            raise loopback.LoopbackRejected(
-                f"Windows exclusive external output refused (NTSTATUS 0x{status & 0xffffffff:08x})")
-        fd = msvcrt.open_osfhandle(new_handle.value, os.O_RDWR | os.O_BINARY)
-        new_handle = wintypes.HANDLE()
-        return fd
-    finally:
-        if new_handle.value:
-            kernel.CloseHandle(new_handle)
-        if parent_fd >= 0:
-            os.close(parent_fd)
-        if parent_handle:
-            kernel.CloseHandle(wintypes.HANDLE(parent_handle))
+    raise loopback.LoopbackRejected(
+        "Windows private evaluation output HOLD: atomic restrictive DACL and trusted parent required"
+    )
 
 
 def _exclusive_output(path: Path, payload: dict[str, Any]) -> None:
-    """Create once relative to an attested parent; read back same descriptor."""
-    path = _external(path)
+    """Create once relative to the *first opened* Linux parent descriptor.
+
+    This pins the parent before a path authority check that can be racing a
+    directory rename/replacement. It is not a substitute for an independently
+    host-owned/ACL-protected directory: an attacker with equivalent authority
+    can replace the location before the first open or after process exit.
+    """
     fd = -1
     parent_fd = -1
     expected = loopback.canonical(payload) + b"\n"
@@ -629,9 +562,14 @@ def _exclusive_output(path: Path, payload: dict[str, Any]) -> None:
         if os.name == "nt":
             fd = _windows_create_in_parent(path.parent, path.name)
         elif sys.platform.startswith("linux"):
-            parent_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            # Open the originally requested parent before _external resolves
+            # any name. A substitution after checking that name must not cause
+            # a different directory inode to receive private output bytes.
+            candidate = Path(path)
+            parent_fd = os.open(candidate.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            path = _external(candidate)
             if _opened_final_path(parent_fd) != path.parent:
-                raise loopback.LoopbackRejected("external output parent changed before open")
+                raise loopback.LoopbackRejected("external output parent changed after first open")
             fd = os.open(path.name, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
                          0o600, dir_fd=parent_fd)
         else:
@@ -643,6 +581,16 @@ def _exclusive_output(path: Path, payload: dict[str, Any]) -> None:
             handle.seek(0)
             if handle.read(len(expected) + 1) != expected:
                 raise loopback.LoopbackRejected("output descriptor readback mismatch")
+            # A directory-handle-relative child create prevents a symlink
+            # redirect, but the pinned parent can itself be renamed after its
+            # earlier path check. Do not report output success if that moved
+            # parent no longer resolves to the operator's requested location.
+            # This detects *after* the write, and does not undo or attest the
+            # confidentiality of bytes already created in a moved directory.
+            if parent_fd >= 0 and _opened_final_path(parent_fd) != path.parent:
+                raise loopback.LoopbackRejected(
+                    "external output parent changed after output creation; custody unqualified"
+                )
     except OSError as exc:
         raise loopback.LoopbackRejected("safe external output creation failed") from exc
     finally:

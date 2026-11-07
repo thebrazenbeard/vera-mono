@@ -13,13 +13,14 @@ Neither belongs in a public repository or a student training dataset.
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from http.client import HTTPException
 import json
 import os
 from pathlib import Path
 import random
 import secrets
-import tempfile
+import stat
 import time
 from typing import Any
 
@@ -36,6 +37,49 @@ MINIMAL_PERSONA = (
     "and corrections, and never claim actions, memory, or identity you cannot verify."
 )
 DECODING = {"temperature": 0, "max_tokens": 128, "seed": 20261106}
+
+INCOMPLETE_MARKER = loopback.canonical({
+    "schema": "MINI_VERA_INCOMPLETE_TRIAL_V1",
+    "status": "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
+    "calls_completed": "UNKNOWN_IF_INTERRUPTED",
+    "recovery": "DO_NOT_SCORE_OR_TREAT_AS_COMPLETE",
+}) + b"\n"
+
+
+@dataclass(frozen=True, slots=True)
+class _Reservation:
+    """Identity of the exact crash marker this invocation exclusively created."""
+
+    device: int
+    inode: int
+    fd: int
+
+
+def _close_reservations(reservations: dict[Path, _Reservation]) -> None:
+    for item in reservations.values():
+        os.close(item.fd)
+
+
+def _same_reserved_inode(path: Path, fd: int, reservation: _Reservation) -> None:
+    opened = os.fstat(fd)
+    try:
+        named = path.stat(follow_symlinks=False)
+    except (OSError, ValueError) as exc:
+        raise loopback.LoopbackRejected("reserved output path no longer exists") from exc
+    if (not stat.S_ISREG(opened.st_mode) or not stat.S_ISREG(named.st_mode)
+            or opened.st_ino <= 0 or named.st_ino <= 0
+            or (opened.st_dev, opened.st_ino) != (reservation.device, reservation.inode)
+            or (named.st_dev, named.st_ino) != (reservation.device, reservation.inode)):
+        raise loopback.LoopbackRejected("reserved output identity changed; refusing overwrite")
+
+
+def _write_all(fd: int, content: bytes) -> None:
+    remaining = memoryview(content)
+    while remaining:
+        written = os.write(fd, remaining)
+        if written <= 0:
+            raise OSError("incomplete receipt write")
+        remaining = remaining[written:]
 
 
 def arm_payloads(request: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -158,8 +202,8 @@ def compare(request: dict[str, Any], *, endpoint: str, timeout_seconds: int = 30
     return sheet, key
 
 
-def _reserve_outputs(rater_sheet: Path, private_key: Path) -> None:
-    """Prove both paths creatable *before* inference and leave crash markers."""
+def _reserve_outputs(rater_sheet: Path, private_key: Path) -> dict[Path, _Reservation]:
+    """Create two ownable crash markers before inference, with exact identities."""
     if rater_sheet.resolve() == private_key.resolve():
         raise loopback.LoopbackRejected("rater sheet and mapping must have separate paths")
     paths = (rater_sheet, private_key)
@@ -168,40 +212,57 @@ def _reserve_outputs(rater_sheet: Path, private_key: Path) -> None:
             raise loopback.LoopbackRejected("output parent directory missing")
         if os.path.lexists(path):
             raise loopback.LoopbackRejected("output already exists; refusing model calls")
-    created: list[Path] = []
+    created: dict[Path, _Reservation] = {}
     try:
         for path in paths:
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            created.append(path)
-            with os.fdopen(fd, "wb") as handle:
-                handle.write(loopback.canonical({
-                    "schema": "MINI_VERA_INCOMPLETE_TRIAL_V1",
-                    "status": "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
-                    "calls_completed": "UNKNOWN_IF_INTERRUPTED",
-                    "recovery": "DO_NOT_SCORE_OR_TREAT_AS_COMPLETE",
-                }) + b"\n")
-                handle.flush()
-                os.fsync(handle.fileno())
-    except (OSError, ValueError):
-        # Reservation failed before any HTTP call. Only remove known files
-        # created by this invocation; never touch pre-existing user files.
-        for path in created:
-            path.unlink(missing_ok=True)
+            # O_EXCL refuses an already-present name. Keep each opened file
+            # descriptor alive through inference: an unlinked inode cannot be
+            # recycled into an attacker-owned replacement while still open.
+            fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_EXCL |
+                         getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0), 0o600)
+            opened = os.fstat(fd)
+            created[path] = _Reservation(opened.st_dev, opened.st_ino, fd)
+            if not stat.S_ISREG(opened.st_mode) or opened.st_ino <= 0:
+                raise loopback.LoopbackRejected("output filesystem does not expose file identity")
+            _write_all(fd, INCOMPLETE_MARKER)
+            os.fsync(fd)
+            _same_reserved_inode(path, fd, created[path])
+        return created
+    except BaseException:
+        # Never unlink a first reservation when the second fails. Another
+        # process may have replaced its name; leave a non-scorable marker.
+        _close_reservations(created)
         raise
 
 
-def _replace_reservation(path: Path, value: dict[str, Any]) -> None:
-    """Replace a crash marker atomically; the other marker survives failure."""
-    fd, temporary = tempfile.mkstemp(prefix=".mini-vera-receipt-", dir=path.parent)
-    try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(loopback.canonical(value) + b"\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    finally:
-        if os.path.lexists(temporary):
-            os.unlink(temporary)
+def _replace_reservation(
+    path: Path, value: dict[str, Any], *,
+    reservations: dict[Path, _Reservation] | None = None,
+) -> None:
+    """Finalize only our own marker inode; never replace a foreign path.
+
+    Content is written via its checked file descriptor. A crash mid-write may
+    leave a malformed file, which is NOT a valid scored receipt; atomic
+    completion under hostile directory mutation requires host-held custody.
+    """
+    if (type(reservations) is not dict or path not in reservations
+            or type(reservations[path]) is not _Reservation):
+        raise loopback.LoopbackRejected("exact owned output reservation required")
+    reservation = reservations[path]
+    content = loopback.canonical(value) + b"\n"
+    opened = reservation.fd
+    _same_reserved_inode(path, opened, reservation)
+    os.lseek(opened, 0, os.SEEK_SET)
+    if os.read(opened, len(INCOMPLETE_MARKER) + 1) != INCOMPLETE_MARKER:
+        raise loopback.LoopbackRejected("reserved output marker altered; refusing overwrite")
+    os.ftruncate(opened, 0)
+    os.lseek(opened, 0, os.SEEK_SET)
+    _write_all(opened, content)
+    os.fsync(opened)
+    os.lseek(opened, 0, os.SEEK_SET)
+    if os.read(opened, len(content) + 1) != content:
+        raise loopback.LoopbackRejected("output descriptor readback mismatch; do not score trial")
+    _same_reserved_inode(path, opened, reservation)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -228,15 +289,15 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--host-idle-confirmed required with --execute")
     if args.rater_sheet is None or args.private_key is None:
         parser.error("separate --rater-sheet and --private-key required with --execute")
-    _reserve_outputs(args.rater_sheet, args.private_key)
-    sheet, key = compare(request, endpoint=args.endpoint, timeout_seconds=args.timeout_seconds)
-    # A failed/crashed trial retains an explicit incomplete marker, not an
-    # orphan mapping or a falsely successful qualification receipt.
-    _replace_reservation(args.rater_sheet, sheet)
-    _replace_reservation(args.private_key, key)
-    for target, expected in ((args.rater_sheet, sheet), (args.private_key, key)):
-        if target.read_bytes() != loopback.canonical(expected) + b"\n":
-            raise loopback.LoopbackRejected("output readback mismatch; do not score trial")
+    reservations = _reserve_outputs(args.rater_sheet, args.private_key)
+    try:
+        sheet, key = compare(request, endpoint=args.endpoint, timeout_seconds=args.timeout_seconds)
+        # A failed/crashed trial retains an incomplete or malformed receipt,
+        # never an unchecked final mapping or a valid qualification score.
+        _replace_reservation(args.rater_sheet, sheet, reservations=reservations)
+        _replace_reservation(args.private_key, key, reservations=reservations)
+    finally:
+        _close_reservations(reservations)
     print(json.dumps({"status": sheet["status"], "calls": 3,
                       "rater_sheet_sha256": loopback.sha256(loopback.canonical(sheet)),
                       "human_rating": "NOT_PERFORMED", "model_identity": "NOT_ATTESTED"}))

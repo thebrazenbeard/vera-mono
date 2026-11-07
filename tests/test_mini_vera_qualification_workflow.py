@@ -6,7 +6,9 @@ from copy import deepcopy
 from contextlib import redirect_stdout
 from io import StringIO
 import json
+import os
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -257,6 +259,20 @@ class MiniVeraQualificationWorkflowTests(unittest.TestCase):
             for path, value in ((schedule_path, schedule), (ledger_path, ledger),
                                 (commitment_path, commitment)):
                 write_json(path, value)
+            if os.name == "nt":
+                # Source-only Windows output remains intentionally held until
+                # a restrictive child DACL/host-owned directory is proven.
+                with self.assertRaisesRegex(loopback.LoopbackRejected,
+                                            "Windows private evaluation output HOLD"):
+                    workflow.main([
+                        "aggregate", "--schedule", str(schedule_path),
+                        "--result-ledger", str(ledger_path),
+                        "--pre-rating-key-commitments", str(commitment_path),
+                        "--expected-pre-rating-key-commitment-sha256", digest,
+                        "--output", str(output_path),
+                    ])
+                self.assertFalse(output_path.exists())
+                return
             with redirect_stdout(StringIO()):
                 status = workflow.main([
                     "aggregate", "--schedule", str(schedule_path),
@@ -497,6 +513,18 @@ class MiniVeraQualificationWorkflowTests(unittest.TestCase):
             for file, contents in sources:
                 write_json(file, contents)
             output = folder / "aborted-result.json"
+            if os.name == "nt":
+                with self.assertRaisesRegex(loopback.LoopbackRejected,
+                                            "Windows private evaluation output HOLD"):
+                    workflow.main([
+                        "aggregate", "--schedule", str(sources[0][0]),
+                        "--result-ledger", str(sources[1][0]),
+                        "--aborted-receipt-commitments", str(sources[2][0]),
+                        "--expected-aborted-receipt-commitment-sha256", digest,
+                        "--output", str(output),
+                    ])
+                self.assertFalse(output.exists())
+                return
             with redirect_stdout(StringIO()):
                 self.assertEqual(workflow.main([
                     "aggregate", "--schedule", str(sources[0][0]),
@@ -569,6 +597,16 @@ class MiniVeraQualificationWorkflowTests(unittest.TestCase):
                 return original_read_bytes(path)
 
             with patch.object(Path, "read_bytes", reject_unpinned_reads):
+                if os.name == "nt":
+                    with self.assertRaisesRegex(loopback.LoopbackRejected,
+                                                "Windows private evaluation output HOLD"):
+                        workflow.main([
+                            "schedule", "--case-list", str(manifest_path),
+                            "--secret-seed-file", str(seed_path),
+                            "--output", str(output),
+                        ])
+                    self.assertFalse(output.exists())
+                    return
                 with redirect_stdout(StringIO()):
                     self.assertEqual(workflow.main([
                         "schedule", "--case-list", str(manifest_path),
@@ -578,6 +616,8 @@ class MiniVeraQualificationWorkflowTests(unittest.TestCase):
             self.assertEqual(json.loads(output.read_text())
                              ["schema"], "MINI_VERA_PRIVATE_CASE_SCHEDULE_V1")
 
+    @unittest.skipUnless(sys.platform.startswith("linux"),
+                         "descriptor-anchored directory substitution test is Linux-specific")
     def test_external_output_parent_swap_is_rejected_before_creation(self):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)
@@ -608,6 +648,75 @@ class MiniVeraQualificationWorkflowTests(unittest.TestCase):
                 with self.assertRaises(loopback.LoopbackRejected):
                     workflow._exclusive_output(output, {"schema": "OUTPUT_SWAP_TEST"})
             self.assertFalse((attacker_target / "result.json").exists())
+
+    @unittest.skipUnless(sys.platform.startswith("linux"),
+                         "descriptor-anchored directory replacement test is Linux-specific")
+    def test_same_path_replacement_parent_cannot_receive_exclusive_output(self):
+        # An attacker who can rename directories can replace a formerly
+        # approved parent with a DIFFERENT directory of the same pathname.
+        # Path equivalence alone is not an identity/custody witness.
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            allowed, moved = folder / "allowed", folder / "moved"
+            allowed.mkdir()
+            output = allowed / "private-output.json"
+            original_external = workflow._external
+
+            def replace_with_same_name(candidate):
+                checked = original_external(candidate)
+                if candidate == output:
+                    allowed.rename(moved)
+                    allowed.mkdir()
+                return checked
+
+            with patch.object(workflow, "_external", replace_with_same_name):
+                with self.assertRaises(loopback.LoopbackRejected):
+                    workflow._exclusive_output(output, {"schema": "PRIVATE_OUTPUT"})
+            self.assertFalse((allowed / output.name).exists())
+            self.assertFalse((moved / output.name).exists())
+
+    @unittest.skipUnless(sys.platform.startswith("linux"),
+                         "post-create opened parent witness test is Linux-specific")
+    def test_parent_rename_at_child_creation_must_not_report_success(self):
+        # With a pinned dir_fd, a co-privileged actor can still move that
+        # directory between the first identity check and child creation.
+        # The already-written file cannot be unwritten, but the caller must
+        # never receive a success receipt for the wrong destination.
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            allowed, moved = folder / "allowed", folder / "moved"
+            allowed.mkdir()
+            output = allowed / "private.json"
+            original_open = workflow.os.open
+            changed = False
+
+            def move_after_verification(path, flags, *args, **kwargs):
+                nonlocal changed
+                if path == output.name and "dir_fd" in kwargs and not changed:
+                    changed = True
+                    allowed.rename(moved)
+                    allowed.mkdir()
+                return original_open(path, flags, *args, **kwargs)
+
+            with patch.object(workflow.os, "open", side_effect=move_after_verification):
+                with self.assertRaisesRegex(loopback.LoopbackRejected,
+                                            "parent changed after output creation"):
+                    workflow._exclusive_output(output, {"schema": "PARENT_MOVED"})
+            self.assertTrue(changed)
+            self.assertFalse((allowed / output.name).exists())
+            # This is an acknowledged write-before-detection, not a claim
+            # that the payload remained secret or that removal was safe.
+            self.assertTrue((moved / output.name).exists())
+
+    def test_windows_private_output_refuses_unqualified_inherited_acl(self):
+        # The previous source created a file with ObjectAttributes SecurityDescriptor
+        # unset. This inherits parent ACL and is not proof of private custody.
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            with self.assertRaisesRegex(loopback.LoopbackRejected,
+                                        "Windows private evaluation output HOLD"):
+                workflow._windows_create_in_parent(parent, "private-output.json")
+            self.assertFalse((parent / "private-output.json").exists())
 
 
 if __name__ == "__main__":

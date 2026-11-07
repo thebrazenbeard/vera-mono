@@ -257,6 +257,42 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(2, code)
         self.assertIn("insufficient free", error.getvalue())
 
+    def test_main_refuses_when_selected_model_digest_drifts_before_handoff(self):
+        # A passing inventory observation is not a durable lease; a second
+        # read can expose tag replacement immediately before local inference.
+        tags, ps = inventory(resident=True)
+        bad_tags, _ = inventory(resident=True, digest="b" * 64)
+        reads = []
+
+        def changing_getter(_host, _port, path):
+            reads.append(path)
+            if path == "/api/tags":
+                return tags if reads.count(path) == 1 else bad_tags
+            return ps
+
+        with patch.object(preflight.local_session, "main", side_effect=AssertionError("model launched")), \
+                redirect_stderr(io.StringIO()) as error, redirect_stdout(io.StringIO()):
+            code = preflight.main(["--execute", "--host-idle-confirmed", "--prompt", "Hello"],
+                                  memory_probe=lambda: 2 * preflight.GIB,
+                                  get_json=changing_getter)
+        self.assertEqual(2, code)
+        self.assertEqual(2, reads.count("/api/tags"))
+        self.assertIn("digest changed", error.getvalue())
+
+    def test_main_refuses_when_ram_drops_between_preflight_and_handoff(self):
+        tags, ps = inventory()
+        getter, paths = fake_getter(tags, ps)
+        readings = iter((5 * preflight.GIB, 5 * preflight.GIB,
+                         5 * preflight.GIB, 500 * 1024 ** 2))
+        with patch.object(preflight.local_session, "main", side_effect=AssertionError("model launched")), \
+                redirect_stderr(io.StringIO()) as error, redirect_stdout(io.StringIO()):
+            code = preflight.main(["--execute", "--host-idle-confirmed",
+                                   "--allow-cold-load", "--prompt", "Hello"],
+                                  memory_probe=lambda: next(readings), get_json=getter)
+        self.assertEqual(2, code)
+        self.assertEqual(["/api/tags", "/api/ps", "/api/tags", "/api/ps"], paths)
+        self.assertIn("insufficient free", error.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
