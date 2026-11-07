@@ -107,6 +107,7 @@ class ArtifactContainmentTests(unittest.TestCase):
 
 
 class UnsupportedHostTests(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "Windows now has a separate native handle walker")
     def test_windows_filepath_verification_fails_closed_without_native_handle_walk(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

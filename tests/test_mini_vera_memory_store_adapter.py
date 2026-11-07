@@ -75,6 +75,7 @@ class MemoryStoreAdapterTests(unittest.TestCase):
         self.rows = {"mem-public-1": public_row()}
         self.preapproved = True
         self.approved_records = True
+        self.authority_revision = 25
         self.current_grant = PublicMemoryGrant(
             project_id="vera-mono", identity_id="vera", ledger_head=HEAD,
             revision=7, record_ids=("mem-public-1",), approval_epoch=3,
@@ -109,6 +110,7 @@ class MemoryStoreAdapterTests(unittest.TestCase):
         return bind_host_public_memory(
             self.adapter(), integrity_key=KEY,
             current_grant=lambda: self.current_grant,
+            current_authority_revision=lambda: self.authority_revision,
             approve_record=record_approval,
             now_seconds=lambda: 1_999_999_700)
 

@@ -23,8 +23,9 @@ from tests.test_mini_vera_loopback import FakeLocal, response  # noqa: E402
 
 
 KEY = b"synthetic-integrity-test-key-32x"[:32]
-SECURE_ARTIFACT_OPEN = (os.name == "posix" and hasattr(os, "O_NOFOLLOW") and
+SECURE_ARTIFACT_OPEN = ((os.name == "posix" and hasattr(os, "O_NOFOLLOW") and
                         hasattr(os, "O_DIRECTORY") and os.open in os.supports_dir_fd)
+                        or (os.name == "nt" and sys.platform == "win32"))
 
 
 def model_fixture(folder: Path, *, adapter_format: str = "GGUF"):
@@ -91,7 +92,7 @@ class MiniVeraBindingTests(unittest.TestCase):
             with self.assertRaises(sqlite3.ProgrammingError):
                 connection.execute("SELECT 1")
 
-    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "secure POSIX model file handle traversal only")
+    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "native secure model file handle traversal only")
     def test_bound_manifest_request_reaches_local_transport_validator(self):
         """The model-byte witness and loopback adapter must share one contract."""
         with tempfile.TemporaryDirectory() as temp:
@@ -148,7 +149,7 @@ class MiniVeraBindingTests(unittest.TestCase):
             self.assertEqual(composed, artifact_binding.compose_from_witness(
                 issued_witness, **synthetic_composer_args(state, 9)))
 
-    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "secure POSIX model file handle traversal only")
+    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "native secure model file handle traversal only")
     def test_pinned_model_bytes_and_ledger_state_feed_existing_composer(self):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)
@@ -216,7 +217,7 @@ class MiniVeraBindingTests(unittest.TestCase):
                     ledger, record_ids=["private-1"], expected_head=ledger.current_head,
                     expected_revision=1, integrity_key=KEY, host_public_project_approval=None)
 
-    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "secure POSIX model file handle traversal only")
+    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "native secure model file handle traversal only")
     def test_manifest_drift_corrupted_weights_symlink_and_duplicate_role_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)
@@ -241,7 +242,7 @@ class MiniVeraBindingTests(unittest.TestCase):
             with self.assertRaisesRegex(compose.CompositionRejected, "duplicate"):
                 artifact_binding.verify_local_manifest(root, manifest, expected_manifest_sha256=compose.sha256(new_raw))
 
-    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "secure POSIX model file handle traversal only")
+    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "native secure model file handle traversal only")
     def test_optional_safetensors_and_format_extension_rejection(self):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)
@@ -264,7 +265,7 @@ class MiniVeraBindingTests(unittest.TestCase):
             with self.assertRaisesRegex(compose.CompositionRejected, "total model byte budget"):
                 artifact_binding.verify_local_manifest(root, manifest, expected_manifest_sha256=compose.sha256(raw))
 
-    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "secure POSIX model file handle traversal only")
+    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "native secure model file handle traversal only")
     def test_effectless_public_scope_changes_cannot_bypass_composer(self):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)

@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 import hashlib
 import hmac
+from threading import Lock
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -33,6 +34,8 @@ class PublicMemoryGrant:
     The host must advance ``approval_epoch`` on revocation or policy changes,
     anchor ``ledger_head`` and ``revision`` outside the ledger being read,
     and issue a new bounded grant after any genuine change of selected memory.
+    The separate required ``current_authority_revision`` host reader must
+    advance even when an issuer mistakenly reuses this grant's old epoch.
     ``None`` from the host reader means revoked or unavailable.
     """
 
@@ -45,13 +48,14 @@ class PublicMemoryGrant:
     expires_at_unix: int
 
 
-def _grant_binding(grant: PublicMemoryGrant) -> bytes:
+def _grant_binding(grant: PublicMemoryGrant, authority_revision: int) -> bytes:
     """Immutable snapshot, never an equality check against a mutable object."""
     return canonical({
-        "schema": "MINI_VERA_HOST_GRANT_BINDING_V1",
+        "schema": "MINI_VERA_HOST_GRANT_BINDING_V2",
         "project_id": grant.project_id, "identity_id": grant.identity_id,
         "ledger_head": grant.ledger_head, "revision": grant.revision,
         "record_ids": list(grant.record_ids), "approval_epoch": grant.approval_epoch,
+        "authority_revision": authority_revision,
         "expires_at_unix": grant.expires_at_unix,
     })
 
@@ -61,25 +65,36 @@ def bind_host_public_memory(
     integrity_key: bytes,
     current_grant: Callable[[], PublicMemoryGrant | None],
     approve_record: Callable[["MemoryRecord", PublicMemoryGrant], bool],
+    current_authority_revision: Callable[[], int] | None = None,
     now_seconds: Callable[[], float] = time.time,
 ) -> Callable[[], tuple[dict[str, Any], bytes, int]]:
     """Create a callable suitable for ``local_session.main``'s provider.
 
     Callbacks are *trusted host dependencies*, not user/model arguments.  The
-    provider obtains a fresh grant twice during each projection, refuses drift
-    or revocation even before inference, and delegates actual record filtering
+    provider obtains a fresh grant and an independently maintained durable host
+    authority revision twice during each projection, refuses drift or revocation
+    even before inference, and delegates actual record filtering
     and CAS checks to the existing ledger projection.  The local-session caller
     must still recheck the returned provider **after** inference; it does so in
     PR #201.  No active model inference is attempted by this function.
     """
     if not callable(current_grant) or not callable(approve_record) or not callable(now_seconds):
         raise CompositionRejected("trusted host grant, record policy and clock required")
+    if not callable(current_authority_revision):
+        raise CompositionRejected("host-owned monotonic authority revision reader required")
     if type(integrity_key) is not bytes or len(integrity_key) != 32:
         raise CompositionRejected("host integrity key must be 32 bytes")
+    # This prevents rollback of an already observed revision within the broker
+    # lifetime. It cannot attest durability across a process restart; that is
+    # an explicit obligation of the independent host issuer.
+    revision_lock = Lock()
+    highest_observed_revision = -1
 
-    def checked_grant() -> PublicMemoryGrant:
+    def checked_grant() -> tuple[PublicMemoryGrant, int]:
+        nonlocal highest_observed_revision
         try:
             grant = current_grant()
+            authority_revision = current_authority_revision()
             current_time = now_seconds()
         except Exception as exc:
             raise CompositionRejected("host public-memory authority unavailable") from exc
@@ -103,20 +118,27 @@ def bind_host_public_memory(
             raise CompositionRejected("host public-memory grant scope mismatch")
         if type(grant.approval_epoch) is not int or not (0 <= grant.approval_epoch < 2**64):
             raise CompositionRejected("invalid host approval epoch")
+        if (type(authority_revision) is not int
+                or not (0 <= authority_revision < 2**64)):
+            raise CompositionRejected("invalid host authority revision")
         if type(grant.expires_at_unix) is not int or type(current_time) not in (int, float):
             raise CompositionRejected("invalid host grant expiry or clock")
         # Limit lifetime to one hour; an authorized host can rotate leases.
         if not (0 < grant.expires_at_unix - current_time <= 3600):
             raise CompositionRejected("host public-memory grant expired or invalid")
-        return grant
+        with revision_lock:
+            if authority_revision < highest_observed_revision:
+                raise CompositionRejected("host authority revision rollback")
+            highest_observed_revision = authority_revision
+        return grant, authority_revision
 
     def resolve() -> tuple[dict[str, Any], bytes, int]:
-        grant = checked_grant()
+        grant, authority_revision = checked_grant()
         # The existing session's post-inference check compares the state SHA.
         # Re-signing with a grant-scoped key means revocation/regrant with an
         # otherwise identical record set still changes that SHA.  The host MUST
         # advance approval_epoch for any intervening policy revocation/change.
-        grant_binding = _grant_binding(grant)
+        grant_binding = _grant_binding(grant, authority_revision)
         epoch_key = hmac.new(integrity_key, b"mini-vera-host-grant-v1\x00" + grant_binding,
                              hashlib.sha256).digest()
 
@@ -135,8 +157,8 @@ def bind_host_public_memory(
         # Compare the before/after *serialized values* even when the trusted
         # host returns the same object on both reads. Equality against the
         # same dataclass instance cannot detect in-place object mutation.
-        after_grant = checked_grant()
-        if _grant_binding(after_grant) != grant_binding:
+        after_grant, after_authority_revision = checked_grant()
+        if _grant_binding(after_grant, after_authority_revision) != grant_binding:
             raise CompositionRejected("host public-memory grant changed during projection")
         return state, key, revision
 

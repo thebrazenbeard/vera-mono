@@ -12,6 +12,7 @@ import errno
 import os
 from pathlib import Path
 import stat
+import sys
 from typing import Any
 import weakref
 
@@ -56,14 +57,17 @@ def _hex64(s: object) -> bool:
 
 
 def _open_model_handle(root: Path, parts: tuple[str, ...]) -> int:
-    """Pin every directory component with POSIX openat/O_NOFOLLOW.
+    """Pin every directory component with a native handle-relative open.
 
     A prior `Path.is_symlink()` check is not a security boundary: another
     process may swap a parent for a symlink after checking but before `open`.
-    On Windows, ordinary `os.open` has no equivalent verified directory-handle
-    walk for junction/reparse parents; fail closed pending a native host-owned
-    Win32 handle implementation. Never silently downgrade to path rechecks.
+    Windows uses NtCreateFile(RootDirectory=verified parent handle) from the
+    drive root, with per-handle reparse checks. UNC/device roots and platforms
+    without the native support still fail closed. No path-recheck fallback.
     """
+    if os.name == "nt" and sys.platform == "win32":
+        from .windows_artifact_handles import open_relative_no_reparse
+        return open_relative_no_reparse(root, parts)
     if (os.name != "posix" or not hasattr(os, "O_NOFOLLOW") or
             not hasattr(os, "O_DIRECTORY") or os.open not in os.supports_dir_fd):
         raise CompositionRejected("model-root handle containment unsupported on this host")

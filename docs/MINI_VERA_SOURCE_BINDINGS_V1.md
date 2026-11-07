@@ -23,10 +23,17 @@ loopback model transport in draft PR #197. It does not implement either again.
    independently rehash those host files. POSIX file verification now anchors
    every model-root ancestor and relative directory via `openat` and
    `O_NOFOLLOW`, rejecting a parent-symlink swap between path inspection and
-   opening the model file. On Windows the portable API does not prove safe
-   handle traversal through junctions/reparse points, so local artifact
-   verification **fails closed** until a native host-owned handle adapter is
-   qualified. This does not disable the operator-declared model path.
+   opening the model file. On Windows an experimental native handle walker
+   now opens the drive-volume root once, then opens every ancestor with
+   `NtCreateFile` using `RootDirectory` set to the already opened parent
+   handle. Each directory and final-file handle is checked with
+   `GetFileInformationByHandleEx(FileAttributeTagInfo)` and any reparse point
+   is rejected. The new path **fails closed** on unsupported UNC/device roots,
+   absent native APIs, denied access, unexpected file attributes or Windows
+   builds/filesystems where relative reparse-aware opens do not work. This
+   source change is NOT yet a qualified Lappy-native byte witness; the
+   Windows runner and a controlled live host readback must pass first. The
+   operator-declared model path remains independent.
 2. The composer accepted an operator-exported HMAC project snapshot. The
    experimental `ledger_bridge.project_existing_ledger` can now select up to
    eight **specific current** `MemoryLedger` working-project records under an
@@ -79,7 +86,13 @@ identity. A writer controlling both manifest and expected hash can authorize
 its own invented manifest; trusted expected hashes must be anchored outside
 this code. The POSIX handle walk closes the reproduced parent-symlink race,
 but filesystem writes **after** the byte readback and model-server drift are
-outside this assurance. The separate provider
+outside this assurance. The Windows implementation relies on Microsoft-documented
+`NtCreateFile` relative names and `FILE_OPEN_REPARSE_POINT`; it does not rely
+on a path-check/open sequence, and does not permit device or UNC namespaces.
+The exact `FILE_DIRECTORY_FILE | FILE_OPEN_REPARSE_POINT` combination and
+native API availability still require actual Windows execution evidence:
+synthetic non-Windows tests do not validate those runtime semantics. The
+separate provider
 and effect gates in `QualifiedVeraRuntime` remain necessary.
 
 Similarly, a valid HMAC does not prove currentness or privacy approval. The
@@ -108,10 +121,20 @@ The fixture uses **fake** byte arrays beginning `GGUF`, not a neural model.
 It verifies digest drift, symlink rejection, stale heads, superseded records,
 private-ref policy rejection, private input rejection and exact composition.
 Those tests do not validate actual neural inference or behavior.
-Manifest-success tests are explicitly skipped on Windows while native
-reparse-safe directory-handle traversal is unavailable. A separate Windows
-fail-closed test still runs; skips must never be reported as successful
-Windows artifact byte verification.
+Manifest-success tests now execute on Windows (where the native handle walker
+must succeed on ordinary files), alongside native junction/root-ancestor,
+symlink, and unsupported-namespace rejection tests. The POSIX path-race
+regressions remain POSIX-only. A Windows CI PASS is a test receipt for the
+Windows runner—not a production host qualification or loaded model witness.
+
+Primary API references:
+
+- Microsoft Learn: `NtCreateFile` (`RootDirectory`, `FILE_OPEN_REPARSE_POINT`),
+  https://learn.microsoft.com/windows/win32/api/winternl/nf-winternl-ntcreatefile
+- Microsoft Learn: `OBJECT_ATTRIBUTES` and `UNICODE_STRING`,
+  https://learn.microsoft.com/windows/win32/api/ntdef/ns-ntdef-_object_attributes
+- Microsoft Learn: `FILE_ATTRIBUTE_TAG_INFO` and `FILE_INFO_BY_HANDLE_CLASS`,
+  https://learn.microsoft.com/windows/win32/api/winbase/ns-winbase-file_attribute_tag_info
 
 ## Next real qualification
 
