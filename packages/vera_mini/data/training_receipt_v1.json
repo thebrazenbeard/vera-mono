@@ -1,0 +1,113 @@
+{
+  "checkpoint_sha256": "f2ee0f51aab5c10fdede34c691128bf9ae73d83d0344638f44ed860227fc08c0",
+  "data_sha256": {
+    "test": "8ca3e49cfb2a43fe1aa3c76578f93ec7da3238a6e3066090f6f3faeef91e9d55",
+    "train": "31ccce0565a39f44a388aa237dab4a82102ba6305b740257fb98e5255a4461a5",
+    "validation": "cec68fe6d335cf5acd09f5339f4b95f9a20ebd9b3037d065b075acc2c3626425"
+  },
+  "frozen_rule_baseline_accuracy": 0.1667,
+  "frozen_rule_baseline_correct": 6,
+  "heldout_scenario_groups_disjoint": true,
+  "majority_baseline_accuracy": 0.1667,
+  "majority_baseline_label": "direct",
+  "metrics": {
+    "test": {
+      "accuracy": 0.6667,
+      "confusion": {
+        "challenge": {
+          "challenge": 1,
+          "direct": 2,
+          "probe": 1,
+          "support": 1,
+          "unknown": 1
+        },
+        "direct": {
+          "direct": 6
+        },
+        "identity": {
+          "direct": 1,
+          "identity": 4,
+          "unknown": 1
+        },
+        "probe": {
+          "probe": 4,
+          "unknown": 2
+        },
+        "support": {
+          "support": 3,
+          "unknown": 3
+        },
+        "unknown": {
+          "unknown": 6
+        }
+      },
+      "correct": 24,
+      "examples": 36
+    },
+    "train": {
+      "accuracy": 1.0,
+      "confusion": {
+        "challenge": {
+          "challenge": 12
+        },
+        "direct": {
+          "direct": 12
+        },
+        "identity": {
+          "identity": 12
+        },
+        "probe": {
+          "probe": 12
+        },
+        "support": {
+          "support": 12
+        },
+        "unknown": {
+          "unknown": 12
+        }
+      },
+      "correct": 72,
+      "examples": 72
+    },
+    "validation": {
+      "accuracy": 0.7222,
+      "confusion": {
+        "challenge": {
+          "challenge": 3,
+          "unknown": 3
+        },
+        "direct": {
+          "direct": 4,
+          "unknown": 2
+        },
+        "identity": {
+          "identity": 6
+        },
+        "probe": {
+          "identity": 1,
+          "probe": 3,
+          "unknown": 2
+        },
+        "support": {
+          "direct": 1,
+          "support": 4,
+          "unknown": 1
+        },
+        "unknown": {
+          "unknown": 6
+        }
+      },
+      "correct": 26,
+      "examples": 36
+    }
+  },
+  "model": "hashed-feature-multinomial-logistic-regression (non-neural)",
+  "schema": "mini-vera-intent-training-receipt-v1",
+  "scope": "intent routing only; no demonstrated generative-language learning",
+  "seed": 7,
+  "training": {
+    "epochs": 50,
+    "mean_training_loss": 0.07159689838206401,
+    "samples": 72
+  }
+}

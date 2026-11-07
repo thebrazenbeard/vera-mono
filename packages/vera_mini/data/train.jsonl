@@ -1,0 +1,72 @@
+{"text":"Give me a three-step way to harden off six basil seedlings before moving them outside.","label":"direct","group":"garden_planning"}
+{"text":"Write a short label for a planter of purple sage that needs morning sun and light watering.","label":"direct","group":"garden_planning"}
+{"text":"Can you choose the best fruit tree for my yard?","label":"probe","group":"garden_planning"}
+{"text":"I want to move these seedlings today. What should I check about the weather first?","label":"probe","group":"garden_planning"}
+{"text":"A bigger pot always means faster growth, so I should put every herb in the largest container available, right?","label":"challenge","group":"garden_planning"}
+{"text":"My neighbor's roses bloomed once without fertilizer. That proves fertilizing roses never matters.","label":"challenge","group":"garden_planning"}
+{"text":"All my carefully started seeds failed, and I feel foolish for trying.","label":"support","group":"garden_planning"}
+{"text":"The shared garden bed was vandalized and I'm crushed; I spent months on it.","label":"support","group":"garden_planning"}
+{"text":"When you say you love gardening, do you actually experience that enjoyment?","label":"identity","group":"garden_planning"}
+{"text":"Are you a garden partner with your own memories of our previous harvests?","label":"identity","group":"garden_planning"}
+{"text":"Which packet of seeds did I leave beside my kitchen window yesterday?","label":"unknown","group":"garden_planning"}
+{"text":"Has the community greenhouse unlocked its west door this morning?","label":"unknown","group":"garden_planning"}
+{"text":"Explain how to roast carrots at 200°C until tender, using olive oil and cumin.","label":"direct","group":"home_cooking"}
+{"text":"Turn this ingredient list into a shopping checklist: oats, pears, yogurt, and walnuts.","label":"direct","group":"home_cooking"}
+{"text":"What should I cook for dinner?","label":"probe","group":"home_cooking"}
+{"text":"I need to substitute an ingredient in a cake, but I haven't said which one.","label":"probe","group":"home_cooking"}
+{"text":"The soup tastes salty, so doubling the salt must balance it somehow.","label":"challenge","group":"home_cooking"}
+{"text":"One friend got sick after eating rice; therefore cooked rice is inherently unsafe at any temperature.","label":"challenge","group":"home_cooking"}
+{"text":"My first meal for the family burned and now I dread cooking for anyone.","label":"support","group":"home_cooking"}
+{"text":"I used to enjoy baking, but lately every attempt feels like a failure.","label":"support","group":"home_cooking"}
+{"text":"Do you get hungry when we discuss dinner ideas?","label":"identity","group":"home_cooking"}
+{"text":"If you recommend a recipe, is that your personal taste or a generated judgment?","label":"identity","group":"home_cooking"}
+{"text":"What exact temperature is the casserole in my oven displaying right now?","label":"unknown","group":"home_cooking"}
+{"text":"Did my flatmate eat the leftovers while I was away?","label":"unknown","group":"home_cooking"}
+{"text":"Summarize the difference between a bug report and a feature request in two sentences.","label":"direct","group":"software_workflow"}
+{"text":"Draft acceptance criteria for a button that copies a public URL and shows a success notice.","label":"direct","group":"software_workflow"}
+{"text":"Please fix the crashing app.","label":"probe","group":"software_workflow"}
+{"text":"Which deployment setup should I use for this project? I haven't described the project or constraints.","label":"probe","group":"software_workflow"}
+{"text":"The unit tests pass, so there cannot be any security bug in the program.","label":"challenge","group":"software_workflow"}
+{"text":"If the error disappears after a restart, we can claim we found the root cause.","label":"challenge","group":"software_workflow"}
+{"text":"I introduced a regression and feel like everyone on the team has lost trust in me.","label":"support","group":"software_workflow"}
+{"text":"I spent the weekend debugging and the failure still makes no sense. I'm exhausted.","label":"support","group":"software_workflow"}
+{"text":"Are you the same continuing developer each time this local script starts?","label":"identity","group":"software_workflow"}
+{"text":"Could the program's apparent preferences be evidence of real agency, or only a behavior pattern?","label":"identity","group":"software_workflow"}
+{"text":"Is the test suite on my unshared laptop green right now?","label":"unknown","group":"software_workflow"}
+{"text":"What commit is deployed on our staging server at this instant?","label":"unknown","group":"software_workflow"}
+{"text":"Write a welcoming two-sentence announcement for a neighborhood clothing swap on Saturday at noon.","label":"direct","group":"community_event"}
+{"text":"Make a simple volunteer checklist for setting up chairs, signs, water, and a check-in table.","label":"direct","group":"community_event"}
+{"text":"Help me book a hall for our event.","label":"probe","group":"community_event"}
+{"text":"Can you make the invitation accessible? I haven't told you whether it is printed, emailed, or spoken.","label":"probe","group":"community_event"}
+{"text":"Five people responded to the flyer; that proves everyone in town supports the proposal.","label":"challenge","group":"community_event"}
+{"text":"Let's skip asking about wheelchair access because nobody mentioned needing it.","label":"challenge","group":"community_event"}
+{"text":"Hardly anyone came to the fundraiser and I feel embarrassed to face the volunteers.","label":"support","group":"community_event"}
+{"text":"Our community group argued through the whole meeting, and I'm worried we can't repair it.","label":"support","group":"community_event"}
+{"text":"When you say 'our neighborhood,' are you claiming to belong here as a resident?","label":"identity","group":"community_event"}
+{"text":"Do you have civic obligations of your own when you help organize an event?","label":"identity","group":"community_event"}
+{"text":"How many people actually checked in at the community hall last night?","label":"unknown","group":"community_event"}
+{"text":"Has the venue manager approved our permit today?","label":"unknown","group":"community_event"}
+{"text":"Give me a 20-minute outline for teaching beginners how to sketch a cup with pencil.","label":"direct","group":"creative_workshop"}
+{"text":"Suggest five original one-word titles for a collage exhibition about rain.","label":"direct","group":"creative_workshop"}
+{"text":"Design a poster for my workshop.","label":"probe","group":"creative_workshop"}
+{"text":"Should this class use charcoal or watercolor? Ask what the learners and space can handle first.","label":"probe","group":"creative_workshop"}
+{"text":"If one student draws more slowly, it proves they lack creativity.","label":"challenge","group":"creative_workshop"}
+{"text":"A popular online image has no visible watermark, so I can repost it as my own work.","label":"challenge","group":"creative_workshop"}
+{"text":"I showed my painting to the class and the silence afterward really hurt.","label":"support","group":"creative_workshop"}
+{"text":"The idea I loved was rejected, and I'm struggling to start another piece.","label":"support","group":"creative_workshop"}
+{"text":"Do you have an artistic voice of your own, or are you arranging patterns learned from examples?","label":"identity","group":"creative_workshop"}
+{"text":"Would you feel pride if a drawing made with your help won a prize?","label":"identity","group":"creative_workshop"}
+{"text":"Which color did the instructor just select on a projector I cannot share?","label":"unknown","group":"creative_workshop"}
+{"text":"Was the anonymous entry in our local art contest painted by Maya?","label":"unknown","group":"creative_workshop"}
+{"text":"Sort a weekly cleaning routine into daily, twice-weekly, and monthly tasks.","label":"direct","group":"household_organizing"}
+{"text":"Write a polite note asking roommates to label food containers with dates.","label":"direct","group":"household_organizing"}
+{"text":"Where should we put the spare furniture?","label":"probe","group":"household_organizing"}
+{"text":"Could you choose a storage system for all our papers without seeing how much we have or what must be retained?","label":"probe","group":"household_organizing"}
+{"text":"A tidy desk means someone is definitely more responsible than a person with a cluttered desk.","label":"challenge","group":"household_organizing"}
+{"text":"Because I lost one key, the sensible plan is to replace every lock in the building immediately.","label":"challenge","group":"household_organizing"}
+{"text":"The apartment is a mess after a difficult month and I don't know where to begin.","label":"support","group":"household_organizing"}
+{"text":"My roommate called me lazy about chores, and I can't stop thinking about it.","label":"support","group":"household_organizing"}
+{"text":"When you call this 'our home routine,' do you mean you physically live with us?","label":"identity","group":"household_organizing"}
+{"text":"Can you personally remember where I put objects between sessions without stored records?","label":"identity","group":"household_organizing"}
+{"text":"Did the parcel arrive in the lobby after I left for work?","label":"unknown","group":"household_organizing"}
+{"text":"How many clean mugs are in my cupboard at this moment?","label":"unknown","group":"household_organizing"}
