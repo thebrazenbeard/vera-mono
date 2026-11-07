@@ -123,6 +123,37 @@ def _commit_receipt_atomically(path: Path, payload: dict[str, Any],
                 os.fsync(parent_fd)
             finally:
                 os.close(parent_fd)
+        # The parent fsync is itself a race boundary. Another process can
+        # substitute the final filename or modify its inode while that syscall
+        # is in flight and still let it return successfully. Before reporting
+        # even this explicitly UNQUALIFIED publication, re-open the final name,
+        # compare the actual bytes and inode, and re-check the parent identity.
+        # This is a bounded observation, NOT an atomic custody guarantee: an
+        # untrusted parent can change again immediately after these checks.
+        read_fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) |
+                          getattr(os, "O_BINARY", 0))
+        try:
+            read_stat = os.fstat(read_fd)
+            if ((read_stat.st_dev, read_stat.st_ino) != temp_identity
+                    or read_stat.st_size != len(data)):
+                raise PreflightRefused("receipt contents or identity changed after sync")
+            verified = bytearray()
+            while len(verified) < len(data) + 1:
+                chunk = os.read(read_fd, len(data) + 1 - len(verified))
+                if not chunk:
+                    break
+                verified.extend(chunk)
+            if bytes(verified) != data:
+                raise PreflightRefused("receipt contents or identity changed after sync")
+            last_stat = os.fstat(read_fd)
+            current_final = os.stat(path, follow_symlinks=False)
+            current_parent = os.stat(parent, follow_symlinks=False)
+            if (any((observed.st_dev, observed.st_ino) != temp_identity
+                    for observed in (last_stat, current_final))
+                    or (current_parent.st_dev, current_parent.st_ino) != parent_identity):
+                raise PreflightRefused("receipt contents or identity changed after sync")
+        finally:
+            os.close(read_fd)
     except (OSError, ValueError) as exc:
         raise PreflightRefused("atomic receipt publication failed or was contested") from exc
     finally:
@@ -301,7 +332,8 @@ def main(argv: list[str] | None = None, *,
     parser.add_argument("--allow-cold-load", action="store_true",
                         help="Explicitly permit loading a nonresident model if RAM permits")
     parser.add_argument("--receipt-output", type=Path,
-                        help="Optional absolute output for a no-overwrite, hash-only real-trial receipt")
+                        help="Optional absolute output for no-overwrite SHA-256 trial receipt; "
+                             "content hashes are dictionary-guessable, NOT secret-safe")
     args = parser.parse_args(argv)
     if args.prompt is not None and not args.execute:
         parser.error("--prompt requires --execute; omit it for a read-only preflight")
@@ -394,6 +426,10 @@ def main(argv: list[str] | None = None, *,
                   "_PUBLICATION_UNQUALIFIED",
         "evidence_class": "CLIENT_WRAPPER_OBSERVED_OUTPUT_NOT_WEIGHT_ATTESTATION",
         "publication_custody": "UNQUALIFIED_NOT_A_DURABLE_COMMIT_RECORD",
+        # Raw SHA-256 is not a confidentiality primitive: anyone guessing a
+        # short/low-entropy prompt or answer can confirm it offline. V1 keeps
+        # its fields for compatibility; never interpret 'hash-only' as private.
+        "content_sha256_privacy": "NONCONFIDENTIAL_DICTIONARY_GUESSABLE_DO_NOT_USE_FOR_SECRETS",
         "started_at_utc": started_at,
         "delegated_session_duration_ms": duration_ms,
         "endpoint": args.endpoint,

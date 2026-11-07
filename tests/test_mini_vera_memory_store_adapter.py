@@ -48,6 +48,17 @@ def public_row(record_id: str = "mem-public-1") -> dict:
     }
 
 
+def synthetic_record_digest(row: dict, *, event_head: str = HEAD) -> str:
+    # Match the read adapter's synthetic MemoryRecord descriptor. The real
+    # host issuer must anchor this digest outside mutable memory storage.
+    return compose.sha256(compose.canonical({
+        "memory_id": row["memory_id"], "source_id": row["source_id"],
+        "source_locator": row["source_locator"],
+        "content_hash": row["content_hash"], "revision": row["revision"],
+        "event_head": event_head,
+    }))
+
+
 class FakeReadOnlyMemoryStore:
     """Replicates only the real MemoryStore read_only/conn/get_memory API."""
 
@@ -81,7 +92,9 @@ class MemoryStoreAdapterTests(unittest.TestCase):
         self.host_revision_floor = -1
         self.current_grant = PublicMemoryGrant(
             project_id="vera-mono", identity_id="vera", ledger_head=HEAD,
-            revision=7, record_ids=("mem-public-1",), approval_epoch=3,
+            revision=7, record_ids=("mem-public-1",),
+            record_digests=(("mem-public-1", synthetic_record_digest(self.rows["mem-public-1"])),),
+            approval_epoch=3,
             authority_revision=25,
             expires_at_unix=2_000_000_000)
         self.id_approval_calls = []
@@ -201,12 +214,23 @@ class MemoryStoreAdapterTests(unittest.TestCase):
     def test_current_host_grant_must_match_independent_event_head(self):
         self.current_grant = PublicMemoryGrant(
             project_id="vera-mono", identity_id="vera", ledger_head="b" * 64,
-            revision=7, record_ids=("mem-public-1",), approval_epoch=3,
+            revision=7, record_ids=("mem-public-1",),
+            record_digests=(("mem-public-1", synthetic_record_digest(self.rows["mem-public-1"])),),
+            approval_epoch=3,
             authority_revision=25,
             expires_at_unix=2_000_000_000)
         with self.assertRaisesRegex(compose.CompositionRejected, "head drift"):
             self.provider()()
         self.assertEqual([], self.store.get_calls)
+
+    def test_changed_source_text_and_matching_source_hash_cannot_reuse_old_grant(self):
+        source = self.rows["mem-public-1"]
+        source["statement"] = "Hostile alternate PUBLIC text with a self-consistent source hash."
+        source["content_hash"] = hashlib.sha256(source["statement"].encode()).hexdigest()
+        self.assertEqual(HEAD, self.adapter().current_head)
+        with self.assertRaisesRegex(compose.CompositionRejected, "selected record digest mismatch"):
+            self.provider()()
+        self.assertEqual([], self.record_approval_calls)
 
     def test_cold_sqlite_reopen_and_epoch_revocation(self):
         first = self.provider()()[0]

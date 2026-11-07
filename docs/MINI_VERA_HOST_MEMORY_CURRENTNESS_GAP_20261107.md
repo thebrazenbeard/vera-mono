@@ -40,7 +40,8 @@ following, from outside model-controlled state:
 
 1. `current_grant() -> PublicMemoryGrant | None`: each call consults live
    authority and returns exact project/identity, selected PUBLIC record IDs,
-   independently anchored ledger head and revision, a host-monotonic approval
+   independently anchored selected record SHA-256 digests, ledger head and
+   revision, a host-monotonic approval
    epoch (incremented on revoke/regrant), and a bounded expiry. `None` means
    denied, stale, unavailable or revoked. The grant cannot be signed by the
    same untrusted ledger it claims to verify.
@@ -70,3 +71,11 @@ host reviewer, native autobiographical continuity, or private-memory access.
 wave because no examined interface met these authority contracts. Preserve
 the fail-closed source implementation until a real host owner can provide and
 independently qualify the above controls.
+
+**Subsequent source hardening (Wave8, no host qualification):** a synthetic
+SQLite writer reproduced a rewrite of an admitted record's canonical payload
+and row digest without advancing the ledger head. With a permissive synthetic
+host callback, the earlier broker projected the new text using an unchanged
+grant. The V3 source grant now requires immutable, ordered, externally issued
+record-digest pins and refuses that rewrite. These synthetic tests do not
+authenticate a real host issuer or prove anti-rollback custody.

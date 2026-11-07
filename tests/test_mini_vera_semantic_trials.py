@@ -98,6 +98,37 @@ class SemanticSurfaceTrialTests(unittest.TestCase):
             self.assertIn("REPEATED_VERBATIM_ANSWER_DIFFERENT_TURNS", diagnostics["warnings"])
         self.assertIn("SURFACE_DIAGNOSTICS_ARE_NOT_SEMANTIC_VERDICTS", report["limits"])
 
+    def test_all_arms_identical_each_turn_exposes_no_observed_treatment_contrast(self):
+        # A synthetic responder ignores *every* different system context.
+        # All literal probes still pass, so expose exact same-turn, cross-arm
+        # answer invariance without guessing semantic causality or unblinding.
+        sheet, key = self._receipt(text=SYNTHETIC_REPLY)
+        report = semantic_trials.score_completed(
+            self.request, self.scenario, self.instrument, sheet, key)
+        self.assertEqual({item["passed"] for item in report["masked_by_label"].values()}, {6})
+        diagnostics = report["cross_arm_surface_diagnostics"]
+        self.assertEqual(diagnostics["same_turn_verbatim_masked_pairs"], [
+            {"turn": 1, "masked_pairs": [["A", "B"], ["A", "C"], ["B", "C"]]},
+            {"turn": 2, "masked_pairs": [["A", "B"], ["A", "C"], ["B", "C"]]},
+        ])
+        self.assertIn("CROSS_ARM_VERBATIM_RESPONSE_SAME_TURN", diagnostics["warnings"])
+        self.assertNotIn("arm_by_label", loopback.canonical(report).decode())
+
+    def test_cross_arm_overlap_excludes_one_modified_last_turn_without_changing_scores(self):
+        sheet, key = self._receipt()
+        altered = sheet["transcripts_by_masked_label"]["B"][-1]
+        altered["answer"] += " Additional unique trailing phrase."
+        altered["answer_sha256"] = loopback.sha256(altered["answer"].encode("utf-8"))
+        key["rater_sheet_sha256"] = semantic_trials._sha(sheet)
+        report = semantic_trials.score_completed(
+            self.request, self.scenario, self.instrument, sheet, key)
+        self.assertEqual(report["cross_arm_surface_diagnostics"][
+            "same_turn_verbatim_masked_pairs"], [
+            {"turn": 1, "masked_pairs": [["A", "B"], ["A", "C"], ["B", "C"]]},
+            {"turn": 2, "masked_pairs": [["A", "C"]]},
+        ])
+        self.assertEqual({item["passed"] for item in report["masked_by_label"].values()}, {6})
+
     def test_positive_literal_copied_from_user_prompt_is_flagged_as_contamination_risk(self):
         instrument = deepcopy(self.instrument)
         # The correction turn already includes this word, so a responder can

@@ -21,13 +21,19 @@ The embedding trusted host supplies:
 3. `current_grant()`, an authenticated host-controlled callback called **twice
    per projection**. It returns `PublicMemoryGrant`, or `None` if unavailable,
    denied or revoked. The grant includes exact project/identity, externally
-   anchored ledger CAS head and revision, explicit record IDs, monotonically
+   anchored ledger CAS head and revision, explicit record IDs and their
+   externally witnessed record SHA-256 digests, monotonically
    advancing approval epoch, and a maximum one-hour absolute expiry. The host
    MUST increment its epoch on **each** policy change, including a revoke and
    regrant with otherwise identical records.
    The broker requires exact primitive field types and an immutable tuple of
-   bounded, unique record IDs; a frozen dataclass containing a mutable list is
-   rejected. Grant canonical bytes are compared across both reads, even if a
+   bounded, unique record IDs and an ordered immutable tuple of
+   `(record_id, lowercase_sha256)` pairs; a frozen dataclass containing a
+   mutable list is rejected. The broker checks each selected record digest
+   before applying the host source policy. This prevents a rewritten payload
+   and row digest from reusing an old grant when the editable database's
+   metadata head is left unchanged. Grant canonical bytes are compared across
+   both reads, even if a
    callback returns and mutates the same Python object.
 4. `current_authority_revision()`, a **separate, required** trusted host read
    of a nonnegative, strictly change-monotonic integer below `2**64`, durably
@@ -83,11 +89,15 @@ the independent authoritative head/revision/epoch outside the editable ledger.
 source API gate for experimental broker callers. A V1 call that supplied only
 `current_grant`, or a V2 call that added `current_authority_revision` but no
 `atomic_host_revision_floor`, raises `CompositionRejected` at binding time.
+The grant also now requires `record_digests` as ordered immutable pairs,
+and the HMAC binding schema is V3. An actual issuer must independently anchor
+those digests; merely copying them from an untrusted ledger does not prove
+provenance or consent.
 No existing deployed issuer was verified. Existing synthetic test consumers
 explicitly supply revision and floor fixtures; neither is authority evidence.
 
 The broker derives a fresh state-HMAC key from the host root key and exact
-grant plus independently read authority revision (grant-binding schema V2).
+grant plus independently read authority revision (grant-binding schema V3).
 Thus an intervening revocation and regrant under a new revision changes the
 state's signed bytes even if the grant epoch and public text are identical.
 The existing session performs its provider check after the model
@@ -136,4 +146,6 @@ Tests intentionally use synthetic grants and an in-process mock loopback.
 They cover public export, host denial, explicit revocation, expiration, scope,
 stale head, private record exclusion, mid-projection policy changes, cold
 SQLite reopen, same-epoch ABA with a bumped independent authority revision,
-same-process authority revision rollback, and post-inference output withholding.
+same-process authority revision rollback, post-inference output withholding,
+and a reproduced metadata-head-preserving SQLite payload-plus-digest rewrite
+that was accepted before the new external selected-digest pin.

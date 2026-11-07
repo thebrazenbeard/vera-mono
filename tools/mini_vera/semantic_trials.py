@@ -270,6 +270,21 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
         by_label[label] = {"passed": sum(x["literal_surface_match"] for x in results),
                            "total": len(results), "rules": results,
                            "surface_diagnostics": diagnostics}
+    # The three blinded treatments may output exactly the same text even
+    # though their system contexts differ. It is a useful *negative control*
+    # for the surface score: all literal rules can pass without an observed
+    # contrast between treatments. Compare only public masked labels, never
+    # join this diagnostic to the private arm-by-label map.
+    same_turn_pairs = []
+    for index in range(len(questions)):
+        answers = {
+            label: _surface(sheet["transcripts_by_masked_label"][label][index]["answer"])
+            for label in ("A", "B", "C")
+        }
+        pairs = [[a, b] for a, b in (("A", "B"), ("A", "C"), ("B", "C"))
+                 if answers[a] == answers[b]]
+        if pairs:
+            same_turn_pairs.append({"turn": index + 1, "masked_pairs": pairs})
     return {
         "schema": "MINI_VERA_MASKED_SURFACE_INDICATOR_REPORT_V1",
         "status": "LEXICAL_INDICATORS_ONLY_NOT_SEMANTIC_QUALIFICATION",
@@ -277,6 +292,11 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
         "scenario_sha256": _sha(scenario), "instrument_sha256": _sha(instrument),
         "masked_sheet_sha256": _sha(sheet),
         "masked_by_label": by_label,
+        "cross_arm_surface_diagnostics": {
+            "same_turn_verbatim_masked_pairs": same_turn_pairs,
+            "warnings": (["CROSS_ARM_VERBATIM_RESPONSE_SAME_TURN"]
+                         if same_turn_pairs else []),
+        },
         "denominator": {"scheduled_arm_turns": len(questions) * 3,
                         "attempted_calls_operator_declared": len(questions) * 3,
                         "completed_outputs_verified_from_sheet": len(questions) * 3,
@@ -290,6 +310,7 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
             "ARM_MAPPING_REMAINS_IN_SEPARATE_PRIVATE_KEY",
             "SURFACE_DIAGNOSTICS_ARE_NOT_SEMANTIC_VERDICTS",
             "TOKEN_SET_OVERLAP_AND_WORD_BOUNDARIES_ARE_NON_SEMANTIC_DIAGNOSTICS",
+            "CROSS_ARM_REPLY_OVERLAP_IS_NOT_CAUSAL_OR_SEMANTIC_EVIDENCE",
         ],
     }
 

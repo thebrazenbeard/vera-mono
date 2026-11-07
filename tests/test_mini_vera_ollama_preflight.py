@@ -352,6 +352,8 @@ class PreflightTests(unittest.TestCase):
                              receipt["status"])
             self.assertEqual("UNQUALIFIED_NOT_A_DURABLE_COMMIT_RECORD",
                              receipt["publication_custody"])
+            self.assertEqual("NONCONFIDENTIAL_DICTIONARY_GUESSABLE_DO_NOT_USE_FOR_SECRETS",
+                             receipt["content_sha256_privacy"])
             self.assertEqual(DIGEST, receipt["server_declared_tag_digest"])
             self.assertFalse(receipt["model_weights_verified"])
             self.assertFalse(receipt["exclusive_host_lease"])
@@ -360,6 +362,11 @@ class PreflightTests(unittest.TestCase):
             self.assertTrue(receipt["reply_complete"])
             self.assertEqual(hashlib.sha256(b"SECRET_IN_TEST").hexdigest(),
                              receipt["input_prompt_sha256"])
+            # Explicitly prove why a raw digest of a guessable prompt is not
+            # private. This is synthetic test data, never a live credential.
+            guesses = ["HELLO", "SECRET_IN_TEST", "GOODBYE"]
+            self.assertIn(receipt["input_prompt_sha256"],
+                          [hashlib.sha256(guess.encode()).hexdigest() for guess in guesses])
             self.assertEqual(hashlib.sha256(b"I cannot attest to my weights.").hexdigest(),
                              receipt["displayed_reply_sha256"])
             self.assertNotIn("SECRET_IN_TEST", output.read_text())
@@ -469,6 +476,77 @@ class PreflightTests(unittest.TestCase):
             self.assertEqual(2, code)
             self.assertEqual("FOREIGN_RECEIPT_AFTER_LINK", output.read_text())
             self.assertIn("model call already attempted", stderr.getvalue())
+
+    @unittest.skipIf(preflight.os.name == "nt", "Windows has no directory fsync via os.open")
+    def test_postlink_fsync_success_cannot_hide_foreign_final_replacement(self):
+        """The post-link sync itself is an adversarial race boundary.
+
+        Even if fsync returns successfully, an untrusted peer can replace the
+        final name while it runs. The caller must not print a successful
+        publication SHA for bytes no longer reachable at the final name.
+        """
+        tags, ps = inventory(resident=True)
+        getter, _ = fake_getter(tags, ps)
+        native_fsync = preflight.os.fsync
+        syncs = 0
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "trial.json"
+
+            def swap_during_successful_parent_sync(fd):
+                nonlocal syncs
+                syncs += 1
+                if syncs == 2:
+                    foreign = Path(directory) / "foreign.txt"
+                    foreign.write_text("FOREIGN_REPLACEMENT_AFTER_LINK")
+                    preflight.os.replace(foreign, output)
+                return native_fsync(fd)
+
+            def local_reply(_args):
+                print("Vera> synthetic result")
+                return 0
+
+            with patch.object(preflight.local_session, "main", side_effect=local_reply), \
+                    patch.object(preflight.os, "fsync",
+                                 side_effect=swap_during_successful_parent_sync), \
+                    redirect_stderr(io.StringIO()) as stderr, \
+                    redirect_stdout(io.StringIO()) as stdout:
+                code = preflight.main([
+                    "--execute", "--host-idle-confirmed", "--prompt", "Hi",
+                    "--receipt-output", str(output)],
+                    memory_probe=lambda: 2 * preflight.GIB, get_json=getter)
+            self.assertEqual(2, syncs)
+            self.assertEqual(2, code)
+            self.assertEqual("FOREIGN_REPLACEMENT_AFTER_LINK", output.read_text())
+            self.assertNotIn("PUBLISHED_HASH_ONLY", stdout.getvalue())
+            self.assertIn("model call already attempted", stderr.getvalue())
+
+    @unittest.skipIf(preflight.os.name == "nt", "Windows has no directory fsync via os.open")
+    def test_postlink_fsync_success_cannot_hide_same_inode_content_corruption(self):
+        """An inode identity check alone would miss in-place corruption."""
+        native_fsync = preflight.os.fsync
+        syncs = 0
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "trial.json"
+            _, parent_identity = preflight._receipt_target(output)
+            receipt = {"schema": "SYNTHETIC", "status": "PUBLICATION_UNQUALIFIED"}
+
+            def mutate_during_parent_sync(fd):
+                nonlocal syncs
+                syncs += 1
+                if syncs == 2:
+                    # Same byte length, same inode, different content. A
+                    # follow-up stat-only check would falsely accept this.
+                    altered = preflight._receipt_bytes(receipt).replace(
+                        b"SYNTHETIC", b"CORRUPTED")
+                    self.assertEqual(len(altered), len(preflight._receipt_bytes(receipt)))
+                    output.write_bytes(altered)
+                return native_fsync(fd)
+
+            with patch.object(preflight.os, "fsync", side_effect=mutate_during_parent_sync):
+                with self.assertRaisesRegex(preflight.PreflightRefused, "atomic receipt"):
+                    preflight._commit_receipt_atomically(output, receipt, parent_identity)
+            self.assertEqual(2, syncs)
+            self.assertIn(b"CORRUPTED", output.read_bytes())
 
     def test_truncated_reply_receipt_explicitly_not_complete(self):
         tags, ps = inventory(resident=True)

@@ -44,6 +44,11 @@ the broker's separately authenticated `current_authority_revision` reader and
 `atomic_host_revision_floor` commit callback, both bound to the same issuer,
 project and identity. Any denial, rollback or revocation prevents context
 projection. `bind_host_public_memory` rechecks the grant around projection;
+the grant must contain exact externally pinned selected-record digests,
+including each MemoryStore adapter descriptor's source locator, text hash,
+revision and anchored event head. A changed text with a matching locally
+recomputed `content_hash` but unchanged event head now fails closed against
+the previously issued digest; a stored hash is not its own authorization.
 `local_session.main` rechecks after model output.
 
 ## Embedding seam (not an installed launcher)

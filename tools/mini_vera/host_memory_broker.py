@@ -32,7 +32,8 @@ class PublicMemoryGrant:
     """A current host-issued decision, not a self-authenticating capability.
 
     The host must advance ``approval_epoch`` on revocation or policy changes,
-    anchor ``ledger_head`` and ``revision`` outside the ledger being read,
+    anchor ``ledger_head``, ``revision`` and selected ``record_digests``
+    outside the ledger being read,
     and issue a new bounded grant after any genuine change of selected memory.
     The separate required ``current_authority_revision`` host reader must
     advance even when an issuer mistakenly reuses this grant's old epoch.
@@ -45,6 +46,7 @@ class PublicMemoryGrant:
     ledger_head: str
     revision: int
     record_ids: tuple[str, ...]
+    record_digests: tuple[tuple[str, str], ...]
     approval_epoch: int
     authority_revision: int
     expires_at_unix: int
@@ -53,10 +55,12 @@ class PublicMemoryGrant:
 def _grant_binding(grant: PublicMemoryGrant, authority_revision: int) -> bytes:
     """Immutable snapshot, never an equality check against a mutable object."""
     return canonical({
-        "schema": "MINI_VERA_HOST_GRANT_BINDING_V2",
+        "schema": "MINI_VERA_HOST_GRANT_BINDING_V3",
         "project_id": grant.project_id, "identity_id": grant.identity_id,
         "ledger_head": grant.ledger_head, "revision": grant.revision,
-        "record_ids": list(grant.record_ids), "approval_epoch": grant.approval_epoch,
+        "record_ids": list(grant.record_ids),
+        "record_digests": [list(pair) for pair in grant.record_digests],
+        "approval_epoch": grant.approval_epoch,
         "authority_revision": authority_revision,
         "expires_at_unix": grant.expires_at_unix,
     })
@@ -138,13 +142,24 @@ def bind_host_public_memory(
         # All grant fields must be exact immutable primitives/tuples.
         if (type(grant.project_id) is not str or type(grant.identity_id) is not str
                 or type(grant.ledger_head) is not str or type(grant.revision) is not int
-                or type(grant.record_ids) is not tuple):
+                or type(grant.record_ids) is not tuple or type(grant.record_digests) is not tuple):
             raise CompositionRejected("host public-memory grant fields must be immutable and exact")
         if (len(grant.record_ids) > MAX_RECORDS
                 or any(type(record_id) is not str or ID.fullmatch(record_id) is None
                        for record_id in grant.record_ids)
                 or len(set(grant.record_ids)) != len(grant.record_ids)):
             raise CompositionRejected("invalid host public-memory record selection")
+        # The event head is necessary but not a sufficient content witness:
+        # a mutable ledger row and its digest can both be rewritten without
+        # advancing its metadata head. Pin each admitted row digest in the
+        # independently issued host grant before reading any selected text.
+        if (len(grant.record_digests) != len(grant.record_ids)
+                or any(type(pair) is not tuple or len(pair) != 2
+                       or type(pair[0]) is not str or pair[0] != selected_id
+                       or type(pair[1]) is not str or len(pair[1]) != 64
+                       or any(c not in "0123456789abcdef" for c in pair[1])
+                       for pair, selected_id in zip(grant.record_digests, grant.record_ids))):
+            raise CompositionRejected("invalid host public-memory record digest selection")
         if grant.project_id != ledger.project_id or grant.identity_id != ledger.identity_id:
             raise CompositionRejected("host public-memory grant scope mismatch")
         if type(grant.approval_epoch) is not int or not (0 <= grant.approval_epoch < 2**64):
@@ -173,8 +188,16 @@ def bind_host_public_memory(
         grant_binding = _grant_binding(grant, authority_revision)
         epoch_key = hmac.new(integrity_key, b"mini-vera-host-grant-v1\x00" + grant_binding,
                              hashlib.sha256).digest()
+        issued_digests = dict(grant.record_digests)
 
         def policy(record: "MemoryRecord", _head: str) -> bool:
+            if (type(record.record_digest) is not str
+                    or len(record.record_digest) != 64
+                    or any(c not in "0123456789abcdef" for c in record.record_digest)
+                    or record.record_id not in issued_digests
+                    or not hmac.compare_digest(
+                        record.record_digest, issued_digests[record.record_id])):
+                raise CompositionRejected("selected record digest mismatch against host grant")
             try:
                 return approve_record(record, grant) is True
             except Exception as exc:

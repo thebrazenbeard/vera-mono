@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import replace
+import hashlib
 import io
+import json
 from pathlib import Path
 import sqlite3
 import sys
@@ -33,7 +35,9 @@ class HostMemoryBrokerTests(unittest.TestCase):
         self.ledger, head = ledger_fixture(self.folder)
         self.grant = PublicMemoryGrant(
             project_id="vera-mono", identity_id="vera", ledger_head=head,
-            revision=13, record_ids=("work-1",), approval_epoch=1,
+            revision=13, record_ids=("work-1",),
+            record_digests=(("work-1", self.ledger.read("work-1").record_digest),),
+            approval_epoch=1,
             authority_revision=10,
             expires_at_unix=1_000_600)
         self.permission = {"grant": self.grant, "allow_record": True,
@@ -364,6 +368,28 @@ class HostMemoryBrokerTests(unittest.TestCase):
         self.assertEqual(["work-1"], mutable_ids)
         self.assertEqual(0, record_approval_calls)
 
+    def test_record_digest_grant_requires_exact_immutable_ordered_pairs(self):
+        issued = self.grant.record_digests[0][1]
+        for invalid in (
+            [],
+            (("work-1", issued.upper()),),
+            (("not-selected", issued),),
+            (["work-1", issued],),
+            (("work-1", "0" * 63),),
+            (),
+        ):
+            with self.subTest(invalid=invalid):
+                self.permission["grant"] = replace(self.grant, record_digests=invalid)
+                with self.assertRaisesRegex(CompositionRejected, "immutable and exact|record digest selection"):
+                    self.broker()()
+
+    def test_grant_digest_mismatch_refuses_content_even_when_record_policy_approves(self):
+        self.permission["grant"] = replace(
+            self.grant, record_digests=(("work-1", "0" * 64),))
+        with self.assertRaisesRegex(CompositionRejected, "selected record digest mismatch"):
+            self.broker()()
+        self.assertEqual([], self.seen_records)
+
     def test_same_object_field_mutation_during_projection_is_detected(self):
         # Even a deliberately hostile Python callback that circumvents the
         # frozen dataclass via object.__setattr__ cannot rely on `grant == grant`.
@@ -452,7 +478,8 @@ class HostMemoryBrokerTests(unittest.TestCase):
             governed_identity_id="vera"), expected_head=self.grant.ledger_head)
         self.permission["grant"] = replace(
             self.grant, ledger_head=self.ledger.current_head,
-            revision=14, approval_epoch=2, record_ids=("private-1",))
+            revision=14, approval_epoch=2, record_ids=("private-1",),
+            record_digests=(("private-1", self.ledger.read("private-1").record_digest),))
         with self.assertRaisesRegex(CompositionRejected, "stored privacy class"):
             self.broker()()
 
@@ -465,6 +492,25 @@ class HostMemoryBrokerTests(unittest.TestCase):
             operation_id="new-op", project_id="vera-mono",
             governed_identity_id="vera"), expected_head=self.grant.ledger_head)
         with self.assertRaisesRegex(CompositionRejected, "head drift"):
+            self.broker()()
+
+    def test_stale_grant_refuses_rewritten_content_when_ledger_head_is_unchanged(self):
+        # A local SQLite writer can replace the canonical row *and its digest*
+        # while leaving the ledger metadata head untouched. The host reviewer
+        # in this fixture is deliberately permissive, so the broker itself
+        # must pin the issued record digest, not only an ID and an event head.
+        old_head = self.ledger.current_head
+        with sqlite3.connect(self.folder / "memory.sqlite") as db:
+            raw = db.execute("SELECT payload_json FROM records WHERE record_id='work-1'").fetchone()[0]
+            payload = json.loads(raw)
+            payload["text"] = "Tampered row remains syntactically PUBLIC."
+            from tools.mini_vera.compose import canonical
+            replacement = canonical(payload)
+            db.execute("UPDATE records SET payload_json=?, record_digest=? WHERE record_id='work-1'",
+                       (replacement.decode("utf-8"), hashlib.sha256(replacement).hexdigest()))
+            db.commit()
+        self.assertEqual(old_head, self.ledger.current_head)
+        with self.assertRaisesRegex(CompositionRejected, "selected record digest mismatch"):
             self.broker()()
 
     def test_approval_exception_not_leaked_to_local_session(self):
