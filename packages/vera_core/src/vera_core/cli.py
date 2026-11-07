@@ -14,6 +14,7 @@ from vera_memory import (
 )
 
 from .console import VeraConsole, run_console_repl
+from .behavior_profile_context import PROFILE_ID, PROFILE_SHA256, public_behavior_style
 from .local_model_advisory import MAX_PROMPT_CHARS, advise_local_model
 from .qualified_runtime import QualifiedVeraRuntime
 from .state import VeraStateDirectory
@@ -135,6 +136,11 @@ def _parser() -> argparse.ArgumentParser:
         metavar="0..8",
         help=("opt in to at most 8 prior operator/model exchanges in this "
               "process only; no durable memory admission"),
+    )
+    chat.add_argument(
+        "--public-behavior-profile", action="store_true",
+        help=("opt in to the pinned public Vera style profile for local candidate "
+              "responses; no private chats, runtime identity or model qualification"),
     )
     _add_state_binding(chat, required=True)
     chat.add_argument("--endpoint", required=True, help="exact HTTP loopback /v1 endpoint")
@@ -422,6 +428,9 @@ def _chat_once(
     """Convey only allowlisted QVR state to a bounded, effectless model adapter."""
     if _reviewed_flags_supplied(args):
         _require_independent_review_attestation()
+    # The only opt-in style source is a pinned public packaged profile, not
+    # operator-supplied text, private history, or a claim of installed identity.
+    style_prefix = public_behavior_style() if args.public_behavior_profile else ""
     state = _bound_state(args)
     reviewed_db_identities = None
     if _reviewed_flags_supplied(args):
@@ -445,6 +454,7 @@ def _chat_once(
         + context_json
         + "\n\n"
     )
+    prefix += style_prefix
     # Only the explicitly opted-in interactive process may supply transient
     # history. It is held in memory, never promoted into governed Vera memory.
     if prior_turns:
@@ -479,12 +489,20 @@ def _chat_once(
             "result": result.to_dict(),
             "claim_ceiling": "UNVERIFIED_MODEL_OUTPUT_NOT_CURRENTNESS_NOT_EFFECT_AUTHORITY",
         }
+        if style_prefix:
+            payload["public_behavior_style_source"] = {
+                "profile_id": PROFILE_ID,
+                "profile_sha256": PROFILE_SHA256,
+                "status": "PUBLIC_SOURCE_ONLY_NOT_INSTALLED_IDENTITY",
+            }
         _write_json(payload)
     else:
         _write_stdout(
             f"UNVERIFIED_MODEL_OUTPUT — QVR status={context['status']} "
             f"context_sha256={context_digest}; memory_admission=NONE "
-            "authority=NONE tool_execution=NONE\n"
+            "authority=NONE tool_execution=NONE"
+            + (" public_style=SOURCE_ONLY" if style_prefix else "")
+            + "\n"
             + result.text
             + "\n"
         )

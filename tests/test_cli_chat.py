@@ -15,6 +15,7 @@ import pytest
 
 from vera_core import VeraStateDirectory
 from vera_core import cli
+from vera_core.behavior_profile_context import PROFILE_RESOURCE, PROFILE_SHA256
 from vera_core.local_model_advisory import MAX_PROMPT_CHARS
 from vera_control import local_r10_source_digest
 from vera_memory import AdmissionRequest, MemoryClass
@@ -72,6 +73,55 @@ def _interactive_args(root, *extra):
     args = _args(root, "--interactive", "--json", *extra)
     args.remove("What can I inspect?")
     return args
+
+
+def test_public_behavior_profile_is_opt_in_public_and_digest_bound(tmp_path, capsys):
+    root = tmp_path / "state-CANARY"
+    root.mkdir()
+    plain, styled = _Connection(), _Connection()
+    with patch("vera_core.local_model_advisory.HTTPConnection", side_effect=[plain, styled]):
+        assert cli.main(_args(root, "--json")) == 0
+        default_output = json.loads(capsys.readouterr().out)
+        assert cli.main(_args(root, "--json", "--public-behavior-profile")) == 0
+        styled_output = json.loads(capsys.readouterr().out)
+
+    ordinary = plain.requests[0][2]["messages"][1]["content"]
+    candidate = styled.requests[0][2]["messages"][1]["content"]
+    assert "PUBLIC Vera behavior-style source" not in ordinary
+    assert "PUBLIC Vera behavior-style source" in candidate
+    assert "candor:" in candidate and "context_sensitivity:" in candidate
+    assert PROFILE_SHA256 in candidate
+    assert "state-CANARY" not in candidate
+    assert "private-project-CANARY" not in candidate
+    assert "private-identity-CANARY" not in candidate
+    assert ordinary.endswith("User prompt:\nWhat can I inspect?")
+    assert candidate.endswith("User prompt:\nWhat can I inspect?")
+    assert "public_behavior_style_source" not in default_output
+    assert styled_output["public_behavior_style_source"] == {
+        "profile_id": "VERA_BEHAVIOR_PROFILE_V1",
+        "profile_sha256": PROFILE_SHA256,
+        "status": "PUBLIC_SOURCE_ONLY_NOT_INSTALLED_IDENTITY",
+    }
+    assert styled_output["result"]["authority"] == "NONE"
+    assert styled_output["result"]["memory_admission"] == "NONE"
+
+
+def test_tampered_packaged_behavior_profile_fails_before_model_contact(
+    tmp_path, capsys,
+):
+    root = tmp_path / "state"
+    root.mkdir()
+    fake_package = tmp_path / "fake-package"
+    fake_profile = fake_package / PROFILE_RESOURCE
+    fake_profile.parent.mkdir(parents=True)
+    fake_profile.write_text('{"schema":"VERA_BEHAVIOR_PROFILE_V1"}', encoding="utf-8")
+    with patch("vera_core.behavior_profile_context.files", return_value=fake_package), \
+            patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
+        with pytest.raises(SystemExit) as exc:
+            cli.main(_args(root, "--public-behavior-profile"))
+    assert exc.value.code == 2
+    assert "profile byte binding mismatch" in capsys.readouterr().err
+    ctor.assert_not_called()
 
 
 @pytest.mark.parametrize("mode", ["json", "plain", "interactive"])
