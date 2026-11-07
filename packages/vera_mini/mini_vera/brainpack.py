@@ -138,7 +138,13 @@ def _list_directory(root: int | Path, location: Path) -> dict[str, os.stat_resul
             for entry in listing:
                 if entry.name in found:
                     raise BrainPackError("duplicate package directory entry")
-                metadata = entry.stat(follow_symlinks=False)
+                # Windows DirEntry.stat() may return a cached FindFirstFile
+                # result with st_ino/st_dev/st_nlink set to zero, including
+                # for ordinary files. A full-path lstat() retrieves actual
+                # link counts needed by the hardlink guard. The path-based
+                # fallback remains subject to documented Windows TOCTOU.
+                metadata = ((location / entry.name).lstat() if isinstance(root, Path)
+                            else entry.stat(follow_symlinks=False))
                 if _link_like(location / entry.name, metadata):
                     raise BrainPackError("linked or reparse-point package entry")
                 found[entry.name] = metadata

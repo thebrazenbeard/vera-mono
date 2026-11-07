@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import gzip
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -164,6 +165,40 @@ class BrainPackTests(unittest.TestCase):
         with patch("mini_vera.brainpack.os.supports_dir_fd", set()):
             build_brainpack(self.sources, ["note.md"], self.out)
             self.assertEqual(BrainPack(self.out).read("note.md"), "public")
+
+    def test_windows_fallback_ignores_zeroed_direntry_stat_metadata(self):
+        """Windows DirEntry.stat may hide st_nlink even when Path.lstat has it."""
+        self.put("note.md", "A public text")
+        build_brainpack(self.sources, ["note.md"], self.out)
+        pack = BrainPack(self.out)
+        real_scandir = os.scandir
+
+        class ZeroedEntry:
+            def __init__(self, actual):
+                self.name = actual.name
+
+            def stat(self, *, follow_symlinks=True):
+                # Emulate the Windows enumeration shortcut: these metadata
+                # fields cannot validate the regular-file/hardlink invariant.
+                from types import SimpleNamespace
+                return SimpleNamespace(st_mode=0, st_nlink=0, st_size=0)
+
+        class WindowsStyleScandir:
+            def __init__(self, actual):
+                self.actual = actual
+
+            def __enter__(self):
+                return iter(ZeroedEntry(entry) for entry in self.actual)
+
+            def __exit__(self, *args):
+                self.actual.close()
+
+        def zeroed_scandir(path):
+            return WindowsStyleScandir(real_scandir(path))
+
+        with patch("mini_vera.brainpack.os.supports_dir_fd", set()), \
+                patch("mini_vera.brainpack.os.scandir", side_effect=zeroed_scandir):
+            self.assertEqual(pack.verify()["verified_documents"], 1)
 
     def test_path_checked_fallback_still_rejects_links(self):
         outside = self.base / "outside.txt"
