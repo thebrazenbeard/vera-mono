@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 from pathlib import Path
 import unittest
 
@@ -46,7 +47,36 @@ class CurriculumTests(unittest.TestCase):
         duplicate = IntentLearner(seed=receipt["seed"])
         duplicate.fit([(row["text"], row["label"]) for row in train],
                       epochs=receipt["training"]["epochs"])
-        self.assertEqual(duplicate.to_dict(), released.to_dict())
+        # Committed checkpoint bytes and dataset digests above stay EXACT.
+        # Retraining is numerically reproducible, but may not be bit-identical
+        # across Windows/POSIX math libraries and Python versions.
+        replay, original = duplicate.to_dict(), released.to_dict()
+        self.assertEqual(set(replay), set(original))
+        for key in set(original) - {"weights", "bias"}:
+            self.assertEqual(replay[key], original[key], key)
+        self.assertEqual(len(replay["weights"]), len(original["weights"]))
+        for observed_row, saved_row in zip(replay["weights"], original["weights"]):
+            self.assertEqual(len(observed_row), len(saved_row))
+            for observed, saved in zip(observed_row, saved_row):
+                self.assertTrue(math.isclose(observed, saved, rel_tol=1e-12,
+                                             abs_tol=1e-12))
+        self.assertEqual(len(replay["bias"]), len(original["bias"]))
+        for observed, saved in zip(replay["bias"], original["bias"]):
+            self.assertTrue(math.isclose(observed, saved, rel_tol=1e-12,
+                                         abs_tol=1e-12))
+        for split in ("train", "validation", "test"):
+            rows = [json.loads(line) for line in
+                    (ROOT / "data" / f"{split}.jsonl")
+                    .read_text(encoding="utf-8").splitlines() if line]
+            for row in rows:
+                replayed = duplicate.predict(row["text"])
+                committed = released.predict(row["text"])
+                self.assertEqual(replayed["label"], committed["label"])
+                for label in LABELS:
+                    self.assertTrue(math.isclose(
+                        replayed["probabilities"][label],
+                        committed["probabilities"][label],
+                        rel_tol=1e-12, abs_tol=1e-12))
 
 
 if __name__ == "__main__":

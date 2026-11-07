@@ -27,7 +27,7 @@ python tools/build_zipapp.py --output dist/mini-vera-trained.pyz
 python dist/mini-vera-trained.pyz --help
 ```
 
-Copy `dist/mini-vera.pyz` wherever you want. On Lappy, for example:
+Copy `dist/mini-vera-trained.pyz` wherever you want. On Lappy, for example:
 
 ```powershell
 py -3 .\mini-vera-trained.pyz --help

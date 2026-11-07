@@ -33,3 +33,8 @@ The script reads the three exact split files, checks group/text leakage,
 trains from zero with fixed seed, emits a parameter checkpoint, and writes
 `training_receipt_v1.json` containing exact dataset and checkpoint hashes,
 metrics, confusion matrices and the majority-class baseline.
+The committed dataset and checkpoint hashes are exact byte commitments; a
+fresh training run on a different Python/math runtime may yield tiny rounding
+differences in floating-point weights. Cross-platform replay is compared by
+bounded numeric tolerance and fixed-split class/probability agreement, not by
+claiming identical model bytes.
