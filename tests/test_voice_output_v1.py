@@ -54,6 +54,11 @@ def with_synthetic_junk_chunk(data: bytes, total_bytes: int) -> bytes:
     return output[:4] + (len(output) - 8).to_bytes(4, "little") + output[8:]
 
 
+def corrected_riff_length(data: bytes) -> bytes:
+    """Change only RIFF's declared byte count in synthetic invalid fixtures."""
+    return data[:4] + (len(data) - 8).to_bytes(4, "little") + data[8:]
+
+
 class VoiceOutputTests(unittest.TestCase):
     def setUp(self) -> None:
         self.request = SpeechRequest("A small synthetic test phrase.", "Microsoft Zira Desktop")
@@ -196,6 +201,34 @@ class VoiceOutputTests(unittest.TestCase):
                     render_sapi_wave(self.request, allow_local_synthesis=True,
                                      require_voice_wav_v0=invalid,
                                      runner=lambda *a, **k: self.fail("runner must not be invoked"))
+
+    def test_voice_wav_v0_rejects_android_chunk_structure_mismatches(self) -> None:
+        """Invariants from vera-apk PR #24 VoiceWav16.parse, no Java execution claim."""
+        base = synthetic_wave()
+        fmt_chunk, data_chunk = base[12:36], base[36:]
+        wrong_byte_rate = bytearray(base)
+        wrong_byte_rate[28:32] = (123).to_bytes(4, "little")
+        wrong_block_align = bytearray(base)
+        wrong_block_align[32:34] = (1).to_bytes(2, "little")
+        short_pcm = base[:40] + (len(base) - 45).to_bytes(4, "little") + base[44:-1]
+        malformed = {
+            "duplicate_fmt": corrected_riff_length(base[:12] + fmt_chunk + fmt_chunk + data_chunk),
+            "duplicate_data": corrected_riff_length(base[:12] + fmt_chunk + data_chunk + data_chunk),
+            "bad_byte_rate": bytes(wrong_byte_rate),
+            "bad_block_align": bytes(wrong_block_align),
+            "trailing_one_byte": corrected_riff_length(base + b"\x00"),
+            "trailing_four_bytes": corrected_riff_length(base + b"\x00" * 4),
+            "misaligned_pcm_data": corrected_riff_length(short_pcm),
+            "odd_chunk_missing_pad": corrected_riff_length(base + b"JUNK" + (1).to_bytes(4, "little") + b"X"),
+        }
+        for label, data in malformed.items():
+            with self.subTest(label=label):
+                runner = lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=data, stderr=b"")
+                # Baseline WAV parser historically accepts these shapes; V0 must not.
+                self.assertEqual(render_sapi_wave(self.request, allow_local_synthesis=True, runner=runner).wav_bytes, data)
+                with self.assertRaisesRegex(ValueError, "VOICE_WAV_V0"):
+                    render_sapi_wave(self.request, allow_local_synthesis=True,
+                                     require_voice_wav_v0=True, runner=runner)
 
 
 if __name__ == "__main__":

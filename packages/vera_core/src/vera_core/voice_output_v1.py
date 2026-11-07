@@ -117,6 +117,56 @@ def _stdin_payload(request: SpeechRequest) -> bytes:
     return (text_b64 + "\n" + voice_b64 + "\n").encode("ascii")
 
 
+def _verified_voice_wav_v0_chunks(data: bytes) -> tuple[int, int, int]:
+    """Validate the strict chunk grammar consumed by vera-apk VoiceWav16 V0.
+
+    Python's wave reader intentionally tolerates malformed trailing chunks,
+    duplicate data chunks and inconsistent byte-rate/alignment metadata.
+    Those bytes are not Android V0 admissible even when wave.open succeeds.
+    This bounded walk mirrors the consumer's format and chunk checks without
+    copying the PCM payload, transcoding or accepting transport authority.
+    """
+    cursor = 12
+    fmt_seen = data_seen = False
+    channels = rate = block_align = data_length = 0
+    while cursor < len(data):
+        if len(data) - cursor < 8:
+            raise ValueError("VOICE_WAV_V0 has a truncated chunk header")
+        chunk_type = data[cursor:cursor + 4]
+        chunk_size = int.from_bytes(data[cursor + 4:cursor + 8], "little")
+        content_start = cursor + 8
+        next_chunk = content_start + chunk_size + (chunk_size & 1)
+        if next_chunk > len(data):
+            raise ValueError("VOICE_WAV_V0 has truncated chunk content or padding")
+        if chunk_type == b"fmt ":
+            if fmt_seen or chunk_size < 16:
+                raise ValueError("VOICE_WAV_V0 has duplicate or truncated fmt chunk")
+            fmt_seen = True
+            fmt = data[content_start:content_start + 16]
+            code = int.from_bytes(fmt[0:2], "little")
+            channels = int.from_bytes(fmt[2:4], "little")
+            rate = int.from_bytes(fmt[4:8], "little")
+            byte_rate = int.from_bytes(fmt[8:12], "little")
+            block_align = int.from_bytes(fmt[12:14], "little")
+            bits = int.from_bytes(fmt[14:16], "little")
+            if (code != 1 or channels not in (1, 2) or not 8000 <= rate <= 48000
+                    or bits != 16 or block_align != channels * 2
+                    or byte_rate != rate * block_align):
+                raise ValueError("VOICE_WAV_V0 has unsupported PCM16 fmt metadata")
+        elif chunk_type == b"data":
+            if data_seen or not 0 < chunk_size <= MAX_VOICE_WAV_V0_BYTES:
+                raise ValueError("VOICE_WAV_V0 has duplicate or invalid data chunk")
+            data_seen = True
+            data_length = chunk_size
+        cursor = next_chunk
+    if not fmt_seen or not data_seen or data_length % block_align != 0:
+        raise ValueError("VOICE_WAV_V0 has missing or unaligned PCM data")
+    frames = data_length // block_align
+    if frames > rate * MAX_VOICE_WAV_V0_SECONDS:
+        raise ValueError("VOICE_WAV_V0 exceeds the Android duration limit")
+    return rate, channels, frames
+
+
 def _verified_wave(data: bytes, *, voice_wav_v0: bool = False) -> tuple[int, int, int]:
     if not isinstance(data, bytes) or not 44 <= len(data) <= MAX_WAV_BYTES:
         raise ValueError("renderer did not produce bounded WAV bytes")
@@ -144,6 +194,8 @@ def _verified_wave(data: bytes, *, voice_wav_v0: bool = False) -> tuple[int, int
             samples = stream.readframes(frames)
             if len(samples) != frames * channels * sample_width:
                 raise ValueError("renderer WAV PCM payload is truncated")
+            if voice_wav_v0 and _verified_voice_wav_v0_chunks(data) != (rate, channels, frames):
+                raise ValueError("VOICE_WAV_V0 PCM metadata disagrees with WAV parser")
             return rate, channels, frames
     except (EOFError, wave.Error) as exc:
         raise ValueError("renderer output is malformed WAV") from exc

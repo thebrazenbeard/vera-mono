@@ -53,6 +53,15 @@ rejects outputs outside the shared V0 intersection:
 - at most **6,000,000 bytes total RIFF/WAV**, including headers and chunks;
 - at most **30 seconds** of frames.
 
+The V0 path additionally walks every RIFF chunk instead of trusting Python's
+more permissive `wave` parser alone: it requires exactly one `fmt ` and one
+nonempty `data` chunk, consistent PCM16 byte-rate and block-alignment fields,
+aligned data length, complete chunk headers and required odd-size padding.
+Unknown well-formed chunks are permitted, as in the APK V0 consumer. This
+explicitly resolves independently found producer-accepts/consumer-rejects
+counterexamples (duplicates, bad rate/alignment, unaligned PCM and trailing
+invalid chunks); the generic non-V0 parser is not silently tightened.
+
 These checks occur **after** local synthesis, before returning a deliverable
 `SpeechWave`. They do not preflight an unknown SAPI renderer, transcode audio,
 send bytes, prove source authenticity, or authorize a receiving client. The
@@ -63,8 +72,11 @@ explicit user permission; SHA-256 is integrity metadata, not authentication.
 The six compatibility fixtures are synthetic: valid PCM16 `fmt` length 18 is
 accepted; PCM8, PCM24, 31-second PCM16 and a 6,000,012-byte otherwise-valid
 WAV are rejected by opt-in V0; a truncated WAV remains rejected regardless of
-the flag. The real, earlier Lappy SAPI sample was PCM16 mono 22,050 Hz and is
-format-compatible, but was not delivered to an APK or played through a phone.
+the flag. Additional synthetic malformed-chunk regressions and exact 30-second
+and 6,000,000-byte boundary cases prevent the earlier parser mismatch from
+silently recurring. The real, earlier Lappy SAPI sample was PCM16 mono 22,050
+Hz and is format-compatible, but was not delivered to an APK or played through
+a phone. No fixture substitutes for an Android instrumentation/device test.
 
 ## Separate responsibilities — do not conflate them
 
