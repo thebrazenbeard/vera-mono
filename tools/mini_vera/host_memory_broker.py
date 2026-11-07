@@ -36,7 +36,8 @@ class PublicMemoryGrant:
     and issue a new bounded grant after any genuine change of selected memory.
     The separate required ``current_authority_revision`` host reader must
     advance even when an issuer mistakenly reuses this grant's old epoch.
-    ``None`` from the host reader means revoked or unavailable.
+    ``None`` from the host reader means revoked or unavailable. A *separate*
+    atomic host-persisted revision floor must survive broker/process restarts.
     """
 
     project_id: str
@@ -45,6 +46,7 @@ class PublicMemoryGrant:
     revision: int
     record_ids: tuple[str, ...]
     approval_epoch: int
+    authority_revision: int
     expires_at_unix: int
 
 
@@ -66,14 +68,19 @@ def bind_host_public_memory(
     current_grant: Callable[[], PublicMemoryGrant | None],
     approve_record: Callable[["MemoryRecord", PublicMemoryGrant], bool],
     current_authority_revision: Callable[[], int] | None = None,
+    atomic_host_revision_floor: Callable[[int], int] | None = None,
     now_seconds: Callable[[], float] = time.time,
 ) -> Callable[[], tuple[dict[str, Any], bytes, int]]:
     """Create a callable suitable for ``local_session.main``'s provider.
 
     Callbacks are *trusted host dependencies*, not user/model arguments.  The
     provider obtains a fresh grant and an independently maintained durable host
-    authority revision twice during each projection, refuses drift or revocation
-    even before inference, and delegates actual record filtering
+    authority revision twice during each projection. A distinct host-owned
+    atomic floor callback MUST durably store max(previous_floor, supplied_revision)
+    and return the resulting floor; the broker requires it to equal the current
+    revision. Its persistence, authentication, and atomicity are trusted host
+    obligations, not established by this source. The broker refuses drift or
+    revocation even before inference and delegates actual record filtering
     and CAS checks to the existing ledger projection.  The local-session caller
     must still recheck the returned provider **after** inference; it does so in
     PR #201.  No active model inference is attempted by this function.
@@ -82,11 +89,12 @@ def bind_host_public_memory(
         raise CompositionRejected("trusted host grant, record policy and clock required")
     if not callable(current_authority_revision):
         raise CompositionRejected("host-owned monotonic authority revision reader required")
+    if not callable(atomic_host_revision_floor):
+        raise CompositionRejected("host-owned atomic durable authority floor required")
     if type(integrity_key) is not bytes or len(integrity_key) != 32:
         raise CompositionRejected("host integrity key must be 32 bytes")
-    # This prevents rollback of an already observed revision within the broker
-    # lifetime. It cannot attest durability across a process restart; that is
-    # an explicit obligation of the independent host issuer.
+    # The process-local check protects this instance.  The externally trusted
+    # atomic floor is what must protect fresh processes and concurrent brokers.
     revision_lock = Lock()
     highest_observed_revision = -1
 
@@ -118,6 +126,9 @@ def bind_host_public_memory(
             raise CompositionRejected("host public-memory grant scope mismatch")
         if type(grant.approval_epoch) is not int or not (0 <= grant.approval_epoch < 2**64):
             raise CompositionRejected("invalid host approval epoch")
+        if (type(grant.authority_revision) is not int
+                or not (0 <= grant.authority_revision < 2**64)):
+            raise CompositionRejected("invalid issued host grant authority revision")
         if (type(authority_revision) is not int
                 or not (0 <= authority_revision < 2**64)):
             raise CompositionRejected("invalid host authority revision")
@@ -129,7 +140,22 @@ def bind_host_public_memory(
         with revision_lock:
             if authority_revision < highest_observed_revision:
                 raise CompositionRejected("host authority revision rollback")
+            try:
+                durable_floor = atomic_host_revision_floor(authority_revision)
+            except Exception as exc:
+                raise CompositionRejected("host durable authority floor unavailable") from exc
+            if type(durable_floor) is not int or not (0 <= durable_floor < 2**64):
+                raise CompositionRejected("invalid host durable authority floor")
+            if durable_floor > authority_revision:
+                raise CompositionRejected("host authority revision rollback across broker restart")
+            if durable_floor != authority_revision:
+                raise CompositionRejected("host durable authority floor mismatch")
             highest_observed_revision = authority_revision
+        # The grant and independent revision reader are different host paths.
+        # Never elevate a stale cached grant by HMAC-rebinding it to a new
+        # authority revision. A new host-issued grant must carry that revision.
+        if grant.authority_revision != authority_revision:
+            raise CompositionRejected("host grant authority revision mismatch")
         return grant, authority_revision
 
     def resolve() -> tuple[dict[str, Any], bytes, int]:

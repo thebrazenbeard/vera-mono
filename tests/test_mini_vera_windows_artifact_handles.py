@@ -24,6 +24,15 @@ class CrossPlatformGuardTests(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(compose.CompositionRejected):
                 windows_artifact_handles._component(bad)
 
+    def test_unpaired_utf16_surrogate_is_typed_rejection(self):
+        # JSON can represent lone surrogate codepoints, but a Windows native
+        # path cannot encode them. A caller must receive the verifier's typed
+        # refusal, not a leaking UnicodeEncodeError from path preparation.
+        for bad in ("\ud800", "name\udfff.gguf"):
+            with self.subTest(bad=repr(bad)), self.assertRaises(
+                    compose.CompositionRejected):
+                windows_artifact_handles._component(bad)
+
     @unittest.skipIf(sys.platform == "win32", "native Windows path tested separately")
     def test_non_windows_native_api_refuses_without_downshift(self):
         with self.assertRaisesRegex(compose.CompositionRejected, "unsupported"):

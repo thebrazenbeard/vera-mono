@@ -30,7 +30,11 @@ def _component(name: str) -> None:
             or any(c in name for c in "/\\:\0") or name.endswith((" ", "."))
             or name.split(".", 1)[0].upper() in _RESERVED):
         raise CompositionRejected("unsafe Windows model path component")
-    if len(name.encode("utf-16-le")) > 510:
+    try:
+        name_bytes = name.encode("utf-16-le")
+    except UnicodeEncodeError as exc:
+        raise CompositionRejected("unsafe Windows model path component") from exc
+    if len(name_bytes) > 510:
         raise CompositionRejected("Windows model path component too long")
 
 

@@ -76,9 +76,13 @@ class MemoryStoreAdapterTests(unittest.TestCase):
         self.preapproved = True
         self.approved_records = True
         self.authority_revision = 25
+        # Test-only host high-water state survives new provider/broker objects.
+        # The actual host must provide an independently durable atomic store.
+        self.host_revision_floor = -1
         self.current_grant = PublicMemoryGrant(
             project_id="vera-mono", identity_id="vera", ledger_head=HEAD,
             revision=7, record_ids=("mem-public-1",), approval_epoch=3,
+            authority_revision=25,
             expires_at_unix=2_000_000_000)
         self.id_approval_calls = []
         self.record_approval_calls = []
@@ -107,10 +111,15 @@ class MemoryStoreAdapterTests(unittest.TestCase):
             self.record_approval_calls.append((record.record_id, grant.approval_epoch))
             return self.approved_records is True
 
+        def synthetic_host_floor(revision):
+            self.host_revision_floor = max(self.host_revision_floor, revision)
+            return self.host_revision_floor
+
         return bind_host_public_memory(
             self.adapter(), integrity_key=KEY,
             current_grant=lambda: self.current_grant,
             current_authority_revision=lambda: self.authority_revision,
+            atomic_host_revision_floor=synthetic_host_floor,
             approve_record=record_approval,
             now_seconds=lambda: 1_999_999_700)
 
@@ -193,6 +202,7 @@ class MemoryStoreAdapterTests(unittest.TestCase):
         self.current_grant = PublicMemoryGrant(
             project_id="vera-mono", identity_id="vera", ledger_head="b" * 64,
             revision=7, record_ids=("mem-public-1",), approval_epoch=3,
+            authority_revision=25,
             expires_at_unix=2_000_000_000)
         with self.assertRaisesRegex(compose.CompositionRejected, "head drift"):
             self.provider()()

@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from tests.test_mini_vera_loopback import FakeLocal, candidate
 from tests.test_mini_vera_withheld_dialogue import synthetic_scenario
@@ -421,6 +422,192 @@ class MiniVeraQualificationWorkflowTests(unittest.TestCase):
                     post_rating_receipt_commitments=rating_manifest,
                     expected_post_rating_receipt_commitment_sha256=rating_digest,
                 )
+
+    def test_pinned_aborted_receipt_cannot_be_hidden_as_not_attempted(self):
+        with tempfile.TemporaryDirectory() as temp:
+            _, schedule, ledger = make_setup(Path(temp), n=1, aborted=True, unattempted=True)
+            aborted = next(row for row in ledger["cases"] if row["status"] == "ABORTED")
+            receipt = json.loads(Path(aborted["private_receipt_path"]).read_text())
+            external = {
+                "schema": "MINI_VERA_EXTERNAL_ABORTED_RECEIPT_COMMITMENTS_V1",
+                "schedule_sha256": loopback.sha256(loopback.canonical(schedule)),
+                "aborted_receipt_sha256_by_case": {
+                    aborted["case_id"]: loopback.sha256(loopback.canonical(receipt)),
+                },
+            }
+            digest = loopback.sha256(loopback.canonical(external))
+            kwargs = {
+                "aborted_receipt_commitments": external,
+                "expected_aborted_receipt_commitment_sha256": digest,
+            }
+            original = workflow.aggregate(schedule, ledger, **kwargs)
+            self.assertEqual(original["denominator"]["aborted"], 1)
+            self.assertEqual(original["denominator"]["attempted"], 2)
+            self.assertEqual(original["external_aborted_attempt_custody"]["commitment_sha256"], digest)
+
+            downgraded = deepcopy(ledger)
+            downgraded["cases"] = [
+                {"case_id": row["case_id"], "status": "NOT_ATTEMPTED"}
+                if row["case_id"] == aborted["case_id"] else row
+                for row in downgraded["cases"]
+            ]
+            # Without this independently held digest, a legitimate attempted
+            # trial silently vanishes from the attempted denominator.
+            self.assertEqual(workflow.aggregate(schedule, downgraded)
+                             ["denominator"]["attempted"], 1)
+            with self.assertRaises(loopback.LoopbackRejected):
+                workflow.aggregate(schedule, downgraded, **kwargs)
+
+            tampered = deepcopy(ledger)
+            path = Path(aborted["private_receipt_path"])
+            receipt["calls_attempted_observed"] = 2
+            write_json(path, receipt)
+            with self.assertRaises(loopback.LoopbackRejected):
+                workflow.aggregate(schedule, tampered, **kwargs)
+
+            # The manifest is an exact case-set pin, not a loosely advisory
+            # hash. Omitting it, changing the schedule or inventing a case
+            # must never be interpreted as independent external custody.
+            with self.assertRaises(loopback.LoopbackRejected):
+                workflow.aggregate(schedule, ledger, aborted_receipt_commitments=external)
+            with self.assertRaises(loopback.LoopbackRejected):
+                workflow.aggregate(
+                    schedule, ledger,
+                    expected_aborted_receipt_commitment_sha256=digest,
+                )
+            forged = deepcopy(external)
+            forged["aborted_receipt_sha256_by_case"] = {
+                "foreign-case": loopback.sha256(loopback.canonical(receipt))}
+            with self.assertRaises(loopback.LoopbackRejected):
+                workflow.aggregate(
+                    schedule, ledger,
+                    aborted_receipt_commitments=forged,
+                    expected_aborted_receipt_commitment_sha256=loopback.sha256(
+                        loopback.canonical(forged)),
+                )
+
+            # Exercise the actual CLI import and exclusive output seam as
+            # well as the in-process aggregate call.
+            restored = dict(receipt, calls_attempted_observed=1)
+            write_json(path, restored)
+            folder = Path(temp)
+            sources = ((folder / "sched.json", schedule),
+                       (folder / "ledger.json", ledger),
+                       (folder / "aborted-pins.json", external))
+            for file, contents in sources:
+                write_json(file, contents)
+            output = folder / "aborted-result.json"
+            with redirect_stdout(StringIO()):
+                self.assertEqual(workflow.main([
+                    "aggregate", "--schedule", str(sources[0][0]),
+                    "--result-ledger", str(sources[1][0]),
+                    "--aborted-receipt-commitments", str(sources[2][0]),
+                    "--expected-aborted-receipt-commitment-sha256", digest,
+                    "--output", str(output),
+                ]), 0)
+            self.assertEqual(json.loads(output.read_text())
+                             ["external_aborted_attempt_custody"]["commitment_sha256"], digest)
+
+    def test_external_path_checked_then_swapped_to_repository_symlink_is_rejected(self):
+        # Reproduces the real _external -> _read TOCTOU gap: a previously
+        # approved external path is no longer safe at open time. The file
+        # descriptor must bind the read to the eventual actual target, and
+        # the source-repository exclusion must apply to that target too.
+        with tempfile.TemporaryDirectory() as temp:
+            candidate_path = Path(temp) / "external-data.json"
+            write_json(candidate_path, {"schema": "EXTERNAL_FIXTURE"})
+            checked_path = workflow._external(candidate_path)
+            self.assertEqual(workflow._read(checked_path, workflow.MAX_MANIFEST_BYTES)
+                             ["schema"], "EXTERNAL_FIXTURE")
+            candidate_path.unlink()
+            try:
+                candidate_path.symlink_to(workflow.ROOT / "architecture" /
+                                          "VERA_MONO_MANIFEST_V1.json")
+            except (OSError, NotImplementedError) as exc:
+                if getattr(exc, "winerror", None) in (5, 1314):
+                    self.skipTest("Windows symlink privilege unavailable")
+                raise
+            # An operator-supplied external path cannot be trusted after
+            # a check even when the replacement is syntactically valid JSON.
+            with self.assertRaises(loopback.LoopbackRejected):
+                workflow._read(checked_path, workflow.MAX_MANIFEST_BYTES)
+
+    def test_scenario_uses_descriptor_witness_not_path_reopen(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            scenario = synthetic_scenario()
+            source_path = folder / "human-case.json"
+            write_json(source_path, scenario)
+            manifest = {"schema": "MINI_VERA_EXTERNAL_CASE_LIST_V1", "cases": [
+                {"case_id": scenario["case_id"], "scenario_path": str(source_path)}]}
+            # Before the fix, this path-only reader was the very mechanism
+            # permitting a swap after _external. The hardened scheduler must
+            # validate the dict obtained from its pinned descriptor.
+            with patch.object(withheld_dialogue, "load_scenario",
+                              side_effect=AssertionError("unsafe pathname reopen")):
+                schedule = workflow.prepare_schedule(manifest, secret_seed=b"K" * 32)
+            self.assertEqual(len(schedule["cases_in_randomized_order"]), 1)
+
+    def test_seed_and_output_use_descriptors_not_path_readback(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            scenario = synthetic_scenario()
+            source_path = folder / "external-case.json"
+            write_json(source_path, scenario)
+            manifest_path = folder / "manifest.json"
+            write_json(manifest_path, {"schema": "MINI_VERA_EXTERNAL_CASE_LIST_V1",
+                                       "cases": [{"case_id": scenario["case_id"],
+                                                  "scenario_path": str(source_path)}]})
+            seed_path = folder / "seed.bin"
+            seed_path.write_bytes(b"S" * 32)
+            output = folder / "private-schedule.json"
+            original_read_bytes = Path.read_bytes
+
+            def reject_unpinned_reads(path):
+                if path in (seed_path, output):
+                    raise AssertionError("unsafe pathname reread")
+                return original_read_bytes(path)
+
+            with patch.object(Path, "read_bytes", reject_unpinned_reads):
+                with redirect_stdout(StringIO()):
+                    self.assertEqual(workflow.main([
+                        "schedule", "--case-list", str(manifest_path),
+                        "--secret-seed-file", str(seed_path),
+                        "--output", str(output),
+                    ]), 0)
+            self.assertEqual(json.loads(output.read_text())
+                             ["schema"], "MINI_VERA_PRIVATE_CASE_SCHEDULE_V1")
+
+    def test_external_output_parent_swap_is_rejected_before_creation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            allowed = folder / "allowed"
+            moved = folder / "moved"
+            attacker_target = folder / "attacker-target"
+            allowed.mkdir()
+            attacker_target.mkdir()
+            output = allowed / "result.json"
+            original_external = workflow._external
+
+            def swap_after_check(candidate):
+                checked = original_external(candidate)
+                if candidate == output:
+                    allowed.rename(moved)
+                    try:
+                        allowed.symlink_to(attacker_target, target_is_directory=True)
+                    except (OSError, NotImplementedError) as exc:
+                        if getattr(exc, "winerror", None) in (5, 1314):
+                            self.skipTest("Windows symlink privilege unavailable")
+                        raise
+                return checked
+
+            # Old absolute O_EXCL creation would place result.json in the
+            # attacker-target directory. The new parent-handle-relative
+            # creation rejects the changed final parent before writing.
+            with patch.object(workflow, "_external", swap_after_check):
+                with self.assertRaises(loopback.LoopbackRejected):
+                    workflow._exclusive_output(output, {"schema": "OUTPUT_SWAP_TEST"})
+            self.assertFalse((attacker_target / "result.json").exists())
 
 
 if __name__ == "__main__":

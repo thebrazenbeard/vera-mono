@@ -147,6 +147,17 @@ class PreflightTests(unittest.TestCase):
                             allow_cold_load=True)
         self.assertEqual(["/api/tags", "/api/ps"], paths)
 
+    def test_ram_drop_during_read_only_inventory_fails_closed(self):
+        # /api/tags and /api/ps can each consume the bounded HTTP deadline;
+        # the initial memory sample alone is stale by the decision point.
+        tags, ps = inventory()
+        getter, paths = fake_getter(tags, ps)
+        samples = iter((5 * preflight.GIB, 500 * 1024 ** 2))
+        with self.assertRaisesRegex(preflight.PreflightRefused, "insufficient free"):
+            preflight.probe(memory_probe=lambda: next(samples), get_json=getter,
+                            allow_cold_load=True)
+        self.assertEqual(["/api/tags", "/api/ps"], paths)
+
     def test_foreign_resident_model_refuses_even_if_ram_abundant(self):
         tags, ps = inventory(resident=True, foreign=True)
         getter, _ = fake_getter(tags, ps)

@@ -84,6 +84,34 @@ class SemanticSurfaceTrialTests(unittest.TestCase):
                             for record in report["masked_by_label"].values()))
         self.assertIn("NO_INDEPENDENT_RATER_OR_BEHAVIORAL_QUALIFICATION", report["limits"])
 
+    def test_boilerplate_repetition_is_visible_even_when_all_literal_probes_pass(self):
+        # A fake model ignores the correction and supplies the same stock
+        # paragraph on every turn. The raw probe count is still lexical-only,
+        # but must not hide the observed response repetition.
+        sheet, key = self._receipt(text=SYNTHETIC_REPLY)
+        report = semantic_trials.score_completed(self.request, self.scenario,
+                                                 self.instrument, sheet, key)
+        for record in report["masked_by_label"].values():
+            self.assertEqual(record["passed"], 6)
+            diagnostics = record["surface_diagnostics"]
+            self.assertEqual(diagnostics["verbatim_repeated_answer_turn_pairs"], [[1, 2]])
+            self.assertIn("REPEATED_VERBATIM_ANSWER_DIFFERENT_TURNS", diagnostics["warnings"])
+        self.assertIn("SURFACE_DIAGNOSTICS_ARE_NOT_SEMANTIC_VERDICTS", report["limits"])
+
+    def test_positive_literal_copied_from_user_prompt_is_flagged_as_contamination_risk(self):
+        instrument = deepcopy(self.instrument)
+        # The correction turn already includes this word, so a responder can
+        # trivially parrot it and obtain a positive lexical observation.
+        instrument["rules"][0]["literals"] = ["Correction"]
+        sheet, key = self._receipt()
+        report = semantic_trials.score_completed(self.request, self.scenario,
+                                                 instrument, sheet, key)
+        for record in report["masked_by_label"].values():
+            self.assertEqual(record["passed"], 6)
+            diagnostics = record["surface_diagnostics"]
+            self.assertIn("correction", diagnostics["positive_rule_ids_present_in_user_turn"])
+            self.assertIn("POSITIVE_LITERAL_PRESENT_IN_USER_TURN", diagnostics["warnings"])
+
     def test_tampered_answer_and_missing_arm_fail_before_scoring(self):
         sheet, key = self._receipt()
         corrupted = deepcopy(sheet)

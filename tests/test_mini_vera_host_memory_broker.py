@@ -6,6 +6,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import replace
 import io
 from pathlib import Path
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -33,10 +34,18 @@ class HostMemoryBrokerTests(unittest.TestCase):
         self.grant = PublicMemoryGrant(
             project_id="vera-mono", identity_id="vera", ledger_head=head,
             revision=13, record_ids=("work-1",), approval_epoch=1,
+            authority_revision=10,
             expires_at_unix=1_000_600)
         self.permission = {"grant": self.grant, "allow_record": True,
                            "authority_revision": 10}
         self.seen_records = []
+        self.host_floor = -1
+
+    def atomic_host_floor(self, revision):
+        # Synthetic host custody retained across newly created broker instances.
+        # Production must supply a separately authenticated, durable atomic CAS.
+        self.host_floor = max(self.host_floor, revision)
+        return self.host_floor
 
     def broker(self):
         def record_policy(record, grant):
@@ -49,6 +58,7 @@ class HostMemoryBrokerTests(unittest.TestCase):
             self.ledger, integrity_key=KEY,
             current_grant=lambda: self.permission["grant"],
             current_authority_revision=lambda: self.permission["authority_revision"],
+            atomic_host_revision_floor=self.atomic_host_floor,
             approve_record=record_policy,
             now_seconds=lambda: 1_000_000)
 
@@ -104,6 +114,7 @@ class HostMemoryBrokerTests(unittest.TestCase):
             self.ledger, integrity_key=KEY,
             current_grant=changing_grant,
             current_authority_revision=lambda: 10,
+            atomic_host_revision_floor=self.atomic_host_floor,
             approve_record=lambda record, grant: record.record_id == "work-1",
             now_seconds=lambda: 1_000_000)
         with self.assertRaisesRegex(CompositionRejected, "revoked"):
@@ -122,6 +133,7 @@ class HostMemoryBrokerTests(unittest.TestCase):
             self.ledger, integrity_key=KEY,
             current_grant=changing_grant,
             current_authority_revision=lambda: 10,
+            atomic_host_revision_floor=self.atomic_host_floor,
             approve_record=lambda record, grant: True,
             now_seconds=lambda: 1_000_000)
         with self.assertRaisesRegex(CompositionRejected, "changed during projection"):
@@ -141,15 +153,38 @@ class HostMemoryBrokerTests(unittest.TestCase):
                 with self.assertRaisesRegex(CompositionRejected, "authority revision"):
                     provider()
 
+    def test_host_durable_floor_required_and_invalid_attestation_rejected(self):
+        with self.assertRaisesRegex(CompositionRejected, "atomic durable authority floor required"):
+            bind_host_public_memory(
+                self.ledger, integrity_key=KEY,
+                current_grant=lambda: self.grant,
+                current_authority_revision=lambda: 10,
+                approve_record=lambda _record, _grant: True,
+                now_seconds=lambda: 1_000_000)
+        for bad in (None, True, -1, 2**64, "10", 9, 11):
+            with self.subTest(bad=bad):
+                provider = bind_host_public_memory(
+                    self.ledger, integrity_key=KEY,
+                    current_grant=lambda: self.grant,
+                    current_authority_revision=lambda: 10,
+                    atomic_host_revision_floor=lambda _: bad,
+                    approve_record=lambda _record, _grant: True,
+                    now_seconds=lambda: 1_000_000)
+                with self.assertRaisesRegex(CompositionRejected, "durable authority floor|rollback"):
+                    provider()
+
     def test_host_authority_revision_changes_during_projection_are_refused(self):
         def changing_policy(_record, _grant):
             self.permission["authority_revision"] += 1
+            self.permission["grant"] = replace(
+                self.grant, authority_revision=self.permission["authority_revision"])
             return True
 
         provider = bind_host_public_memory(
             self.ledger, integrity_key=KEY,
             current_grant=lambda: self.permission["grant"],
             current_authority_revision=lambda: self.permission["authority_revision"],
+            atomic_host_revision_floor=self.atomic_host_floor,
             approve_record=changing_policy, now_seconds=lambda: 1_000_000)
         with self.assertRaisesRegex(CompositionRejected, "changed during projection"):
             provider()
@@ -160,6 +195,122 @@ class HostMemoryBrokerTests(unittest.TestCase):
         self.permission["authority_revision"] = 9
         with self.assertRaisesRegex(CompositionRejected, "rollback"):
             provider()
+
+    def test_broker_recreation_must_not_reaccept_an_older_host_revision(self):
+        # A fresh broker object is equivalent to restarting the Python process:
+        # an in-process max starts at -1 and cannot protect the new process.
+        prior_process = self.broker()
+        prior_process()
+        self.permission["authority_revision"] = 11
+        self.permission["grant"] = replace(self.grant, authority_revision=11)
+        prior_process()
+        self.permission["authority_revision"] = 10
+        self.permission["grant"] = self.grant
+        with self.assertRaisesRegex(CompositionRejected, "rollback"):
+            self.broker()()
+
+    def test_host_owned_floor_survives_discarded_broker_and_store_reopen(self):
+        # The following SQLite table is a *synthetic host custody fixture*, not
+        # an authorization provider installed in Vera. Distinct connections
+        # model the protected state surviving independent process lifetimes.
+        floor_path = self.folder / "host-floor-test.sqlite"
+
+        def open_atomic_floor():
+            connection = sqlite3.connect(floor_path)
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS authority_floor ("
+                "id INTEGER PRIMARY KEY CHECK (id = 1), revision INTEGER NOT NULL)")
+
+            def advance(revision):
+                connection.execute("BEGIN IMMEDIATE")
+                try:
+                    connection.execute(
+                        "INSERT INTO authority_floor (id, revision) VALUES (1, ?) "
+                        "ON CONFLICT(id) DO UPDATE SET revision = "
+                        "max(authority_floor.revision, excluded.revision)",
+                        (revision,))
+                    floor = connection.execute(
+                        "SELECT revision FROM authority_floor WHERE id = 1").fetchone()[0]
+                    connection.commit()
+                except BaseException:
+                    connection.rollback()
+                    raise
+                return floor
+
+            return connection, advance
+
+        first_connection, first_floor = open_atomic_floor()
+        try:
+            provider = bind_host_public_memory(
+                self.ledger, integrity_key=KEY,
+                current_grant=lambda: self.permission["grant"],
+                current_authority_revision=lambda: self.permission["authority_revision"],
+                atomic_host_revision_floor=first_floor,
+                approve_record=lambda record, _grant: record.record_id == "work-1",
+                now_seconds=lambda: 1_000_000)
+            provider()
+            self.permission["authority_revision"] = 11
+            self.permission["grant"] = replace(self.grant, authority_revision=11)
+            provider()
+        finally:
+            first_connection.close()
+
+        # Reopen the durable fixture as a distinct host callback; the broker
+        # itself has no retained Python state from the prior producer.
+        second_connection, second_floor = open_atomic_floor()
+        try:
+            self.permission["authority_revision"] = 10
+            self.permission["grant"] = self.grant
+            provider_after_restart = bind_host_public_memory(
+                self.ledger, integrity_key=KEY,
+                current_grant=lambda: self.permission["grant"],
+                current_authority_revision=lambda: self.permission["authority_revision"],
+                atomic_host_revision_floor=second_floor,
+                approve_record=lambda record, _grant: record.record_id == "work-1",
+                now_seconds=lambda: 1_000_000)
+            with self.assertRaisesRegex(CompositionRejected, "rollback"):
+                provider_after_restart()
+            self.permission["authority_revision"] = 12
+            self.permission["grant"] = replace(self.grant, authority_revision=12)
+            provider_after_restart()  # new forward revision is allowed
+        finally:
+            second_connection.close()
+
+    def test_unavailable_host_floor_fails_closed_without_leaking_exception(self):
+        def failed_floor(_revision):
+            raise RuntimeError("host-private-persistence-location")
+
+        provider = bind_host_public_memory(
+            self.ledger, integrity_key=KEY,
+            current_grant=lambda: self.grant,
+            current_authority_revision=lambda: 10,
+            atomic_host_revision_floor=failed_floor,
+            approve_record=lambda _record, _grant: True,
+            now_seconds=lambda: 1_000_000)
+        with self.assertRaisesRegex(CompositionRejected, "durable authority floor unavailable") as failure:
+            provider()
+        self.assertNotIn("host-private", str(failure.exception))
+
+    def test_stale_cached_grant_cannot_be_rebound_to_new_revision(self):
+        # Independent host reader advanced on revoke, but cached grant issuer
+        # still returns a prior authorized grant: this must fail before use.
+        provider = self.broker()
+        prior = provider()[0]
+        self.permission["authority_revision"] = 11
+        with self.assertRaisesRegex(CompositionRejected, "grant authority revision mismatch"):
+            provider()
+        # A newly minted decision at rev11 is usable even with the unchanged
+        # PUBLIC records and approval epoch, but has a different HMAC binding.
+        self.permission["grant"] = replace(self.grant, authority_revision=11)
+        updated = provider()[0]
+        self.assertNotEqual(prior["hmac_sha256"], updated["hmac_sha256"])
+
+    def test_issued_revision_type_and_range_must_be_exact(self):
+        for bad in (None, True, -1, 2**64, "10"):
+            with self.subTest(bad=bad):
+                self.permission["grant"] = replace(self.grant, authority_revision=bad)
+                with self.assertRaisesRegex(CompositionRejected, "issued host grant authority revision"):
+                    self.broker()()
 
     def test_mutable_record_ids_list_is_rejected_before_callback_can_change_it(self):
         # A frozen dataclass only freezes the reference, not a nested list.
@@ -177,6 +328,7 @@ class HostMemoryBrokerTests(unittest.TestCase):
             self.ledger, integrity_key=KEY,
             current_grant=lambda: invalid_grant,
             current_authority_revision=lambda: 10,
+            atomic_host_revision_floor=self.atomic_host_floor,
             approve_record=hostile_policy,
             now_seconds=lambda: 1_000_000)
         with self.assertRaisesRegex(CompositionRejected, "immutable and exact"):
@@ -197,6 +349,7 @@ class HostMemoryBrokerTests(unittest.TestCase):
             self.ledger, integrity_key=KEY,
             current_grant=lambda: grant,
             current_authority_revision=lambda: 10,
+            atomic_host_revision_floor=self.atomic_host_floor,
             approve_record=hostile_policy,
             now_seconds=lambda: 1_000_000)
         with self.assertRaisesRegex(CompositionRejected, "changed during projection"):
@@ -241,7 +394,9 @@ class HostMemoryBrokerTests(unittest.TestCase):
                 result = original_execute(request, **kwargs)
                 self.permission["grant"] = None
                 self.permission["authority_revision"] += 1
-                self.permission["grant"] = self.grant  # identical epoch, IDs, expiry, head
+                self.permission["grant"] = replace(
+                    self.grant, authority_revision=self.permission["authority_revision"])
+                # Identical epoch/IDs/expiry/head, new host-minted authority rev.
                 return result
 
             from unittest.mock import patch
@@ -292,6 +447,7 @@ class HostMemoryBrokerTests(unittest.TestCase):
             self.ledger, integrity_key=KEY,
             current_grant=lambda: self.grant,
             current_authority_revision=lambda: 10,
+            atomic_host_revision_floor=self.atomic_host_floor,
             approve_record=sensitive_record_policy,
             now_seconds=lambda: 1_000_000)
         errors = io.StringIO()

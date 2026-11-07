@@ -185,6 +185,12 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
     for label in ("A", "B", "C"):
         results = []
         outputs = sheet["transcripts_by_masked_label"][label]
+        repeated_pairs = [
+            [left + 1, right + 1]
+            for left in range(len(outputs)) for right in range(left + 1, len(outputs))
+            if _surface(outputs[left]["answer"]) == _surface(outputs[right]["answer"])
+        ]
+        prompt_overlap_rule_ids = []
         for rule in instrument["rules"]:
             answer = _surface(outputs[rule["turn"] - 1]["answer"])
             matches = [_surface(term) in answer for term in rule["literals"]]
@@ -192,10 +198,25 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
             passed = (any(matches) if predicate == "REQUIRE_ANY_LITERAL"
                       else all(matches) if predicate == "REQUIRE_ALL_LITERALS"
                       else not any(matches))
+            if predicate != "FORBID_ANY_LITERAL" and passed:
+                prompt = _surface(questions[rule["turn"] - 1])
+                if any(match and _surface(term) in prompt
+                       for term, match in zip(rule["literals"], matches)):
+                    # A required literal already supplied by the user's turn
+                    # is not independent response evidence. This is an
+                    # objective overlap warning, not a plagiarism judgment.
+                    prompt_overlap_rule_ids.append(rule["rule_id"])
             results.append({"rule_id": rule["rule_id"], "dimension": rule["dimension"],
                             "turn": rule["turn"], "literal_surface_match": passed})
+        diagnostics = {
+            "verbatim_repeated_answer_turn_pairs": repeated_pairs,
+            "positive_rule_ids_present_in_user_turn": prompt_overlap_rule_ids,
+            "warnings": (["REPEATED_VERBATIM_ANSWER_DIFFERENT_TURNS"] if repeated_pairs else [])
+            + (["POSITIVE_LITERAL_PRESENT_IN_USER_TURN"] if prompt_overlap_rule_ids else []),
+        }
         by_label[label] = {"passed": sum(x["literal_surface_match"] for x in results),
-                           "total": len(results), "rules": results}
+                           "total": len(results), "rules": results,
+                           "surface_diagnostics": diagnostics}
     return {
         "schema": "MINI_VERA_MASKED_SURFACE_INDICATOR_REPORT_V1",
         "status": "LEXICAL_INDICATORS_ONLY_NOT_SEMANTIC_QUALIFICATION",
@@ -214,6 +235,7 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
             "SOURCE_RECEIPTS_ARE_SELF_CONSISTENT_NOT_HOST_OR_WEIGHT_ATTESTED",
             "NO_INDEPENDENT_RATER_OR_BEHAVIORAL_QUALIFICATION",
             "ARM_MAPPING_REMAINS_IN_SEPARATE_PRIVATE_KEY",
+            "SURFACE_DIAGNOSTICS_ARE_NOT_SEMANTIC_VERDICTS",
         ],
     }
 

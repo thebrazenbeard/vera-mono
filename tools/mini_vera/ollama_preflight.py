@@ -127,6 +127,14 @@ def probe(*, endpoint: str = DEFAULT_ENDPOINT, model: str = DEFAULT_MODEL,
         raise PreflightRefused("invalid host free-memory reading")
     tags = get_json(host, port, "/api/tags")
     resident = get_json(host, port, "/api/ps")
+    # Both inventory GETs have bounded, but nonzero, network deadlines. The
+    # initial RAM reading can be stale after them; require the lower of two
+    # independent physical-memory observations before returning readiness.
+    # This narrows TOCTOU; it is still neither a lease nor execution authority.
+    latest_available = memory_probe()
+    if type(latest_available) is not int or latest_available < 0:
+        raise PreflightRefused("invalid host free-memory reading")
+    available = min(available, latest_available)
     tag = _model_entry(tags, "models", model)
     if tag is None:
         raise PreflightRefused("selected Ollama model not installed")

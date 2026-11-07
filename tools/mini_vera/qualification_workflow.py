@@ -15,6 +15,8 @@ import math
 import os
 from pathlib import Path
 import random
+import stat
+import sys
 from typing import Any
 
 if __package__:
@@ -41,13 +43,68 @@ def _external(path: Path) -> Path:
     return path
 
 
-def _read(path: Path, maximum: int) -> dict[str, Any]:
-    if not path.is_file() or path.stat().st_size > maximum:
-        raise loopback.LoopbackRejected("missing or oversized external evaluation file")
-    raw = path.read_bytes()
+def _opened_final_path(fd: int) -> Path:
+    """Identify the *opened file*, not a separately resolved pathname.
+
+    On Windows the handle is the authority: GetFinalPathNameByHandleW returns
+    the actual DOS target after reparse resolution. On Linux /proc/self/fd
+    names the opened inode. Other platforms fail closed until a comparable
+    native handle witness exists. This prevents a path accepted by _external
+    from being replaced with an in-repository symlink before _read opens it.
+    """
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        import msvcrt
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        method = kernel.GetFinalPathNameByHandleW
+        method.argtypes = [wintypes.HANDLE, wintypes.LPWSTR, wintypes.DWORD, wintypes.DWORD]
+        method.restype = wintypes.DWORD
+        buffer = ctypes.create_unicode_buffer(32_768)
+        length = method(msvcrt.get_osfhandle(fd), buffer, len(buffer), 0)
+        final = buffer.value
+        # Reject UNC/device/volume-identifier inputs until their containment
+        # relationship can be established as strongly as the DOS drive case.
+        if not length or length >= len(buffer) or not final.startswith("\\\\?\\") or \
+                final.startswith("\\\\?\\UNC\\"):
+            raise loopback.LoopbackRejected("Windows external file handle path not attestable")
+        return Path(final[4:])
+    if sys.platform.startswith("linux"):
+        final = os.readlink(f"/proc/self/fd/{fd}")
+        if not final.startswith("/") or final.endswith(" (deleted)"):
+            raise loopback.LoopbackRejected("Linux external file handle path not attestable")
+        return Path(final)
+    raise loopback.LoopbackRejected("no supported native external-file witness")
+
+
+def _read_bytes(path: Path, maximum: int) -> bytes:
+    """Read bounded bytes from one descriptor after final-target provenance."""
+    fd = -1
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_BINARY", 0))
+        details = os.fstat(fd)
+        if not stat.S_ISREG(details.st_mode) or details.st_size > maximum:
+            raise loopback.LoopbackRejected("missing or oversized external evaluation file")
+        final_path = _opened_final_path(fd)
+        if not final_path.is_absolute() or final_path.is_relative_to(ROOT):
+            raise loopback.LoopbackRejected("opened external evaluation file resolves into source repository")
+        # Descriptor stays open through the read; pathname replacement after
+        # the final-target check cannot redirect these bytes.
+        with os.fdopen(fd, "rb", closefd=False) as handle:
+            raw = handle.read(maximum + 1)
+    except OSError as exc:
+        raise loopback.LoopbackRejected("external evaluation file cannot be read safely") from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
     if len(raw) > maximum:
         raise loopback.LoopbackRejected("oversized external evaluation file")
-    return loopback._parse_object(raw)
+    return raw
+
+
+def _read(path: Path, maximum: int) -> dict[str, Any]:
+    return loopback._parse_object(_read_bytes(path, maximum))
 
 
 def _hex64(value: Any) -> str:
@@ -73,7 +130,9 @@ def prepare_schedule(manifest: dict[str, Any], *, secret_seed: bytes) -> dict[st
             raise loopback.LoopbackRejected("invalid external case locator")
         if type(row["scenario_path"]) is not str or not row["scenario_path"]:
             raise loopback.LoopbackRejected("scenario path required")
-        scenario = withheld_dialogue.load_scenario(_external(Path(row["scenario_path"])))
+        scenario = withheld_dialogue.validate_scenario(
+            _read(_external(Path(row["scenario_path"])), withheld_dialogue.MAX_SCENARIO_BYTES)
+        )
         case_id = scenario["case_id"]
         if row["case_id"] != case_id or case_id in seen:
             raise loopback.LoopbackRejected("duplicate or mismatched case ID")
@@ -225,11 +284,44 @@ def _external_rating_commitments(
     return pinned
 
 
+def _external_aborted_receipt_commitments(
+    schedule: dict[str, Any], scheduled_case_ids: set[str], *,
+    commitment: dict[str, Any] | None, expected_sha256: str | None,
+) -> dict[str, str] | None:
+    """Check a caller-supplied external pin for observed aborted attempts.
+
+    Unlike completed trial key commitments, this protects the attempted-case
+    denominator when an ABORTED receipt is later deleted from a mutable ledger.
+    The caller must hold the expected digest outside the mutable ledger; these
+    checks cannot attest independent custody, time or observed model calls.
+    """
+    if commitment is None and expected_sha256 is None:
+        return None
+    if type(commitment) is not dict or expected_sha256 is None:
+        raise loopback.LoopbackRejected("external aborted receipts and pinned SHA required together")
+    if loopback.sha256(loopback.canonical(commitment)) != _hex64(expected_sha256):
+        raise loopback.LoopbackRejected("external aborted receipt commitment drift")
+    if (set(commitment) != {"schema", "schedule_sha256", "aborted_receipt_sha256_by_case"}
+            or commitment["schema"] != "MINI_VERA_EXTERNAL_ABORTED_RECEIPT_COMMITMENTS_V1"
+            or commitment["schedule_sha256"] != loopback.sha256(loopback.canonical(schedule))):
+        raise loopback.LoopbackRejected("external aborted receipt schedule mismatch")
+    pinned = commitment["aborted_receipt_sha256_by_case"]
+    if (type(pinned) is not dict or not set(pinned).issubset(scheduled_case_ids)
+            or any(type(case_id) is not str or type(digest) is not str
+                   for case_id, digest in pinned.items())):
+        raise loopback.LoopbackRejected("invalid external aborted receipt case inventory")
+    for digest in pinned.values():
+        _hex64(digest)
+    return pinned
+
+
 def aggregate(schedule: dict[str, Any], ledger: dict[str, Any], *,
               pre_rating_key_commitments: dict[str, Any] | None = None,
               expected_pre_rating_key_commitment_sha256: str | None = None,
               post_rating_receipt_commitments: dict[str, Any] | None = None,
-              expected_post_rating_receipt_commitment_sha256: str | None = None) -> dict[str, Any]:
+              expected_post_rating_receipt_commitment_sha256: str | None = None,
+              aborted_receipt_commitments: dict[str, Any] | None = None,
+              expected_aborted_receipt_commitment_sha256: str | None = None) -> dict[str, Any]:
     if (type(schedule) is not dict
             or schedule.get("schema") != "MINI_VERA_PRIVATE_CASE_SCHEDULE_V1"
             or type(schedule.get("cases_in_randomized_order")) is not list):
@@ -252,6 +344,10 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any], *,
     pinned_ratings = _external_rating_commitments(
         schedule, set(scheduled_by_id), commitment=post_rating_receipt_commitments,
         expected_sha256=expected_post_rating_receipt_commitment_sha256,
+    )
+    pinned_aborts = _external_aborted_receipt_commitments(
+        schedule, set(scheduled_by_id), commitment=aborted_receipt_commitments,
+        expected_sha256=expected_aborted_receipt_commitment_sha256,
     )
     if (type(ledger) is not dict or set(ledger) != {"schema", "schedule_sha256", "cases"}
             or ledger["schema"] != "MINI_VERA_EXTERNAL_RESULT_LEDGER_V1"
@@ -280,6 +376,12 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any], *,
             raise loopback.LoopbackRejected(
                 "externally committed rated case must remain COMPLETED in result ledger"
             )
+    aborted_ids = {case_id for case_id, row in results.items()
+                   if row.get("status") == "ABORTED"}
+    if pinned_aborts is not None and set(pinned_aborts) != aborted_ids:
+        raise loopback.LoopbackRejected(
+            "externally committed aborted receipt must remain ABORTED in result ledger"
+        )
 
     counts = {"scheduled": len(scheduled), "attempted": 0, "completed": 0,
               "aborted": 0, "not_attempted": 0, "fully_human_rated": 0}
@@ -294,6 +396,9 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any], *,
             continue
         if status == "ABORTED" and set(row) == {"case_id", "status", "private_receipt_path"}:
             receipt = _read(_external(Path(row["private_receipt_path"])), MAX_TRIAL_BYTES)
+            if (pinned_aborts is not None and
+                    loopback.sha256(loopback.canonical(receipt)) != pinned_aborts.get(case_id)):
+                raise loopback.LoopbackRejected("aborted attempt receipt differs from external commitment")
             if (receipt.get("schema") != "MINI_VERA_ABORTED_DIALOGUE_V1"
                     or receipt.get("status") != "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED"
                     or receipt.get("case_id") != case_id
@@ -399,6 +504,12 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any], *,
             "commitment_sha256": expected_post_rating_receipt_commitment_sha256,
             "rater_authorship_and_timestamp": "NOT_ATTESTED_BY_THIS_TOOL",
         },
+        "external_aborted_attempt_custody": {
+            "mode": ("EXACT_SHA_PINNED_EXTERNALLY_OPERATOR_SUPPLIED"
+                     if pinned_aborts is not None else "NOT_PROVIDED"),
+            "commitment_sha256": expected_aborted_receipt_commitment_sha256,
+            "observation_timestamp_and_immutability": "NOT_ATTESTED_BY_THIS_TOOL",
+        },
         "external_joint_custody_scope": (
             "KEYS_AND_RATINGS_CALLER_SHA_PINNED_BUT_NOT_AUTHENTICATED"
             if pinned_keys is not None and pinned_ratings is not None else
@@ -422,15 +533,123 @@ def aggregate(schedule: dict[str, Any], ledger: dict[str, Any], *,
     }
 
 
+def _windows_create_in_parent(parent: Path, name: str) -> int:
+    """Exclusively create child relative to a verified, pinned Windows parent.
+
+    A joined absolute CreateFileW child path would permit an ancestor-junction
+    swap after _external checked it. We use NtCreateFile RootDirectory on a
+    parent handle whose final path is checked *before* child creation.
+    """
+    if os.name != "nt" or sys.platform != "win32" or not name or \
+            name in {".", ".."} or any(c in name for c in "/\\:\0") or \
+            name.endswith((".", " ")):
+        raise loopback.LoopbackRejected("Windows external output path unsupported")
+    import ctypes
+    from ctypes import wintypes
+    import msvcrt
+
+    class UnicodeString(ctypes.Structure):
+        _fields_ = [("Length", wintypes.USHORT), ("MaximumLength", wintypes.USHORT),
+                    ("Buffer", ctypes.c_wchar_p)]
+
+    class ObjectAttributes(ctypes.Structure):
+        _fields_ = [("Length", wintypes.ULONG), ("RootDirectory", wintypes.HANDLE),
+                    ("ObjectName", ctypes.POINTER(UnicodeString)),
+                    ("Attributes", wintypes.ULONG), ("SecurityDescriptor", ctypes.c_void_p),
+                    ("SecurityQualityOfService", ctypes.c_void_p)]
+
+    class IoStatusUnion(ctypes.Union):
+        _fields_ = [("Status", wintypes.LONG), ("Pointer", ctypes.c_void_p)]
+
+    class IoStatusBlock(ctypes.Structure):
+        _fields_ = [("u", IoStatusUnion), ("Information", ctypes.c_size_t)]
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    native = ctypes.WinDLL("ntdll")
+    kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                   ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD,
+                                   wintypes.HANDLE]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    native.NtCreateFile.argtypes = [ctypes.POINTER(wintypes.HANDLE), wintypes.DWORD,
+                                    ctypes.POINTER(ObjectAttributes),
+                                    ctypes.POINTER(IoStatusBlock), ctypes.c_void_p,
+                                    wintypes.DWORD, wintypes.DWORD, wintypes.DWORD,
+                                    wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD]
+    native.NtCreateFile.restype = wintypes.LONG
+    # Existing parent: share read/write but *not delete/rename* while held.
+    parent_handle = kernel.CreateFileW(
+        "\\\\?\\" + str(parent), 0x0080 | 0x0020 | 0x00100000, 0x3,
+        None, 3, 0x02000000, None)
+    if not parent_handle or parent_handle == ctypes.c_void_p(-1).value:
+        raise loopback.LoopbackRejected("Windows exclusive output parent open refused")
+    parent_fd = -1
+    new_handle = wintypes.HANDLE()
+    try:
+        parent_fd = msvcrt.open_osfhandle(parent_handle, os.O_RDONLY | os.O_BINARY)
+        parent_handle = 0
+        if _opened_final_path(parent_fd) != parent:
+            raise loopback.LoopbackRejected("Windows external output parent changed before open")
+        raw = ctypes.create_unicode_buffer(name)
+        length = len(name.encode("utf-16-le"))
+        if length > 510:
+            raise loopback.LoopbackRejected("Windows external output name too long")
+        u = UnicodeString(length, length + 2, ctypes.cast(raw, ctypes.c_wchar_p))
+        attrs = ObjectAttributes(ctypes.sizeof(ObjectAttributes),
+                                 wintypes.HANDLE(msvcrt.get_osfhandle(parent_fd)),
+                                 ctypes.pointer(u), 0x40, None, None)
+        ios = IoStatusBlock()
+        status = native.NtCreateFile(
+            ctypes.byref(new_handle), 0x0001 | 0x0002 | 0x0080 | 0x00100000,
+            ctypes.byref(attrs), ctypes.byref(ios), None,
+            0x80, 0, 2, 0x40 | 0x20, None, 0)
+        if status != 0 or not new_handle.value:
+            raise loopback.LoopbackRejected(
+                f"Windows exclusive external output refused (NTSTATUS 0x{status & 0xffffffff:08x})")
+        fd = msvcrt.open_osfhandle(new_handle.value, os.O_RDWR | os.O_BINARY)
+        new_handle = wintypes.HANDLE()
+        return fd
+    finally:
+        if new_handle.value:
+            kernel.CloseHandle(new_handle)
+        if parent_fd >= 0:
+            os.close(parent_fd)
+        if parent_handle:
+            kernel.CloseHandle(wintypes.HANDLE(parent_handle))
+
+
 def _exclusive_output(path: Path, payload: dict[str, Any]) -> None:
+    """Create once relative to an attested parent; read back same descriptor."""
     path = _external(path)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, "wb") as handle:
-        handle.write(loopback.canonical(payload) + b"\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    if path.read_bytes() != loopback.canonical(payload) + b"\n":
-        raise loopback.LoopbackRejected("output readback mismatch")
+    fd = -1
+    parent_fd = -1
+    expected = loopback.canonical(payload) + b"\n"
+    try:
+        if os.name == "nt":
+            fd = _windows_create_in_parent(path.parent, path.name)
+        elif sys.platform.startswith("linux"):
+            parent_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            if _opened_final_path(parent_fd) != path.parent:
+                raise loopback.LoopbackRejected("external output parent changed before open")
+            fd = os.open(path.name, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                         0o600, dir_fd=parent_fd)
+        else:
+            raise loopback.LoopbackRejected("safe native external output creation unsupported")
+        with os.fdopen(fd, "r+b", closefd=False) as handle:
+            handle.write(expected)
+            handle.flush()
+            os.fsync(handle.fileno())
+            handle.seek(0)
+            if handle.read(len(expected) + 1) != expected:
+                raise loopback.LoopbackRejected("output descriptor readback mismatch")
+    except OSError as exc:
+        raise loopback.LoopbackRejected("safe external output creation failed") from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        if parent_fd >= 0:
+            os.close(parent_fd)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -447,14 +666,17 @@ def main(argv: list[str] | None = None) -> int:
     analyze.add_argument("--expected-pre-rating-key-commitment-sha256")
     analyze.add_argument("--post-rating-receipt-commitments", type=Path)
     analyze.add_argument("--expected-post-rating-receipt-commitment-sha256")
+    analyze.add_argument("--aborted-receipt-commitments", type=Path)
+    analyze.add_argument("--expected-aborted-receipt-commitment-sha256")
     analyze.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.command == "schedule":
         case_list = _read(_external(args.case_list), MAX_MANIFEST_BYTES)
         seed_path = _external(args.secret_seed_file)
-        if not seed_path.is_file() or seed_path.stat().st_size != 32:
+        seed = _read_bytes(seed_path, 32)
+        if len(seed) != 32:
             raise loopback.LoopbackRejected("secret seed file must contain 32 bytes")
-        result = prepare_schedule(case_list, secret_seed=seed_path.read_bytes())
+        result = prepare_schedule(case_list, secret_seed=seed)
     else:
         source = _read(_external(args.schedule), MAX_MANIFEST_BYTES)
         ledger = _read(_external(args.result_ledger), MAX_MANIFEST_BYTES)
@@ -462,11 +684,15 @@ def main(argv: list[str] | None = None) -> int:
                       if args.pre_rating_key_commitments is not None else None)
         post_rating = (_read(_external(args.post_rating_receipt_commitments), MAX_MANIFEST_BYTES)
                        if args.post_rating_receipt_commitments is not None else None)
+        aborted_receipts = (_read(_external(args.aborted_receipt_commitments), MAX_MANIFEST_BYTES)
+                            if args.aborted_receipt_commitments is not None else None)
         result = aggregate(
             source, ledger, pre_rating_key_commitments=pre_rating,
             expected_pre_rating_key_commitment_sha256=args.expected_pre_rating_key_commitment_sha256,
             post_rating_receipt_commitments=post_rating,
             expected_post_rating_receipt_commitment_sha256=args.expected_post_rating_receipt_commitment_sha256,
+            aborted_receipt_commitments=aborted_receipts,
+            expected_aborted_receipt_commitment_sha256=args.expected_aborted_receipt_commitment_sha256,
         )
     _exclusive_output(args.output, result)
     print(json.dumps({"status": result.get("status", "PRIVATE_SCHEDULE_PREPARED"),
