@@ -46,10 +46,13 @@ The trained release artifact is `dist/mini-vera-trained.pyz`; the
 The repository also contains a **source-only experimental** `brainpack.py`
 for explicitly selected UTF-8 documents with content hashes and a 3 GiB
 maximum budget. It has no CLI integration or SemanticAtlas adapter. Linux
-uses descriptor-based traversal; a Windows path-checking fallback is included,
-but it has **not been executed on Lappy** and cannot guarantee safety against
-concurrent malicious path swaps. Neither backend has a proven crash-durable
-release protocol. Do not treat this as a deployed memory subsystem.
+uses descriptor-based traversal; a Windows path-checking fallback is included.
+The Windows fallback **passed one actual Lappy build/open/verify smoke test**
+after a genuine Windows metadata bug was found and corrected. It cannot
+guarantee safety against concurrent malicious path swaps; neither backend has
+a proven crash-durable release protocol. The source-backed test and exact host
+artifact are recorded in `docs/LAPPY_NATIVE_SMOKE_2026-11-06.md`. Do not
+treat BrainPack as a deployed memory subsystem.
 
 The separate `evidence_bridge.py` is a read-only, opt-in projection of
 already-authorized STM/DeepMemoryStorage observations. It has no installed
