@@ -19,9 +19,113 @@ from tests.test_mini_vera_source_bindings import (
 )
 from tests.test_mini_vera_loopback import FakeLocal, response
 from tools.mini_vera import artifact_binding, compose, ledger_bridge, local_session, loopback
+from tools.mini_vera.live_ledger import approved_ledger_provider
+from vera_memory import AdmissionRequest, MemoryClass
 
 
 class LocalSessionIntegrationTests(unittest.TestCase):
+    def test_live_public_ledger_head_drift_blocks_second_http_call(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ledger, head = ledger_fixture(Path(temp))
+            provider = approved_ledger_provider(
+                ledger, record_ids=["work-1"], expected_head=head,
+                expected_revision=3, integrity_key=KEY,
+                host_public_project_approval=synthetic_approval)
+            with FakeLocal(answer=response(model="vera:local")) as server:
+                errors = io.StringIO()
+                calls = 0
+
+                def next_input(_prompt):
+                    nonlocal calls
+                    calls += 1
+                    if calls == 1:
+                        return "First request"
+                    if calls == 2:
+                        ledger.admit(AdmissionRequest(
+                            record_id="work-2", text="New project revision",
+                            memory_class=MemoryClass.WORKING_PROJECT,
+                            source_actor="test-fixture", authority_ref="synthetic-approved",
+                            privacy_ref="PUBLIC", provenance_refs=("synthetic-source",),
+                            operation_id="synthetic-drift", project_id="vera-mono",
+                            governed_identity_id="vera"), expected_head=head)
+                        return "Second request after CAS head changes"
+                    return "/quit"
+
+                args = ["--endpoint", server.url, "--model", "vera:local",
+                        "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed"]
+                with patch("builtins.input", side_effect=next_input), \
+                        redirect_stdout(io.StringIO()), redirect_stderr(errors):
+                    self.assertEqual(0, local_session.main(args, live_public_provider=provider))
+                self.assertEqual(1, len(server.requests))
+                self.assertIn("head drift", errors.getvalue())
+
+    def test_live_public_approval_revocation_blocks_next_http_call(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ledger, head = ledger_fixture(Path(temp))
+            permitted = {"yes": True}
+
+            def approval(record, current_head):
+                return permitted["yes"] and synthetic_approval(record, current_head)
+
+            provider = approved_ledger_provider(
+                ledger, record_ids=["work-1"], expected_head=head,
+                expected_revision=3, integrity_key=KEY,
+                host_public_project_approval=approval)
+            with FakeLocal(answer=response(model="vera:local", text="First reply.")) as server:
+                errors = io.StringIO()
+
+                def next_input(_prompt):
+                    if not permitted.get("first", False):
+                        permitted["first"] = True
+                        return "First request"
+                    if permitted["yes"]:
+                        permitted["yes"] = False
+                        return "Second request after revocation"
+                    return "/quit"
+
+                args = ["--endpoint", server.url, "--model", "vera:local",
+                        "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed"]
+                with patch("builtins.input", side_effect=next_input), \
+                        redirect_stdout(io.StringIO()), redirect_stderr(errors):
+                    self.assertEqual(0, local_session.main(args, live_public_provider=provider))
+                self.assertEqual(1, len(server.requests))
+                self.assertIn("live public-memory approval unavailable", errors.getvalue())
+                self.assertIn("Synthetic public project milestone", json.dumps(server.requests[0][1]))
+
+    def test_two_fresh_python_processes_rehydrate_public_ledger_only(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            _ledger, head = ledger_fixture(folder)
+            # Independent process launch reopens SQLite and re-applies explicit
+            # host policy; neither process inherits volatile conversation history.
+            code = """
+import json, sys
+from pathlib import Path
+root = Path.cwd()
+sys.path.insert(0, str(root / 'packages' / 'vera_memory' / 'src'))
+sys.path.insert(0, str(root / 'packages' / 'portfolio_runtime' / 'src'))
+from vera_memory import MemoryLedger
+from tools.mini_vera.live_ledger import approved_ledger_provider
+from tools.mini_vera import local_session
+ledger = MemoryLedger(sys.argv[1], project_id='vera-mono', identity_id='vera')
+def host_approval(record, head):
+    return record.authority_ref == 'synthetic-approved' and record.privacy_ref == 'PUBLIC'
+provider = approved_ledger_provider(ledger, record_ids=['work-1'], expected_head=sys.argv[2], expected_revision=7, integrity_key=b'synthetic-integrity-test-key-32x'[:32], host_public_project_approval=host_approval)
+state, key, revision = provider()
+print('REHYDRATED_PUBLIC_SHA256=' + state['records'][0]['source_sha256'])
+raise SystemExit(local_session.main(['--endpoint', 'http://127.0.0.1:11434/v1', '--model', 'vera:local', '--model-digest', 'b'*64, '--prompt', 'A new independent session'], live_public_provider=provider))
+"""
+            outputs = []
+            for _ in range(2):
+                run = subprocess.run([sys.executable, "-c", code, str(folder / "memory.sqlite"), head],
+                                     cwd=Path(__file__).parents[1], capture_output=True,
+                                     text=True, timeout=15)
+                self.assertEqual(0, run.returncode, run.stderr)
+                outputs.append(run.stdout)
+                self.assertIn("REHYDRATED_PUBLIC_SHA256=", run.stdout)
+                self.assertIn('"http_calls": 0', run.stdout)
+            self.assertEqual(outputs[0], outputs[1])
+
     def test_actual_console_two_turns_keep_history_in_ram(self):
         with FakeLocal(answer=response(model="vera:local", text="First distinct server reply.")) as server:
             output = io.StringIO()

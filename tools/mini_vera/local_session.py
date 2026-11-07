@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 import secrets
 import sys
+from collections.abc import Callable
 from typing import Any
 
 from . import artifact_binding, compose, loopback
@@ -51,7 +52,8 @@ def compose_local_turn(*, text: str, turn_id: str, history: list[dict[str, str]]
     return compose.compose(**args, model=model, model_digest=model_digest)
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *,
+         live_public_provider: Callable[[], tuple[dict[str, Any], bytes, int]] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--endpoint", required=True, help="Explicit numeric loopback /v1 endpoint")
     parser.add_argument("--model", help="Server model alias (operator-declared, not attested)")
@@ -88,6 +90,8 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("--model and --model-digest required without local manifest")
         model, digest, witness = args.model, args.model_digest, None
     if any((args.public_state, args.state_key_file, args.expected_revision is not None)):
+        if live_public_provider is not None:
+            parser.error("cannot mix a live public-memory provider with exported state files")
         if args.public_state is None or args.state_key_file is None or args.expected_revision is None:
             parser.error("public state requires key file and exact revision")
         state, _ = compose.read_object(args.public_state, compose.MAX_STATE_BYTES)
@@ -96,13 +100,15 @@ def main(argv: list[str] | None = None) -> int:
     else:
         state, key = empty_public_state()
         revision = 0
-    compose.verify_state(state, key=key, expected_revision=revision)
+    if live_public_provider is None:
+        compose.verify_state(state, key=key, expected_revision=revision)
     identity, identity_raw = compose.read_object(compose.IDENTITY_PATH, 16_384)
     behavior, behavior_raw = compose.read_object(compose.BEHAVIOR_PATH, 16_384)
 
     history: list[dict[str, str]] = []
     session_id = secrets.token_hex(4)
     counter = 0
+    previous_state_sha: str | None = None
     while True:
         if args.prompt is not None:
             current = args.prompt
@@ -118,6 +124,23 @@ def main(argv: list[str] | None = None) -> int:
                 continue
         counter += 1
         try:
+            if live_public_provider is not None:
+                # A trusted host must recheck current ledger CAS and approval on
+                # EVERY turn. Never let a failed recheck reuse previous context.
+                try:
+                    state, key, revision = live_public_provider()
+                    compose.verify_state(state, key=key, expected_revision=revision)
+                except (compose.CompositionRejected, ValueError, KeyError) as exc:
+                    history.clear()
+                    previous_state_sha = None
+                    raise compose.CompositionRejected(
+                        f"live public-memory approval unavailable: {exc}") from exc
+                current_state_sha = compose.sha256(compose.canonical(state))
+                if previous_state_sha is not None and current_state_sha != previous_state_sha:
+                    history.clear()
+                    print("Public context changed; volatile conversation history cleared.",
+                          file=sys.stderr)
+                previous_state_sha = current_state_sha
             request = compose_local_turn(
                 text=current, turn_id=f"local-{session_id}-{counter}", history=history,
                 identity=identity, identity_raw=identity_raw,

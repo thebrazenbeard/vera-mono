@@ -57,6 +57,28 @@ If an authorized host already produces a PUBLIC HMAC-bound state snapshot, add
 Do **not** use that interface for private autobiography or arbitrary historical
 exports. An externally supplied HMAC does not prove correct original admission.
 
+### Trusted host-owned live public ledger provider (Python API)
+
+The optional `live_public_provider` argument to `local_session.main` accepts a
+callable returning `(state, 32-byte integrity key, externally anchored revision)`.
+`tools.mini_vera.live_ledger.approved_ledger_provider` builds such a callable
+from an **existing** `vera_memory.MemoryLedger`, an independently anchored
+current CAS head, explicitly selected record IDs, and a host authorization
+callback. The provider reprojects and rechecks each selected current PUBLIC
+WORKING_PROJECT record **before every turn**. Head drift, supersession,
+privacy failure or revoked host approval blocks HTTP execution and discards
+volatile history. A changed approved state also discards history. The provider
+keeps the key in process memory; no intermediary key or state files are written.
+
+The API does **not** make a ledger's stored `PUBLIC` string authoritative:
+the host must independently verify rights, policy, external head/revision,
+revocation and source authenticity on every use. The code deliberately offers
+no CLI flag that auto-approves all records. Its test uses synthetic approval
+and is **not** a production authorization adapter. It rehydrates permitted
+public project records on a new process, **not** private conversation history,
+neural learned state or HC cognitive state. Do not use an old exported snapshot
+as proof that approval still holds after a restart.
+
 Type `/quit` to exit the console. Neither user turns nor local model responses
 are persisted by this CLI; the model server may have its own logging policy.
 
@@ -70,7 +92,7 @@ inference or a voice/identity qualification.
 
 This is not yet a finished Vera installation: no qualified model load, neural
 output, tool broker, actual HC runtime provenance, admitted long-term memory,
-cold-restart continuity, host performance receipt, or blind A/B improvement
+cold-restart conversational continuity, host performance receipt, or blind A/B improvement
 is established by these tests.
 
 The r13/H07 adapters remain on hold until exact training-base ancestry and
