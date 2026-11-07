@@ -21,6 +21,8 @@ from typing import Callable
 
 MAX_TEXT_CHARS = 400
 MAX_WAV_BYTES = 12_000_000
+MAX_VOICE_WAV_V0_BYTES = 6_000_000
+MAX_VOICE_WAV_V0_SECONDS = 30
 _VOICE_NAME = re.compile(r"[A-Za-z0-9 ._()'-]{1,96}\Z")
 
 
@@ -115,9 +117,11 @@ def _stdin_payload(request: SpeechRequest) -> bytes:
     return (text_b64 + "\n" + voice_b64 + "\n").encode("ascii")
 
 
-def _verified_wave(data: bytes) -> tuple[int, int, int]:
+def _verified_wave(data: bytes, *, voice_wav_v0: bool = False) -> tuple[int, int, int]:
     if not isinstance(data, bytes) or not 44 <= len(data) <= MAX_WAV_BYTES:
         raise ValueError("renderer did not produce bounded WAV bytes")
+    if voice_wav_v0 and len(data) > MAX_VOICE_WAV_V0_BYTES:
+        raise ValueError("VOICE_WAV_V0 exceeds the Android total WAV byte limit")
     if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
         raise ValueError("renderer output is not RIFF/WAVE")
     declared_riff_bytes = int.from_bytes(data[4:8], "little") + 8
@@ -133,6 +137,10 @@ def _verified_wave(data: bytes) -> tuple[int, int, int]:
             sample_width = stream.getsampwidth()
             if sample_width not in (1, 2, 3, 4):
                 raise ValueError("renderer WAV sample width unsupported")
+            if voice_wav_v0 and sample_width != 2:
+                raise ValueError("VOICE_WAV_V0 requires PCM16")
+            if voice_wav_v0 and frames > rate * MAX_VOICE_WAV_V0_SECONDS:
+                raise ValueError("VOICE_WAV_V0 exceeds the Android duration limit")
             samples = stream.readframes(frames)
             if len(samples) != frames * channels * sample_width:
                 raise ValueError("renderer WAV PCM payload is truncated")
@@ -145,12 +153,15 @@ def render_sapi_wave(
     request: SpeechRequest,
     *,
     allow_local_synthesis: bool = False,
+    require_voice_wav_v0: bool = False,
     runner: Callable[..., subprocess.CompletedProcess[bytes]] | None = None,
     timeout_s: float = 45.0,
 ) -> SpeechWave:
     """Render to memory; wrapper adds no playback, files, network or Matrix.
 
-    The opt-in flag is a local caller assertion, not authenticated authority.
+    The synthesis opt-in is a local caller assertion, not authenticated authority.
+    The separate VOICE_WAV_V0 flag rejects incompatible output after rendering;
+    it does not transcode audio or establish delivery/recipient permission.
     A supplied runner is test/integration injection and cannot attest effects.
     """
     if type(request) is not SpeechRequest:
@@ -158,6 +169,8 @@ def render_sapi_wave(
     request.__post_init__()
     if allow_local_synthesis is not True:
         raise PermissionError("local synthesis is default-denied")
+    if type(require_voice_wav_v0) is not bool:
+        raise TypeError("require_voice_wav_v0 must be bool")
     if type(timeout_s) not in (float, int) or not 0 < timeout_s <= 60:
         raise ValueError("timeout_s must be between 0 and 60")
     if runner is None and sys.platform != "win32":
@@ -179,7 +192,7 @@ def render_sapi_wave(
     if type(result.returncode) is not int or result.returncode != 0:
         raise RuntimeError("local SAPI synthesis failed")
     data = result.stdout
-    rate, channels, frames = _verified_wave(data)
+    rate, channels, frames = _verified_wave(data, voice_wav_v0=require_voice_wav_v0)
     return SpeechWave(
         wav_bytes=data,
         sha256=hashlib.sha256(data).hexdigest(),

@@ -26,6 +26,34 @@ def silent_wave() -> bytes:
     return stream.getvalue()
 
 
+def synthetic_wave(*, sample_width=2, seconds=2, rate=22050, fmt18=False) -> bytes:
+    """Synthetic PCM; no personal voice, recording or generated speech."""
+    stream = io.BytesIO()
+    with wave.open(stream, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(sample_width)
+        wav.setframerate(rate)
+        wav.writeframes(b"\x00" * (sample_width * rate * seconds))
+    data = stream.getvalue()
+    if fmt18:
+        # The installed Windows SAPI renderer was observed to emit a fmt18
+        # PCM header, whereas Python's wave writer normally emits fmt16.
+        assert data[12:20] == b"fmt \x10\x00\x00\x00"
+        data = data[:16] + (18).to_bytes(4, "little") + data[20:36] + b"\x00\x00" + data[36:]
+        data = data[:4] + (len(data) - 8).to_bytes(4, "little") + data[8:]
+    return data
+
+
+def with_synthetic_junk_chunk(data: bytes, total_bytes: int) -> bytes:
+    """Keep a valid PCM frame while testing the total RIFF envelope cap."""
+    assert data[12:16] == b"fmt "
+    assert total_bytes % 2 == 0 and total_bytes > len(data) + 8
+    extra = total_bytes - len(data) - 8
+    chunk = b"JUNK" + extra.to_bytes(4, "little") + b"\x00" * extra
+    output = data[:36] + chunk + data[36:]
+    return output[:4] + (len(output) - 8).to_bytes(4, "little") + output[8:]
+
+
 class VoiceOutputTests(unittest.TestCase):
     def setUp(self) -> None:
         self.request = SpeechRequest("A small synthetic test phrase.", "Microsoft Zira Desktop")
@@ -120,6 +148,54 @@ class VoiceOutputTests(unittest.TestCase):
         for seconds in (0, 61, -1, True, float('nan'), "5"):
             with self.subTest(seconds=seconds), self.assertRaises(ValueError):
                 render_sapi_wave(self.request, allow_local_synthesis=True, runner=lambda *a,**k:None,timeout_s=seconds)
+
+    def test_explicit_voice_wav_v0_contract_accepts_sapi_fmt18(self) -> None:
+        examples = {
+            "sapi_fmt18": (synthetic_wave(fmt18=True), (22050, 1, 44100)),
+            "exactly_30s": (synthetic_wave(seconds=30, rate=8000), (8000, 1, 240000)),
+            "exactly_6m_bytes": (with_synthetic_junk_chunk(synthetic_wave(), 6_000_000), (22050, 1, 44100)),
+        }
+        for label, (data, expected) in examples.items():
+            with self.subTest(label=label):
+                receipt = render_sapi_wave(
+                    self.request, allow_local_synthesis=True, require_voice_wav_v0=True,
+                    runner=lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=data, stderr=b""),
+                )
+                self.assertEqual(receipt.wav_bytes, data)
+                self.assertEqual((receipt.sample_rate, receipt.channels, receipt.frames), expected)
+                self.assertEqual(receipt.evidence_class, "INJECTED_RUNNER_UNATTESTED")
+
+    def test_voice_wav_v0_rejects_producer_valid_consumer_invalid_wav(self) -> None:
+        incompatible = {
+            "pcm8": synthetic_wave(sample_width=1),
+            "pcm24": synthetic_wave(sample_width=3),
+            "31_seconds": synthetic_wave(seconds=31, rate=8000),
+            "oversize": with_synthetic_junk_chunk(synthetic_wave(), 6_000_012),
+        }
+        for label, data in incompatible.items():
+            with self.subTest(label=label):
+                runner = lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=data, stderr=b"")
+                # Existing low-level SAPI WAV admission remains compatible.
+                self.assertEqual(render_sapi_wave(self.request, allow_local_synthesis=True, runner=runner).wav_bytes, data)
+                with self.assertRaisesRegex(ValueError, "VOICE_WAV_V0"):
+                    render_sapi_wave(self.request, allow_local_synthesis=True,
+                                     require_voice_wav_v0=True, runner=runner)
+
+    def test_voice_wav_v0_preserves_truncation_rejection(self) -> None:
+        data = synthetic_wave(fmt18=True)[:-4]
+        data = data[:4] + (len(data) - 8).to_bytes(4, "little") + data[8:]
+        with self.assertRaises(ValueError):
+            render_sapi_wave(self.request, allow_local_synthesis=True,
+                             require_voice_wav_v0=True,
+                             runner=lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=data, stderr=b""))
+
+    def test_voice_wav_v0_flag_rejects_non_boolean_without_invoking_runner(self) -> None:
+        for invalid in (1, 0, "true", None):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(TypeError):
+                    render_sapi_wave(self.request, allow_local_synthesis=True,
+                                     require_voice_wav_v0=invalid,
+                                     runner=lambda *a, **k: self.fail("runner must not be invoked"))
 
 
 if __name__ == "__main__":

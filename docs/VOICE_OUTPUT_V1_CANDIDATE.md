@@ -1,8 +1,10 @@
 # Vera voice output V1 — candidate only
 
-**Status:** source and synthetic unit tests only until a Windows host proves the
-actual output. This is not a deployed voice service, reusable voice identity,
-trained model, Suno voice extraction, or Matrix integration.
+**Status:** source candidate with a previously recorded, actual Lappy Windows
+SAPI-to-memory WAV probe and isolated synthetic unit tests. This is not a
+deployed voice service, reusable voice identity, trained model, Suno voice
+extraction, Android playback, or Matrix integration. New contract tests below
+are synthetic; they do not requalify the Windows probe at a changed Git head.
 
 ## The smallest lawful and operationally independent slice
 
@@ -33,6 +35,37 @@ No transcript or raw stderr is included in normal Python exceptions.
 400-character text, 96-character voice identifier, <=60-second subprocess
 timeout, 12 MB WAV cap and PCM/RIFF shape verification bound this baseline.
 
+## Explicit Android-compatible output admission (`VOICE_WAV_V0`)
+
+The original WAV admission intentionally permits PCM8, PCM16, PCM24 and PCM32
+within a 12 MB renderer limit. The separately owned Android
+[`vera-apk` Draft PR #24](https://github.com/thebrazenbeard/vera-apk/pull/24)
+accepts a narrower playback envelope. A prior executable, synthetic
+cross-language probe disproved general producer→consumer compatibility.
+
+A caller intending to hand a result to that future consumer must opt in to
+`render_sapi_wave(..., allow_local_synthesis=True,
+require_voice_wav_v0=True)`. In addition to the existing WAV checks, this
+rejects outputs outside the shared V0 intersection:
+
+- Uncompressed PCM **16-bit** samples, mono or stereo;
+- 8–48 kHz sample rate;
+- at most **6,000,000 bytes total RIFF/WAV**, including headers and chunks;
+- at most **30 seconds** of frames.
+
+These checks occur **after** local synthesis, before returning a deliverable
+`SpeechWave`. They do not preflight an unknown SAPI renderer, transcode audio,
+send bytes, prove source authenticity, or authorize a receiving client. The
+default `False` preserves the existing generic SAPI contract. A future
+transport must independently bind sender, recipient, expiry/replay policy and
+explicit user permission; SHA-256 is integrity metadata, not authentication.
+
+The six compatibility fixtures are synthetic: valid PCM16 `fmt` length 18 is
+accepted; PCM8, PCM24, 31-second PCM16 and a 6,000,012-byte otherwise-valid
+WAV are rejected by opt-in V0; a truncated WAV remains rejected regardless of
+the flag. The real, earlier Lappy SAPI sample was PCM16 mono 22,050 Hz and is
+format-compatible, but was not delivered to an APK or played through a phone.
+
 ## Separate responsibilities — do not conflate them
 
 | Responsibility | Owner/interface | V1 status |
@@ -41,7 +74,7 @@ timeout, 12 MB WAV cap and PCM/RIFF shape verification bound this baseline.
 | Voice identity | Private `VoiceProfile` research/provenance, permissions, QA | **Not implemented** |
 | Synthesis | `render_sapi_wave` → in-memory PCM/WAV | Source candidate |
 | Audio delivery | Explicit caller-controlled playback or file transport | **Not implemented** |
-| `vera-apk` phone client and optional Matrix delivery | Separately assigned app/transport owner | **No APK or Matrix integration verified** |
+| `vera-apk` phone client and optional backend transport | Separately assigned app/transport owner | **No APK delivery or installation verified** |
 
 `ears` should not be treated as TTS by its name. `vera-mono` owns this small
 runtime-neutral synthesis adapter because that code is an output capability,
