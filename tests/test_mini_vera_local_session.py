@@ -25,6 +25,18 @@ from vera_memory import AdmissionRequest, MemoryClass
 
 
 class LocalSessionIntegrationTests(unittest.TestCase):
+    def test_ollama_thinking_control_requires_explicit_session_opt_in(self):
+        with FakeLocal(answer=response(model="vera:local")) as server:
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed",
+                    "--prompt", "State one uncertainty"]
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, local_session.main(args))
+            self.assertNotIn("reasoning_effort", server.requests[-1][1])
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, local_session.main(args + ["--ollama-disable-thinking"]))
+            self.assertEqual("none", server.requests[-1][1]["reasoning_effort"])
+
     def test_identity_and_behavior_drift_rejected_against_independent_code_pins(self):
         with tempfile.TemporaryDirectory() as temp, FakeLocal(answer=response(model="vera:local")) as server:
             directory = Path(temp)

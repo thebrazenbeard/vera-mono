@@ -75,6 +75,8 @@ def main(argv: list[str] | None = None, *,
     parser.add_argument("--host-idle-confirmed", action="store_true",
                         help="Operator confirms host and model server resource qualification")
     parser.add_argument("--timeout-seconds", type=int, default=30)
+    parser.add_argument("--ollama-disable-thinking", action="store_true",
+                        help="Explicit Ollama-only /v1 reasoning_effort=none transport control")
     args = parser.parse_args(argv)
 
     # A validation-only invocation must never load a model through an HTTP call.
@@ -182,7 +184,8 @@ def main(argv: list[str] | None = None, *,
             return 0
         try:
             result = loopback.execute(request, endpoint=args.endpoint,
-                                      timeout_seconds=args.timeout_seconds)
+                                      timeout_seconds=args.timeout_seconds,
+                                      ollama_disable_thinking=args.ollama_disable_thinking)
         except loopback.LoopbackRejected as exc:
             print(f"Local inference failed: {exc}", file=sys.stderr)
             return 2

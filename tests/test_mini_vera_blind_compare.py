@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -195,32 +196,66 @@ class MiniVeraBlindCompareTests(unittest.TestCase):
             self.assertEqual(sheet.read_text(), "OTHER_PROCESS_OWNED_CONTENT")
             self.assertFalse(key.exists())
 
+    @unittest.skipIf(os.name == "nt", "Windows forbids unlinking a held-open reservation")
     def test_replaced_receipt_name_cannot_overwrite_other_process_file(self):
         with tempfile.TemporaryDirectory() as temp:
             sheet = Path(temp) / "sheet.json"
             key = Path(temp) / "key.json"
             reservations = blind_compare._reserve_outputs(sheet, key)
-            key.unlink()
-            key.write_text("OTHER_PROCESS_OWNED_CONTENT")
-            with self.assertRaisesRegex(loopback.LoopbackRejected, "identity changed"):
-                blind_compare._replace_reservation(
-                    key, {"schema": "new-private-key"}, reservations=reservations)
-            self.assertEqual(key.read_text(), "OTHER_PROCESS_OWNED_CONTENT")
-            self.assertEqual(
-                json.loads(sheet.read_text())["status"],
-                "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
-            )
+            try:
+                key.unlink()
+                key.write_text("OTHER_PROCESS_OWNED_CONTENT")
+                with self.assertRaisesRegex(loopback.LoopbackRejected, "identity changed"):
+                    blind_compare._replace_reservation(
+                        key, {"schema": "new-private-key"}, reservations=reservations)
+                self.assertEqual(key.read_text(), "OTHER_PROCESS_OWNED_CONTENT")
+                self.assertEqual(
+                    json.loads(sheet.read_text())["status"],
+                    "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
+                )
+            finally:
+                blind_compare._close_reservations(reservations)
+
+    def test_foreign_named_inode_is_refused_without_overwriting_it_on_all_hosts(self):
+        """Exercise inode/name mismatch even where Windows forbids real unlink races."""
+        with tempfile.TemporaryDirectory() as temp:
+            sheet = Path(temp) / "sheet.json"
+            key = Path(temp) / "key.json"
+            foreign = Path(temp) / "foreign.json"
+            foreign.write_text("OTHER_PROCESS_OWNED_CONTENT")
+            reservations = blind_compare._reserve_outputs(sheet, key)
+            original_stat = Path.stat
+
+            def foreign_named_stat(path, *args, **kwargs):
+                target = foreign if path == key else path
+                return original_stat(target, *args, **kwargs)
+
+            try:
+                with patch.object(Path, "stat", foreign_named_stat):
+                    with self.assertRaisesRegex(loopback.LoopbackRejected, "identity changed"):
+                        blind_compare._replace_reservation(
+                            key, {"schema": "new-private-key"}, reservations=reservations)
+                self.assertEqual(foreign.read_text(), "OTHER_PROCESS_OWNED_CONTENT")
+                self.assertEqual(
+                    json.loads(key.read_text())["status"],
+                    "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
+                )
+            finally:
+                blind_compare._close_reservations(reservations)
 
     def test_inplace_modified_reservation_cannot_be_finalized_as_owned_marker(self):
         with tempfile.TemporaryDirectory() as temp:
             sheet = Path(temp) / "sheet.json"
             key = Path(temp) / "key.json"
             reservations = blind_compare._reserve_outputs(sheet, key)
-            key.write_text("OTHER_PROCESS_OWNED_CONTENT")
-            with self.assertRaisesRegex(loopback.LoopbackRejected, "marker altered"):
-                blind_compare._replace_reservation(
-                    key, {"schema": "new-private-key"}, reservations=reservations)
-            self.assertEqual(key.read_text(), "OTHER_PROCESS_OWNED_CONTENT")
+            try:
+                key.write_text("OTHER_PROCESS_OWNED_CONTENT")
+                with self.assertRaisesRegex(loopback.LoopbackRejected, "marker altered"):
+                    blind_compare._replace_reservation(
+                        key, {"schema": "new-private-key"}, reservations=reservations)
+                self.assertEqual(key.read_text(), "OTHER_PROCESS_OWNED_CONTENT")
+            finally:
+                blind_compare._close_reservations(reservations)
 
 
 if __name__ == "__main__":

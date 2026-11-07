@@ -60,6 +60,7 @@ following, from outside model-controlled state:
 
 When these exist, the integration is the already-tested call
 `bind_host_public_memory(ledger, integrity_key=..., current_grant=...,
+current_authority_revision=..., atomic_host_revision_floor=...,
 approve_record=...)`, injected into `local_session.main(...,
 live_public_provider=provider)`; the local session rechecks before and after
 inference. The source-only tests in PR #201 do **not** establish an installed

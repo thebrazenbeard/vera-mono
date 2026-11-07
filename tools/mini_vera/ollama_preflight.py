@@ -8,10 +8,19 @@ session, but the checks are estimates, NOT a lock/lease or weight attestation.
 from __future__ import annotations
 
 import argparse
+from contextlib import redirect_stdout
 import ctypes
+from datetime import datetime, timezone
+import hashlib
 from http.client import HTTPException
+import io
 import json
+import os
+from pathlib import Path
+import secrets
+import stat
 import sys
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -29,6 +38,93 @@ DEFAULT_MODEL = "qwen3.5:0.8b"
 
 class PreflightRefused(ValueError):
     """A read-only observation cannot authorize an inference attempt."""
+
+
+def _receipt_target(path: Path) -> tuple[Path, tuple[int, int]]:
+    """Validate a *non-secret* receipt destination before model execution.
+
+    This is not an ACL, hostile-directory or host-ownership attestation. The
+    caller must supply a trusted, private parent when that distinction matters.
+    """
+    if not path.is_absolute() or path.name in {"", ".", ".."}:
+        raise PreflightRefused("receipt output must be an absolute file path")
+    try:
+        parent = path.parent
+        if parent.resolve(strict=True) != parent or parent.is_symlink():
+            raise PreflightRefused("receipt parent must be a direct, non-symlink path")
+        parent_stat = os.stat(parent, follow_symlinks=False)
+        if not stat.S_ISDIR(parent_stat.st_mode):
+            raise PreflightRefused("receipt parent is not a directory")
+        if path.exists() or path.is_symlink():
+            raise PreflightRefused("receipt already exists; refusing inference")
+    except OSError as exc:
+        raise PreflightRefused("receipt parent unavailable") from exc
+    return parent, (parent_stat.st_dev, parent_stat.st_ino)
+
+
+def _commit_receipt_atomically(path: Path, payload: dict[str, Any],
+                               parent_identity: tuple[int, int]) -> None:
+    """Publish a complete but explicitly UNQUALIFIED JSON observation.
+
+    The final filename is absent until its complete fsynced content exists.
+    No path-based cleanup is attempted: between stat and unlink, a shared
+    parent owner could substitute another actor's file. Orphaned `.incomplete`
+    names require a separate, authorized host-owned cleanup operation.
+    """
+    parent = path.parent
+    data = _receipt_bytes(payload)
+    temporary = parent / f".{path.name}.{secrets.token_hex(12)}.incomplete"
+    fd: int | None = None
+    temp_identity: tuple[int, int] | None = None
+    try:
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                     getattr(os, "O_NOFOLLOW", 0), 0o600)
+        opened = os.fstat(fd)
+        temp_identity = (opened.st_dev, opened.st_ino)
+        remaining = memoryview(data)
+        while remaining:
+            written = os.write(fd, remaining)
+            if written <= 0:
+                raise OSError("incomplete receipt write")
+            remaining = remaining[written:]
+        os.fsync(fd)
+        os.close(fd)
+        fd = None
+        # O_EXCL is required for the temporary filename; os.link is required
+        # for atomic no-overwrite publication of the *final* filename.
+        # The temporary path was created as an exclusive regular file; no
+        # follow_symlinks keyword is needed for Windows hard-link portability.
+        os.link(temporary, path)
+        final_stat = os.stat(path, follow_symlinks=False)
+        parent_stat = os.stat(parent, follow_symlinks=False)
+        if ((final_stat.st_dev, final_stat.st_ino) != temp_identity
+                or (parent_stat.st_dev, parent_stat.st_ino) != parent_identity):
+            raise PreflightRefused("receipt path custody changed after publication")
+        # A success-shaped receipt cannot survive an observed metadata-sync
+        # error. Sync the *published final name* before claiming success. The
+        # temporary unlink below may remain pending after a sudden power loss.
+        if os.name != "nt":
+            parent_fd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(parent_fd)
+            finally:
+                os.close(parent_fd)
+    except (OSError, ValueError) as exc:
+        raise PreflightRefused("atomic receipt publication failed or was contested") from exc
+    finally:
+        if fd is not None:
+            os.close(fd)
+        # Deliberately DO NOT unlink the temporary path. Even fstat + stat
+        # identity checks would leave an exploitable check-to-unlink gap in a
+        # parent directory whose exclusive ownership has not been qualified.
+    # Windows/Python exposes no equivalent directory-entry fsync through
+    # os.open; the receipt marks this as unqualified instead of claiming it.
+
+
+def _receipt_bytes(payload: dict[str, Any]) -> bytes:
+    """Exact canonical newline-terminated bytes committed to the receipt file."""
+    return (json.dumps(payload, sort_keys=True, separators=(",", ":"),
+                       ensure_ascii=False) + "\n").encode("utf-8")
 
 
 def windows_free_physical_bytes() -> int:
@@ -190,11 +286,24 @@ def main(argv: list[str] | None = None, *,
                         help="Fresh operator host resource qualification, not an automated lease")
     parser.add_argument("--allow-cold-load", action="store_true",
                         help="Explicitly permit loading a nonresident model if RAM permits")
+    parser.add_argument("--receipt-output", type=Path,
+                        help="Optional absolute output for a no-overwrite, hash-only real-trial receipt")
     args = parser.parse_args(argv)
     if args.prompt is not None and not args.execute:
         parser.error("--prompt requires --execute; omit it for a read-only preflight")
     if args.execute and (not args.host_idle_confirmed or not args.prompt):
         parser.error("--execute needs --host-idle-confirmed and --prompt")
+    if args.receipt_output is not None and not args.execute:
+        parser.error("--receipt-output requires --execute")
+    receipt_parent_identity: tuple[int, int] | None = None
+    if args.receipt_output is not None:
+        try:
+            _, receipt_parent_identity = _receipt_target(args.receipt_output)
+        except PreflightRefused as exc:
+            print(json.dumps({"schema": "MINI_VERA_08B_PREFLIGHT_V1",
+                              "status": "REFUSED", "reason": str(exc),
+                              "model_inference_calls": 0}), file=sys.stderr)
+            return 2
     try:
         receipt = probe(endpoint=args.endpoint, model=args.model,
                         expected_tag_digest=args.expected_tag_digest,
@@ -235,11 +344,79 @@ def main(argv: list[str] | None = None, *,
     print(json.dumps(final_receipt, sort_keys=True))
     # A race still remains after this final read-only observation. The digest
     # forwarded to the composer is server-declared, never weight attestation.
-    return local_session.main([
+    session_args = [
         "--endpoint", args.endpoint, "--model", args.model,
         "--model-digest", final_receipt["ollama_tag_digest"],
-        "--execute", "--host-idle-confirmed", "--prompt", args.prompt,
-    ])
+        "--execute", "--host-idle-confirmed", "--ollama-disable-thinking",
+        "--prompt", args.prompt,
+    ]
+    if args.receipt_output is None:
+        return local_session.main(session_args)
+
+    # The local-session CLI does not expose an authenticated raw model result.
+    # Capture its *displayed* reply only; the receipt records a hash, never
+    # prompt text or model text. This is not raw provider attestation.
+    emitted = io.StringIO()
+    began = time.monotonic()
+    started_at = datetime.now(timezone.utc).isoformat()
+    with redirect_stdout(emitted):
+        result_code = local_session.main(session_args)
+    duration_ms = round((time.monotonic() - began) * 1000, 3)
+    displayed = emitted.getvalue()
+    if result_code != 0 or not displayed.startswith(("Vera> ", "Vera [incomplete reply]> ")):
+        # A failed/ambiguous call may have reached the model. There is no
+        # success receipt and *no* claim that the call count was zero.
+        if displayed:
+            print(displayed, end="")
+        print("Mini-Vera receipt withheld: failed or ambiguous local call; "
+              "model call count unknown", file=sys.stderr)
+        return 2
+    displayed_text = displayed.split("> ", 1)[1].rstrip("\n")
+    complete_reply = displayed.startswith("Vera> ")
+    trial_receipt = {
+        "schema": "MINI_VERA_HASH_ONLY_TRIAL_RECEIPT_V1",
+        "status": ("CLIENT_OBSERVED_LOCAL_SESSION_OUTPUT" if complete_reply else
+                   "CLIENT_OBSERVED_TRUNCATED_LOCAL_SESSION_OUTPUT") +
+                  "_PUBLICATION_UNQUALIFIED",
+        "evidence_class": "CLIENT_WRAPPER_OBSERVED_OUTPUT_NOT_WEIGHT_ATTESTATION",
+        "publication_custody": "UNQUALIFIED_NOT_A_DURABLE_COMMIT_RECORD",
+        "started_at_utc": started_at,
+        "delegated_session_duration_ms": duration_ms,
+        "endpoint": args.endpoint,
+        "model_alias": args.model,
+        "server_declared_tag_digest": final_receipt["ollama_tag_digest"],
+        "model_weights_verified": False,
+        "receipt_file_fsynced": True,
+        # This field is written *before* any publication or parent fsync.
+        # A persisted receipt can never self-attest its own final fsync.
+        "receipt_directory_metadata_fsynced": False,
+        "exclusive_host_lease": False,
+        "host_free_ram_bytes_before_handoff": final_receipt["available_physical_ram_bytes"],
+        "cold_load_authorized": args.allow_cold_load,
+        "identity_source_sha256_code_pin": local_session.PINNED_IDENTITY_SHA256,
+        "behavior_source_sha256_code_pin": local_session.PINNED_BEHAVIOR_SHA256,
+        "input_prompt_sha256": hashlib.sha256(args.prompt.encode("utf-8")).hexdigest(),
+        "displayed_reply_sha256": hashlib.sha256(displayed_text.encode("utf-8")).hexdigest(),
+        "displayed_reply_bytes": len(displayed_text.encode("utf-8")),
+        "reply_complete": complete_reply,
+        "model_inference_calls": "ONE_SUCCESSFUL_DELEGATED_SESSION_EXPECTED_NOT_ATTESTED",
+        "composed_request_sha256": None,
+        "raw_response_sha256": None,
+    }
+    assert receipt_parent_identity is not None
+    try:
+        _commit_receipt_atomically(args.receipt_output, trial_receipt,
+                                   receipt_parent_identity)
+    except PreflightRefused as exc:
+        print(f"Mini-Vera receipt withheld: {exc}; model call already attempted",
+              file=sys.stderr)
+        return 2
+    print(displayed, end="")
+    print(json.dumps({"receipt_status": "PUBLISHED_HASH_ONLY_CUSTODY_UNQUALIFIED",
+                      "receipt_path": str(args.receipt_output),
+                      "receipt_sha256": hashlib.sha256(
+                          _receipt_bytes(trial_receipt)).hexdigest()}, sort_keys=True))
+    return 0
 
 
 if __name__ == "__main__":

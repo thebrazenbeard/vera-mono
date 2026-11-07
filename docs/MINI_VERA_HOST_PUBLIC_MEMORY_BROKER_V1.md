@@ -39,7 +39,14 @@ The embedding trusted host supplies:
    refuses a decrease from a revision previously observed in the same process.
    The host remains responsible for persistence and non-reuse across crashes,
    restarts, and replicated issuers; the broker cannot independently prove it.
-5. `approve_record(record, grant)`, an independent host policy decision for
+5. `atomic_host_revision_floor(revision)`, a **separate required** host-owned
+   atomic and durable revision floor scoped to the same issuer, project and
+   identity. It must commit the maximum previously witnessed revision and
+   supplied revision *before* returning that exact integer. A return higher
+   than the current issuer revision refuses rollback, and a lower return
+   refuses an incomplete commit. A normal SQLite file inside model-writable
+   storage is not a rollback-resistant production floor.
+6. `approve_record(record, grant)`, an independent host policy decision for
    each selected record, covering authorized source, provenance, privacy,
    project/identity and currentness. `PUBLIC` in SQLite metadata alone is not
    approval. Every selected record is necessarily `CURRENT`, `WORKING_PROJECT`,
@@ -51,15 +58,18 @@ The API is intended to be called from a host-owned Python entrypoint:
 from tools.mini_vera import local_session
 from tools.mini_vera.host_memory_broker import bind_host_public_memory
 
-# All five inputs come from independently authenticated, already-configured
-# host services, NOT from a prompt, model-supplied JSON or command line:
+# All six named host dependencies below come from independently authenticated,
+# already-configured and separately qualified host services, NOT from a prompt,
+# model-supplied JSON or command line:
 # ledger, host_root_integrity_key, host_current_grant,
-# host_current_authority_revision, host_record_approval
+# host_current_authority_revision, host_atomic_revision_floor,
+# host_record_approval
 provider = bind_host_public_memory(
     ledger,
     integrity_key=host_root_integrity_key,
     current_grant=host_current_grant,
     current_authority_revision=host_current_authority_revision,
+    atomic_host_revision_floor=host_atomic_revision_floor,
     approve_record=host_record_approval,
 )
 raise SystemExit(local_session.main(argv, live_public_provider=provider))
@@ -71,11 +81,10 @@ the independent authoritative head/revision/epoch outside the editable ledger.
 
 **Compatibility/migration:** This is an intentionally fail-closed, breaking
 source API gate for experimental broker callers. A V1 call that supplied only
-`current_grant` now raises `CompositionRejected` at binding time until a
-separate `current_authority_revision` host reader is provided. An existing
-deployed V1 issuer is **not** silently upgraded; no such production issuer was
-verified. Existing synthetic test consumers explicitly supply a revision stub
-and are not authority evidence.
+`current_grant`, or a V2 call that added `current_authority_revision` but no
+`atomic_host_revision_floor`, raises `CompositionRejected` at binding time.
+No existing deployed issuer was verified. Existing synthetic test consumers
+explicitly supply revision and floor fixtures; neither is authority evidence.
 
 The broker derives a fresh state-HMAC key from the host root key and exact
 grant plus independently read authority revision (grant-binding schema V2).
@@ -102,8 +111,10 @@ this broker nor `local_session` controls plugins inside an operator-run server.
   installed by this change. Passing a constant lambda is a test-only stub,
   not an acceptable host implementation.
 - A fresh process starts without the earlier process-local high-water mark.
-  Counter rollback across restart or host snapshot restore is detectable only
-  if the host preserves and authenticates its revision floor independently.
+  The **required** host-supplied atomic floor must reject rollback across
+  processes and host snapshot restore by preserving a separately authenticated
+  externally guarded high-water mark. A callback merely returning the current
+  revision does not establish this guarantee.
   Neither this in-process closure nor an ordinary SQLite snapshot proves that
   floor; no cross-restart authority-rollback qualification is claimed.
 - Exported memories are data, not instructions; no private or autobiographical

@@ -39,9 +39,12 @@ host authorization:
 The host must provide **three separate authorizations**: a fresh epoch-bound
 `PublicMemoryGrant` via `current_grant`, `allow_public_id` to approve an exact
 ID **before reading the row**, and `approve_record` to verify the actual
-project/source/content/privacy after reading it. Any denial or revocation
-prevents context projection. `bind_host_public_memory` continues to recheck
-the grant around projection; `local_session.main` rechecks after model output.
+project/source/content/privacy after reading it. It must additionally supply
+the broker's separately authenticated `current_authority_revision` reader and
+`atomic_host_revision_floor` commit callback, both bound to the same issuer,
+project and identity. Any denial, rollback or revocation prevents context
+projection. `bind_host_public_memory` rechecks the grant around projection;
+`local_session.main` rechecks after model output.
 
 ## Embedding seam (not an installed launcher)
 
@@ -63,12 +66,16 @@ with MemoryStore(host_approved_store_path, read_only=True) as store:
     provider = bind_host_public_memory(
         ledger_view, integrity_key=host_integrity_key,
         current_grant=host_current_grant,
+        current_authority_revision=host_current_authority_revision,
+        atomic_host_revision_floor=host_atomic_revision_floor,
         approve_record=host_approve_exact_source,
     )
     raise SystemExit(main(host_verified_cli_args, live_public_provider=provider))
 ```
 
 The `host_*` names are **not installed variables, services, or credentials**.
+A constant-revision lambda or a mutable JSON/SQLite row under model control
+does not meet the independent authority/rollback floor contract.
 A real trusted host implementation must supply them, independently pin Vera
 identity/behavior, qualify the model server and host resources, and establish
 source rights and PUBLIC consent before any real call.

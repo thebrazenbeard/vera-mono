@@ -112,6 +112,10 @@ class MiniVeraLoopbackTests(unittest.TestCase):
         request = candidate()
         payload, payload_hash = loopback.validate_candidate(request)
         self.assertEqual(payload["model"], "qwen3.5-mini-local")
+        self.assertNotIn("reasoning_effort", payload)  # generic by default
+        self.assertNotIn("think", payload)
+        self.assertEqual(request["request_sha256"],
+                         sha256(loopback.canonical(request["inference"])).hexdigest())
         self.assertEqual(payload_hash, sha256(loopback.canonical(payload)).hexdigest())
         with FakeLocal() as server:
             result = loopback.execute(request, endpoint=server.url)
@@ -119,6 +123,8 @@ class MiniVeraLoopbackTests(unittest.TestCase):
             path, sent, headers = server.requests[0]
         self.assertEqual(path, "/v1/chat/completions")
         self.assertEqual(sent, payload)
+        self.assertNotIn("reasoning_effort", sent)
+        self.assertEqual(result["provenance"]["sent_payload_sha256"], payload_hash)
         self.assertNotIn("Authorization", headers)
         self.assertNotIn("tools", sent)
         self.assertEqual(result["evidence"]["http_calls"], 1)
@@ -127,6 +133,23 @@ class MiniVeraLoopbackTests(unittest.TestCase):
         self.assertIs(result["evidence"]["model_weights_verified"], False)
         self.assertEqual(result["status"], "UNVERIFIED_LOCAL_MODEL_OUTPUT")
         self.assertEqual(result["response"]["text"], "This is an unverified observation.")
+
+    def test_explicit_ollama_opt_in_adds_no_thinking_and_rehashes_sent_bytes(self):
+        request = candidate()
+        generic, generic_sha = loopback.validate_candidate(request)
+        with FakeLocal() as server:
+            result = loopback.execute(
+                request, endpoint=server.url, ollama_disable_thinking=True)
+            self.assertEqual(len(server.requests), 1)
+            sent = server.requests[0][1]
+        self.assertEqual(sent["reasoning_effort"], "none")
+        self.assertNotIn("think", sent)
+        self.assertEqual({**generic, "reasoning_effort": "none"}, sent)
+        self.assertEqual(loopback.sha256(loopback.canonical(sent)),
+                         result["provenance"]["sent_payload_sha256"])
+        self.assertNotEqual(generic_sha, result["provenance"]["sent_payload_sha256"])
+        self.assertEqual(request["request_sha256"],
+                         loopback.sha256(loopback.canonical(request["inference"])))
 
     def test_no_cli_execute_means_no_http_call_or_written_artifact(self):
         with tempfile.TemporaryDirectory() as temp, FakeLocal() as server:
@@ -209,6 +232,9 @@ class MiniVeraLoopbackTests(unittest.TestCase):
             (response(text="bad\x1b[31m"), 200),
             (response(text="bad\u202eright"), 200),
             (response(text=""), 200),
+            ({"model": "qwen3.5-mini-local", "choices": [{"message": {
+                "role": "assistant", "content": "", "reasoning": "hidden 128 tokens"},
+                "finish_reason": "length"}]}, 200),
             ({"model": "qwen3.5-mini-local", "choices": [{"message": {
                 "role": "assistant", "content": "answer"}, "finish_reason": []}]}, 200),
             (response(), 302),

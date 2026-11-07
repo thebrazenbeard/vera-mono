@@ -5,7 +5,10 @@ from __future__ import annotations
 from contextlib import redirect_stderr, redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import io
+import hashlib
 import json
+from pathlib import Path
+import tempfile
 import threading
 import time
 import unittest
@@ -235,6 +238,7 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(1, session.call_count)
         self.assertIn(DIGEST, session.call_args.args[0])
         self.assertIn("--execute", session.call_args.args[0])
+        self.assertIn("--ollama-disable-thinking", session.call_args.args[0])
 
     def test_main_refuses_cold_load_without_special_permission(self):
         tags, ps = inventory()
@@ -292,6 +296,246 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(2, code)
         self.assertEqual(["/api/tags", "/api/ps", "/api/tags", "/api/ps"], paths)
         self.assertIn("insufficient free", error.getvalue())
+
+    def test_hash_only_trial_receipt_atomic_success_without_prompt_or_reply_text(self):
+        tags, ps = inventory(resident=True)
+        getter, _ = fake_getter(tags, ps)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "trial.json"
+            stdout = io.StringIO()
+
+            def fake_session(_args):
+                print("Vera> I cannot attest to my weights.")
+                return 0
+
+            with patch.object(preflight.local_session, "main", side_effect=fake_session), \
+                    redirect_stdout(stdout):
+                code = preflight.main([
+                    "--execute", "--host-idle-confirmed", "--prompt", "SECRET_IN_TEST",
+                    "--receipt-output", str(output)],
+                    memory_probe=lambda: 2 * preflight.GIB, get_json=getter)
+            self.assertEqual(0, code)
+            self.assertTrue(output.is_file())
+            receipt = json.loads(output.read_text())
+            self.assertEqual("CLIENT_OBSERVED_LOCAL_SESSION_OUTPUT_PUBLICATION_UNQUALIFIED",
+                             receipt["status"])
+            self.assertEqual("UNQUALIFIED_NOT_A_DURABLE_COMMIT_RECORD",
+                             receipt["publication_custody"])
+            self.assertEqual(DIGEST, receipt["server_declared_tag_digest"])
+            self.assertFalse(receipt["model_weights_verified"])
+            self.assertFalse(receipt["exclusive_host_lease"])
+            self.assertTrue(receipt["receipt_file_fsynced"])
+            self.assertFalse(receipt["receipt_directory_metadata_fsynced"])
+            self.assertTrue(receipt["reply_complete"])
+            self.assertEqual(hashlib.sha256(b"SECRET_IN_TEST").hexdigest(),
+                             receipt["input_prompt_sha256"])
+            self.assertEqual(hashlib.sha256(b"I cannot attest to my weights.").hexdigest(),
+                             receipt["displayed_reply_sha256"])
+            self.assertNotIn("SECRET_IN_TEST", output.read_text())
+            self.assertNotIn("I cannot attest", output.read_text())
+            self.assertIn("Vera> I cannot attest to my weights.", stdout.getvalue())
+            publication_line = stdout.getvalue().splitlines()[-1]
+            publication = json.loads(publication_line)
+            self.assertEqual("PUBLISHED_HASH_ONLY_CUSTODY_UNQUALIFIED",
+                             publication["receipt_status"])
+            # Hash the *exact persisted bytes*, including terminal newline.
+            self.assertEqual(hashlib.sha256(output.read_bytes()).hexdigest(),
+                             publication["receipt_sha256"])
+            self.assertEqual(1, len(list(Path(directory).glob("*.incomplete"))))
+
+    def test_partial_receipt_write_never_exposes_final_filename(self):
+        tags, ps = inventory(resident=True)
+        getter, _ = fake_getter(tags, ps)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "trial.json"
+
+            def local_reply(_args):
+                print("Vera> plausible model output")
+                return 0
+
+            with patch.object(preflight.local_session, "main", side_effect=local_reply), \
+                    patch.object(preflight.os, "write", side_effect=OSError("disk full")), \
+                    redirect_stderr(io.StringIO()) as stderr, \
+                    redirect_stdout(io.StringIO()):
+                code = preflight.main([
+                    "--execute", "--host-idle-confirmed", "--prompt", "Hi",
+                    "--receipt-output", str(output)],
+                    memory_probe=lambda: 2 * preflight.GIB, get_json=getter)
+            self.assertEqual(2, code)
+            self.assertFalse(output.exists())
+            self.assertIn("model call already attempted", stderr.getvalue())
+            self.assertEqual(1, len(list(Path(directory).glob("*.incomplete"))))
+
+    @unittest.skipIf(preflight.os.name == "nt", "Windows has no directory fsync via os.open")
+    def test_postlink_directory_fsync_failure_leaves_only_unqualified_observation(self):
+        tags, ps = inventory(resident=True)
+        getter, _ = fake_getter(tags, ps)
+        original_fsync = preflight.os.fsync
+        syncs = 0
+
+        def fail_parent_sync(fd):
+            nonlocal syncs
+            syncs += 1
+            if syncs == 2:
+                raise OSError("synthetic directory fsync error")
+            return original_fsync(fd)
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "trial.json"
+
+            def local_reply(_args):
+                print("Vera> result exists only if metadata sync succeeds")
+                return 0
+
+            with patch.object(preflight.local_session, "main", side_effect=local_reply), \
+                    patch.object(preflight.os, "fsync", side_effect=fail_parent_sync), \
+                    redirect_stderr(io.StringIO()) as stderr, \
+                    redirect_stdout(io.StringIO()):
+                code = preflight.main([
+                    "--execute", "--host-idle-confirmed", "--prompt", "Hi",
+                    "--receipt-output", str(output)],
+                    memory_probe=lambda: 2 * preflight.GIB, get_json=getter)
+            self.assertEqual(2, code)
+            self.assertEqual(2, syncs)
+            self.assertTrue(output.exists(), "postlink failure can leave visible bytes")
+            unqualified = json.loads(output.read_text())
+            self.assertIn("PUBLICATION_UNQUALIFIED", unqualified["status"])
+            self.assertFalse(unqualified["receipt_directory_metadata_fsynced"])
+            self.assertIn("model call already attempted", stderr.getvalue())
+
+    @unittest.skipIf(preflight.os.name == "nt", "Windows has no directory fsync via os.open")
+    def test_postlink_fsync_race_does_not_unlink_foreign_replacement(self):
+        tags, ps = inventory(resident=True)
+        getter, _ = fake_getter(tags, ps)
+        original_fsync = preflight.os.fsync
+        syncs = 0
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "trial.json"
+
+            def swap_then_fail(fd):
+                nonlocal syncs
+                syncs += 1
+                if syncs == 2:
+                    foreign = Path(directory) / "foreign-ready.txt"
+                    foreign.write_text("FOREIGN_RECEIPT_AFTER_LINK")
+                    preflight.os.replace(foreign, output)
+                    raise OSError("synthetic hostile dir fsync error")
+                return original_fsync(fd)
+
+            def local_reply(_args):
+                print("Vera> synthetic result")
+                return 0
+
+            with patch.object(preflight.local_session, "main", side_effect=local_reply), \
+                    patch.object(preflight.os, "fsync", side_effect=swap_then_fail), \
+                    patch.object(Path, "unlink", side_effect=AssertionError("unsafe unlink")), \
+                    redirect_stderr(io.StringIO()) as stderr, \
+                    redirect_stdout(io.StringIO()):
+                code = preflight.main([
+                    "--execute", "--host-idle-confirmed", "--prompt", "Hi",
+                    "--receipt-output", str(output)],
+                    memory_probe=lambda: 2 * preflight.GIB, get_json=getter)
+            self.assertEqual(2, code)
+            self.assertEqual("FOREIGN_RECEIPT_AFTER_LINK", output.read_text())
+            self.assertIn("model call already attempted", stderr.getvalue())
+
+    def test_truncated_reply_receipt_explicitly_not_complete(self):
+        tags, ps = inventory(resident=True)
+        getter, _ = fake_getter(tags, ps)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "trial.json"
+
+            def truncated(_args):
+                print("Vera [incomplete reply]> unfinished thought")
+                return 0
+
+            with patch.object(preflight.local_session, "main", side_effect=truncated), \
+                    redirect_stdout(io.StringIO()):
+                code = preflight.main([
+                    "--execute", "--host-idle-confirmed", "--prompt", "Hi",
+                    "--receipt-output", str(output)],
+                    memory_probe=lambda: 2 * preflight.GIB, get_json=getter)
+            self.assertEqual(0, code)
+            receipt = json.loads(output.read_text())
+            self.assertFalse(receipt["reply_complete"])
+            self.assertIn("TRUNCATED", receipt["status"])
+
+    def test_existing_receipt_refuses_before_inference_without_overwrite(self):
+        tags, ps = inventory(resident=True)
+        getter, paths = fake_getter(tags, ps)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "trial.json"
+            output.write_text("FOREIGN_RECEIPT")
+            with patch.object(preflight.local_session, "main",
+                              side_effect=AssertionError("model launched")), \
+                    redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()):
+                code = preflight.main([
+                    "--execute", "--host-idle-confirmed", "--prompt", "Hi",
+                    "--receipt-output", str(output)],
+                    memory_probe=lambda: 2 * preflight.GIB, get_json=getter)
+            self.assertEqual(2, code)
+            self.assertEqual("FOREIGN_RECEIPT", output.read_text())
+            self.assertEqual([], paths)
+
+    def test_failed_or_ambiguous_session_cannot_publish_success_receipt(self):
+        tags, ps = inventory(resident=True)
+        getter, _ = fake_getter(tags, ps)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "trial.json"
+
+            def failed(_args):
+                print("UNRELATED_INCOMPLETE_OUTPUT")
+                return 2
+
+            with patch.object(preflight.local_session, "main", side_effect=failed), \
+                    redirect_stderr(io.StringIO()) as stderr, \
+                    redirect_stdout(io.StringIO()):
+                code = preflight.main([
+                    "--execute", "--host-idle-confirmed", "--prompt", "Hi",
+                    "--receipt-output", str(output)],
+                    memory_probe=lambda: 2 * preflight.GIB, get_json=getter)
+            self.assertEqual(2, code)
+            self.assertFalse(output.exists())
+            self.assertIn("call count unknown", stderr.getvalue())
+
+    def test_foreign_final_race_preserves_foreign_bytes_and_refuses(self):
+        tags, ps = inventory(resident=True)
+        getter, _ = fake_getter(tags, ps)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "trial.json"
+
+            def raced_link(source, target, **_kwargs):
+                Path(target).write_text("FOREIGN_RACE_WINNER")
+                raise FileExistsError("receipt contested")
+
+            def local_reply(_args):
+                print("Vera> synthetic result")
+                return 0
+
+            with patch.object(preflight.local_session, "main", side_effect=local_reply), \
+                    patch.object(preflight.os, "link", side_effect=raced_link), \
+                    redirect_stderr(io.StringIO()) as stderr, \
+                    redirect_stdout(io.StringIO()):
+                code = preflight.main([
+                    "--execute", "--host-idle-confirmed", "--prompt", "Hi",
+                    "--receipt-output", str(output)],
+                    memory_probe=lambda: 2 * preflight.GIB, get_json=getter)
+            self.assertEqual(2, code)
+            self.assertEqual("FOREIGN_RACE_WINNER", output.read_text())
+            self.assertIn("model call already attempted", stderr.getvalue())
+            self.assertEqual(1, len(list(Path(directory).glob("*.incomplete"))))
+
+    def test_receipt_path_requires_absolute_non_symlink_parent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(preflight.PreflightRefused, "absolute"):
+                preflight._receipt_target(Path("relative.json"))
+            alias = Path(directory) / "alias"
+            try:
+                alias.symlink_to(Path(directory), target_is_directory=True)
+            except OSError:
+                self.skipTest("host cannot create directory symlinks")
+            with self.assertRaisesRegex(preflight.PreflightRefused, "non-symlink"):
+                preflight._receipt_target(alias / "trial.json")
 
 
 if __name__ == "__main__":

@@ -309,12 +309,23 @@ def _parse_response(raw: bytes, model: str) -> tuple[str, str]:
     return result, finish
 
 
-def execute(request: dict[str, Any], *, endpoint: str, timeout_seconds: int = 30) -> dict[str, Any]:
+def execute(request: dict[str, Any], *, endpoint: str, timeout_seconds: int = 30,
+            ollama_disable_thinking: bool = False) -> dict[str, Any]:
     """One explicitly authorized local HTTP call; results confer zero authority."""
     host, port, canonical_url = _endpoint(endpoint)
     if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 120:
         raise LoopbackRejected("timeout must be 1..120 seconds")
+    if type(ollama_disable_thinking) is not bool:
+        raise LoopbackRejected("Ollama thinking control must be an explicit boolean")
     payload, payload_sha = validate_candidate(request)
+    if ollama_disable_thinking:
+        # Opt-in only for known Ollama OpenAI-compatible endpoints: Ollama
+        # documents reasoning_effort='none' as the equivalent of native
+        # /api/chat think=false. Generic llama.cpp/KoboldCPP adapters receive
+        # no Ollama-only extensions by default. Payload hash is recalculated
+        # over the *actual* bytes before the HTTP send.
+        payload = {**payload, "reasoning_effort": "none"}
+        payload_sha = sha256(canonical(payload))
     connection = _DeadlineConnection(host, port, timeout=timeout_seconds)
     response = None
     try:
