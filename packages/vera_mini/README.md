@@ -1,10 +1,12 @@
-# mini-Vera Local 0.1.0
+# mini-Vera Local 0.2.0 — First Learned Policy
 
 An original, offline, small-footprint **software facsimile** inspired by Vera's
-public, source-controlled behavior profile. This implementation is **created,
-not trained**: it uses hand-authored Python code, deterministic search and
-explicit state. There are no pretrained model weights, LoRA adapters, hidden
-cloud calls, or neural inference dependencies.
+public, source-controlled behavior profile. Its first version was **created,
+not trained**. This second version has an original, locally trained
+multinomial-logistic-regression model that selects among a few dialogue plans.
+There are **no imported pretrained neural weights**, LoRA adapters, hidden
+cloud calls, or neural inference dependencies. Its dialogue policy **was
+trained** on a small, source-controlled, originally authored synthetic corpus.
 
 This is not a copy of a ChatGPT model, a continuous instance of an earlier
 conversation, or a claim of consciousness. Its conversational breadth is
@@ -35,7 +37,37 @@ py -3 .\mini-vera.pyz ask "What does this repository implement?" --docs D:\VERA\
 ```
 
 The `.pyz` application bundles the code and public behavior profile. It does
-not modify system configuration, install services, or download any weights.
+not modify system configuration, install services, or download weights.
+It also bundles the exact initial learned-policy checkpoint. The experimental
+learning component can be disabled for ablation using `--no-learning`.
+
+## Learning, narrowly stated
+
+The trained model classifies conversational input as `challenge`, `support`,
+`probe`, `direct`, `identity`, or `unknown`. These weights influence only the
+wording of *unknown-answer* dialogue strategies. They do not decide what is
+true, authorize external actions, or override privacy and identity rules.
+
+The initial training run used **72 approved authored examples**, plus separate
+36-example validation and 36-example held-out test sets. Its measured accuracy
+was 26/36 on validation and 24/36 on held-out test, versus a 6/36 majority-class
+baseline. This is a limited synthetic intent-routing result, **not** evidence
+of natural-language generalization or generative intelligence. See
+`data/training_receipt_v1.json` for the exact input/checkpoint hashes and class
+confusion matrices. `data/PROVENANCE.md` states the dataset's origin and limits.
+
+To train a new local policy from an explicitly approved JSONL file containing
+`{"text": "...", "label": "..."}` records:
+
+```powershell
+py -3 .\mini-vera.pyz train-policy --data .\approved-examples.jsonl --output .\my-policy.json --consent
+py -3 .\mini-vera.pyz chat --policy .\my-policy.json
+```
+
+Mini-Vera does **not** silently train on chat history. The learning algorithm
+lives inside `.pyz`; ongoing parameter updates are explicit user-governed
+operations and write a sidecar checkpoint, which can be included in a future
+build after review.
 
 ## Opt-in local memory
 

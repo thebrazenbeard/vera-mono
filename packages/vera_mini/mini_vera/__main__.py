@@ -8,6 +8,7 @@ import sys
 
 from .memory import MemoryError, MemoryJournal
 from .runtime import MiniVera
+from .learning import IntentLearner, LABELS
 
 
 def parser() -> argparse.ArgumentParser:
@@ -15,7 +16,7 @@ def parser() -> argparse.ArgumentParser:
         prog="mini-vera",
         description="Original offline Mini-Vera: created from code, not trained weights.",
     )
-    root.add_argument("--version", action="version", version="mini-vera 0.1.0")
+    root.add_argument("--version", action="version", version="mini-vera 0.2.0")
     commands = root.add_subparsers(dest="command", required=True)
     for command in ("ask", "chat"):
         entry = commands.add_parser(command,
@@ -28,7 +29,19 @@ def parser() -> argparse.ArgumentParser:
                            help="Existing local memory journal; never loaded without --with-memory")
         entry.add_argument("--with-memory", action="store_true",
                            help="Explicitly opt into consulting the local memory journal")
+        entry.add_argument("--policy", metavar="FILE",
+                           help="Use an explicitly supplied local learned-policy checkpoint")
+        entry.add_argument("--no-learning", action="store_true",
+                           help="Run original rule-based baseline without learned policy")
         entry.add_argument("--json", action="store_true", help="Output answer with evidence as JSON")
+
+    training = commands.add_parser("train-policy",
+        help="Explicitly train local dialogue routing weights from approved labeled JSONL")
+    training.add_argument("--data", required=True, metavar="JSONL")
+    training.add_argument("--output", required=True, metavar="CHECKPOINT")
+    training.add_argument("--consent", action="store_true",
+                          help="Confirm source rights and intentional local checkpoint write")
+    training.add_argument("--epochs", type=int, default=50)
 
     remember = commands.add_parser("remember", help="Store exactly one user-supplied memory")
     remember.add_argument("text")
@@ -64,7 +77,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command in ("ask", "chat"):
             assistant = MiniVera(docs=args.docs, memory_file=args.memory,
-                                 use_memory=args.with_memory)
+                                 use_memory=args.with_memory,
+                                 policy_file=args.policy,
+                                 use_learning=not args.no_learning)
             if args.command == "ask":
                 _display(assistant.ask(args.question), as_json=args.json)
                 return 0
@@ -78,6 +93,29 @@ def main(argv: list[str] | None = None) -> int:
                 if question.strip().lower() in ("/exit", "/quit"):
                     break
                 _display(assistant.ask(question), as_json=args.json)
+            return 0
+        if args.command == "train-policy":
+            if not args.consent:
+                raise PermissionError("train-policy requires --consent for approved data")
+            from pathlib import Path
+            corpus = Path(args.data)
+            if not corpus.is_file() or corpus.stat().st_size > 1_000_000:
+                raise ValueError("approved JSONL source absent or exceeds 1 MB")
+            samples = []
+            for line in corpus.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                record = json.loads(line)
+                if not isinstance(record, dict) or type(record.get("text")) is not str \
+                        or record.get("label") not in LABELS:
+                    raise ValueError("each JSONL row requires text and one known label")
+                samples.append((record["text"], record["label"]))
+            model = IntentLearner()
+            report = model.fit(samples, epochs=args.epochs)
+            model.save(args.output)
+            print(json.dumps({"training": report, "checkpoint": str(args.output),
+                              "claims": "intent routing only, no generative-language learning"},
+                             sort_keys=True))
             return 0
         if args.command == "remember":
             event = MemoryJournal(args.memory).append(
