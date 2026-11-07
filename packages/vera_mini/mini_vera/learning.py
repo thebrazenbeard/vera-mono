@@ -23,7 +23,19 @@ _TOKENS = re.compile(r"[a-z0-9]+(?:'[a-z0-9]+)?")
 _EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
 _PRIVATE = re.compile(
     r"(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\b(?:password|api[_ -]?key|"
-    r"secret[_ -]?key|access[_ -]?token|bearer)\s*[:=]\s*\S+)", re.I
+    r"secret[_ -]?key|access[_ -]?token|bearer|accountkey|"
+    r"clientsecret)\s*[:=]\s*\S+)", re.I
+)
+# These are high-confidence credential *shapes*, not a complete secret scanner.
+# Check only training text; inference may legitimately discuss token formats.
+_CREDENTIAL = re.compile(
+    r"(?:\bgh[pousr]_[A-Za-z0-9]{20,}\b|"
+    r"\bgithub_pat_[A-Za-z0-9_]{20,}\b|"
+    r"\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b|"
+    r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b|"
+    r"\bAIza[A-Za-z0-9_-]{35}\b|"
+    r"\b(?:sk|rk)_live_[A-Za-z0-9]{16,}\b|"
+    r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b)", re.I
 )
 _SCHEMA = "mini-vera-intent-logreg-v1"
 _MAX_CHECKPOINT = 4_000_000
@@ -32,7 +44,8 @@ _MAX_CHECKPOINT = 4_000_000
 def _validated_text(text: str, *, for_training: bool) -> str:
     if not isinstance(text, str) or not text.strip() or len(text) > 2048:
         raise ValueError("text must be a nonempty string of at most 2048 characters")
-    if for_training and (_EMAIL.search(text) or _PRIVATE.search(text)):
+    if for_training and (_EMAIL.search(text) or _PRIVATE.search(text)
+                         or _CREDENTIAL.search(text)):
         raise ValueError("potential personal or secret material cannot be trained on")
     return text
 

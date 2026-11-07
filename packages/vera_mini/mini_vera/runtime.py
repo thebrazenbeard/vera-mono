@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import re
 from importlib import resources
+import hashlib
 import json
 from typing import Iterable
 
@@ -15,13 +16,77 @@ from .memory import MemoryJournal
 from .learning import IntentLearner
 
 
+_MAX_CHECKPOINT_BYTES = 4_000_000
+_MAX_MANIFEST_BYTES = 16_384
+_POLICY_MANIFEST_SCHEMA = "mini-vera-policy-manifest-v1"
+# Pinned to data/training_receipt_v1.json. That source receipt is not included
+# in the single-file zipapp, so checking the packaged policy needs this anchor.
+_BUNDLED_POLICY_SHA256 = "f2ee0f51aab5c10fdede34c691128bf9ae73d83d0344638f44ed860227fc08c0"
+
+
+def _read_limited(file, maximum: int, label: str) -> bytes:
+    if not file.is_file():
+        raise ValueError(f"{label} missing")
+    with file.open("rb") as stream:
+        data = stream.read(maximum + 1)
+    if len(data) > maximum:
+        raise ValueError(f"{label} exceeds size limit")
+    return data
+
+
+def _read_json(data: bytes, label: str) -> object:
+    def reject_nonfinite(_value: str) -> None:
+        raise ValueError(f"{label} contains a nonfinite JSON number")
+
+    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"{label} has duplicate JSON keys")
+            result[key] = value
+        return result
+
+    try:
+        return json.loads(data.decode("utf-8"), parse_constant=reject_nonfinite,
+                          object_pairs_hook=reject_duplicate_keys)
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"{label} is malformed JSON") from exc
+
+
+def _verified_model(file, expected_sha256: str) -> IntentLearner:
+    # Parse exactly the bytes whose digest was checked. Loading the path again
+    # after hashing it would leave a time-of-check/time-of-use substitution gap.
+    checkpoint = _read_limited(file, _MAX_CHECKPOINT_BYTES, "policy checkpoint")
+    if hashlib.sha256(checkpoint).hexdigest() != expected_sha256:
+        raise ValueError("policy checkpoint SHA-256 does not match its provenance")
+    return IntentLearner.from_dict(_read_json(checkpoint, "policy checkpoint"))
+
+
+def _external_policy(file: str | Path) -> IntentLearner:
+    checkpoint = Path(file)
+    manifest_path = checkpoint.with_name(checkpoint.name + ".manifest.json")
+    manifest = _read_json(_read_limited(manifest_path, _MAX_MANIFEST_BYTES,
+                                        "policy manifest"), "policy manifest")
+    if (type(manifest) is not dict or
+            set(manifest) != {"schema", "sha256", "consent", "checkpoint", "created_by"} or
+            manifest["schema"] != _POLICY_MANIFEST_SCHEMA or
+            type(manifest["sha256"]) is not str or
+            re.fullmatch(r"[0-9a-f]{64}", manifest["sha256"]) is None or
+            manifest["consent"] is not True or
+            manifest["checkpoint"] != checkpoint.name or
+            manifest["created_by"] != "mini-vera train-policy"):
+        raise ValueError("invalid policy manifest: explicit consent, provenance and matching filename required")
+    # A sibling manifest records a user's claim of consent and file integrity;
+    # it is not an independent signature or proof of rights to training data.
+    return _verified_model(checkpoint, manifest["sha256"])
+
+
 def _bundled_policy() -> IntentLearner | None:
-    """Load a packaged learned policy, if released; never infer a trained model."""
+    """Verify the released policy against its pinned source-receipt digest."""
     file = resources.files("mini_vera").joinpath("resources/INTENT_POLICY_V1.json")
     if not file.is_file():
         return None
-    data = json.loads(file.read_text(encoding="utf-8"))
-    return IntentLearner.from_dict(data)
+    return _verified_model(file, _BUNDLED_POLICY_SHA256)
 
 
 class MiniVera:
@@ -37,7 +102,7 @@ class MiniVera:
             raise ValueError("--with-memory requires --memory FILE")
         self.memory = MemoryJournal(memory_file) if memory_file is not None else None
         self.use_memory = use_memory
-        self.policy = ((IntentLearner.load(policy_file) if policy_file is not None
+        self.policy = ((_external_policy(policy_file) if policy_file is not None
                        else _bundled_policy()) if use_learning else None)
         self.history: list[dict[str, str]] = []
 

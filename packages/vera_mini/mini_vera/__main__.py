@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import sys
+import tempfile
 
 from .memory import MemoryError, MemoryJournal
 from .runtime import MiniVera
@@ -41,6 +44,8 @@ def parser() -> argparse.ArgumentParser:
     training.add_argument("--output", required=True, metavar="CHECKPOINT")
     training.add_argument("--consent", action="store_true",
                           help="Confirm source rights and intentional local checkpoint write")
+    training.add_argument("--overwrite", action="store_true",
+                          help="Explicitly replace a previously saved checkpoint")
     training.add_argument("--epochs", type=int, default=50)
 
     remember = commands.add_parser("remember", help="Store exactly one user-supplied memory")
@@ -99,8 +104,16 @@ def main(argv: list[str] | None = None) -> int:
                 raise PermissionError("train-policy requires --consent for approved data")
             from pathlib import Path
             corpus = Path(args.data)
-            if not corpus.is_file() or corpus.stat().st_size > 1_000_000:
+            if corpus.is_symlink() or not corpus.is_file() or corpus.stat().st_size > 1_000_000:
                 raise ValueError("approved JSONL source absent or exceeds 1 MB")
+            output = Path(args.output)
+            if output.suffix.lower() != ".json" or not output.parent.is_dir():
+                raise ValueError("checkpoint output must be a JSON file in an existing directory")
+            manifest_path = output.with_name(output.name + ".manifest.json")
+            if output.is_symlink() or manifest_path.is_symlink():
+                raise ValueError("checkpoint and manifest must not be symbolic links")
+            if (output.exists() or manifest_path.exists()) and not args.overwrite:
+                raise ValueError("checkpoint or manifest already exists; use --overwrite deliberately")
             samples = []
             for line in corpus.read_text(encoding="utf-8").splitlines():
                 if not line.strip():
@@ -112,8 +125,29 @@ def main(argv: list[str] | None = None) -> int:
                 samples.append((record["text"], record["label"]))
             model = IntentLearner()
             report = model.fit(samples, epochs=args.epochs)
-            model.save(args.output)
-            print(json.dumps({"training": report, "checkpoint": str(args.output),
+            model.save(output)
+            # The manifest records user-declared consent and detects accidental
+            # modification, but is not a trusted digital signature. Both files
+            # must be kept together and reviewed as one explicit sidecar input.
+            manifest = {
+                "schema": "mini-vera-policy-manifest-v1",
+                "checkpoint": output.name,
+                "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+                "consent": True,
+                "created_by": "mini-vera train-policy",
+            }
+            fd, temporary = tempfile.mkstemp(prefix=".mini-vera-manifest-", suffix=".tmp", dir=output.parent)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                    json.dump(manifest, stream, sort_keys=True, separators=(",", ":"))
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, manifest_path)
+            finally:
+                if os.path.exists(temporary):
+                    os.unlink(temporary)
+            print(json.dumps({"training": report, "checkpoint": str(output),
+                              "manifest": str(manifest_path),
                               "claims": "intent routing only, no generative-language learning"},
                              sort_keys=True))
             return 0

@@ -98,6 +98,39 @@ class LearningTests(unittest.TestCase):
         self.assertEqual(model.predict("What now?")["label"], "unknown")
         self.assertTrue(model.predict("What now?")["advisory_only"])
 
+    def test_credential_shapes_rejected_without_explicit_secret_labels(self):
+        # These are synthetic shape-matches, never real credentials.
+        credentials = (
+            "ghp_" + "A" * 36,
+            "gho_" + "B" * 36,
+            "github_pat_" + "C" * 72,
+            "sk-" + "D" * 32,
+            "sk-proj-" + "E" * 32,
+            "AKIA" + "F" * 16,
+            "ASIA" + "G" * 16,
+            "AIza" + "H" * 35,
+            "sk_live_" + "I" * 24,
+            "xoxb-" + "1" * 24,
+            "AccountKey=" + "J" * 32,
+            "ClientSecret=" + "K" * 32,
+        )
+        model = IntentLearner()
+        for credential in credentials:
+            with self.subTest(prefix=credential[:12]):
+                with self.assertRaises(ValueError):
+                    model.fit([("Please classify " + credential, "direct")])
+                self.assertEqual(model.trained_samples, 0)
+
+    def test_ordinary_credential_format_discussion_is_trainable(self):
+        # Explanatory text without token-shaped values should remain usable.
+        model = IntentLearner()
+        examples = [
+            ("A GitHub token can start with ghp_", "direct"),
+            ("The sk- prefix is not a credential by itself", "direct"),
+            ("Explain the meaning of an AWS access key ID", "probe"),
+        ]
+        self.assertEqual(model.fit(examples, epochs=1)["samples"], 3)
+
     def test_compute_limits(self):
         model = IntentLearner()
         with self.assertRaises(ValueError):
