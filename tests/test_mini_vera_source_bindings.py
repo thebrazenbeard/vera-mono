@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import sqlite3
 from copy import deepcopy
 from pathlib import Path
 import sys
@@ -79,6 +80,14 @@ def synthetic_approval(record, head):
 
 
 class MiniVeraBindingTests(unittest.TestCase):
+    def test_memory_ledger_sqlite_handle_closes_after_transaction(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ledger = MemoryLedger(Path(temp) / "memory.sqlite", project_id="vera-mono", identity_id="vera")
+            with ledger._connect() as connection:
+                self.assertEqual(1, connection.execute("SELECT 1").fetchone()[0])
+            with self.assertRaises(sqlite3.ProgrammingError):
+                connection.execute("SELECT 1")
+
     def test_bound_manifest_request_reaches_local_transport_validator(self):
         """The model-byte witness and loopback adapter must share one contract."""
         with tempfile.TemporaryDirectory() as temp:
