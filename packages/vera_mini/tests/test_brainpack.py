@@ -26,7 +26,10 @@ class BrainPackTests(unittest.TestCase):
     def put(self, name: str, data: str) -> Path:
         path = self.sources / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(data, encoding="utf-8")
+        # Fixtures are byte-exact across Windows and POSIX. Text-mode writes
+        # would turn the caller's LF into CRLF on Windows while BrainPack
+        # correctly preserves the resulting source bytes.
+        path.write_bytes(data.encode("utf-8"))
         return path
 
     def test_tiny_public_corpus_roundtrip_provenance_and_determinism(self):
