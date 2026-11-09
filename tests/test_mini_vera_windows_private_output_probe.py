@@ -52,8 +52,13 @@ class WindowsPrivateOutputProbeSafetyTests(unittest.TestCase):
                                     text=True, timeout=10)
             if result.returncode:
                 self.skipTest("Windows temporary filesystem cannot create junctions")
-            self.assertEqual(windows_private_output_probe._long_declared_dos_path(alias),
-                             alias)
+            normalized = windows_private_output_probe._long_declared_dos_path(alias)
+            # GetLongPathNameW may expand a short (RUNNER~1) ancestor without
+            # following the junction leaf. Raw path spelling is not identity.
+            self.assertEqual(normalized.name, alias.name)
+            self.assertTrue(normalized.parent.samefile(alias.parent))
+            self.assertNotEqual(normalized,
+                                windows_private_output_probe._long_declared_dos_path(target))
 
     @unittest.skipUnless(os.name == "nt" and sys.platform == "win32",
                          "requires actual Windows NT security descriptors")
