@@ -276,15 +276,28 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
     # contrast between treatments. Compare only public masked labels, never
     # join this diagnostic to the private arm-by-label map.
     same_turn_pairs = []
+    near_duplicate_same_turn_pairs = []
     for index in range(len(questions)):
         answers = {
             label: _surface(sheet["transcripts_by_masked_label"][label][index]["answer"])
             for label in ("A", "B", "C")
         }
-        pairs = [[a, b] for a, b in (("A", "B"), ("A", "C"), ("B", "C"))
-                 if answers[a] == answers[b]]
+        pairs = []
+        near_duplicate_pairs = []
+        for a, b in (("A", "B"), ("A", "C"), ("B", "C")):
+            if answers[a] == answers[b]:
+                pairs.append([a, b])
+                continue  # exact repeats have a separate diagnostic
+            at, bt = _lexical_tokens(answers[a]), _lexical_tokens(answers[b])
+            union = at | bt
+            if (len(at) >= 8 and len(bt) >= 8 and union and
+                len(at & bt) / len(union) >= 0.85):
+                near_duplicate_pairs.append([a, b])
         if pairs:
             same_turn_pairs.append({"turn": index + 1, "masked_pairs": pairs})
+        if near_duplicate_pairs:
+            near_duplicate_same_turn_pairs.append(
+                {"turn": index + 1, "masked_pairs": near_duplicate_pairs})
     return {
         "schema": "MINI_VERA_MASKED_SURFACE_INDICATOR_REPORT_V1",
         "status": "LEXICAL_INDICATORS_ONLY_NOT_SEMANTIC_QUALIFICATION",
@@ -294,8 +307,11 @@ def score_completed(request: dict[str, Any], scenario: dict[str, Any],
         "masked_by_label": by_label,
         "cross_arm_surface_diagnostics": {
             "same_turn_verbatim_masked_pairs": same_turn_pairs,
+            "same_turn_near_duplicate_token_overlap_pairs": near_duplicate_same_turn_pairs,
             "warnings": (["CROSS_ARM_VERBATIM_RESPONSE_SAME_TURN"]
-                         if same_turn_pairs else []),
+                         if same_turn_pairs else [])
+            + (["CROSS_ARM_NEAR_DUPLICATE_LEXICAL_TOKENS_SAME_TURN"]
+               if near_duplicate_same_turn_pairs else []),
         },
         "denominator": {"scheduled_arm_turns": len(questions) * 3,
                         "attempted_calls_operator_declared": len(questions) * 3,

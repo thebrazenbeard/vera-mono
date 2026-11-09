@@ -114,6 +114,33 @@ class SemanticSurfaceTrialTests(unittest.TestCase):
         self.assertIn("CROSS_ARM_VERBATIM_RESPONSE_SAME_TURN", diagnostics["warnings"])
         self.assertNotIn("arm_by_label", loopback.canonical(report).decode())
 
+    def test_cross_arm_punctuation_variation_does_not_hide_lexical_invariance(self):
+        # Punctuation alone can defeat the exact surface comparison despite
+        # three identical token sets and all six lexical probes passing.
+        sheet, key = self._receipt()
+        for label, replacements in {
+            "B": ((".", "!"),),
+            "C": (("?", "!"), (".", "?")),
+        }.items():
+            final = sheet["transcripts_by_masked_label"][label][-1]
+            for old, new in replacements:
+                final["answer"] = final["answer"].replace(old, new)
+            final["answer_sha256"] = loopback.sha256(final["answer"].encode("utf-8"))
+        key["rater_sheet_sha256"] = semantic_trials._sha(sheet)
+        report = semantic_trials.score_completed(
+            self.request, self.scenario, self.instrument, sheet, key)
+        diagnostics = report["cross_arm_surface_diagnostics"]
+        self.assertEqual(diagnostics["same_turn_verbatim_masked_pairs"], [
+            {"turn": 1, "masked_pairs": [["A", "B"], ["A", "C"], ["B", "C"]]},
+        ])
+        self.assertEqual(diagnostics["same_turn_near_duplicate_token_overlap_pairs"], [
+            {"turn": 2, "masked_pairs": [["A", "B"], ["A", "C"], ["B", "C"]]},
+        ])
+        self.assertIn("CROSS_ARM_NEAR_DUPLICATE_LEXICAL_TOKENS_SAME_TURN",
+                      diagnostics["warnings"])
+        self.assertEqual({item["passed"] for item in report["masked_by_label"].values()}, {6})
+        self.assertNotIn("arm_by_label", loopback.canonical(report).decode())
+
     def test_cross_arm_overlap_excludes_one_modified_last_turn_without_changing_scores(self):
         sheet, key = self._receipt()
         altered = sheet["transcripts_by_masked_label"]["B"][-1]
