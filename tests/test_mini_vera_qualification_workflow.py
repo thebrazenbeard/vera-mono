@@ -108,6 +108,50 @@ class MiniVeraQualificationWorkflowTests(unittest.TestCase):
             self.assertIn("DESCRIPTIVE", summary["status"])
             self.assertEqual(summary["model_alias_operator_declared"], "qwen3.5-mini-local")
 
+    def test_completed_case_with_missing_model_output_cannot_be_rated_success(self):
+        # A rehashed blank/whitespace-only model reply must not inflate the
+        # rated denominator. Nonblank whitespace is preserved for human review.
+        for answer, accepted in (("", False), ("  \t\n", False),
+                                 ("\x00", False), ("\u200b", False),
+                                 ("\u200d\u2060", False), ("\x1b", False),
+                                 ("  meaningful answer\n", True),
+                                 ("東京", True), ("!", True), ("🪐", True),
+                                 ("bonjour\u200b", True)):
+            with self.subTest(answer=repr(answer)), tempfile.TemporaryDirectory() as temp:
+                _, schedule, ledger = make_setup(Path(temp), n=1, aborted=False,
+                                                 unattempted=False)
+                row = ledger["cases"][0]
+                sheet_path = Path(row["rater_sheet_path"])
+                key_path = Path(row["private_key_path"])
+                sheet = json.loads(sheet_path.read_text())
+                key = json.loads(key_path.read_text())
+                turn = sheet["transcripts_by_masked_label"]["A"][0]
+                turn["answer"] = answer
+                turn["answer_sha256"] = loopback.sha256(answer.encode("utf-8"))
+                write_json(sheet_path, sheet)
+                key["rater_sheet_sha256"] = loopback.sha256(loopback.canonical(sheet))
+                write_json(key_path, key)
+                row["private_key_sha256"] = loopback.sha256(loopback.canonical(key))
+                if accepted:
+                    summary = workflow.aggregate(schedule, ledger)
+                    self.assertEqual(summary["denominator"]["completed"], 1)
+                else:
+                    with self.assertRaisesRegex(loopback.LoopbackRejected,
+                                                "invalid.*transcript"):
+                        workflow.aggregate(schedule, ledger)
+        # Directly probe the transcript validator before outer receipt
+        # serialization, which cannot represent lone surrogate code points.
+        with tempfile.TemporaryDirectory() as temp:
+            _, _, ledger = make_setup(Path(temp), n=1, aborted=False,
+                                      unattempted=False)
+            row = ledger["cases"][0]
+            sheet = json.loads(Path(row["rater_sheet_path"]).read_text())
+            key = json.loads(Path(row["private_key_path"]).read_text())
+            sheet["transcripts_by_masked_label"]["A"][0]["answer"] = chr(0xD800)
+            with self.assertRaisesRegex(loopback.LoopbackRejected,
+                                        "invalid.*transcript"):
+                workflow._check_complete_transcript(sheet, key)
+
     def test_fewer_than_five_cases_has_no_overconfident_interval(self):
         with tempfile.TemporaryDirectory() as temp:
             _, schedule, ledger = make_setup(Path(temp), n=1, aborted=False, unattempted=False)

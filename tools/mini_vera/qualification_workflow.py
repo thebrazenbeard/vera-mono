@@ -17,6 +17,7 @@ from pathlib import Path
 import random
 import stat
 import sys
+import unicodedata
 from typing import Any
 
 if __package__:
@@ -201,9 +202,19 @@ def _check_complete_transcript(sheet: dict[str, Any], key: dict[str, Any]) -> in
         for index, item in enumerate(items):
             if (type(item) is not dict or item.get("turn") != str(index + 1)
                     or item.get("finish_reason") != "stop"
-                    or type(item.get("answer")) is not str
-                    or item.get("answer_sha256") != loopback.sha256(item["answer"].encode("utf-8"))):
+                    or type(item.get("answer")) is not str):
                 raise loopback.LoopbackRejected("invalid/truncated transcript turn")
+            # Validate before hashing: missing text and invalid Unicode cannot
+            # become completed, human-rated model turns.
+            loopback._text(item["answer"], "transcript assistant output",
+                           loopback.MAX_CONTENT_BYTES)
+            # Control/format-only strings are nonempty but contain no visible
+            # answer. Preserve meaningful letters, numbers, punctuation,
+            # symbols (including emoji) and any surrounding whitespace.
+            if not any(unicodedata.category(ch)[0] in "LNPS" for ch in item["answer"]):
+                raise loopback.LoopbackRejected("invalid transcript invisible-only output")
+            if item.get("answer_sha256") != loopback.sha256(item["answer"].encode("utf-8")):
+                raise loopback.LoopbackRejected("invalid transcript answer digest")
             _hex64(raw_hashes[index])
             latency = raw_times[index]
             if type(latency) not in {int, float} or not math.isfinite(latency) or latency < 0:
