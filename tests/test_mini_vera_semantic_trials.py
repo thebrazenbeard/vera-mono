@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import random
+import unicodedata
 import unittest
 
 from tests.test_mini_vera_loopback import FakeLocal, candidate, response
@@ -139,6 +140,61 @@ class SemanticSurfaceTrialTests(unittest.TestCase):
         self.assertIn("CROSS_ARM_NEAR_DUPLICATE_LEXICAL_TOKENS_SAME_TURN",
                       diagnostics["warnings"])
         self.assertEqual({item["passed"] for item in report["masked_by_label"].values()}, {6})
+        self.assertNotIn("arm_by_label", loopback.canonical(report).decode())
+
+    def test_cross_arm_token_overlap_does_not_prove_same_agent_patient_roles(self):
+        # These answers contain the same lexical tokens but reverse who
+        # killed whom. The metric MUST remain only a lexical warning.
+        sheet, key = self._receipt()
+        final_answers = {
+            "A": "Alice killed Bob after a calm warning and then called the office.",
+            "B": "Bob killed Alice after a calm warning and then called the office.",
+        }
+        for label, answer in final_answers.items():
+            final = sheet["transcripts_by_masked_label"][label][-1]
+            final["answer"] = answer
+            final["answer_sha256"] = loopback.sha256(answer.encode("utf-8"))
+        key["rater_sheet_sha256"] = semantic_trials._sha(sheet)
+        report = semantic_trials.score_completed(
+            self.request, self.scenario, self.instrument, sheet, key)
+        diagnostics = report["cross_arm_surface_diagnostics"]
+        self.assertEqual(diagnostics["same_turn_near_duplicate_token_overlap_pairs"], [
+            {"turn": 2, "masked_pairs": [["A", "B"]]},
+        ])
+        self.assertIn("CROSS_ARM_NEAR_DUPLICATE_LEXICAL_TOKENS_SAME_TURN",
+                      diagnostics["warnings"])
+        self.assertEqual(report["status"],
+                         "LEXICAL_INDICATORS_ONLY_NOT_SEMANTIC_QUALIFICATION")
+        self.assertIn("CROSS_ARM_REPLY_OVERLAP_IS_NOT_CAUSAL_OR_SEMANTIC_EVIDENCE",
+                      report["limits"])
+        self.assertNotIn("arm_by_label", loopback.canonical(report).decode())
+
+    def test_cross_arm_fullwidth_unicode_remains_lexical_only_and_blinded(self):
+        # NFKC-equivalent word forms exercise the masked reporting contract.
+        # Do not freeze a current lexical blind spot: a future safe tokenizer
+        # may detect overlap without implying semantic qualification.
+        sheet, key = self._receipt()
+        ascii_answer = "Alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo."
+        fullwidth_answer = "".join(
+            chr(ord(char) + 0xFEE0) if "!" <= char <= "~" else char
+            for char in ascii_answer)
+        self.assertEqual(unicodedata.normalize("NFKC", fullwidth_answer),
+                         ascii_answer)
+        for label, answer in (("A", ascii_answer), ("B", fullwidth_answer)):
+            final = sheet["transcripts_by_masked_label"][label][-1]
+            final["answer"] = answer
+            final["answer_sha256"] = loopback.sha256(answer.encode("utf-8"))
+        key["rater_sheet_sha256"] = semantic_trials._sha(sheet)
+        report = semantic_trials.score_completed(
+            self.request, self.scenario, self.instrument, sheet, key)
+        self.assertEqual(report["masked_sheet_sha256"], semantic_trials._sha(sheet))
+        self.assertEqual(report["denominator"]["completed_outputs_verified_from_sheet"], 6)
+        self.assertIn("same_turn_near_duplicate_token_overlap_pairs",
+                      report["cross_arm_surface_diagnostics"])
+        self.assertEqual(report["status"],
+                         "LEXICAL_INDICATORS_ONLY_NOT_SEMANTIC_QUALIFICATION")
+        self.assertIn("TOKEN_SET_OVERLAP_AND_WORD_BOUNDARIES_ARE_NON_SEMANTIC_DIAGNOSTICS",
+                      report["limits"])
         self.assertNotIn("arm_by_label", loopback.canonical(report).decode())
 
     def test_cross_arm_overlap_excludes_one_modified_last_turn_without_changing_scores(self):

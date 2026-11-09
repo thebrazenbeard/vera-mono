@@ -68,6 +68,25 @@ For offline review of an already completed trial, use
 The report is masked by A/B/C label and does not disclose the private treatment
 mapping. The key and raw rater sheet still require separate controlled custody.
 
+The masked `cross_arm_surface_diagnostics` now separately reports
+`same_turn_verbatim_masked_pairs` and
+`same_turn_near_duplicate_token_overlap_pairs`, with warning codes
+`CROSS_ARM_VERBATIM_RESPONSE_SAME_TURN` and
+`CROSS_ARM_NEAR_DUPLICATE_LEXICAL_TOKENS_SAME_TURN`. The latter compares
+distinct case-folded Unicode word-token **sets** for each A/B/C pair at the
+same turn (at least eight distinct tokens per response, Jaccard overlap at
+least 0.85), excluding exact normalized repeats handled by the first warning.
+These are blinded repetition indicators, not treatment-unblinding, causal
+estimates, or new scores; the scored rule counts and denominator are unchanged.
+
+Two adversarial counterexamples limit the claim: reversing who acted on whom
+can preserve an identical token set even while reversing meaning (overlap
+1.0), while visually similar ASCII and fullwidth spellings can have disjoint
+token sets (overlap 0.0). Accordingly, an overlap warning cannot establish
+semantic equivalence, and absence of the warning cannot establish semantic
+difference or Unicode-confusable resistance. No independent model/rater
+assessment follows from either observation.
+
 The score evaluator runs **after** all model calls. Its private surface rules
 are never inserted into model prompts by this module. The result counts every
 expected arm-turn response. If a transport failure/truncation aborts an
