@@ -308,6 +308,77 @@ class HostMemoryBrokerTests(unittest.TestCase):
         finally:
             second_connection.close()
 
+    def test_cold_start_rejects_joint_snapshot_replay_with_independent_witness(self):
+        # Synthetic contract falsifier, NOT an installed host grant issuer.
+        # Both the ledger and a local revision floor are rewindable together.
+        # The separately held witness intentionally is not part of that copy.
+        authority = {"revision": 10, "grant": self.grant}
+        local_floor = {"revision": -1}
+        external_witness = {"revision": -1}
+        policy_calls = []
+
+        def advance(floor):
+            def atomic(revision):
+                floor["revision"] = max(floor["revision"], revision)
+                return floor["revision"]
+            return atomic
+
+        def approve(record, _grant):
+            policy_calls.append(record.record_id)
+            return record.record_id == "work-1"
+
+        def make_provider(ledger, floor):
+            return bind_host_public_memory(
+                ledger, integrity_key=KEY,
+                current_grant=lambda: authority["grant"],
+                current_authority_revision=lambda: authority["revision"],
+                atomic_host_revision_floor=advance(floor),
+                approve_record=approve,
+                now_seconds=lambda: 1_000_000)
+
+        legitimate = make_provider(self.ledger, external_witness)
+        before = legitimate()[0]
+        self.assertEqual(10, external_witness["revision"])
+        local_floor["revision"] = 10
+        saved_local_floor = dict(local_floor)
+        snapshot = self.folder / "rev10-ledger-snapshot.sqlite"
+        with closing(sqlite3.connect(self.folder / "memory.sqlite")) as source, \
+                closing(sqlite3.connect(snapshot)) as destination:
+            source.backup(destination)
+        # The untrusted state moves on: a ledger write and revocation at 11.
+        self.ledger.admit(AdmissionRequest(
+            record_id="work-2", text="Rev11 additional PUBLIC record.",
+            memory_class=MemoryClass.WORKING_PROJECT,
+            source_actor="synthetic", authority_ref="synthetic-approved",
+            privacy_ref="PUBLIC", provenance_refs=("synthetic-source",),
+            operation_id="rev11-op", project_id="vera-mono",
+            governed_identity_id="vera"),
+            expected_head=self.grant.ledger_head)
+        self.assertNotEqual(before["source_id"], "ledger:" + self.ledger.current_head)
+        authority.update(revision=11, grant=None)
+        local_floor["revision"] = 11
+        with self.assertRaisesRegex(CompositionRejected, "revoked"):
+            legitimate()
+        self.assertEqual(11, external_witness["revision"])
+
+        # Attacker replays BOTH the earlier DB snapshot and local floor.
+        authority.update(revision=10, grant=self.grant)
+        local_floor.clear()
+        local_floor.update(saved_local_floor)
+        reopened = MemoryLedger(snapshot, project_id="vera-mono", identity_id="vera")
+        self.assertEqual(self.grant.ledger_head, reopened.current_head)
+        vulnerable = make_provider(reopened, local_floor)
+        self.assertEqual(before["records"], vulnerable()[0]["records"])
+        calls_before_rejection = len(policy_calls)
+
+        # Fresh broker must consult the separately controlled witness. Rev10
+        # cannot be resurrected by a mutually consistent old local snapshot.
+        protected = make_provider(reopened, external_witness)
+        with self.assertRaisesRegex(CompositionRejected, "rollback across broker restart"):
+            protected()
+        self.assertEqual(calls_before_rejection, len(policy_calls))
+        self.assertEqual(11, external_witness["revision"])
+
     def test_unavailable_host_floor_fails_closed_without_leaking_exception(self):
         def failed_floor(_revision):
             raise RuntimeError("host-private-persistence-location")
