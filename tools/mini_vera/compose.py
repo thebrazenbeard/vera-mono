@@ -157,7 +157,8 @@ def compose(*, identity: dict[str, Any], identity_raw: bytes,
             behavior: dict[str, Any], behavior_raw: bytes,
             expected_identity_sha256: str, expected_behavior_sha256: str,
             state: dict[str, Any], key: bytes, expected_revision: int,
-            turn: dict[str, Any], model: str, model_digest: str) -> dict[str, Any]:
+            turn: dict[str, Any], model: str, model_digest: str,
+            session_history: list[dict[str, str]] | None = None) -> dict[str, Any]:
     _require_raw_binding(identity, identity_raw, "identity")
     _require_raw_binding(behavior, behavior_raw, "behavior")
     if sha256(identity_raw) != _exact_sha(expected_identity_sha256, "identity digest"):
@@ -174,11 +175,26 @@ def compose(*, identity: dict[str, Any], identity_raw: bytes,
     _exact_sha(model_digest, "model registry digest")
     if type(turn) is not dict or set(turn) != {"schema", "turn_id", "user_text", "scope"}:
         raise CompositionRejected("invalid turn envelope")
-    if turn["schema"] != "MINI_VERA_SYNTHETIC_TURN_V1" or turn["scope"] != "SYNTHETIC_ONLY":
-        raise CompositionRejected("only synthetic turns admitted by this candidate")
+    local_turn = (turn["schema"] == "MINI_VERA_LOCAL_TURN_V1"
+                  and turn["scope"] == "LOCAL_LOOPBACK_ONLY")
+    if not local_turn and (turn["schema"] != "MINI_VERA_SYNTHETIC_TURN_V1"
+                           or turn["scope"] != "SYNTHETIC_ONLY"):
+        raise CompositionRejected("only synthetic turns or explicit local turns admitted")
     if type(turn["turn_id"]) is not str or ID.fullmatch(turn["turn_id"]) is None:
         raise CompositionRejected("invalid turn ID")
     user_text = _bounded_text(turn["user_text"], "synthetic user text", MAX_TURN_BYTES)
+    history = [] if session_history is None else session_history
+    if type(history) is not list or len(history) > 4 or len(history) % 2:
+        raise CompositionRejected("local history must contain at most two complete turn pairs")
+    if history and not local_turn:
+        raise CompositionRejected("synthetic requests cannot include live session history")
+    checked_history = []
+    for index, message in enumerate(history):
+        role = "user" if index % 2 == 0 else "assistant"
+        if type(message) is not dict or set(message) != {"role", "content"} or message["role"] != role:
+            raise CompositionRejected("invalid local history role sequence")
+        checked_history.append({"role": role, "content": _bounded_text(
+            message["content"], "local history content", 8192)})
     records, state_sha256 = verify_state(state, key=key, expected_revision=expected_revision)
     traits = behavior.get("core_traits")
     required_traits = {"candor", "skepticism", "corrigibility", "independent_mindedness",
@@ -208,15 +224,18 @@ def compose(*, identity: dict[str, Any], identity_raw: bytes,
         "Public configuration JSON (not an authorization token): "
         + canonical(projection).decode("utf-8")
     )
-    user = canonical({"synthetic_user_turn": user_text, "project_context_untrusted": records}).decode("utf-8")
+    turn_field = "local_user_turn" if local_turn else "synthetic_user_turn"
+    user = canonical({turn_field: user_text, "project_context_untrusted": records}).decode("utf-8")
     inference = {
         "model": model,
-        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        "messages": ([{"role": "system", "content": system}] + checked_history
+                     + [{"role": "user", "content": user}]),
         "options": {"temperature": 0, "seed": 20261106, "num_predict": 128},
         "stream": False,
     }
     return {
-        "schema": "MINI_VERA_COMPOSED_REQUEST_V1",
+        "schema": ("MINI_VERA_COMPOSED_LOCAL_REQUEST_V1" if local_turn
+                   else "MINI_VERA_COMPOSED_REQUEST_V1"),
         "inference": inference,
         "request_sha256": sha256(canonical(inference)),
         "provenance": {
@@ -234,6 +253,8 @@ def compose(*, identity: dict[str, Any], identity_raw: bytes,
             "memory_admission": "NOT_PERFORMED",
             "authority_effect": "NONE",
             "behavioral_qualification": "NOT_TESTED",
+            **({"session_history": "VOLATILE_CALLER_SUPPLIED_NOT_ATTESTED"}
+               if local_turn else {}),
         },
     }
 

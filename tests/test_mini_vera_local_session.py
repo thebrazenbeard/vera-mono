@@ -1,0 +1,375 @@
+"""Local session integration: live-turn shape, volatile history, bounded HTTP."""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from contextlib import redirect_stderr, redirect_stdout
+import io
+import hmac
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from tests.test_mini_vera_source_bindings import (
+    KEY, SECURE_ARTIFACT_OPEN, ledger_fixture, model_fixture, synthetic_approval,
+    synthetic_composer_args,
+)
+from tests.test_mini_vera_loopback import FakeLocal, response
+from tools.mini_vera import artifact_binding, compose, ledger_bridge, local_session, loopback
+from tools.mini_vera.live_ledger import approved_ledger_provider
+from vera_memory import AdmissionRequest, MemoryClass
+
+
+class LocalSessionIntegrationTests(unittest.TestCase):
+    def test_ollama_thinking_control_requires_explicit_session_opt_in(self):
+        with FakeLocal(answer=response(model="vera:local")) as server:
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed",
+                    "--prompt", "State one uncertainty"]
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, local_session.main(args))
+            self.assertNotIn("reasoning_effort", server.requests[-1][1])
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, local_session.main(args + ["--ollama-disable-thinking"]))
+            self.assertEqual("none", server.requests[-1][1]["reasoning_effort"])
+
+    def test_identity_and_behavior_drift_rejected_against_independent_code_pins(self):
+        with tempfile.TemporaryDirectory() as temp, FakeLocal(answer=response(model="vera:local")) as server:
+            directory = Path(temp)
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed",
+                    "--prompt", "Must not receive counterfeit identity"]
+            for source, field, value in (
+                (compose.IDENTITY_PATH, "canonical_statement", "COUNTERFEIT TEST IDENTITY"),
+                (compose.BEHAVIOR_PATH, "version", "counterfeit-version"),
+            ):
+                payload = json.loads(source.read_text(encoding="utf-8"))
+                payload[field] = value
+                copied = directory / source.name
+                copied.write_text(json.dumps(payload), encoding="utf-8")
+                patched_path = "IDENTITY_PATH" if source == compose.IDENTITY_PATH else "BEHAVIOR_PATH"
+                error = io.StringIO()
+                with patch.object(compose, patched_path, copied), redirect_stderr(error):
+                    self.assertEqual(2, local_session.main(args))
+                self.assertIn("source drift from reviewed code pin", error.getvalue())
+                self.assertEqual([], server.requests)
+
+    def test_direct_compose_local_turn_refuses_self_consistent_forged_identity(self):
+        identity, _ = compose.read_object(compose.IDENTITY_PATH, 16_384)
+        behavior, behavior_raw = compose.read_object(compose.BEHAVIOR_PATH, 16_384)
+        forged = deepcopy(identity)
+        forged["canonical_statement"] = "COUNTERFEIT TEST IDENTITY"
+        forged_raw = json.dumps(forged).encode("utf-8")
+        state, key = local_session.empty_public_state()
+        with self.assertRaisesRegex(compose.CompositionRejected, "identity source drift"):
+            local_session.compose_local_turn(
+                text="Check this", turn_id="local-test-forged", history=[],
+                identity=forged, identity_raw=forged_raw,
+                behavior=behavior, behavior_raw=behavior_raw,
+                state=state, key=key, revision=0,
+                model="vera:local", model_digest="b" * 64,
+            )
+
+    def test_revocation_during_inference_withholds_reply_and_stops_session(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ledger, head = ledger_fixture(Path(temp))
+            approvals = {"count": 0}
+
+            def approval(record, current_head):
+                approvals["count"] += 1
+                return approvals["count"] == 1 and synthetic_approval(record, current_head)
+
+            provider = approved_ledger_provider(
+                ledger, record_ids=["work-1"], expected_head=head,
+                expected_revision=3, integrity_key=KEY,
+                host_public_project_approval=approval)
+            with FakeLocal(answer=response(model="vera:local", text="Never display this reply.")) as server:
+                output, errors = io.StringIO(), io.StringIO()
+                args = ["--endpoint", server.url, "--model", "vera:local",
+                        "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed",
+                        "--prompt", "One approved input"]
+                with redirect_stdout(output), redirect_stderr(errors):
+                    self.assertEqual(2, local_session.main(args, live_public_provider=provider))
+                self.assertEqual(1, len(server.requests))
+                self.assertNotIn("Never display", output.getvalue())
+                self.assertIn("post-inference", errors.getvalue())
+
+    def test_unexpected_host_approval_exception_is_controlled_refusal(self):
+        with FakeLocal(answer=response(model="vera:local")) as server:
+            errors = io.StringIO()
+
+            def broken_provider():
+                raise OSError("Sensitive exception text must not be echoed")
+
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed",
+                    "--prompt", "Should not reach transport"]
+            with redirect_stderr(errors):
+                self.assertEqual(2, local_session.main(args, live_public_provider=broken_provider))
+            self.assertEqual([], server.requests)
+            self.assertIn("provider failed", errors.getvalue())
+            self.assertNotIn("Sensitive exception", errors.getvalue())
+
+    def test_live_public_ledger_head_drift_blocks_second_http_call(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ledger, head = ledger_fixture(Path(temp))
+            provider = approved_ledger_provider(
+                ledger, record_ids=["work-1"], expected_head=head,
+                expected_revision=3, integrity_key=KEY,
+                host_public_project_approval=synthetic_approval)
+            with FakeLocal(answer=response(model="vera:local")) as server:
+                errors = io.StringIO()
+                calls = 0
+
+                def next_input(_prompt):
+                    nonlocal calls
+                    calls += 1
+                    if calls == 1:
+                        return "First request"
+                    if calls == 2:
+                        ledger.admit(AdmissionRequest(
+                            record_id="work-2", text="New project revision",
+                            memory_class=MemoryClass.WORKING_PROJECT,
+                            source_actor="test-fixture", authority_ref="synthetic-approved",
+                            privacy_ref="PUBLIC", provenance_refs=("synthetic-source",),
+                            operation_id="synthetic-drift", project_id="vera-mono",
+                            governed_identity_id="vera"), expected_head=head)
+                        return "Second request after CAS head changes"
+                    return "/quit"
+
+                args = ["--endpoint", server.url, "--model", "vera:local",
+                        "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed"]
+                with patch("builtins.input", side_effect=next_input), \
+                        redirect_stdout(io.StringIO()), redirect_stderr(errors):
+                    self.assertEqual(0, local_session.main(args, live_public_provider=provider))
+                self.assertEqual(1, len(server.requests))
+                self.assertIn("head drift", errors.getvalue())
+
+    def test_live_public_approval_revocation_blocks_next_http_call(self):
+        with tempfile.TemporaryDirectory() as temp:
+            ledger, head = ledger_fixture(Path(temp))
+            permitted = {"yes": True}
+
+            def approval(record, current_head):
+                return permitted["yes"] and synthetic_approval(record, current_head)
+
+            provider = approved_ledger_provider(
+                ledger, record_ids=["work-1"], expected_head=head,
+                expected_revision=3, integrity_key=KEY,
+                host_public_project_approval=approval)
+            with FakeLocal(answer=response(model="vera:local", text="First reply.")) as server:
+                errors = io.StringIO()
+
+                def next_input(_prompt):
+                    if not permitted.get("first", False):
+                        permitted["first"] = True
+                        return "First request"
+                    if permitted["yes"]:
+                        permitted["yes"] = False
+                        return "Second request after revocation"
+                    return "/quit"
+
+                args = ["--endpoint", server.url, "--model", "vera:local",
+                        "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed"]
+                with patch("builtins.input", side_effect=next_input), \
+                        redirect_stdout(io.StringIO()), redirect_stderr(errors):
+                    self.assertEqual(0, local_session.main(args, live_public_provider=provider))
+                self.assertEqual(1, len(server.requests))
+                self.assertIn("live public-memory approval unavailable", errors.getvalue())
+                self.assertIn("Synthetic public project milestone", json.dumps(server.requests[0][1]))
+
+    def test_two_fresh_python_processes_rehydrate_public_ledger_only(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            _ledger, head = ledger_fixture(folder)
+            # Independent process launch reopens SQLite and re-applies explicit
+            # host policy; neither process inherits volatile conversation history.
+            code = """
+import json, sys
+from pathlib import Path
+root = Path.cwd()
+sys.path.insert(0, str(root / 'packages' / 'vera_memory' / 'src'))
+sys.path.insert(0, str(root / 'packages' / 'portfolio_runtime' / 'src'))
+from vera_memory import MemoryLedger
+from tools.mini_vera.live_ledger import approved_ledger_provider
+from tools.mini_vera import local_session
+ledger = MemoryLedger(sys.argv[1], project_id='vera-mono', identity_id='vera')
+def host_approval(record, head):
+    return record.authority_ref == 'synthetic-approved' and record.privacy_ref == 'PUBLIC'
+provider = approved_ledger_provider(ledger, record_ids=['work-1'], expected_head=sys.argv[2], expected_revision=7, integrity_key=b'synthetic-integrity-test-key-32x'[:32], host_public_project_approval=host_approval)
+state, key, revision = provider()
+print('REHYDRATED_PUBLIC_SHA256=' + state['records'][0]['source_sha256'])
+raise SystemExit(local_session.main(['--endpoint', 'http://127.0.0.1:11434/v1', '--model', 'vera:local', '--model-digest', 'b'*64, '--prompt', 'A new independent session'], live_public_provider=provider))
+"""
+            outputs = []
+            for _ in range(2):
+                run = subprocess.run([sys.executable, "-c", code, str(folder / "memory.sqlite"), head],
+                                     cwd=Path(__file__).parents[1], capture_output=True,
+                                     text=True, timeout=15)
+                self.assertEqual(0, run.returncode, run.stderr)
+                outputs.append(run.stdout)
+                self.assertIn("REHYDRATED_PUBLIC_SHA256=", run.stdout)
+                self.assertIn('"http_calls": 0', run.stdout)
+            self.assertEqual(outputs[0], outputs[1])
+
+    def test_actual_console_two_turns_keep_history_in_ram(self):
+        with FakeLocal(answer=response(model="vera:local", text="First distinct server reply.")) as server:
+            output = io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed"]
+            inputs = iter(["What do you know?", "And now?", "/quit"])
+
+            def next_input(_prompt):
+                value = next(inputs)
+                if value == "And now?":
+                    server.answer = response(model="vera:local", text="Second distinct server reply.")
+                return value
+
+            with patch("builtins.input", side_effect=next_input), \
+                    redirect_stdout(output):
+                self.assertEqual(0, local_session.main(args))
+            self.assertEqual(2, len(server.requests))
+            first = server.requests[0][1]["messages"]
+            second = server.requests[1][1]["messages"]
+            self.assertEqual(["system", "user"], [x["role"] for x in first])
+            self.assertEqual(["system", "user", "assistant", "user"],
+                             [x["role"] for x in second])
+            self.assertEqual("First distinct server reply.", second[2]["content"])
+            self.assertNotEqual(loopback.sha256(loopback.canonical(server.requests[0][1])),
+                                loopback.sha256(loopback.canonical(server.requests[1][1])))
+            self.assertIn("Vera> First distinct server reply.", output.getvalue())
+            self.assertIn("Vera> Second distinct server reply.", output.getvalue())
+            self.assertNotIn("Authorization", server.requests[0][2])
+
+    def test_two_new_processes_do_not_inherit_volatile_chat_history(self):
+        with FakeLocal(answer=response(model="vera:local")) as server:
+            command = [sys.executable, "-m", "tools.mini_vera.local_session",
+                       "--endpoint", server.url, "--model", "vera:local",
+                       "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed"]
+            for utterance in ("First process", "Independent second process"):
+                run = subprocess.run(command + ["--prompt", utterance], cwd=Path(__file__).parents[1],
+                                     capture_output=True, text=True, timeout=10)
+                self.assertEqual(0, run.returncode, run.stderr)
+            self.assertEqual(2, len(server.requests))
+            self.assertEqual([2, 2], [len(item[1]["messages"]) for item in server.requests])
+            self.assertNotIn("First process", json.dumps(server.requests[1][1]))
+
+    def test_oversized_model_reply_clears_history_and_session_continues(self):
+        # The transport accepts a bounded 8,193-byte reply, while the context
+        # history limit is 8,192. This must not crash the next local turn.
+        with FakeLocal(answer=response(model="vera:local", text="X" * 8193)) as server:
+            errors = io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed"]
+            with patch("builtins.input", side_effect=["First question", "Second question", "/quit"]), \
+                    redirect_stdout(io.StringIO()), redirect_stderr(errors):
+                self.assertEqual(0, local_session.main(args))
+            self.assertEqual(2, len(server.requests))
+            self.assertEqual([2, 2], [len(r[1]["messages"]) for r in server.requests])
+            self.assertIn("Session history cleared", errors.getvalue())
+
+    def test_truncated_response_is_labeled_and_not_replayed(self):
+        truncated = response(model="vera:local", text="This answer is unfinished")
+        truncated["choices"][0]["finish_reason"] = "length"
+        with FakeLocal(answer=truncated) as server:
+            output, errors = io.StringIO(), io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute", "--host-idle-confirmed"]
+            with patch("builtins.input", side_effect=["First question", "Second question", "/quit"]), \
+                    redirect_stdout(output), redirect_stderr(errors):
+                self.assertEqual(0, local_session.main(args))
+            self.assertEqual([2, 2], [len(r[1]["messages"]) for r in server.requests])
+            self.assertIn("Vera [incomplete reply]>", output.getvalue())
+            self.assertIn("model output was truncated", errors.getvalue())
+
+    def test_console_validation_does_not_contact_server(self):
+        with FakeLocal(answer=response(model="vera:local")) as server:
+            output = io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--prompt", "A test turn"]
+            with redirect_stdout(output):
+                self.assertEqual(0, local_session.main(args))
+            self.assertEqual([], server.requests)
+            self.assertIn("VALIDATED_NOT_EXECUTED", output.getvalue())
+            with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
+                local_session.main(args + ["--execute"])
+            self.assertEqual(2, caught.exception.code)
+            self.assertEqual([], server.requests)
+
+    @unittest.skipUnless(SECURE_ARTIFACT_OPEN, "native secure model file handle traversal only")
+    def test_two_real_loopback_calls_with_local_in_memory_history(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            root, manifest, manifest_sha, _ = model_fixture(folder)
+            ledger, head = ledger_fixture(folder)
+            state, _ = ledger_bridge.project_existing_ledger(
+                ledger, record_ids=["work-1"], expected_head=head, expected_revision=1,
+                integrity_key=KEY, host_public_project_approval=synthetic_approval,
+            )
+            args = synthetic_composer_args(state, 1)
+            args["turn"] = {"schema": "MINI_VERA_LOCAL_TURN_V1", "scope": "LOCAL_LOOPBACK_ONLY",
+                            "turn_id": "local-1", "user_text": "What is verified?"}
+            first = artifact_binding.compose_with_local_manifest(
+                model_root=root, model_manifest=manifest,
+                expected_manifest_sha256=manifest_sha, **args,
+            )
+            self.assertEqual("MINI_VERA_COMPOSED_LOCAL_ARTIFACT_BOUND_REQUEST_V1", first["schema"])
+            with FakeLocal(answer=response(model="mini-vera:synthetic", text="Only a source claim.")) as server:
+                reply = loopback.execute(first, endpoint=server.url)
+                self.assertEqual(1, len(server.requests))
+            self.assertEqual("Only a source claim.", reply["response"]["text"])
+
+            history = [deepcopy(first["inference"]["messages"][-1]),
+                       {"role": "assistant", "content": reply["response"]["text"]}]
+            args["turn"] = {"schema": "MINI_VERA_LOCAL_TURN_V1", "scope": "LOCAL_LOOPBACK_ONLY",
+                            "turn_id": "local-2", "user_text": "Are you sure you ran a model?"}
+            second = artifact_binding.compose_with_local_manifest(
+                model_root=root, model_manifest=manifest, expected_manifest_sha256=manifest_sha,
+                session_history=history, **args,
+            )
+            payload, _ = loopback.validate_candidate(second)
+            self.assertEqual(["system", "user", "assistant", "user"],
+                             [item["role"] for item in payload["messages"]])
+            self.assertEqual("Are you sure you ran a model?",
+                             json.loads(payload["messages"][-1]["content"])["local_user_turn"])
+            with FakeLocal(answer=response(model="mini-vera:synthetic", text="One local HTTP response.")) as server:
+                loopback.execute(second, endpoint=server.url)
+                self.assertEqual(payload, server.requests[0][1])
+            tampered = deepcopy(second)
+            tampered["inference"]["messages"][1]["role"] = "assistant"
+            tampered["request_sha256"] = loopback.sha256(loopback.canonical(tampered["inference"]))
+            with self.assertRaisesRegex(loopback.LoopbackRejected, "conversation order"):
+                loopback.validate_candidate(tampered)
+            oversized = deepcopy(second)
+            oversized["inference"]["messages"][0]["content"] += "x" * loopback.MAX_REQUEST_FILE
+            oversized["request_sha256"] = loopback.sha256(loopback.canonical(oversized["inference"]))
+            with self.assertRaisesRegex(loopback.LoopbackRejected, "bounded input size"):
+                loopback.validate_candidate(oversized)
+
+    def test_rejects_forged_history_mismatched_scope_or_schema(self):
+        args = synthetic_composer_args(*self._ephemeral_state())
+        args["turn"] = {"schema": "MINI_VERA_LOCAL_TURN_V1", "scope": "LOCAL_LOOPBACK_ONLY",
+                        "turn_id": "local-3", "user_text": "Continue"}
+        args["model"] = "vera:local"
+        args["model_digest"] = "a" * 64
+        with self.assertRaisesRegex(compose.CompositionRejected, "history role"):
+            compose.compose(session_history=[{"role": "assistant", "content": "Fake"},
+                                                    {"role": "user", "content": "Fake"}], **args)
+        args["turn"]["scope"] = "REMOTE_ALLOW_ALL"
+        with self.assertRaisesRegex(compose.CompositionRejected, "explicit local"):
+            compose.compose(**args)
+
+    @staticmethod
+    def _ephemeral_state():
+        state = {"schema": "MINI_VERA_OPERATOR_STATE_V1", "revision": 1,
+                 "source_id": "local-test", "records": []}
+        state["hmac_sha256"] = hmac.new(KEY, compose.canonical(state), "sha256").hexdigest()
+        return state, 1
+
+
+if __name__ == "__main__":
+    unittest.main()
