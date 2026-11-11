@@ -74,3 +74,43 @@ def test_rezon_recursive_delta_refines_same_layer_while_progressing():
     assert outcome.resolved is True
     assert outcome.iterations == 2
     assert calls == [("answer",), ("logic",)]
+
+
+def test_rezon_exhausted_weak_answer_does_not_bypass_layer_confidence_gate():
+    outcome = CascadeEngine(
+        (
+            LayerSpec(
+                "weak",
+                lambda req: LayerResult(
+                    answer="act", unresolved=(), confidence=0.10
+                ),
+                min_confidence=0.80,
+            ),
+        )
+    ).resolve("Choose a safe action")
+
+    assert outcome.answer == "act"
+    assert outcome.confidence == 0.10
+    assert outcome.stop_reason == "layers_exhausted"
+    assert outcome.resolved is False
+
+
+def test_rezon_iteration_budget_exhaustion_never_promotes_weak_answer():
+    def weak_then_budget(req):
+        return LayerResult(
+            answer="act",
+            unresolved=(),
+            confidence=0.25,
+            changed_dimensions=("provisional",),
+        )
+
+    outcome = CascadeEngine(
+        (
+            LayerSpec("weak", weak_then_budget, min_confidence=0.90, max_iterations=2),
+        ),
+        max_total_iterations=1,
+    ).resolve("Choose a safe action")
+
+    assert outcome.answer == "act"
+    assert outcome.stop_reason == "iteration_budget_exhausted"
+    assert outcome.resolved is False
