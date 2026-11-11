@@ -396,7 +396,7 @@ candidate/holdout hashes, scores, and action flags—not sample or answer text.
 The command refuses rollback when the candidate fails qualification and
 cannot be used across invocations to retain adaptation. Its exact-cue
 holdouts do **not** establish generalization, durable learning, or neural
-weight updates. Promotion to actual Lappy memory and live chat remains a
+weight updates. Promotion to actual host-owned memory and live chat remains a
 separate security/identity/Windows qualification gate.
 
 ## Status
