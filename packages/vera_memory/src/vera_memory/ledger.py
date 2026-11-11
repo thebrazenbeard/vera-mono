@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 import json
 from pathlib import Path
 import sqlite3
-from typing import Any
+from typing import Any, Iterator
 
 from portfolio_runtime.lantern.canonical import canonical_json, canonical_json_bytes, sha256_hex
 
@@ -137,6 +138,13 @@ class MemoryLedger:
     """
 
     def __init__(self, path: str | Path, *, project_id: str, identity_id: str):
+        if type(path) is not str and not isinstance(path, Path):
+            raise MemoryLedgerError("memory ledger path must be an exact string or Path")
+        path_text = str(path)
+        if (not path_text or path_text != path_text.strip()
+                or "\x00" in path_text or path_text == ":memory:"
+                or path_text.casefold().startswith("file:")):
+            raise MemoryLedgerError("memory ledger requires a durable filesystem path")
         self.path = Path(path)
         if type(project_id) is not str or not project_id:
             raise MemoryLedgerError("project_id is required")
@@ -147,43 +155,79 @@ class MemoryLedger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        """Commit or roll back and then release the SQLite file handle.
+
+        The sqlite3.Connection context manager handles transactions but does
+        not close the connection, leaving Windows temporary DBs locked.
+        """
         connection = sqlite3.connect(self.path)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        return connection
+        try:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys = ON")
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def _init_db(self) -> None:
         with self._connect() as db:
-            db.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS meta (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS records (
-                    record_id TEXT PRIMARY KEY,
-                    payload_json TEXT NOT NULL,
-                    status TEXT NOT NULL CHECK(status IN ('CURRENT','SUPERSEDED')),
-                    superseded_by TEXT,
-                    record_digest TEXT NOT NULL UNIQUE,
-                    supersedes_id TEXT
-                );
-                -- Resolve successor relationships without parsing every unrelated
-                -- record on read. The partial index also tolerates an unrelated
-                -- malformed legacy payload during startup/migration.
-                CREATE INDEX IF NOT EXISTS idx_vera_memory_supersedes_v1
-                ON records(json_extract(payload_json, '$.supersedes'))
-                WHERE json_valid(payload_json);
-                CREATE TABLE IF NOT EXISTS operations (
-                    operation_id TEXT PRIMARY KEY,
-                    request_digest TEXT NOT NULL,
-                    record_id TEXT NOT NULL,
-                    receipt_json TEXT NOT NULL,
-                    FOREIGN KEY(record_id) REFERENCES records(record_id)
-                );
-                """
+            # A fresh SQLite connection starts with no allocated database pages.
+            # Capture this before BEGIN IMMEDIATE allocates a header page itself.
+            existing_pages = db.execute("PRAGMA page_count").fetchone()[0]
+            # Bind the database to one owner before schema migration or record
+            # access. Never let another runtime instance silently rebind a
+            # shared state root by supplying different constructor strings.
+            db.execute("BEGIN IMMEDIATE")
+            schema_objects = {
+                (row[0], row[1]) for row in db.execute(
+                    "SELECT type,name FROM sqlite_master"
+                )
+            }
+            tables = {name for kind, name in schema_objects if kind == "table"}
+            if "meta" in tables:
+                self._require_owner(db)
+            elif (schema_objects or existing_pages != 0
+                  or db.execute("PRAGMA user_version").fetchone()[0] != 0
+                  or db.execute("PRAGMA application_id").fetchone()[0] != 0):
+                # An unrelated schema or even a header-only populated database
+                # is not an empty ledger. Never adopt or modify its contents.
+                raise MemoryLedgerError("unbound existing memory ledger requires trusted migration")
+
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS meta ("
+                "key TEXT PRIMARY KEY, value TEXT NOT NULL)"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS records ("
+                "record_id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, "
+                "status TEXT NOT NULL CHECK(status IN ('CURRENT','SUPERSEDED')), "
+                "superseded_by TEXT, record_digest TEXT NOT NULL UNIQUE, "
+                "supersedes_id TEXT)"
+            )
+            # Resolve successor relationships without parsing unrelated
+            # records. The partial index tolerates malformed legacy payloads.
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_vera_memory_supersedes_v1 "
+                "ON records(json_extract(payload_json, '$.supersedes')) "
+                "WHERE json_valid(payload_json)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS operations ("
+                "operation_id TEXT PRIMARY KEY, request_digest TEXT NOT NULL, "
+                "record_id TEXT NOT NULL, receipt_json TEXT NOT NULL, "
+                "FOREIGN KEY(record_id) REFERENCES records(record_id))"
+            )
+            if "meta" not in tables:
+                db.execute(
+                    "INSERT INTO meta(key,value) VALUES('owner_project_id',?)",
+                    (self.project_id,),
+                )
+                db.execute(
+                    "INSERT INTO meta(key,value) VALUES('owner_identity_id',?)",
+                    (self.identity_id,),
+                )
             # Upgrade historical ledgers once. Do not infer trusted lineage from
             # JSON1: it interprets duplicate keys differently from json.loads.
             # Corrupt legacy entries block migration rather than quietly
@@ -210,7 +254,24 @@ class MemoryLedger:
                 db.execute("INSERT INTO meta(key,value) VALUES('generation','0')")
                 db.execute("INSERT INTO meta(key,value) VALUES('head',?)", (sha256_hex(b"vera-memory-genesis-v1"),))
 
+    def _require_owner(self, db: sqlite3.Connection) -> None:
+        values = dict(db.execute(
+            "SELECT key,value FROM meta "
+            "WHERE key IN ('owner_project_id','owner_identity_id')"
+        ).fetchall())
+        if set(values) != {"owner_project_id", "owner_identity_id"}:
+            raise MemoryLedgerError("unbound existing memory ledger requires trusted migration")
+        if (values["owner_project_id"] != self.project_id
+                or values["owner_identity_id"] != self.identity_id):
+            raise MemoryLedgerError("memory ledger database owner mismatch")
+
+    def _require_record_owner(self, payload: dict[str, Any]) -> None:
+        if (payload.get("project_id") != self.project_id
+                or payload.get("governed_identity_id") != self.identity_id):
+            raise MemoryLedgerError("stored memory record project or identity mismatch")
+
     def _meta(self, db: sqlite3.Connection) -> tuple[int, str]:
+        self._require_owner(db)
         generation = int(db.execute("SELECT value FROM meta WHERE key='generation'").fetchone()[0])
         head = str(db.execute("SELECT value FROM meta WHERE key='head'").fetchone()[0])
         return generation, head
@@ -246,6 +307,7 @@ class MemoryLedger:
 
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            self._require_owner(db)
             replay = db.execute(
                 "SELECT request_digest,receipt_json FROM operations WHERE operation_id=?",
                 (request.operation_id,),
@@ -264,11 +326,16 @@ class MemoryLedger:
 
             if request.supersedes is not None:
                 predecessor = db.execute(
-                    "SELECT status FROM records WHERE record_id=?",
+                    "SELECT status,payload_json,record_digest FROM records WHERE record_id=?",
                     (request.supersedes,),
                 ).fetchone()
                 if predecessor is None or predecessor["status"] != "CURRENT":
                     raise MemoryLedgerError("superseded predecessor is missing or non-current")
+                predecessor_payload = _strict_record_payload(
+                    predecessor["payload_json"], record_id=request.supersedes,
+                    digest=predecessor["record_digest"],
+                )
+                self._require_record_owner(predecessor_payload)
                 db.execute(
                     "UPDATE records SET status='SUPERSEDED', superseded_by=? WHERE record_id=?",
                     (request.record_id, request.supersedes),
@@ -331,6 +398,7 @@ class MemoryLedger:
             payload = _strict_record_payload(
                 row["payload_json"], record_id=record_id, digest=row["record_digest"],
             )
+            self._require_record_owner(payload)
             if row["supersedes_id"] != payload.get("supersedes"):
                 raise MemoryLedgerError("stored memory lineage relation mismatch")
             # Mutable status/superseded_by columns are not part of the payload
@@ -353,6 +421,7 @@ class MemoryLedger:
                 )
                 if successor.get("supersedes") != record_id:
                     raise MemoryLedgerError("successor memory lineage relation mismatch")
+                self._require_record_owner(successor)
                 successor_id = successor.get("record_id")
             if (row["superseded_by"] != successor_id
                     or row["status"] != ("SUPERSEDED" if successor_id else "CURRENT")):
