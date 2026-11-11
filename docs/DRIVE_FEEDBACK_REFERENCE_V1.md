@@ -62,11 +62,12 @@ without independently custodied evidence and key/source validation.
   new credit, even if its historical receipt originally credited a goal.
 - `NeedProjection` is absolute level + revision. `GoalProjection` holds exact
   goal/choice identity, revision, target, state, and credited event.
-- `DriveOutboxItem` is a durable record for external consumers. Its `delivered`
-  flag means the host **claimed** delivery; it does not attest that another
-  process applied the projection. Consumers require independent idempotency.
+- `DriveOutboxItem` is the pending-record view returned to consumers. The
+  SQLite `drive_outbox.delivered` column, **not a `DriveOutboxItem` field**,
+  records the host's claimed delivery; it does not attest that another process
+  applied the projection. Consumers require independent idempotency.
   `pending_outbox(limit=...)` reads oldest undelivered rows in bounded batches
-  of 1–1000; consumers acknowledge individual events after handling them.
+  of 1 to 1000; consumers acknowledge individual events after handling them.
 
 For safety, `admit()` requires a currently fresh observation and host verifier
 **even for historical replays**. A stale replay yields `HOLD` rather than a
