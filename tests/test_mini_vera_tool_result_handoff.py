@@ -47,6 +47,25 @@ class ToolResultHandoffTests(unittest.TestCase):
         self.assertEqual(receipt["request_sha256"], observed["base_request_sha256"])
         self.assertEqual(receipt["source_sha256"], observed["source_sha256"])
 
+    def test_client_source_answer_remains_exact_when_model_invents_other_digest(self):
+        fake = "The observed SHA is " + ("0" * 64)
+        with FakeLocal(answer=response(model="vera:local", text=fake)) as server:
+            output = io.StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(0, local_session.main(
+                    args(server.url, "--deliver-host-observation")))
+        envelope = json.loads(output.getvalue())
+        answer = envelope["client"]["source_answer"]
+        receipt = envelope["client"]["tool_receipts"][0]
+        self.assertEqual("MINI_VERA_LOCAL_SOURCE_ANSWER_V1", answer["schema"])
+        self.assertEqual(receipt["source_sha256"], answer["source_sha256"])
+        self.assertEqual(receipt["source_name"], answer["source_name"])
+        self.assertEqual("CLIENT_SOURCE_RECEIPT_NOT_MODEL", answer["origin"])
+        self.assertEqual("LOCAL_UNSIGNED_CONSISTENCY_NOT_HOST_ATTESTATION",
+                         answer["trust"])
+        self.assertEqual(fake, envelope["model"]["text"])
+        self.assertNotEqual(answer["source_sha256"], "0" * 64)
+
     def test_unapproved_delivery_refused_before_http(self):
         for extra in (
             ["--deliver-host-observation"],

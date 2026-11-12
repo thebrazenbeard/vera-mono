@@ -42,6 +42,14 @@ and a distinct final model-visible request SHA-256. The client explicitly
 reports host_observation_delivered=true, tool_actions_executed=1,
 verified_external_effects=false, and host_attestation=NOT_PROVIDED.
 
+Machine consumers must prefer client.source_answer for exact source names,
+SHA-256 strings and byte counts rather than copying them from neural text.
+That field is deterministically derived from the already checked client
+receipt, labeled CLIENT_SOURCE_RECEIPT_NOT_MODEL and
+LOCAL_UNSIGNED_CONSISTENCY_NOT_HOST_ATTESTATION. Even if the model produces
+a false or abbreviated checksum, the client answer remains the observed
+unsigned source data; this is not independent host attestation.
+
 The typed observation is labeled
 LOCALLY_OBSERVED_UNSIGNED_DATA and authority_effect=NONE.
 It is source-created data that a model can use to answer factual questions;
