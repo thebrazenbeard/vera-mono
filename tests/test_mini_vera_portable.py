@@ -73,6 +73,13 @@ class PortableBundleTests(unittest.TestCase):
         self.assertIn("mini_vera_portable.py", launcher)
         self.assertIn("ollama_preflight", launcher)
 
+    def test_integrity_success_message_does_not_break_jsonl(self) -> None:
+        output = self.install()
+        launcher = (output / "mini-vera.cmd").read_bytes().decode("ascii")
+        # The verifier still fails closed; only success chatter is silenced.
+        self.assertEqual(launcher.count('verify --output "%CD%" >nul'), 2)
+        self.assertIn("if errorlevel 1 exit /b 2", launcher)
+
     def test_refuses_existing_destination_without_touching_it(self) -> None:
         self.destination.mkdir()
         sentinel = self.destination / "owner.txt"
