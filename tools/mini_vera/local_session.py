@@ -60,8 +60,29 @@ def compose_local_turn(*, text: str, turn_id: str, history: list[dict[str, str]]
     return compose.compose(**args, model=model, model_digest=model_digest)
 
 
+def attach_host_source_observation(request: dict[str, Any],
+                                   receipt: dict[str, Any]) -> dict[str, Any]:
+    """Project one self-observed, unsigned host result as bounded MODEL DATA."""
+    base_sha = request["request_sha256"]
+    observed = host_read_probe.project_observation(
+        receipt, base_request_sha256=base_sha,
+        turn_sha256=request["provenance"]["turn_sha256"])
+    messages = [dict(message) for message in request["inference"]["messages"]]
+    original = json.loads(messages[-1]["content"])
+    if set(original) != {"local_user_turn", "project_context_untrusted"}:
+        raise loopback.LoopbackRejected("noncanonical local user envelope")
+    original["host_tool_observation"] = observed
+    messages[-1]["content"] = compose.canonical(original).decode("utf-8")
+    inference = {**request["inference"], "messages": messages}
+    updated = {**request, "inference": inference,
+               "request_sha256": compose.sha256(compose.canonical(inference))}
+    loopback.validate_candidate(updated)
+    return updated
+
+
 def structured_local_result(request: dict[str, Any], result: dict[str, Any],
-                            source_receipt: dict[str, Any] | None = None) -> dict[str, Any]:
+                            source_receipt: dict[str, Any] | None = None,
+                            source_request_sha256: str | None = None) -> dict[str, Any]:
     """Separate untrusted neural prose from source-observed, effect-free client behavior.
 
     This is neither a signed host receipt nor proof of what the model server or
@@ -78,7 +99,8 @@ def structured_local_result(request: dict[str, Any], result: dict[str, Any],
             compose.sha256(response["text"].encode("utf-8"))):
         raise loopback.LoopbackRejected("unbound or inconsistent local output")
     if source_receipt is not None and not host_read_probe.check_source_receipt(
-            source_receipt, expected_request_sha256=request["request_sha256"]):
+            source_receipt, expected_request_sha256=(
+                source_request_sha256 or request["request_sha256"])):
         raise loopback.LoopbackRejected("source observation receipt not byte-consistent")
     return {
         "schema": "MINI_VERA_LOCAL_OUTPUT_V1",
@@ -91,6 +113,7 @@ def structured_local_result(request: dict[str, Any], result: dict[str, Any],
         "client": {
             "tool_actions_executed": int(source_receipt is not None),
             "tool_receipts": [source_receipt] if source_receipt is not None else [],
+            "host_observation_delivered": source_request_sha256 is not None,
             "verified_external_effects": False,
             "host_attestation": "NOT_PROVIDED",
             "evidence_class": "LOCAL_CLIENT_CONTROL_FLOW_NOT_HOST_ATTESTATION",
@@ -124,7 +147,14 @@ def main(argv: list[str] | None = None, *,
                         help="JSONL with model text separate from client action evidence")
     parser.add_argument("--host-read-probe", action="store_true",
                         help="Opt-in read-only digest of this local source package")
+    parser.add_argument("--deliver-host-observation", action="store_true",
+                        help="Operator-authorized, one-turn unsigned source data to local model")
     args = parser.parse_args(argv)
+    if args.deliver_host_observation and (
+            not args.host_read_probe or not args.structured_output
+            or not args.execute or args.prompt is None):
+        parser.error("--deliver-host-observation requires --host-read-probe, "
+                     "--structured-output, --execute and one --prompt")
     if args.host_read_probe and (not args.structured_output or not args.execute):
         parser.error("--host-read-probe requires --structured-output and --execute")
 
@@ -222,7 +252,14 @@ def main(argv: list[str] | None = None, *,
                 num_predict=args.max_output_tokens,
             )
             loopback.validate_candidate(request)
-        except (compose.CompositionRejected, loopback.LoopbackRejected) as exc:
+            source_receipt = None
+            source_request_sha = None
+            if args.deliver_host_observation:
+                source_request_sha = request["request_sha256"]
+                source_receipt = host_read_probe.observe_source(source_request_sha)
+                request = attach_host_source_observation(request, source_receipt)
+        except (compose.CompositionRejected, loopback.LoopbackRejected,
+                host_read_probe.ProbeRefused) as exc:
             print(f"Local request refused: {exc}", file=sys.stderr)
             if args.prompt is not None:
                 return 2
@@ -256,11 +293,10 @@ def main(argv: list[str] | None = None, *,
                 return 2
         if args.structured_output:
             try:
-                source_receipt = (
-                    host_read_probe.observe_source(request["request_sha256"])
-                    if args.host_read_probe else None
-                )
-                record = structured_local_result(request, result, source_receipt)
+                if args.host_read_probe and not args.deliver_host_observation:
+                    source_receipt = host_read_probe.observe_source(request["request_sha256"])
+                record = structured_local_result(
+                    request, result, source_receipt, source_request_sha)
             except (loopback.LoopbackRejected, host_read_probe.ProbeRefused):
                 print("Local output withheld: read-only host probe failed or "
                       "model receipt inconsistent.", file=sys.stderr)

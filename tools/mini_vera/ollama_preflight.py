@@ -342,9 +342,16 @@ def main(argv: list[str] | None = None, *,
                         help="Expose source-bounded model/client evidence in JSONL")
     parser.add_argument("--host-read-probe", action="store_true",
                         help="Operator opt-in to one read-only local source observation")
+    parser.add_argument("--deliver-host-observation", action="store_true",
+                        help="Deliver one self-observed unsigned source result to model as DATA")
     args = parser.parse_args(argv)
     if args.host_read_probe and (not args.structured_output or not args.execute):
         parser.error("--host-read-probe requires --structured-output and --execute")
+    if args.deliver_host_observation and (
+            not args.host_read_probe or not args.structured_output
+            or not args.execute or args.prompt is None):
+        parser.error("--deliver-host-observation requires --host-read-probe, "
+                     "--structured-output, --execute and one --prompt")
     if args.prompt is not None and not args.execute:
         parser.error("--prompt requires --execute; omit it for a read-only preflight")
     if args.execute and (not args.host_idle_confirmed or not args.prompt):
@@ -414,6 +421,8 @@ def main(argv: list[str] | None = None, *,
         session_args.append("--structured-output")
     if args.host_read_probe:
         session_args.append("--host-read-probe")
+    if args.deliver_host_observation:
+        session_args.append("--deliver-host-observation")
     if args.receipt_output is None:
         return local_session.main(session_args)
 

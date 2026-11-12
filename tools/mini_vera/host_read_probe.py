@@ -176,3 +176,64 @@ def check_source_receipt(value: dict[str, Any], *,
             and value["source_sha256"] == hashlib.sha256(data).hexdigest()
             and value["manifest_binding"] == binding
             and value["manifest_sha256"] == sha)
+
+OBSERVATION_SCHEMA = "MINI_VERA_HOST_SOURCE_OBSERVATION_V1"
+OBSERVATION_FIELDS = frozenset({
+    "schema", "base_request_sha256", "turn_sha256", "source_name", "source_sha256",
+    "source_size_bytes", "manifest_binding", "manifest_sha256",
+    "trust", "authority_effect",
+})
+
+
+def project_observation(receipt: dict[str, Any], *,
+                        base_request_sha256: str,
+                        turn_sha256: str) -> dict[str, Any]:
+    """Minimize host observation presented as model DATA, not an instruction."""
+    if type(turn_sha256) is not str or HEX64.fullmatch(turn_sha256) is None:
+        raise ProbeRefused("invalid turn binding")
+    if not check_source_receipt(receipt, expected_request_sha256=base_request_sha256):
+        raise ProbeRefused("original source receipt invalid or stale")
+    return {
+        "schema": OBSERVATION_SCHEMA,
+        "base_request_sha256": base_request_sha256,
+        "turn_sha256": turn_sha256,
+        "source_name": receipt["source_name"],
+        "source_sha256": receipt["source_sha256"],
+        "source_size_bytes": receipt["source_size_bytes"],
+        "manifest_binding": receipt["manifest_binding"],
+        "manifest_sha256": receipt["manifest_sha256"],
+        "trust": "LOCALLY_OBSERVED_UNSIGNED_DATA",
+        "authority_effect": "NONE",
+    }
+
+
+def check_projected_observation(value: dict[str, Any], *,
+                                base_request_sha256: str,
+                                expected_turn_sha256: str) -> bool:
+    """Re-read local source and manifest. Never accept a caller-only self-hash."""
+    if (type(value) is not dict or set(value) != OBSERVATION_FIELDS
+            or type(base_request_sha256) is not str
+            or HEX64.fullmatch(base_request_sha256) is None
+            or value["schema"] != OBSERVATION_SCHEMA
+            or value["base_request_sha256"] != base_request_sha256
+            or type(expected_turn_sha256) is not str
+            or HEX64.fullmatch(expected_turn_sha256) is None
+            or value["turn_sha256"] != expected_turn_sha256
+            or value["source_name"] != "tools/mini_vera/compose.py"
+            or type(value["source_sha256"]) is not str
+            or HEX64.fullmatch(value["source_sha256"]) is None
+            or type(value["source_size_bytes"]) is not int
+            or value["trust"] != "LOCALLY_OBSERVED_UNSIGNED_DATA"
+            or value["authority_effect"] != "NONE"):
+        return False
+    try:
+        raw = _read_fixed_source()
+        binding, manifest_sha = _manifest_binding(raw)
+    except ProbeRefused:
+        return False
+    return (
+        value["source_sha256"] == hashlib.sha256(raw).hexdigest()
+        and value["source_size_bytes"] == len(raw)
+        and value["manifest_binding"] == binding
+        and value["manifest_sha256"] == manifest_sha
+    )
