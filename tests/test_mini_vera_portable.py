@@ -64,6 +64,15 @@ class PortableBundleTests(unittest.TestCase):
         with self.assertRaises(bundle.BundleRefused):
             bundle.verify(output)
 
+    def test_launcher_does_not_pin_a_specific_python_installation(self) -> None:
+        output = self.install()
+        launcher = (output / "mini-vera.cmd").read_bytes().decode("ascii")
+        self.assertNotIn("C:\\Windows\\py.exe", launcher)
+        self.assertIn("where py.exe", launcher)
+        self.assertIn("where python.exe", launcher)
+        self.assertIn("mini_vera_portable.py", launcher)
+        self.assertIn("ollama_preflight", launcher)
+
     def test_refuses_existing_destination_without_touching_it(self) -> None:
         self.destination.mkdir()
         sentinel = self.destination / "owner.txt"
