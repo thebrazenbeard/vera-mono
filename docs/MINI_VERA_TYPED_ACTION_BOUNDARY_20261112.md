@@ -22,7 +22,9 @@ launcher can forward an optional --structured-output flag to its local session.
 
     mini-vera.cmd --endpoint http://127.0.0.1:11434/v1 --model qwen3.5:0.8b --execute --host-idle-confirmed --allow-cold-load --prompt "What did you install?" --structured-output
 
-The preflight prints its own JSON observation first. For the model response,
+The launcher first checks its source manifest; successful verification is
+silent on stdout (failed verification still exits before inference). The
+preflight then prints its JSON observation. For the model response,
 the program prints exactly one JSON object with schema
 MINI_VERA_LOCAL_OUTPUT_V1. Parsers should select the exact schema.
 The model's generated text occupies only model.text; embedded newlines,
