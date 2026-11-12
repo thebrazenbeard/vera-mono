@@ -340,7 +340,11 @@ def main(argv: list[str] | None = None, *,
                              "content hashes are dictionary-guessable, NOT secret-safe")
     parser.add_argument("--structured-output", action="store_true",
                         help="Expose source-bounded model/client evidence in JSONL")
+    parser.add_argument("--host-read-probe", action="store_true",
+                        help="Operator opt-in to one read-only local source observation")
     args = parser.parse_args(argv)
+    if args.host_read_probe and (not args.structured_output or not args.execute):
+        parser.error("--host-read-probe requires --structured-output and --execute")
     if args.prompt is not None and not args.execute:
         parser.error("--prompt requires --execute; omit it for a read-only preflight")
     if args.execute and (not args.host_idle_confirmed or not args.prompt):
@@ -408,6 +412,8 @@ def main(argv: list[str] | None = None, *,
     ]
     if args.structured_output:
         session_args.append("--structured-output")
+    if args.host_read_probe:
+        session_args.append("--host-read-probe")
     if args.receipt_output is None:
         return local_session.main(session_args)
 
