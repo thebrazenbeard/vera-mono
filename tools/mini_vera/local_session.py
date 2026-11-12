@@ -17,7 +17,7 @@ import sys
 from collections.abc import Callable
 from typing import Any
 
-from . import artifact_binding, compose, loopback
+from . import artifact_binding, compose, host_read_probe, loopback
 
 # Independently reviewed resource digests at the PR #201 source checkpoint.
 # These are code-pinned expectations, NOT a signature or host installation
@@ -60,7 +60,8 @@ def compose_local_turn(*, text: str, turn_id: str, history: list[dict[str, str]]
     return compose.compose(**args, model=model, model_digest=model_digest)
 
 
-def structured_local_result(request: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+def structured_local_result(request: dict[str, Any], result: dict[str, Any],
+                            source_receipt: dict[str, Any] | None = None) -> dict[str, Any]:
     """Separate untrusted neural prose from source-observed, effect-free client behavior.
 
     This is neither a signed host receipt nor proof of what the model server or
@@ -76,6 +77,9 @@ def structured_local_result(request: dict[str, Any], result: dict[str, Any]) -> 
             or provenance.get("received_text_sha256") !=
             compose.sha256(response["text"].encode("utf-8"))):
         raise loopback.LoopbackRejected("unbound or inconsistent local output")
+    if source_receipt is not None and not host_read_probe.check_source_receipt(
+            source_receipt, expected_request_sha256=request["request_sha256"]):
+        raise loopback.LoopbackRejected("source observation receipt not byte-consistent")
     return {
         "schema": "MINI_VERA_LOCAL_OUTPUT_V1",
         "request_sha256": request["request_sha256"],
@@ -85,8 +89,8 @@ def structured_local_result(request: dict[str, Any], result: dict[str, Any]) -> 
             "trust": "UNVERIFIED_GENERATIVE_TEXT",
         },
         "client": {
-            "tool_actions_executed": 0,
-            "tool_receipts": [],
+            "tool_actions_executed": int(source_receipt is not None),
+            "tool_receipts": [source_receipt] if source_receipt is not None else [],
             "verified_external_effects": False,
             "host_attestation": "NOT_PROVIDED",
             "evidence_class": "LOCAL_CLIENT_CONTROL_FLOW_NOT_HOST_ATTESTATION",
@@ -118,7 +122,11 @@ def main(argv: list[str] | None = None, *,
                         help="Explicit Ollama-only /v1 reasoning_effort=none transport control")
     parser.add_argument("--structured-output", action="store_true",
                         help="JSONL with model text separate from client action evidence")
+    parser.add_argument("--host-read-probe", action="store_true",
+                        help="Opt-in read-only digest of this local source package")
     args = parser.parse_args(argv)
+    if args.host_read_probe and (not args.structured_output or not args.execute):
+        parser.error("--host-read-probe requires --structured-output and --execute")
 
     # A validation-only invocation must never load a model through an HTTP call.
     loopback._endpoint(args.endpoint)
@@ -248,9 +256,14 @@ def main(argv: list[str] | None = None, *,
                 return 2
         if args.structured_output:
             try:
-                record = structured_local_result(request, result)
-            except loopback.LoopbackRejected as exc:
-                print(f"Local output withheld: {exc}", file=sys.stderr)
+                source_receipt = (
+                    host_read_probe.observe_source(request["request_sha256"])
+                    if args.host_read_probe else None
+                )
+                record = structured_local_result(request, result, source_receipt)
+            except (loopback.LoopbackRejected, host_read_probe.ProbeRefused):
+                print("Local output withheld: read-only host probe failed or "
+                      "model receipt inconsistent.", file=sys.stderr)
                 history.clear()
                 return 2
             print(json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
