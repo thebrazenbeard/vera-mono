@@ -158,7 +158,10 @@ def compose(*, identity: dict[str, Any], identity_raw: bytes,
             expected_identity_sha256: str, expected_behavior_sha256: str,
             state: dict[str, Any], key: bytes, expected_revision: int,
             turn: dict[str, Any], model: str, model_digest: str,
-            session_history: list[dict[str, str]] | None = None) -> dict[str, Any]:
+            session_history: list[dict[str, str]] | None = None,
+            num_predict: int = 128) -> dict[str, Any]:
+    if type(num_predict) is not int or num_predict not in (128, 256):
+        raise CompositionRejected("only 128 or 256 local output tokens permitted")
     _require_raw_binding(identity, identity_raw, "identity")
     _require_raw_binding(behavior, behavior_raw, "behavior")
     if sha256(identity_raw) != _exact_sha(expected_identity_sha256, "identity digest"):
@@ -230,7 +233,7 @@ def compose(*, identity: dict[str, Any], identity_raw: bytes,
         "model": model,
         "messages": ([{"role": "system", "content": system}] + checked_history
                      + [{"role": "user", "content": user}]),
-        "options": {"temperature": 0, "seed": 20261106, "num_predict": 128},
+        "options": {"temperature": 0, "seed": 20261106, "num_predict": num_predict},
         "stream": False,
     }
     return {

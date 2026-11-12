@@ -331,6 +331,10 @@ def main(argv: list[str] | None = None, *,
                         help="Fresh operator host resource qualification, not an automated lease")
     parser.add_argument("--allow-cold-load", action="store_true",
                         help="Explicitly permit loading a nonresident model if RAM permits")
+    parser.add_argument("--max-output-tokens", type=int, choices=(128, 256),
+                        default=256, help="Local conversational budget (128 or 256)")
+    parser.add_argument("--timeout-seconds", type=int, choices=(30, 60),
+                        default=60, help="Absolute local inference deadline")
     parser.add_argument("--receipt-output", type=Path,
                         help="Optional absolute output for no-overwrite SHA-256 trial receipt; "
                              "content hashes are dictionary-guessable, NOT secret-safe")
@@ -394,6 +398,8 @@ def main(argv: list[str] | None = None, *,
         "--endpoint", args.endpoint, "--model", args.model,
         "--model-digest", final_receipt["ollama_tag_digest"],
         "--execute", "--host-idle-confirmed", "--ollama-disable-thinking",
+        "--max-output-tokens", str(args.max_output_tokens),
+        "--timeout-seconds", str(args.timeout_seconds),
         "--prompt", args.prompt,
     ]
     if args.receipt_output is None:
