@@ -40,7 +40,8 @@ def compose_local_turn(*, text: str, turn_id: str, history: list[dict[str, str]]
                        behavior: dict[str, Any], behavior_raw: bytes,
                        state: dict[str, Any], key: bytes, revision: int,
                        model: str | None = None, model_digest: str | None = None,
-                       witness: Any | None = None) -> dict[str, Any]:
+                       witness: Any | None = None,
+                       num_predict: int = 128) -> dict[str, Any]:
     args = {
         "identity": identity, "identity_raw": identity_raw,
         "behavior": behavior, "behavior_raw": behavior_raw,
@@ -50,6 +51,7 @@ def compose_local_turn(*, text: str, turn_id: str, history: list[dict[str, str]]
         "turn": {"schema": "MINI_VERA_LOCAL_TURN_V1", "scope": "LOCAL_LOOPBACK_ONLY",
                  "turn_id": turn_id, "user_text": text},
         "session_history": history,
+        "num_predict": num_predict,
     }
     if witness is not None:
         return artifact_binding.compose_from_witness(witness, **args)
@@ -74,7 +76,9 @@ def main(argv: list[str] | None = None, *,
     parser.add_argument("--execute", action="store_true", help="Permit bounded local HTTP inference")
     parser.add_argument("--host-idle-confirmed", action="store_true",
                         help="Operator confirms host and model server resource qualification")
-    parser.add_argument("--timeout-seconds", type=int, default=30)
+    parser.add_argument("--timeout-seconds", type=int, choices=(30, 60), default=30)
+    parser.add_argument("--max-output-tokens", type=int, choices=(128, 256),
+                        default=128, help="Bounded local generation budget")
     parser.add_argument("--ollama-disable-thinking", action="store_true",
                         help="Explicit Ollama-only /v1 reasoning_effort=none transport control")
     args = parser.parse_args(argv)
@@ -170,6 +174,7 @@ def main(argv: list[str] | None = None, *,
                 behavior=behavior, behavior_raw=behavior_raw,
                 state=state, key=key, revision=revision,
                 model=model, model_digest=digest, witness=witness,
+                num_predict=args.max_output_tokens,
             )
             loopback.validate_candidate(request)
         except (compose.CompositionRejected, loopback.LoopbackRejected) as exc:

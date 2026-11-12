@@ -174,9 +174,12 @@ def validate_candidate(request: dict[str, Any]) -> tuple[dict[str, Any], str]:
         raise LoopbackRejected("invalid model request")
     if type(inference["model"]) is not str or MODEL.fullmatch(inference["model"]) is None:
         raise LoopbackRejected("invalid model alias")
-    if inference["stream"] is not False or inference["options"] != {
-        "temperature": 0, "seed": 20261106, "num_predict": 128,
-    }:
+    settings = inference["options"]
+    if (inference["stream"] is not False or type(settings) is not dict
+            or set(settings) != {"temperature", "seed", "num_predict"}
+            or settings["temperature"] != 0 or settings["seed"] != 20261106
+            or type(settings["num_predict"]) is not int
+            or settings["num_predict"] not in (128, 256)):
         raise LoopbackRejected("only bounded non-streamed composer settings admitted")
     messages = inference["messages"]
     if type(messages) is not list or any(
@@ -219,7 +222,7 @@ def validate_candidate(request: dict[str, Any]) -> tuple[dict[str, Any], str]:
         raise LoopbackRejected("composed request digest mismatch")
     payload = {
         "model": inference["model"], "messages": messages, "stream": False,
-        "temperature": 0, "max_tokens": 128, "seed": 20261106,
+        "temperature": 0, "max_tokens": settings["num_predict"], "seed": 20261106,
     }
     return payload, sha256(canonical(payload))
 
