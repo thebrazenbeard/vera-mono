@@ -23,7 +23,6 @@ import time
 from urllib.parse import urlsplit
 from typing import Any
 
-
 MAX_REQUEST_FILE = 32_768
 MAX_RESPONSE_BYTES = 131_072
 MAX_CONTENT_BYTES = 65_536
@@ -196,13 +195,32 @@ def validate_candidate(request: dict[str, Any]) -> tuple[dict[str, Any], str]:
         raise LoopbackRejected("only composer system/user message pair admitted")
     _text(messages[0]["content"], "system content", 16_384)
     turn_field = "local_user_turn" if local_session else "synthetic_user_turn"
-    for message in messages[1:]:
+    for message_index, message in enumerate(messages[1:], start=1):
         raw = _text(message["content"], "conversation text", 8192)
         if message["role"] == "assistant":
             continue  # Caller history is volatile, not authenticated model output.
         inner = _parse_object(raw.encode("utf-8"))
-        if set(inner) != {turn_field, "project_context_untrusted"}:
+        default_keys = {turn_field, "project_context_untrusted"}
+        observation_keys = default_keys | {"host_tool_observation"}
+        if set(inner) not in (default_keys, observation_keys):
             raise LoopbackRejected("invalid local or synthetic turn envelope")
+        if "host_tool_observation" in inner:
+            if not local_session or message_index != len(messages) - 1:
+                raise LoopbackRejected("tool observation only allowed on current local turn")
+            without_observation = {k: v for k, v in inner.items()
+                                   if k != "host_tool_observation"}
+            base_messages = [dict(m) for m in messages]
+            base_messages[-1]["content"] = canonical(without_observation).decode("utf-8")
+            base_request_sha = sha256(canonical({**inference, "messages": base_messages}))
+            try:
+                from tools.mini_vera import host_read_probe
+            except ImportError as exc:
+                raise LoopbackRejected("local source validator unavailable") from exc
+            if not host_read_probe.check_projected_observation(
+                    inner["host_tool_observation"],
+                    base_request_sha256=base_request_sha,
+                    expected_turn_sha256=provenance["turn_sha256"]):
+                raise LoopbackRejected("forged, stale or unbound local source observation")
         _text(inner[turn_field], "user turn", 4096)
         records = inner["project_context_untrusted"]
         if type(records) is not list or len(records) > 8:
