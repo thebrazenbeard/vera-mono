@@ -338,6 +338,8 @@ def main(argv: list[str] | None = None, *,
     parser.add_argument("--receipt-output", type=Path,
                         help="Optional absolute output for no-overwrite SHA-256 trial receipt; "
                              "content hashes are dictionary-guessable, NOT secret-safe")
+    parser.add_argument("--structured-output", action="store_true",
+                        help="Expose source-bounded model/client evidence in JSONL")
     args = parser.parse_args(argv)
     if args.prompt is not None and not args.execute:
         parser.error("--prompt requires --execute; omit it for a read-only preflight")
@@ -345,6 +347,8 @@ def main(argv: list[str] | None = None, *,
         parser.error("--execute needs --host-idle-confirmed and --prompt")
     if args.receipt_output is not None and not args.execute:
         parser.error("--receipt-output requires --execute")
+    if args.receipt_output is not None and args.structured_output:
+        parser.error("cannot mix --structured-output with --receipt-output")
     receipt_parent_identity: tuple[int, int] | None = None
     if args.receipt_output is not None:
         try:
@@ -402,6 +406,8 @@ def main(argv: list[str] | None = None, *,
         "--timeout-seconds", str(args.timeout_seconds),
         "--prompt", args.prompt,
     ]
+    if args.structured_output:
+        session_args.append("--structured-output")
     if args.receipt_output is None:
         return local_session.main(session_args)
 

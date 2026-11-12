@@ -60,6 +60,41 @@ def compose_local_turn(*, text: str, turn_id: str, history: list[dict[str, str]]
     return compose.compose(**args, model=model, model_digest=model_digest)
 
 
+def structured_local_result(request: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    """Separate untrusted neural prose from source-observed, effect-free client behavior.
+
+    This is neither a signed host receipt nor proof of what the model server or
+    other processes did. The local session contains no tool-execution path.
+    """
+    response = result.get("response")
+    provenance = result.get("provenance")
+    if (result.get("status") not in
+            {"UNVERIFIED_LOCAL_MODEL_OUTPUT", "TRUNCATED_UNVERIFIED_OUTPUT"}
+            or type(response) is not dict or type(response.get("text")) is not str
+            or type(provenance) is not dict
+            or provenance.get("composed_request_sha256") != request["request_sha256"]
+            or provenance.get("received_text_sha256") !=
+            compose.sha256(response["text"].encode("utf-8"))):
+        raise loopback.LoopbackRejected("unbound or inconsistent local output")
+    return {
+        "schema": "MINI_VERA_LOCAL_OUTPUT_V1",
+        "request_sha256": request["request_sha256"],
+        "model": {
+            "text": response["text"],
+            "status": result["status"],
+            "trust": "UNVERIFIED_GENERATIVE_TEXT",
+        },
+        "client": {
+            "tool_actions_executed": 0,
+            "tool_receipts": [],
+            "verified_external_effects": False,
+            "host_attestation": "NOT_PROVIDED",
+            "evidence_class": "LOCAL_CLIENT_CONTROL_FLOW_NOT_HOST_ATTESTATION",
+            "model_server_effects": "UNKNOWN",
+        },
+    }
+
+
 def main(argv: list[str] | None = None, *,
          live_public_provider: Callable[[], tuple[dict[str, Any], bytes, int]] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -81,6 +116,8 @@ def main(argv: list[str] | None = None, *,
                         default=128, help="Bounded local generation budget")
     parser.add_argument("--ollama-disable-thinking", action="store_true",
                         help="Explicit Ollama-only /v1 reasoning_effort=none transport control")
+    parser.add_argument("--structured-output", action="store_true",
+                        help="JSONL with model text separate from client action evidence")
     args = parser.parse_args(argv)
 
     # A validation-only invocation must never load a model through an HTTP call.
@@ -209,13 +246,23 @@ def main(argv: list[str] | None = None, *,
                 print("Local output withheld: post-inference public-memory approval "
                       "or source integrity changed; session stopped.", file=sys.stderr)
                 return 2
+        if args.structured_output:
+            try:
+                record = structured_local_result(request, result)
+            except loopback.LoopbackRejected as exc:
+                print(f"Local output withheld: {exc}", file=sys.stderr)
+                history.clear()
+                return 2
+            print(json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
         if result["status"] == "TRUNCATED_UNVERIFIED_OUTPUT":
-            print("Vera [incomplete reply]> " + result["response"]["text"])
+            if not args.structured_output:
+                print("Vera [incomplete reply]> " + result["response"]["text"])
             history.clear()
             print("Session history cleared: model output was truncated. "
                   "No claim of a completed response or preserved continuity.", file=sys.stderr)
         else:
-            print("Vera> " + result["response"]["text"])
+            if not args.structured_output:
+                print("Vera> " + result["response"]["text"])
             pair = (request["inference"]["messages"][-1],
                     {"role": "assistant", "content": result["response"]["text"]})
             if all(len(message["content"].encode("utf-8")) <= 8192 for message in pair):
