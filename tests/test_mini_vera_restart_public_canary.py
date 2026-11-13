@@ -70,6 +70,29 @@ class RestartPublicCanaryTests(unittest.TestCase):
                 record = SimpleNamespace(**{**valid, **changes})
                 self.assertFalse(trial._approval(record, "a"*64))
 
+    def test_portable_canary_imports_its_source_pinned_dependencies(self):
+        import os
+        import subprocess
+        import sys
+        import tempfile
+        from pathlib import Path
+        from scripts import mini_vera_portable as bundle
+        source = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory(prefix="restart-portable-test-") as temp:
+            destination = Path(temp) / "install"
+            bundle.build(source, destination, "a"*40)
+            self.assertTrue(bundle.verify(destination))
+            env = {k: v for k, v in os.environ.items()
+                   if k.upper() not in {"PYTHONPATH", "PYTHONHOME"}}
+            process = subprocess.run(
+                [sys.executable, "-B", "-m",
+                 "tools.mini_vera.restart_public_canary", "--help"],
+                cwd=destination, env=env, text=True,
+                capture_output=True, timeout=10)
+            self.assertEqual(0, process.returncode, process.stderr)
+            self.assertIn("--run-trial", process.stdout)
+            self.assertTrue(bundle.verify(destination))
+
     def test_invalid_endpoint_refuses_before_fixture_or_subprocess(self):
         with self.assertRaises(trial.CanaryRefused):
             trial.run_trial(

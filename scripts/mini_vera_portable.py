@@ -22,6 +22,18 @@ RESOURCE_PATHS = (
     "packages/vera_identity/src/vera_identity/resources/architecture/identity/VERA_BEHAVIOR_PROFILE_V1.json",
 )
 LEGAL_PATHS = ("LICENSE", "NOTICE")
+# Explicit, immutable-source dependency closure for the opt-in synthetic
+# PUBLIC-memory restart canary. No user databases, keys or weights included.
+CANARY_MEMORY_SOURCE_PATHS = (
+    "packages/vera_memory/src/vera_memory/__init__.py",
+    "packages/vera_memory/src/vera_memory/ledger.py",
+    "packages/vera_memory/src/vera_memory/historical_evidence.py",
+    "packages/vera_memory/src/vera_memory/historical_export_projection.py",
+    "packages/vera_memory/src/vera_memory/learned_influence.py",
+    "packages/portfolio_runtime/src/portfolio_runtime/__init__.py",
+    "packages/portfolio_runtime/src/portfolio_runtime/lantern/__init__.py",
+    "packages/portfolio_runtime/src/portfolio_runtime/lantern/canonical.py",
+)
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_MANIFEST_BYTES = 256 * 1024
 HEX40 = re.compile(r"[a-f0-9]{40}\Z")
@@ -91,6 +103,8 @@ def _sources(root: Path) -> tuple[str, ...]:
         "scripts/mini_vera_portable.py",
         *RESOURCE_PATHS,
         *LEGAL_PATHS,
+        *(CANARY_MEMORY_SOURCE_PATHS
+          if "tools/mini_vera/restart_public_canary.py" in names else ()),
     )
     if len(paths) != len(set(paths)):
         raise BundleRefused("duplicate bundle source")

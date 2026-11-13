@@ -18,6 +18,15 @@ Initial trial with generic question and 256 token cap: approved-a UNKNOWN, appro
 
 After prompt made the reference-data location explicit (and thinking disabled across arms), a fresh random test case returned the exact new SYNTHETIC token in approved-a and approved-b, UNKNOWN in control, and no output from revoked. Behavioral result PASS for this synthetic trial only. The second trial token SHA256 was b07e2403efc7824f680f19c4be43f4d1c671aecc7894c70be551ea93c770c561. This is evidence of successfully using supplied reference data across two distinct processes, not a neural weight update, private memory, persistent chat history, or generalized reasoning.
 
+## Portable dependency closure
+The first source commit d12b2c0 built a portable bundle but could not import
+vera_memory inside it. A fresh-process package test reproduced this failure.
+The source-pinned portable builder now includes only the required Python
+dependency closure from vera_memory and portfolio_runtime.lantern. No memory
+database, user content, private record export, key or neural weights are
+copied. The portable launcher and integrity checker still treat these files
+as source-only; an import is not a behavioral qualification.
+
 ## Security and evidence ceilings
 The existing local-session rechecks approval after inference; this can withhold a reply but cannot retract data already sent to the model. The canary only sends synthetic PUBLIC context, and the fake loopback test inspects three actual HTTP request envelopes to confirm no PRIVATE canary marker or record ID was sent. A synthetic PRIVATE record exists in the temporary database as a negative fixture; it is not approved or selected.
 
