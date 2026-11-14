@@ -158,7 +158,20 @@ def main(argv: list[str] | None = None, *,
                         help="Opt-in read-only digest of this local source package")
     parser.add_argument("--deliver-host-observation", action="store_true",
                         help="Operator-authorized, one-turn unsigned source data to local model")
+    parser.add_argument("--synthetic-fact-evidence-gate", action="store_true",
+                        help="Opt-in, one-shot synthetic PUBLIC fact gate; never expose neural text")
     args = parser.parse_args(argv)
+    if args.synthetic_fact_evidence_gate and (
+            not args.structured_output or not args.execute
+            or args.prompt is None or args.host_read_probe
+            or args.deliver_host_observation):
+        parser.error("--synthetic-fact-evidence-gate requires --structured-output, "
+                     "--execute and one --prompt; cannot mix with source probe")
+    if args.synthetic_fact_evidence_gate and any(
+            (args.public_state, args.state_key_file,
+             args.expected_revision is not None)):
+        parser.error("--synthetic-fact-evidence-gate cannot import operator state files; "
+                     "use only a live synthetic approval provider or empty state")
     if args.deliver_host_observation and (
             not args.host_read_probe or not args.structured_output
             or not args.execute or args.prompt is None):
@@ -261,6 +274,11 @@ def main(argv: list[str] | None = None, *,
                 num_predict=args.max_output_tokens,
             )
             loopback.validate_candidate(request)
+            if args.synthetic_fact_evidence_gate:
+                # An unknown user question MUST NOT accidentally pass through
+                # the narrow synthetic gate as ordinary, unsanitized model text.
+                from . import public_fact_guard
+                public_fact_guard.validate_request(request)
             source_receipt = None
             source_request_sha = None
             if args.deliver_host_observation:
@@ -268,7 +286,7 @@ def main(argv: list[str] | None = None, *,
                 source_receipt = host_read_probe.observe_source(source_request_sha)
                 request = attach_host_source_observation(request, source_receipt)
         except (compose.CompositionRejected, loopback.LoopbackRejected,
-                host_read_probe.ProbeRefused) as exc:
+                host_read_probe.ProbeRefused, ValueError) as exc:
             print(f"Local request refused: {exc}", file=sys.stderr)
             if args.prompt is not None:
                 return 2
@@ -306,7 +324,11 @@ def main(argv: list[str] | None = None, *,
                     source_receipt = host_read_probe.observe_source(request["request_sha256"])
                 record = structured_local_result(
                     request, result, source_receipt, source_request_sha)
-            except (loopback.LoopbackRejected, host_read_probe.ProbeRefused):
+                if args.synthetic_fact_evidence_gate:
+                    from . import public_fact_guard
+                    record = public_fact_guard.apply(request, record)
+            except (loopback.LoopbackRejected, host_read_probe.ProbeRefused,
+                    ValueError):
                 print("Local output withheld: read-only host probe failed or "
                       "model receipt inconsistent.", file=sys.stderr)
                 history.clear()
