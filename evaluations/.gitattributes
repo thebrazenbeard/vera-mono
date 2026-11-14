@@ -1,0 +1,3 @@
+# Preserve the exact CRLF bytes of the reviewed local A/B-swapped packet.
+# The local Qwen judge consumed and hashed these bytes before Git publication.
+social_multiturn_blinded_reversed_v2_seed31_20261114.jsonl -text whitespace=cr-at-eol
