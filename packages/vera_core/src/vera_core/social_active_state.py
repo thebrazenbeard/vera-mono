@@ -103,7 +103,22 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
             body = body[:min(unmatched)]
         # Clauses are deliberately simple: unsupported grammar cannot create
         # current user facts. Later turns supersede earlier matching slots.
-        clauses = re.split(r"\s*;\s*|\s+and\s+|(?<=\.)\s+", body)
+        clauses = []
+        for segment in re.split(r"\s*;\s*|\s+and\s+|(?<=\.)\s+", body):
+            parts = re.split(r",\s+", segment.strip().rstrip(".!?"))
+            # A comma splits ONLY a complete sequence of direct named role
+            # claims. Narrative about an old memo must not promote its
+            # second clause into a current actor assignment.
+            if len(parts) > 1 and all(
+                _SCOPED_DECLARATION.fullmatch(part)
+                or _SCOPED_NEGATED.fullmatch(part)
+                or _DECLARATIONS[0][0].fullmatch(part)
+                or _NEGATED.fullmatch(part)
+                for part in parts
+            ):
+                clauses.extend(parts)
+            else:
+                clauses.append(segment)
         proposals: dict[str, list[ActiveFact]] = {}
         for raw_clause in clauses:
             clause = raw_clause.strip().rstrip(".!?").strip()

@@ -34,6 +34,41 @@ class TestSocialActiveState(unittest.TestCase):
         self.assertEqual(state["card:Ivo"].value, "red")
         self.assertEqual(state["card:Nora"].value, "green")
 
+    def test_comma_separated_current_correction_preserves_actors(self):
+        state = reconstruct([
+            "State: Ava is the pilot; Ben is the passenger; Heron is a spacecraft.",
+            "Correction: Ben is the pilot, Ava is the passenger.",
+        ])
+        self.assertEqual(state["role:pilot"].value, "Ben")
+        self.assertEqual(state["role:passenger"].value, "Ava")
+        self.assertEqual(state["type:Heron"].value, "spacecraft")
+        self.assertEqual(state["role:pilot"].quote, "Ben is the pilot")
+        self.assertEqual(state["role:passenger"].quote, "Ava is the passenger")
+
+    def test_comma_separated_conflict_stays_unresolved(self):
+        state = reconstruct([
+            "State: Ava is the pilot.",
+            "Correction: Ben is the pilot, Kira is the pilot.",
+        ])
+        self.assertEqual(state["role:pilot"].status, "UNRESOLVED")
+        self.assertIsNone(state["role:pilot"].value)
+
+    def test_commas_within_quoted_old_claims_never_promote_history(self):
+        state = reconstruct([
+            "State: Ava is the pilot; Nora is the messenger.",
+            'Correction: "Ben is the pilot, Kira is the messenger" is an old memo; Otto is the pilot.',
+        ])
+        self.assertEqual(state["role:pilot"].value, "Otto")
+        self.assertEqual(state["role:messenger"].value, "Nora")
+
+    def test_comma_in_archived_prose_cannot_promote_an_actor(self):
+        state = reconstruct([
+            "State: Ava is the pilot; Mira is the passenger.",
+            "Correction: An old memo claims Ben is the pilot, Kira is the passenger.",
+        ])
+        self.assertNotEqual(state["role:passenger"].value, "Kira")
+        self.assertNotEqual(state["role:pilot"].value, "Ben")
+
     def test_same_turn_conflicting_claims_mark_unknown(self):
         state = reconstruct(["State: Juno is the pilot; Kira is the pilot."])
         self.assertIsNone(state["role:pilot"].value)
