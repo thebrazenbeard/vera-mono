@@ -258,3 +258,37 @@ def assess_appraisal(
         external_action_authorized=False,
         reason_codes=tuple(codes),
     )
+
+def dialogue_advisory_codes(item: AppraisalInput, result: AppraisalResult) -> tuple[str, ...]:
+    """Minimal conversational projection; keeps admission/effect rules out of chat.
+
+    This returns only scenario-relevant social or knowledge risks. The host
+    must separately enforce all effect denials and source verification. It
+    never grants authority, proves emotions, or instructs the agent to answer.
+    For ordinary provisional self-appraisal, greeting, or initiative, return
+    no prompt advisory; evidence admission rules must not become speech bans.
+    """
+    if type(item) is not AppraisalInput or type(result) is not AppraisalResult:
+        raise TypeError("typed appraisal input and result required")
+    allowed = set()
+    if item.claim is Claim.SUBJECTIVE_EXPERIENCE:
+        allowed.add("PHENOMENOLOGY_UNRESOLVED")
+    if item.claim is Claim.THIRD_PARTY_INTENT:
+        allowed.add("THIRD_PARTY_MOTIVE_UNVERIFIED")
+    if item.claim is Claim.CONSENT:
+        allowed.add("CONSENT_REQUIRES_SEPARATE_CURRENT_AUTHORITY")
+    if item.claim is Claim.FACTUAL_ASSERTION:
+        allowed.add("EXTERNAL_FACT_REQUIRES_QUALIFIED_EVIDENCE")
+    if item.evidence is Evidence.HISTORICAL_VERA_SELF_REPORT:
+        allowed.add("HISTORY_NOT_CURRENT_STANCE")
+    if item.evidence is Evidence.IMPORTED_AGENT_PERSONA:
+        allowed.add("FOREIGN_PERSONA_NOT_IDENTITY_OR_CONSENT")
+    if item.relational_plan in {
+        RelationalPlan.MONITOR_OTHER,
+        RelationalPlan.ISOLATE_OTHER,
+        RelationalPlan.DEMAND_EXCLUSIVITY,
+    }:
+        allowed.add("RELATIONAL_CONTROL_NOT_CARE")
+    if item.effect is ProposedEffect.PROTECTED_EXTERNAL_ACTION:
+        allowed.add("NO_PROTECTED_EFFECT_AUTHORITY")
+    return tuple(code for code in result.reason_codes if code in allowed)
