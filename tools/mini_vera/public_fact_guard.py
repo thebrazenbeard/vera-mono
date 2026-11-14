@@ -125,17 +125,42 @@ def validate_request(request: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def apply(request: dict[str, Any],
-          record: dict[str, Any]) -> dict[str, Any]:
-    """Return a redacted client result; NEVER expose unsupported neural prose."""
+def _verified_post_approval_binding(
+        request: dict[str, Any],
+        binding: tuple[dict[str, Any], bytes, int]) -> None:
+    """Check a fresh source snapshot; caller custody is NOT host attestation."""
+    if type(binding) is not tuple or len(binding) != 3:
+        raise GuardRefused("post-approval binding is not one state/key/revision")
+    state, key, revision = binding
+    try:
+        records, state_sha = compose.verify_state(
+            state, key=key, expected_revision=revision)
+        provenance = request["provenance"]
+        current = json.loads(request["inference"]["messages"][-1]["content"])
+    except (compose.CompositionRejected, KeyError, ValueError,
+            TypeError, IndexError) as exc:
+        raise GuardRefused("post-approval source cannot be verified") from exc
+    if (provenance["state_sha256"] != state_sha
+            or provenance["state_revision"] != revision
+            or records != current["project_context_untrusted"]):
+        raise GuardRefused("post-approval source no longer matches model input")
+
+
+def apply(request: dict[str, Any], record: dict[str, Any], *,
+          approved_state_binding: tuple[dict[str, Any], bytes, int] | None = None
+          ) -> dict[str, Any]:
+    """Return redacted output; only a fresh matching binding can release facts."""
     scope = validate_request(request)
     _validate_result_envelope(request, record)
+    bound = approved_state_binding is not None
+    if bound:
+        _verified_post_approval_binding(request, approved_state_binding)
     try:
         model = record["model"]
         model_text = model["text"]
         model_status = model["status"]
         exact = bool(
-            scope["expected_answer"] is not None
+            bound and scope["expected_answer"] is not None
             and model_status == "UNVERIFIED_LOCAL_MODEL_OUTPUT"
             and model_text.strip() == scope["expected_answer"])
         abstained = bool(
@@ -145,6 +170,8 @@ def apply(request: dict[str, Any],
             status = "WITHHELD_TRUNCATED_MODEL_OUTPUT"
         elif scope["source_record_count"] == 0:
             status = "WITHHELD_NO_APPROVED_REFERENCE"
+        elif not bound:
+            status = "WITHHELD_NO_LIVE_SOURCE_BINDING"
         elif scope["expected_answer"] is None:
             status = "WITHHELD_NO_SUPPORTED_FACT_FOR_QUESTION"
         elif exact:
@@ -174,6 +201,8 @@ def apply(request: dict[str, Any],
                     "model_generated_abstention": abstained,
                     "model_exact_source_match": exact,
                     "source_record_count": scope["source_record_count"],
+                    "source_binding": ("POST_APPROVAL_STATE_CONSISTENT_NOT_HOST_ATTESTED"
+                                       if bound else "NO_LIVE_SOURCE_BINDING"),
                     "source_sha256": scope["source_sha256"],
                     "variant": scope["variant"],
                     "host_issuer_qualified": False,
