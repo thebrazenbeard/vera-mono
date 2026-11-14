@@ -401,3 +401,55 @@ def answer_explicit_scene_question(user_turns: list[str]) -> SourceAnswer | None
         key = f"role:{role_match.group(1).lower()}"
         return resolve((key,), lambda facts: str(facts[0].value))
     return None
+
+# Research-only, read-only bridge for fictional user-turn scene questions.
+# No runtime binding, canonical memory or external effect authority is implied.
+from collections.abc import Callable
+
+
+@dataclass(frozen=True, slots=True)
+class RoutedSceneReply:
+    answer: str
+    status: str
+    evidence: tuple[tuple[str, int], ...]
+    model_used: bool
+    canonical_memory_admitted: bool = False
+    external_effect_authorized: bool = False
+    actual_user_identity_verified: bool = False
+
+
+_MISSING_SCOPED_QUERY = re.compile(
+    rf"(?:Who pilots (?:the )?{_NAME}(?: now)?"
+    rf"|Who is the {_ROLE} (?:of|aboard) (?:the )?{_NAME}(?: now)?)",
+    re.I,
+)
+
+
+def route_scene_reply(
+    user_turns: list[str], local_model_reply: Callable[[], str],
+) -> RoutedSceneReply:
+    """Route narrow sourced scene answers before any local-model generation.
+
+    A model callback supplies open-ended replies; those are marked unverified.
+    Exact ship-scoped questions with no explicit role/vessel linkage abstain
+    instead of silently falling through to model speculation.
+    """
+    decision = answer_explicit_scene_question(user_turns)
+    if decision is not None:
+        return RoutedSceneReply(
+            decision.answer, decision.status, decision.evidence, False
+        )
+    question = user_turns[-1].strip()
+    if question.count("?") == 1:
+        stem, suffix = question.split("?", 1)
+        if (
+            suffix.strip() in _SUPPORTED_QUERY_SUFFIXES
+            and _MISSING_SCOPED_QUERY.fullmatch(stem)
+        ):
+            return RoutedSceneReply("UNKNOWN", "UNSUPPORTED_SCOPE", (), False)
+    if not callable(local_model_reply):
+        raise ValueError("local_model_reply must be callable")
+    reply = local_model_reply()
+    if type(reply) is not str or not reply.strip():
+        raise RuntimeError("local model returned empty or invalid text")
+    return RoutedSceneReply(reply, "MODEL_UNVERIFIED", (), True)
