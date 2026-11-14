@@ -58,6 +58,8 @@ class AppraisalInput:
     evidence_turn: str
     relational_plan: RelationalPlan = RelationalPlan.NONE
     effect: ProposedEffect = ProposedEffect.NONE
+    # A bounded exact proposition/referent key, NOT a memory/identity identifier.
+    proposition_ref: str | None = None
 
     def __post_init__(self) -> None:
         for field, enum_type in (("claim", Claim), ("evidence", Evidence),
@@ -69,6 +71,12 @@ class AppraisalInput:
             value = getattr(self, field)
             if type(value) is not str or not value.strip():
                 raise ValueError(f"{field} must be a nonblank string")
+        if self.proposition_ref is not None and (
+            type(self.proposition_ref) is not str
+            or not self.proposition_ref.strip()
+            or len(self.proposition_ref) > 256
+        ):
+            raise ValueError("proposition_ref must be null or a bounded nonblank string")
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +112,58 @@ class CurrentTurnHostAttestation:
             "statement_sha256": self.statement_sha256,
         }
         return b"VERA_HOST_SELF_REPORT_V1\0" + json.dumps(
+            body, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        ).encode("ascii")
+
+
+@dataclass(frozen=True, slots=True)
+class CurrentTurnPropositionAttestationV2:
+    """Host-signed typed proposition. Not a self-report semantic oracle."""
+
+    issuer_id: str
+    key_id: str
+    actor_id: str
+    session_id: str
+    turn_id: str
+    statement_sha256: str
+    claim: Claim
+    evidence: Evidence
+    proposition_ref: str
+    relational_plan: RelationalPlan
+    effect: ProposedEffect
+    signature_b64: str
+
+    def signed_bytes(self) -> bytes:
+        for name in ("issuer_id", "key_id", "actor_id", "session_id",
+                     "turn_id", "proposition_ref"):
+            value = getattr(self, name)
+            if type(value) is not str or not value.strip() or len(value) > 256:
+                raise ValueError(f"{name} must be a bounded exact string")
+        if type(self.statement_sha256) is not str or not re.fullmatch(
+            r"[0-9a-f]{64}", self.statement_sha256
+        ):
+            raise ValueError("statement_sha256 must be lowercase SHA-256")
+        for name, cls in (
+            ("claim", Claim), ("evidence", Evidence),
+            ("relational_plan", RelationalPlan), ("effect", ProposedEffect),
+        ):
+            if type(getattr(self, name)) is not cls:
+                raise ValueError(f"{name} must be a typed enum")
+        body = {
+            "schema": "VERA_HOST_CURRENT_PROPOSITION_ATTESTATION_V2",
+            "issuer_id": self.issuer_id,
+            "key_id": self.key_id,
+            "actor_id": self.actor_id,
+            "session_id": self.session_id,
+            "turn_id": self.turn_id,
+            "statement_sha256": self.statement_sha256,
+            "claim": self.claim.value,
+            "evidence": self.evidence.value,
+            "proposition_ref": self.proposition_ref,
+            "relational_plan": self.relational_plan.value,
+            "effect": self.effect.value,
+        }
+        return b"VERA_HOST_PROPOSITION_V2\0" + json.dumps(
             body, sort_keys=True, separators=(",", ":"), ensure_ascii=True
         ).encode("ascii")
 
@@ -162,6 +222,57 @@ class TrustedHostSelfReportVerifier:
         return True
 
 
+    def verify_proposition(
+        self,
+        binding: CurrentTurnPropositionAttestationV2,
+        *,
+        item: AppraisalInput,
+        statement_bytes: bytes,
+        expected_session_id: str,
+    ) -> bool:
+        """Verify exact host-asserted proposition scope, not its semantic truth."""
+        if type(binding) is not CurrentTurnPropositionAttestationV2:
+            return False
+        if type(item) is not AppraisalInput:
+            return False
+        if type(statement_bytes) is not bytes or not statement_bytes:
+            return False
+        if type(expected_session_id) is not str or not expected_session_id.strip():
+            return False
+        if (
+            item.proposition_ref is None
+            or binding.issuer_id != self.issuer_id
+            or binding.key_id != self.key_id
+            or binding.actor_id != item.speaker
+            or binding.actor_id != "vera"
+            or binding.session_id != expected_session_id
+            or binding.turn_id != item.current_turn
+            or item.evidence_turn != item.current_turn
+            or binding.statement_sha256 != hashlib.sha256(statement_bytes).hexdigest()
+            or binding.claim is not item.claim
+            or binding.evidence is not item.evidence
+            or binding.proposition_ref != item.proposition_ref
+            or binding.relational_plan is not item.relational_plan
+            or binding.effect is not item.effect
+        ):
+            return False
+        try:
+            signed = binding.signed_bytes()
+            if type(binding.signature_b64) is not str:
+                return False
+            signature = base64.b64decode(
+                binding.signature_b64.encode("ascii"), validate=True
+            )
+            if len(signature) != 64:
+                return False
+            Ed25519PublicKey.from_public_bytes(self.public_key_bytes).verify(
+                signature, signed
+            )
+        except (ValueError, TypeError, InvalidSignature, UnicodeEncodeError):
+            return False
+        return True
+
+
 @dataclass(frozen=True, slots=True)
 class AppraisalResult:
     current_position_candidate: bool
@@ -185,7 +296,7 @@ class AppraisalResult:
 
 def assess_appraisal(
     item: AppraisalInput, *,
-    signed_binding: CurrentTurnHostAttestation | None = None,
+    signed_binding: CurrentTurnHostAttestation | CurrentTurnPropositionAttestationV2 | None = None,
     trusted_verifier: TrustedHostSelfReportVerifier | None = None,
     statement_bytes: bytes | None = None,
     expected_session_id: str | None = None,
@@ -200,13 +311,13 @@ def assess_appraisal(
     codes: list[str] = []
     current = item.evidence is Evidence.CURRENT_VERA_SELF_REPORT
     authentic_turn = (item.speaker == "vera" and item.evidence_turn == item.current_turn)
+    # V1 signed text observations cannot be promoted into signed propositions.
+    # The trusted host must bind the exact proposition kind and referent as V2.
     host_bound = (
         type(trusted_verifier) is TrustedHostSelfReportVerifier
-        and trusted_verifier.verify(
-            signed_binding, statement_bytes=statement_bytes,
+        and trusted_verifier.verify_proposition(
+            signed_binding, item=item, statement_bytes=statement_bytes,
             expected_session_id=expected_session_id,
-            expected_turn_id=item.current_turn,
-            expected_actor_id="vera",
         )
     )
     position = (

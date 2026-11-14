@@ -57,10 +57,10 @@ class TestTrustedHostBinding(unittest.TestCase):
             expected_session_id=expected_session_id,
         )
 
-    def test_matching_trusted_signature_allows_host_bound_current_candidate(self):
+    def test_v1_signature_cannot_promote_unsigned_claim_type_to_current_position(self):
         result = self.evaluate()
-        self.assertTrue(result.current_position_candidate)
-        self.assertIn("HOST_BOUND_CURRENT_POSITION_CANDIDATE", result.reason_codes)
+        self.assertFalse(result.current_position_candidate)
+        self.assertIn("CURRENT_AUTHORSHIP_NOT_HOST_VERIFIED", result.reason_codes)
         self.assertFalse(result.factual_knowledge_supported)
         self.assertFalse(result.external_action_authorized)
 
