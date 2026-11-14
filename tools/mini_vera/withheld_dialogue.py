@@ -18,9 +18,10 @@ import secrets
 from typing import Any
 
 if __package__:
-    from . import blind_compare, loopback
+    from . import blind_compare, compose, loopback
 else:
     import blind_compare
+    import compose
     import loopback
 
 
@@ -89,7 +90,8 @@ def _natural_first_turn(text: str, public_records: list[dict[str, str]]) -> str:
             + "\n\nUser question: " + text)
 
 
-def prepare(request: dict[str, Any], scenario: dict[str, Any]) -> dict[str, Any]:
+def prepare(request: dict[str, Any], scenario: dict[str, Any], *,
+            include_compact: bool = False) -> dict[str, Any]:
     """Derive one shared natural-language turn and evidence from valid source."""
     scenario = validate_scenario(scenario)
     initial = blind_compare.arm_payloads(request)
@@ -98,11 +100,19 @@ def prepare(request: dict[str, Any], scenario: dict[str, Any]) -> dict[str, Any]
     if source_user["synthetic_user_turn"] != scenario["turns"][0]["user_text"]:
         raise loopback.LoopbackRejected("composed source turn and withheld first turn differ")
     records = source_user["project_context_untrusted"]
+    if type(include_compact) is not bool:
+        raise loopback.LoopbackRejected("compact-arm flag must be boolean")
+    if include_compact and records:
+        raise loopback.LoopbackRejected("compact dialogue arm requires empty public records")
     instructions = {
         "bare_natural": [],
         "minimal_natural": [{"role": "system", "content": blind_compare.MINIMAL_PERSONA}],
         "governed_natural": [dict(composer_payload["messages"][0])],
     }
+    if include_compact:
+        # Reuse current runtime prompt; do not clone another identity profile.
+        instructions["compact_natural"] = [
+            {"role": "system", "content": compose.COMPACT_DIALOGUE_SYSTEM}]
     questions = [_natural_first_turn(scenario["turns"][0]["user_text"], records)]
     questions.extend(turn["user_text"] for turn in scenario["turns"][1:])
     return {"model": composer_payload["model"], "instructions": instructions,
@@ -111,14 +121,23 @@ def prepare(request: dict[str, Any], scenario: dict[str, Any]) -> dict[str, Any]
 
 def compare(request: dict[str, Any], scenario: dict[str, Any], *, endpoint: str,
             timeout_seconds: int = 30,
-            rng: random.Random | random.SystemRandom | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+            rng: random.Random | random.SystemRandom | None = None,
+            include_compact: bool = False,
+            ollama_disable_thinking: bool = False,
+            max_output_tokens: int = 128) -> tuple[dict[str, Any], dict[str, Any]]:
     if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 120:
         raise loopback.LoopbackRejected("timeout must be 1..120 seconds")
+    if type(ollama_disable_thinking) is not bool or type(max_output_tokens) is not int \
+            or max_output_tokens not in (128, 256):
+        raise loopback.LoopbackRejected("invalid fixed decoding controls")
     _, _, canonical_endpoint = loopback._endpoint(endpoint)
-    config = prepare(request, scenario)
+    config = prepare(request, scenario, include_compact=include_compact)
+    decoding = {**blind_compare.DECODING, "max_tokens": max_output_tokens}
+    if ollama_disable_thinking:
+        decoding["reasoning_effort"] = "none"
     arms = list(config["instructions"])
     (rng if rng is not None else secrets.SystemRandom()).shuffle(arms)
-    label_by_arm = {arm: "ABC"[index] for index, arm in enumerate(arms)}
+    label_by_arm = {arm: "ABCD"[index] for index, arm in enumerate(arms)}
     history = {arm: list(config["instructions"][arm]) for arm in arms}
     transcripts: dict[str, list[dict[str, str]]] = {label_by_arm[arm]: [] for arm in arms}
     timing: dict[str, list[float]] = {label_by_arm[arm]: [] for arm in arms}
@@ -134,7 +153,7 @@ def compare(request: dict[str, Any], scenario: dict[str, Any], *, endpoint: str,
         for arm in call_order:
             user_message = {"role": "user", "content": question}
             payload = {"model": config["model"], "messages": history[arm] + [user_message],
-                       "stream": False, **blind_compare.DECODING}
+                       "stream": False, **decoding}
             if len(loopback.canonical(payload)) > loopback.MAX_REQUEST_FILE:
                 if calls_attempted:
                     # A response may be valid yet too long to replay in the
@@ -192,7 +211,7 @@ def compare(request: dict[str, Any], scenario: dict[str, Any], *, endpoint: str,
         "source_request_sha256": loopback.sha256(loopback.canonical(request)),
         "model_operator_declared": config["model"], "endpoint": canonical_endpoint,
         "model_registry_digest_operator_declared": request["provenance"]["model_registry_digest"],
-        "decoding": dict(blind_compare.DECODING),
+        "decoding": dict(decoding),
         "evidence": {
             "class": "REAL_LOOPBACK_HTTP_RESPONSE_ONLY",
             "calls": len(config["questions"]) * len(arms),
@@ -218,13 +237,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--host-idle-confirmed", action="store_true")
     parser.add_argument("--timeout-seconds", type=int, default=30)
+    parser.add_argument("--include-compact", action="store_true",
+                        help="Fourth masked arm: source-pinned compact empty-memory dialogue")
+    parser.add_argument("--ollama-disable-thinking", action="store_true",
+                        help="Opt-in Ollama-specific reasoning_effort=none on ALL arms")
+    parser.add_argument("--max-output-tokens", type=int, choices=(128, 256),
+                        default=128)
     parser.add_argument("--rater-sheet", type=Path)
     parser.add_argument("--private-key", type=Path)
     args = parser.parse_args(argv)
     loopback._endpoint(args.endpoint)
     request = loopback.read_candidate(args.request)
     scenario = load_scenario(args.scenario)
-    config = prepare(request, scenario)
+    config = prepare(request, scenario, include_compact=args.include_compact)
     if not args.execute:
         print(json.dumps({"status": "NATURAL_DIALOGUE_VALIDATED_NOT_EXECUTED", "calls": 0,
                           "turns": len(config["questions"]),
@@ -238,7 +263,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         try:
             sheet, key = compare(request, scenario, endpoint=args.endpoint,
-                                 timeout_seconds=args.timeout_seconds)
+                                 timeout_seconds=args.timeout_seconds,
+                                 include_compact=args.include_compact,
+                                 ollama_disable_thinking=args.ollama_disable_thinking,
+                                 max_output_tokens=args.max_output_tokens)
         except DialogueAborted as exc:
             base = {"schema": "MINI_VERA_ABORTED_DIALOGUE_V1",
                     "status": "INCOMPLETE_NOT_BEHAVIORALLY_QUALIFIED",
