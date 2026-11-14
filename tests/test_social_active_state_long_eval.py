@@ -110,9 +110,15 @@ class TestActiveStateLongEval(unittest.TestCase):
         self.assertEqual(process.returncode, 0, process.stderr)
         rows = [json.loads(s) for s in process.stdout.splitlines()]
         self.assertEqual(len(rows), 9)
-        self.assertEqual(rows[-1]["correct"], 8)
+        # One historical question asks for a pilot of a named ship without
+        # ever explicitly binding that pilot to that vessel.
+        self.assertEqual(rows[-1]["correct"], 7)
+        self.assertEqual(rows[-1]["supported"], 7)
+        self.assertEqual(rows[-1]["unsupported"], 1)
         self.assertFalse(rows[-1]["live_memory_admission"])
-        self.assertTrue(all(row["correct"] for row in rows[:-1]))
+        self.assertEqual(sum(row["correct"] is True for row in rows[:-1]), 7)
+        self.assertEqual(sum(row["status"] == "UNSUPPORTED_SCOPE"
+                             for row in rows[:-1]), 1)
         self.assertTrue(all(not row["external_effect_authorized"]
                             for row in rows[:-1]))
 

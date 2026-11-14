@@ -61,6 +61,31 @@ class TestSocialActiveState(unittest.TestCase):
         self.assertIsNone(state["role:guide"].value)
         self.assertEqual(state["role:messenger"].value, "Milo")
 
+    def test_mixed_present_correction_and_quoted_archive_does_not_lose_update(self):
+        state = reconstruct([
+            "State: Rhea is the owner; Mila is the pilot.",
+            'Correction: Rhea is no longer the owner; "Milo is the owner" was only an old memo.',
+        ])
+        self.assertIsNone(state["role:owner"].value)
+        self.assertEqual(state["role:owner"].status, "UNRESOLVED")
+        self.assertEqual(state["role:pilot"].value, "Mila")
+
+    def test_quoted_archival_claim_does_not_override_unrelated_present_fact(self):
+        state = reconstruct([
+            "State: Rhea is the owner; Ava is the pilot.",
+            'Correction: "Milo is the owner" was from an old memo; the pilot stays the same.',
+        ])
+        self.assertEqual(state["role:owner"].value, "Rhea")
+        self.assertEqual(state["role:pilot"].value, "Ava")
+
+    def test_contraction_is_not_an_archive_quote(self):
+        state = reconstruct([
+            "State: Rhea is the owner.",
+            "Correction: I'm unsure who the owner is now.",
+        ])
+        self.assertIsNone(state["role:owner"].value)
+        self.assertEqual(state["role:owner"].status, "UNRESOLVED")
+
     def test_old_memo_quote_or_assistant_response_not_admitted(self):
         state = reconstruct([
             "State: Rhea is the owner.",

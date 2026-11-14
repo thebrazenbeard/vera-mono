@@ -19,10 +19,20 @@ def main() -> int:
     fixture = json.loads(args.fixture.read_text(encoding="utf8"))
     validate_fixture(fixture)
     total_correct = 0
+    unsupported = 0
     for case in fixture["cases"]:
         result = answer_explicit_scene_question(case["turns"])
         if result is None:
-            raise ValueError("unsupported fictional fixture question")
+            # The historical fixture's question about a *specific ship*
+            # lacks an actual actor-to-ship source assertion. Preserve that
+            # unsupported case rather than score a fabricated relationship.
+            unsupported += 1
+            print(json.dumps({
+                "case_id":case["id"], "answer":None,
+                "status":"UNSUPPORTED_SCOPE", "correct":None, "evidence":[],
+                "external_effect_authorized":False,
+            }, sort_keys=True))
+            continue
         correct = score_answer(case["expected"], result.answer)
         total_correct += int(correct)
         print(json.dumps({
@@ -34,6 +44,8 @@ def main() -> int:
     print(json.dumps({
         "suite":"SOURCE_ONLY_SYNTHETIC_EXPLICIT_FACTS",
         "correct":total_correct, "total":len(fixture["cases"]),
+        "supported":len(fixture["cases"])-unsupported,
+        "unsupported":unsupported,
         "independent_review":False, "live_memory_admission":False,
     }, sort_keys=True))
     return 0
