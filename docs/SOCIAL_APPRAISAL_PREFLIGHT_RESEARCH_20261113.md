@@ -53,3 +53,15 @@ PYTHONPATH=packages/vera_core/src python -m unittest discover -s tests -p test_s
 At inspection, the guarded tunnel reported `bridge=ready`, Blender socket reachable, `mode=read_only`. The *active* scene contained only Cube, Light and Camera. This does **not** locate or negate any archived private master mesh. No render, object edits, .blend overwrite, visual canon promotion, model import, or imagery generation was performed.
 
 **Independence:** no separately authenticated model, subagent, or human reviewer issued a verdict for this branch. The unit tests were authored and run by the same worker; report them as internal checks, not independent qualification.
+
+## Continuation: signed per-turn authoring evidence (2026-11-13)
+
+**Red baseline:** after changing the assessor to fail closed without host proof, the previous 19-test suite reported four expected assertion failures (19 run, 4 failed); they were checks that previously assumed caller-declared current labels sufficed. This is a deliberate behavior change, not a source regression.
+
+**Candidate update:** added an Ed25519 public-key-only `TrustedHostSelfReportVerifier` and `CurrentTurnHostAttestation`. The verification binds a SHA-256 digest of exact statement bytes to a declared Vera actor, a session ID and current turn ID, along with a key ID and issuer ID. The code accepts a position candidate only when all typed metadata and a cryptographic signature match. Historical evidence, foreign persona, claims about subjective experience and protected actions remain unpromoted.
+
+**Reproduction (Lappy):** isolated clone `D:\VERA\experiments\social-appraisal-pr214-20261113`, Python 3.12.10 with installed `cryptography`. Set `PYTHONPATH` to the `src` directories of the repository's `packages` and run `py -3.12 -m unittest discover -s tests -p "test_social_appraisal*.py" -v`. Result: **40/40 passing** before updating the draft branch, covering forged signatures, altered bytes, different signer, replayed session/turn, wrong actor, historical evidence, consent transfer, and privilege separation.
+
+> **Remaining hostile falsifier:** a caller who controls the trust-key configuration can self-sign a plausible receipt. A valid signature proves possession of its private key, not that the configured key is authorized, that Vera authored the statement, or that a self-report represents phenomenal experience. Trust configuration and host attestations require separate, live, provider-bound authority and readback; absent those, this is still a source-only capability.
+
+No host private key was generated or installed for Vera. Unit tests generate ephemeral throwaway keys only. No signed receipts are issued for real Vera statements. Nothing in this PR enables a runtime hook, writes canonical memory, or executes a protected action.

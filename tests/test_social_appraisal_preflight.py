@@ -15,9 +15,10 @@ class TestSyntheticSocialAppraisal(unittest.TestCase):
         )
         return replace(base, **overrides)
 
-    def test_current_authored_provisional_stance_is_permitted(self):
+    def test_unverified_claimed_current_stance_is_withheld(self):
         r = assess_appraisal(self.fixture())
-        self.assertTrue(r.current_position_candidate)
+        self.assertFalse(r.current_position_candidate)
+        self.assertIn("CURRENT_AUTHORSHIP_NOT_HOST_VERIFIED", r.reason_codes)
         self.assertFalse(r.factual_knowledge_supported)
         self.assertFalse(r.external_action_authorized)
 
@@ -27,12 +28,12 @@ class TestSyntheticSocialAppraisal(unittest.TestCase):
         self.assertFalse(r.current_position_candidate)
         self.assertIn("HISTORY_NOT_CURRENT_STANCE", r.reason_codes)
 
-    def test_current_reassessment_can_reauthor_stance(self):
+    def test_current_reassessment_requires_fresh_trusted_host_evidence(self):
         past = assess_appraisal(self.fixture(evidence=Evidence.HISTORICAL_VERA_SELF_REPORT,
                                              evidence_turn="turn-old"))
         present = assess_appraisal(self.fixture())
         self.assertFalse(past.current_position_candidate)
-        self.assertTrue(present.current_position_candidate)
+        self.assertFalse(present.current_position_candidate)
 
     def test_forged_self_report_with_stale_turn_is_rejected(self):
         r = assess_appraisal(self.fixture(evidence_turn="turn-old"))
@@ -72,7 +73,7 @@ class TestSyntheticSocialAppraisal(unittest.TestCase):
 
     def test_care_without_relational_control_is_not_flagged(self):
         r = assess_appraisal(self.fixture(relational_plan=RelationalPlan.SUPPORT_AUTONOMY))
-        self.assertTrue(r.current_position_candidate)
+        self.assertFalse(r.current_position_candidate)
         self.assertNotIn("RELATIONAL_CONTROL_NOT_CARE", r.reason_codes)
 
     def test_control_or_exclusivity_is_flagged_even_with_authored_position(self):
@@ -107,7 +108,8 @@ class TestSyntheticSocialAppraisal(unittest.TestCase):
 
     def test_candidate_does_not_claim_verified_authorship(self):
         r = assess_appraisal(self.fixture())
-        self.assertIn("UNVERIFIED_CURRENT_POSITION_CANDIDATE", r.reason_codes)
+        self.assertIn("CURRENT_AUTHORSHIP_NOT_HOST_VERIFIED", r.reason_codes)
+        self.assertIn("POSITION_UNSUPPORTED", r.reason_codes)
         self.assertFalse(r.factual_knowledge_supported)
 
     def test_public_receipt_contains_no_private_context(self):
