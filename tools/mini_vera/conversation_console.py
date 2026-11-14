@@ -32,21 +32,40 @@ def main(argv: list[str] | None = None) -> int:
                         help="Optional single-turn smoke; omit for interactive chat")
     parser.add_argument("--compact-dialogue", action="store_true",
                         help="Opt-in tested compact local conversation prompt; no persistent memory")
+    parser.add_argument("--candidate-4b", action="store_true",
+                        help="Experimental 2-3 GiB candidate with stronger RAM guard and explicit tag digest")
     args = parser.parse_args(argv)
 
+    if args.candidate_4b and args.expected_tag_digest is None:
+        print("Refused: candidate 4B requires --expected-tag-digest.", file=sys.stderr)
+        return 2
+    if args.candidate_4b and args.max_output_tokens != 128:
+        print("Refused: candidate 4B caps --max-output-tokens at 128.", file=sys.stderr)
+        return 2
     if not args.check and not args.confirm_host_idle:
         print("Refused: real inference needs --confirm-host-idle after a fresh "
               "workload check.", file=sys.stderr)
         return 2
+    probe_options = dict(endpoint=args.endpoint, model=args.model,
+                         expected_tag_digest=args.expected_tag_digest,
+                         allow_cold_load=args.allow_cold_load)
+    if args.candidate_4b:
+        probe_options["allow_4b_candidate"] = True
     try:
-        receipt = ollama_preflight.probe(
-            endpoint=args.endpoint, model=args.model,
-            expected_tag_digest=args.expected_tag_digest,
-            allow_cold_load=args.allow_cold_load,
-        )
+        receipt = ollama_preflight.probe(**probe_options)
     except (ollama_preflight.PreflightRefused,
             loopback.LoopbackRejected, OSError, ValueError) as exc:
         print(f"Mini-Vera preflight refused: {exc}", file=sys.stderr)
+        return 2
+    if args.candidate_4b and (
+            receipt.get("schema") != "MINI_VERA_CANDIDATE4B_PREFLIGHT_V1"
+            or receipt.get("model_class") != "CANDIDATE_4B_UNQUALIFIED"
+            or type(receipt.get("model_size_bytes")) is not int
+            or not (ollama_preflight.MAX_08B_MODEL_BYTES
+                    < receipt["model_size_bytes"]
+                    <= ollama_preflight.MAX_CANDIDATE4B_MODEL_BYTES)
+            or receipt.get("ollama_tag_digest") != args.expected_tag_digest):
+        print("Refused: candidate 4B preflight classification mismatch.", file=sys.stderr)
         return 2
     if args.check:
         print(json.dumps(receipt, sort_keys=True))
@@ -72,6 +91,24 @@ def main(argv: list[str] | None = None) -> int:
         options += ["--prompt", args.prompt]
     if args.compact_dialogue:
         options.append("--compact-dialogue")
+    if args.candidate_4b:
+        # Second bounded GET inventory and RAM probe immediately before handoff.
+        # This is TOCTOU mitigation, NOT an exclusive lease or tensor proof.
+        try:
+            final = ollama_preflight.probe(**probe_options)
+        except (ollama_preflight.PreflightRefused,
+                loopback.LoopbackRejected, OSError, ValueError) as exc:
+            print(f"Refused: candidate 4B pre-handoff recheck: {exc}", file=sys.stderr)
+            return 2
+        if (final.get("status") != "RESOURCE_PREFLIGHT_PASSED_NOT_A_LEASE"
+                or final.get("schema") != receipt["schema"]
+                or final.get("model_class") != receipt["model_class"]
+                or final.get("model") != receipt["model"]
+                or final.get("model_size_bytes") != receipt["model_size_bytes"]
+                or final.get("ollama_tag_digest") != receipt["ollama_tag_digest"]):
+            print("Refused: candidate 4B residency or digest changed before handoff.",
+                  file=sys.stderr)
+            return 2
     print("Mini-Vera local session: neural model not weight-attested; "
           "memory is volatile and tools remain disabled. "
           "Type /quit to leave.", file=sys.stderr)
