@@ -30,6 +30,10 @@ from . import local_session, loopback
 GIB = 1024 ** 3
 MAX_JSON = 65_536
 MAX_08B_MODEL_BYTES = 2 * GIB
+# Explicitly unqualified 4B research candidates: an additional, non-default lane.
+MAX_CANDIDATE4B_MODEL_BYTES = 3 * GIB
+CANDIDATE4B_COLD_HEADROOM_BYTES = 5 * GIB
+CANDIDATE4B_WARM_FREE_BYTES = 3 * GIB
 WARM_FREE_BYTES = 1 * GIB
 COLD_HEADROOM_BYTES = 2 * GIB
 DEFAULT_ENDPOINT = "http://127.0.0.1:11434/v1"
@@ -254,7 +258,8 @@ def probe(*, endpoint: str = DEFAULT_ENDPOINT, model: str = DEFAULT_MODEL,
           expected_tag_digest: str | None = None,
           memory_probe: Callable[[], int] = windows_free_physical_bytes,
           get_json: Callable[[str, int, str], dict[str, Any]] = _read_ollama_json,
-          allow_cold_load: bool = False) -> dict[str, Any]:
+          allow_cold_load: bool = False,
+          allow_4b_candidate: bool = False) -> dict[str, Any]:
     """Return a bounded observation; rejection is never execution authority."""
     host, port, _ = loopback._endpoint(endpoint)
     if type(model) is not str or loopback.MODEL.fullmatch(model) is None:
@@ -263,6 +268,8 @@ def probe(*, endpoint: str = DEFAULT_ENDPOINT, model: str = DEFAULT_MODEL,
             (type(expected_tag_digest) is not str or
              loopback.HEX64.fullmatch(expected_tag_digest) is None)):
         raise PreflightRefused("invalid expected Ollama tag digest")
+    if allow_4b_candidate and expected_tag_digest is None:
+        raise PreflightRefused("candidate 4B requires explicit expected tag digest")
     available = memory_probe()
     if type(available) is not int or available < 0:
         raise PreflightRefused("invalid host free-memory reading")
@@ -280,9 +287,14 @@ def probe(*, endpoint: str = DEFAULT_ENDPOINT, model: str = DEFAULT_MODEL,
     if tag is None:
         raise PreflightRefused("selected Ollama model not installed")
     size, digest = tag.get("size"), tag.get("digest")
-    if (type(size) is not int or not 0 < size <= MAX_08B_MODEL_BYTES or
+    max_size = (MAX_CANDIDATE4B_MODEL_BYTES if allow_4b_candidate
+                else MAX_08B_MODEL_BYTES)
+    if (type(size) is not int or not 0 < size <= max_size or
             type(digest) is not str or loopback.HEX64.fullmatch(digest) is None):
-        raise PreflightRefused("model size or tag digest unavailable/over 0.8B budget")
+        budget = "candidate 4B" if allow_4b_candidate else "0.8B"
+        raise PreflightRefused(f"model size or tag digest unavailable/over {budget} budget")
+    if allow_4b_candidate and size <= MAX_08B_MODEL_BYTES:
+        raise PreflightRefused("candidate 4B mode requires a model above the 0.8B budget")
     if expected_tag_digest is not None and digest != expected_tag_digest:
         raise PreflightRefused("Ollama tag digest changed since expected inventory")
     active = _model_entry(resident, "models", model, reject_foreign=True)
@@ -290,9 +302,11 @@ def probe(*, endpoint: str = DEFAULT_ENDPOINT, model: str = DEFAULT_MODEL,
     if warm:
         if active.get("digest") != digest:
             raise PreflightRefused("resident model tag digest mismatch")
-        required = WARM_FREE_BYTES
+        required = (CANDIDATE4B_WARM_FREE_BYTES if allow_4b_candidate
+                    else WARM_FREE_BYTES)
     else:
-        required = size + COLD_HEADROOM_BYTES
+        required = size + (CANDIDATE4B_COLD_HEADROOM_BYTES if allow_4b_candidate
+                           else COLD_HEADROOM_BYTES)
     if available < required:
         raise PreflightRefused("insufficient free physical RAM for bounded local inference")
     # For cold loads, a separate affirmative operator choice is required. No
@@ -301,7 +315,7 @@ def probe(*, endpoint: str = DEFAULT_ENDPOINT, model: str = DEFAULT_MODEL,
         status = "COLD_MODEL_NOT_AUTHORIZED_TO_LOAD"
     else:
         status = "RESOURCE_PREFLIGHT_PASSED_NOT_A_LEASE"
-    return {
+    result = {
         "schema": "MINI_VERA_08B_PREFLIGHT_V1",
         "status": status,
         "model": model,
@@ -316,6 +330,10 @@ def probe(*, endpoint: str = DEFAULT_ENDPOINT, model: str = DEFAULT_MODEL,
         "http_methods": ["GET /api/tags", "GET /api/ps"],
         "model_inference_calls": 0,
     }
+    if allow_4b_candidate:
+        result["schema"] = "MINI_VERA_CANDIDATE4B_PREFLIGHT_V1"
+        result["model_class"] = "CANDIDATE_4B_UNQUALIFIED"
+    return result
 
 
 def main(argv: list[str] | None = None, *,
