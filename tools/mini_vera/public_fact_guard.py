@@ -19,6 +19,46 @@ class GuardRefused(ValueError):
     """Fail closed without exposing generated text."""
 
 
+def _validate_result_envelope(request: dict[str, Any],
+                              record: dict[str, Any]) -> None:
+    """No caller-controlled side channels in the model or client envelope."""
+    if type(record) is not dict or set(record) != {
+            "schema", "request_sha256", "model", "client"}:
+        raise GuardRefused("noncanonical result top-level fields")
+    if (record["schema"] != "MINI_VERA_LOCAL_OUTPUT_V1"
+            or record["request_sha256"] != request["request_sha256"]):
+        raise GuardRefused("result does not match composed request")
+    model = record["model"]
+    if (type(model) is not dict or set(model) != {"text", "status", "trust"}
+            or type(model["text"]) is not str
+            or model["trust"] != "UNVERIFIED_GENERATIVE_TEXT"
+            or model["status"] not in (
+                "UNVERIFIED_LOCAL_MODEL_OUTPUT", "TRUNCATED_UNVERIFIED_OUTPUT")):
+        raise GuardRefused("noncanonical raw model fields")
+    client = record["client"]
+    minimal = {"tool_actions_executed", "tool_receipts"}
+    full = minimal | {
+        "host_observation_delivered", "source_answer",
+        "verified_external_effects", "host_attestation",
+        "evidence_class", "model_server_effects",
+    }
+    if (type(client) is not dict or set(client) not in (minimal, full)
+            or type(client["tool_actions_executed"]) is not int
+            or client["tool_actions_executed"] != 0
+            or client["tool_receipts"] != []):
+        raise GuardRefused("unrecognized client action or output fields")
+    if set(client) == full and any((
+            client["host_observation_delivered"] is not False,
+            client["source_answer"] is not None,
+            client["verified_external_effects"] is not False,
+            client["host_attestation"] != "NOT_PROVIDED",
+            client["evidence_class"] !=
+                "LOCAL_CLIENT_CONTROL_FLOW_NOT_HOST_ATTESTATION",
+            client["model_server_effects"] != "UNKNOWN",
+    )):
+        raise GuardRefused("client evidence inconsistent with tool-free gate")
+
+
 def validate_request(request: dict[str, Any]) -> dict[str, Any]:
     """Validate one composed, source-bounded synthetic local request."""
     try:
@@ -33,6 +73,7 @@ def validate_request(request: dict[str, Any]) -> dict[str, Any]:
             or type(parsed["local_user_turn"]) is not str
             or type(parsed["project_context_untrusted"]) is not list
             or len(parsed["project_context_untrusted"]) > 1
+            or len(messages) != 2
             or request.get("schema") != "MINI_VERA_COMPOSED_LOCAL_REQUEST_V1"):
         raise GuardRefused("not one bounded synthetic question")
     question = parsed["local_user_turn"]
@@ -88,17 +129,8 @@ def apply(request: dict[str, Any],
           record: dict[str, Any]) -> dict[str, Any]:
     """Return a redacted client result; NEVER expose unsupported neural prose."""
     scope = validate_request(request)
+    _validate_result_envelope(request, record)
     try:
-        if (type(record) is not dict
-                or record.get("schema") != "MINI_VERA_LOCAL_OUTPUT_V1"
-                or record.get("request_sha256") != request["request_sha256"]
-                or type(record["model"]) is not dict
-                or type(record["model"]["text"]) is not str
-                or record["model"].get("trust") != "UNVERIFIED_GENERATIVE_TEXT"
-                or record["model"].get("status") not in (
-                    "UNVERIFIED_LOCAL_MODEL_OUTPUT", "TRUNCATED_UNVERIFIED_OUTPUT")
-                or type(record["client"]) is not dict):
-            raise GuardRefused("unbound or malformed model observation")
         model = record["model"]
         model_text = model["text"]
         model_status = model["status"]
