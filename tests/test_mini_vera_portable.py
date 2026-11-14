@@ -27,6 +27,9 @@ class PortableBundleTests(unittest.TestCase):
         (self.root / "tools/mini_vera/conversation_console.py").write_text(
             "VALUE = 2\n", encoding="utf-8"
         )
+        (self.root / "tools/mini_vera/managed_ollama_session.py").write_text(
+            'print("MANAGED_SYNTHETIC_ONLY")\n', encoding="utf-8"
+        )
         (self.root / "tools/mini_vera/adapter_shape_gate.py").write_text(
             'print("SYNTHETIC_ONLY")\n', encoding="utf-8"
         )
@@ -61,6 +64,22 @@ class PortableBundleTests(unittest.TestCase):
         self.assertIn("tools/mini_vera/conversation_console.py", manifest["files_sha256"])
         self.assertIn("scripts/mini_vera_portable.py", manifest["files_sha256"])
         self.assertTrue(bundle.verify(output))
+
+    def test_managed_launcher_is_sealed_and_tampering_is_refused(self) -> None:
+        output = self.install()
+        manifest = json.loads((output / "INSTALL.json").read_text(encoding="utf-8"))
+        self.assertIn("mini-vera-managed.cmd", manifest["files_sha256"])
+        self.assertIn("tools/mini_vera/managed_ollama_session.py",
+                      manifest["files_sha256"])
+        launcher = (output / "mini-vera-managed.cmd").read_bytes().decode("ascii")
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", launcher)
+        self.assertIn('verify --output "%CD%" >nul', launcher)
+        self.assertIn("tools.mini_vera.managed_ollama_session %*", launcher)
+        self.assertTrue(bundle.verify(output))
+        with (output / "mini-vera-managed.cmd").open("ab") as stream:
+            stream.write(b"REM injected\r\n")
+        with self.assertRaises(bundle.BundleRefused):
+            bundle.verify(output)
 
     def test_detects_edited_runtime_bytes(self) -> None:
         output = self.install()
