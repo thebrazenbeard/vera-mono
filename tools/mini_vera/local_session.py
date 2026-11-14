@@ -160,7 +160,25 @@ def main(argv: list[str] | None = None, *,
                         help="Operator-authorized, one-turn unsigned source data to local model")
     parser.add_argument("--synthetic-fact-evidence-gate", action="store_true",
                         help="Opt-in, one-shot synthetic PUBLIC fact gate; never expose neural text")
+    parser.add_argument("--synthetic-source-first", action="store_true",
+                        help="With synthetic fact gate only: checked CLIENT source fact, not model text")
+    parser.add_argument("--synthetic-source-only", action="store_true",
+                        help="Opt-in deterministic synthetic PUBLIC source lookup; zero model HTTP")
     args = parser.parse_args(argv)
+    if args.synthetic_source_first and not args.synthetic_fact_evidence_gate:
+        parser.error("--synthetic-source-first requires --synthetic-fact-evidence-gate")
+    if args.synthetic_source_only and (
+            not args.structured_output or args.prompt is None
+            or args.execute or args.host_idle_confirmed
+            or args.synthetic_fact_evidence_gate or args.synthetic_source_first
+            or args.host_read_probe or args.deliver_host_observation
+            or args.public_state is not None or args.state_key_file is not None
+            or args.expected_revision is not None
+            or args.model_root is not None or args.manifest is not None
+            or args.manifest_sha256 is not None
+            or live_public_provider is None):
+        parser.error("--synthetic-source-only requires one structured prompt, "
+                     "a live PUBLIC provider, and NO model inference or state import")
     if args.synthetic_fact_evidence_gate and (
             not args.structured_output or not args.execute
             or args.prompt is None or args.host_read_probe
@@ -274,7 +292,7 @@ def main(argv: list[str] | None = None, *,
                 num_predict=args.max_output_tokens,
             )
             loopback.validate_candidate(request)
-            if args.synthetic_fact_evidence_gate:
+            if args.synthetic_fact_evidence_gate or args.synthetic_source_only:
                 # An unknown user question MUST NOT accidentally pass through
                 # the narrow synthetic gate as ordinary, unsanitized model text.
                 from . import public_fact_guard
@@ -291,6 +309,27 @@ def main(argv: list[str] | None = None, *,
             if args.prompt is not None:
                 return 2
             continue
+        if args.synthetic_source_only:
+            # No neural HTTP is needed for an exact, approved synthetic fact.
+            # As in normal inference, recheck authority after composing the
+            # request and before any source answer becomes visible.
+            try:
+                after_state, after_key, after_revision = live_public_provider()
+                compose.verify_state(after_state, key=after_key,
+                                     expected_revision=after_revision)
+                if compose.sha256(compose.canonical(after_state)) != previous_state_sha:
+                    raise compose.CompositionRejected("approved public source changed")
+                from . import public_fact_guard
+                source_result = public_fact_guard.resolve_source_only(
+                    request, (after_state, after_key, after_revision))
+            except Exception:
+                history.clear()
+                print("Local source-only output withheld: public-memory approval "
+                      "or source integrity changed.", file=sys.stderr)
+                return 2
+            print(json.dumps(source_result, ensure_ascii=False,
+                             sort_keys=True, separators=(",", ":")))
+            return 0
         if not args.execute:
             print(json.dumps({"status": "VALIDATED_NOT_EXECUTED",
                               "request_sha256": request["request_sha256"],
@@ -330,7 +369,8 @@ def main(argv: list[str] | None = None, *,
                         request, record,
                         approved_state_binding=(
                             (after_state, after_key, after_revision)
-                            if live_public_provider is not None else None))
+                            if live_public_provider is not None else None),
+                        source_first=args.synthetic_source_first)
             except (loopback.LoopbackRejected, host_read_probe.ProbeRefused,
                     ValueError):
                 print("Local output withheld: read-only host probe failed or "

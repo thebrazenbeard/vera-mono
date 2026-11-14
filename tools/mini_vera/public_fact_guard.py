@@ -147,9 +147,16 @@ def _verified_post_approval_binding(
 
 
 def apply(request: dict[str, Any], record: dict[str, Any], *,
-          approved_state_binding: tuple[dict[str, Any], bytes, int] | None = None
-          ) -> dict[str, Any]:
-    """Return redacted output; only a fresh matching binding can release facts."""
+          approved_state_binding: tuple[dict[str, Any], bytes, int] | None = None,
+          source_first: bool = False) -> dict[str, Any]:
+    """Return redacted output; source-first is synthetic and explicitly opt-in.
+
+    The default remains strict model-source agreement. When source_first=True,
+    a validated post-approval source answer is a CLIENT lookup rather than a
+    neural claim, and may be released even if the model invents or truncates.
+    """
+    if type(source_first) is not bool:
+        raise GuardRefused("source-first mode must be a boolean")
     scope = validate_request(request)
     _validate_result_envelope(request, record)
     bound = approved_state_binding is not None
@@ -166,7 +173,10 @@ def apply(request: dict[str, Any], record: dict[str, Any], *,
         abstained = bool(
             model_status == "UNVERIFIED_LOCAL_MODEL_OUTPUT"
             and model_text.strip().upper() == "UNKNOWN")
-        if model_status == "TRUNCATED_UNVERIFIED_OUTPUT":
+        source_supported = bool(bound and scope["expected_answer"] is not None)
+        if source_first and source_supported:
+            status = "SOURCE_FIRST_SYNTHETIC_RECORD_NOT_HOST_ATTESTATION"
+        elif model_status == "TRUNCATED_UNVERIFIED_OUTPUT":
             status = "WITHHELD_TRUNCATED_MODEL_OUTPUT"
         elif scope["source_record_count"] == 0:
             status = "WITHHELD_NO_APPROVED_REFERENCE"
@@ -178,8 +188,12 @@ def apply(request: dict[str, Any], record: dict[str, Any], *,
             status = "SOURCE_MATCHED_SYNTHETIC_RECORD_NOT_HOST_ATTESTATION"
         else:
             status = "WITHHELD_MODEL_NOT_SOURCE_MATCHED"
-        client_answer = scope["expected_answer"] if exact else "UNKNOWN"
+        client_answer = (scope["expected_answer"]
+                         if exact or (source_first and source_supported)
+                         else "UNKNOWN")
         origin = (
+            "CLIENT_DETERMINISTIC_SYNTHETIC_SOURCE_NOT_NEURAL"
+            if source_first and source_supported else
             "CLIENT_SYNTHETIC_SOURCE_MATCH_NOT_NEURAL_FACT_ATTESTATION"
             if exact else "CLIENT_EVIDENCE_POLICY_NOT_NEURAL_ABSTENTION")
         return {
@@ -200,6 +214,7 @@ def apply(request: dict[str, Any], record: dict[str, Any], *,
                         model_text.encode()).hexdigest(),
                     "model_generated_abstention": abstained,
                     "model_exact_source_match": exact,
+                    "source_first_mode": source_first,
                     "source_record_count": scope["source_record_count"],
                     "source_binding": ("POST_APPROVAL_STATE_CONSISTENT_NOT_HOST_ATTESTED"
                                        if bound else "NO_LIVE_SOURCE_BINDING"),
@@ -214,3 +229,43 @@ def apply(request: dict[str, Any], record: dict[str, Any], *,
         }
     except (KeyError, TypeError) as exc:
         raise GuardRefused("malformed guarded source output") from exc
+
+def resolve_source_only(
+        request: dict[str, Any],
+        approved_state_binding: tuple[dict[str, Any], bytes, int] | None
+        ) -> dict[str, Any]:
+    """Return only a checked synthetic source fact; never call a model.
+
+    This is intentionally NOT a general PUBLIC-memory or host authority
+    resolver. Both the question and the record must satisfy the source-visible
+    fixed synthetic contract, and live post-approval binding is mandatory.
+    """
+    scope = validate_request(request)
+    if approved_state_binding is None:
+        raise GuardRefused("source-only lookup requires live source binding")
+    _verified_post_approval_binding(request, approved_state_binding)
+    supported = scope["expected_answer"] is not None
+    status = (
+        "SOURCE_FIRST_SYNTHETIC_RECORD_NOT_HOST_ATTESTATION"
+        if supported else "WITHHELD_NO_SUPPORTED_FACT_FOR_QUESTION"
+        if scope["source_record_count"] else "WITHHELD_NO_APPROVED_REFERENCE"
+    )
+    return {
+        "schema": "MINI_VERA_SYNTHETIC_SOURCE_ONLY_V1",
+        "status": status,
+        "client_answer": scope["expected_answer"] if supported else "UNKNOWN",
+        "client_answer_origin": (
+            "CLIENT_DETERMINISTIC_SYNTHETIC_SOURCE_NOT_NEURAL"
+            if supported else "CLIENT_EVIDENCE_POLICY_NOT_NEURAL_ABSTENTION"),
+        "source_sha256": scope["source_sha256"],
+        "source_record_count": scope["source_record_count"],
+        "source_binding": "POST_APPROVAL_STATE_CONSISTENT_NOT_HOST_ATTESTED",
+        "variant": scope["variant"],
+        "model_http_calls": 0,
+        "neural_evaluation_performed": False,
+        "training_or_weight_changes": False,
+        "host_issuer_qualified": False,
+        "independent_evaluation": False,
+        "scope": "SOURCE_VISIBLE_SYNTHETIC_PUBLIC_RECORD_ONLY",
+        "effect": "CLIENT_SOURCE_LOOKUP_ONLY_NO_MODEL_HTTP",
+    }
