@@ -62,7 +62,10 @@ _PREFIX = re.compile(
     r"^(?:(?:State|Correction|Update|Only change):\s*"
     r"|(?:Actually|No),\s*|I meant(?: that)?\s+)", re.I,
 )
-_QUOTED_SPAN = re.compile(r"\"[^\"\n]*\"|(?<!\w)'[^'\n]*'|`[^`\n]*`")
+_QUOTED_SPAN = re.compile(
+    r"\"[^\"\n]*\"|(?<!\w)'[^'\n]*'|`[^`\n]*`"
+    r"|“[^”\n]*”|‘[^’\n]*’"
+)
 
 
 def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
@@ -90,7 +93,10 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
         body = _QUOTED_SPAN.sub("", body)
         # An unmatched quote is not a trusted direct assertion. Parse only
         # the unquoted prefix preceding that delimiter, if any.
-        unmatched = [body.index(q) for q in ('"', "`") if q in body]
+        unmatched = [
+            body.index(q) for q in ('"', "`", "“", "”", "‘", "’")
+            if q in body
+        ]
         if unmatched:
             body = body[:min(unmatched)]
         # Clauses are deliberately simple: unsupported grammar cannot create

@@ -53,6 +53,26 @@ class TestSocialActiveState(unittest.TestCase):
         self.assertIsNone(state["role:pilot"].value)
         self.assertEqual(state["role:passenger"].value, "Dana")
 
+    def test_typographic_quoted_old_role_does_not_override_current_state(self):
+        state = reconstruct([
+            "State: Ava is the pilot of the Heron; Rhea is the owner.",
+            "Correction: “Ben is the pilot of the Heron” was an old quotation.",
+            "Actually, ‘Milo is the owner’ was from an archived note.",
+        ])
+        self.assertEqual(state["role:pilot_of:heron"].value, "Ava")
+        self.assertEqual(state["role:owner"].value, "Rhea")
+
+    def test_typographic_quote_in_same_turn_preserves_real_correction(self):
+        state = reconstruct([
+            "State: Ava is the pilot of the Heron.",
+            "Correction: “Ben is the pilot of the Heron” was an old memo; Kira is the pilot of the Heron.",
+        ])
+        self.assertEqual(state["role:pilot_of:heron"].value, "Kira")
+        self.assertEqual(state["role:pilot_of:heron"].turn_index, 2)
+        self.assertEqual(
+            state["role:pilot_of:heron"].quote, "Kira is the pilot of the Heron"
+        )
+
     def test_case_variant_duplicate_actor_is_not_a_conflict(self):
         state = reconstruct([
             "State: Ava is the pilot; ava is the pilot; Tessa is the guide."
