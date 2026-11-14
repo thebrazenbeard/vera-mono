@@ -3,13 +3,14 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from run_social_multiturn_eval import validate_fixture
 from prepare_social_multiturn_blind import build_pairs, MODELS
 from judge_social_multiturn_blind import validate_judge_output
-from audit_social_multiturn_review import swap_stable_winner
+from audit_social_multiturn_review import audit, swap_stable_winner
 
 
 class TestMultiturnReviewContract(unittest.TestCase):
@@ -116,6 +117,39 @@ class TestMultiturnReviewContract(unittest.TestCase):
         self.assertIsNone(swap_stable_winner("tie", "tie"))
         self.assertIsNone(swap_stable_winner(None, "A"))
 
+
+    def test_audit_rejects_duplicate_rows_even_with_consistent_hashes(self):
+        evidence = Path(__file__).resolve().parents[1] / "evaluations"
+        paths = [
+            evidence / "social_multiturn_heldout_v1.json",
+            evidence / "social_multiturn_qwen_vs_successor_seed31_20261114.jsonl",
+            evidence / "social_multiturn_blinded_seed31_20261114.jsonl",
+            evidence / "social_multiturn_blinded_reversed_v2_seed31_20261114.jsonl",
+            evidence / "social_multiturn_blind_mapping_seed31_20261114.json",
+            evidence / "social_multiturn_blind_review_qwen3_4b_seed9_20261114.jsonl",
+            evidence / "social_multiturn_blind_reversed_review_qwen3_4b_seed9_20261114.jsonl",
+        ]
+        self.assertEqual(audit(*paths)["case_count"], 12)
+        with tempfile.TemporaryDirectory(prefix="synthetic-review-integrity-") as root:
+            for target in (1, 5):
+                with self.subTest(duplicate_input=target):
+                    lines = paths[target].read_text(encoding="utf8").splitlines()
+                    if target == 1:
+                        lines[-1] = lines[0]  # Same count; missing one model turn.
+                    else:
+                        lines.append(lines[0])  # Judge duplicate hidden by dict.
+                    changed = Path(root) / f"input-{target}.jsonl"
+                    changed.write_text("\n".join(lines) + "\n", encoding="utf8")
+                    args = list(paths)
+                    args[target] = changed
+                    if target == 1:
+                        key = json.loads(paths[4].read_text(encoding="utf8"))
+                        key["generated_sha256"] = hashlib.sha256(changed.read_bytes()).hexdigest()
+                        mapped = Path(root) / "mapping.json"
+                        mapped.write_text(json.dumps(key), encoding="utf8")
+                        args[4] = mapped
+                    with self.assertRaises(ValueError):
+                        audit(*args)
 
 if __name__ == "__main__":
     unittest.main()

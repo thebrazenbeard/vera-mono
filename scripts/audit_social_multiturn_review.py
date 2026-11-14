@@ -13,6 +13,14 @@ def read_jsonl(path: Path):
             if line.strip()]
 
 
+def unique_cases(path: Path) -> dict:
+    rows = read_jsonl(path)
+    case_ids = [row["case_id"] for row in rows]
+    if len(case_ids) != len(set(case_ids)):
+        raise ValueError("duplicate review case ID")
+    return {row["case_id"]: row for row in rows}
+
+
 def swap_stable_winner(initial_label: str | None,
                        reversed_label: str | None) -> str | None:
     """A concrete winner counts only if the swapped presentation inverts it."""
@@ -34,10 +42,10 @@ def audit(fixture_path, generation_path, blind_path, reversed_path,
     if key.get("generated_sha256") != hashlib.sha256(generation).hexdigest():
         raise ValueError("generation hash differs from provenance map")
     mapping = {x["case_id"]: x for x in key["assignment"]}
-    blind = {x["case_id"]: x for x in read_jsonl(blind_path)}
-    flipped = {x["case_id"]: x for x in read_jsonl(reversed_path)}
-    initial = {x["case_id"]: x for x in read_jsonl(initial_judge_path)}
-    reversed_judge = {x["case_id"]: x for x in read_jsonl(flipped_judge_path)}
+    blind = unique_cases(blind_path)
+    flipped = unique_cases(reversed_path)
+    initial = unique_cases(initial_judge_path)
+    reversed_judge = unique_cases(flipped_judge_path)
     ids = set(mapping)
     if not ids or not ids == set(blind) == set(flipped) == set(initial) == set(reversed_judge):
         raise ValueError("missing/duplicate case identity")
@@ -102,8 +110,18 @@ def audit(fixture_path, generation_path, blind_path, reversed_path,
             "qualified_winner_model": qualified_model,
         })
     gen = read_jsonl(generation_path)
-    if len(gen) != len(ids) * 2 * 3:
-        raise ValueError("generation count changed")
+    expected_turns = {
+        (case, model, turn)
+        for case, assignment in mapping.items()
+        for model in (assignment["A"], assignment["B"])
+        for turn in (1, 2, 3)
+    }
+    actual_turns = [
+        (row.get("case_id"), row.get("model"), row.get("turn_index"))
+        for row in gen
+    ]
+    if len(actual_turns) != len(expected_turns) or set(actual_turns) != expected_turns:
+        raise ValueError("missing, duplicate or unassigned generation turn")
     if len({x["fixture_sha256"] for x in gen}) != 1 or gen[0]["fixture_sha256"] != fixture_sha:
         raise ValueError("generation fixture hash drift")
     trunc = Counter(x["model"] for x in gen if x["done_reason"] == "length")
