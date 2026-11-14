@@ -96,6 +96,35 @@ class TestExplicitSceneAnswer(unittest.TestCase):
             with self.subTest(query=query):
                 self.assertIsNone(answer_explicit_scene_question(turns + [query]))
 
+    def test_casefold_card_identity_carries_into_direct_role_answer(self):
+        turns = [
+            "State: ivo carries a red card; Ivo is the messenger.",
+            "Actually, Ivo carries a green card.",
+            "Who is the messenger and what card color does that person have? Answer Name, color.",
+        ]
+        decision = answer_explicit_scene_question(turns)
+        self.assertIsNotNone(decision)
+        self.assertEqual(decision.answer, "Ivo, green")
+        self.assertEqual(decision.status, "RESOLVED")
+        self.assertEqual(decision.evidence[-1], (
+            "Ivo carries a green card", 2
+        ))
+
+    def test_scoped_pronoun_must_not_be_minted_as_named_actor(self):
+        for pronoun in ("He", "She", "They"):
+            with self.subTest(pronoun=pronoun):
+                result = answer_explicit_scene_question([
+                    "State: Ava is the pilot of the Heron.",
+                    f"Correction: {pronoun} is now the pilot of the Heron.",
+                    "Who pilots the Heron now?",
+                ])
+                self.assertIsNotNone(result)
+                self.assertEqual(result.answer, "UNKNOWN")
+                self.assertEqual(result.status, "UNRESOLVED")
+                self.assertEqual(result.evidence[-1], (
+                    f"{pronoun} is now the pilot of the Heron", 2
+                ))
+
     def test_scoped_pilot_replacement_and_unspecified_reassignment(self):
         initial = ["State: Ava is the pilot of the Heron; Vale is a spacecraft."]
         changed = initial + [

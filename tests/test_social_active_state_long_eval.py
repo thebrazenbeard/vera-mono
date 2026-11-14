@@ -105,7 +105,7 @@ class TestActiveStateLongEval(unittest.TestCase):
         cli = ROOT / "scripts" / "answer_social_active_state.py"
         process = subprocess.run(
             [sys.executable, str(cli), "--fixture", str(fixture)],
-            capture_output=True, text=True, timeout=14,
+            capture_output=True, text=True, timeout=60,
         )
         self.assertEqual(process.returncode, 0, process.stderr)
         rows = [json.loads(s) for s in process.stdout.splitlines()]

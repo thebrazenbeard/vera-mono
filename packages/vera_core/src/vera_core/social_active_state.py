@@ -36,6 +36,10 @@ _DECLARATIONS = (
         lambda m: (f"type:{m.group(1)}", m.group(2).lower()),
     ),
 )
+_SCOPED_AMBIGUOUS = re.compile(
+    rf"(?:he|she|they|that person) is (?:now )?the ({_ROLE}) "
+    rf"(?:of|aboard) (?:the )?({_NAME})", re.I,
+)
 _SCOPED_DECLARATION = re.compile(
     rf"({_NAME}) is (?:now )?the ({_ROLE}) (?:of|aboard) (?:the )?({_NAME})",
     re.I,
@@ -54,7 +58,10 @@ _UNCHANGED = re.compile(
 )
 _AMBIGUOUS = re.compile(rf"(?:he|she|they|that person) is (?:now )?the ({_ROLE})", re.I)
 _BOUNDED_ROLE = re.compile(rf"\b({_ROLE})\b", re.I)
-_PREFIX = re.compile(r"^(?:State|Correction|Update|Only change):\s*", re.I)
+_PREFIX = re.compile(
+    r"^(?:(?:State|Correction|Update|Only change):\s*"
+    r"|(?:Actually|No),\s*|I meant(?: that)?\s+)", re.I,
+)
 _QUOTED_SPAN = re.compile(r"\"[^\"\n]*\"|(?<!\w)'[^'\n]*'|`[^`\n]*`")
 
 
@@ -131,6 +138,17 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
                     )
                     matched = True
             if not matched:
+                scoped_ambiguous = _SCOPED_AMBIGUOUS.fullmatch(clause)
+                if scoped_ambiguous:
+                    key = (
+                        f"role:{scoped_ambiguous.group(1).lower()}_of:"
+                        f"{scoped_ambiguous.group(2).casefold()}"
+                    )
+                    proposals.setdefault(key, []).append(
+                        ActiveFact(key, None, "UNRESOLVED", turn_index, clause)
+                    )
+                    matched = True
+            if not matched:
                 scoped = _SCOPED_DECLARATION.fullmatch(clause)
                 if scoped:
                     key = f"role:{scoped.group(2).lower()}_of:{scoped.group(3).casefold()}"
@@ -143,13 +161,21 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
                     found = pattern.fullmatch(clause)
                     if found:
                         key, value = extract(found)
+                        # Treat spelling-case variants of the same fictional
+                        # source slot as one slot, retaining first spelling.
+                        key = next(
+                            (prior for prior in (*active, *proposals)
+                             if prior.casefold() == key.casefold()),
+                            key,
+                        )
                         proposals.setdefault(key, []).append(
                             ActiveFact(key, value, "CURRENT", turn_index, clause)
                         )
                         matched = True
                         break
             if not matched and prefix.group().lower().startswith(
-                ("correction", "update", "only change")
+                ("correction", "update", "only change",
+                 "actually", "no,", "i meant")
             ):
                 # Unsupported corrections are *not* an excuse to preserve a
                 # stale actor as certainly current.
@@ -270,7 +296,16 @@ def answer_explicit_scene_question(user_turns: list[str]) -> SourceAnswer | None
         return None
 
     def resolve(keys: tuple[str, ...], format_answer) -> SourceAnswer:
-        facts = tuple(active.get(key) for key in keys)
+        def lookup(key: str) -> ActiveFact | None:
+            if key in active:
+                return active[key]
+            return next(
+                (fact for prior_key, fact in active.items()
+                 if prior_key.casefold() == key.casefold()),
+                None,
+            )
+
+        facts = tuple(lookup(key) for key in keys)
         citations = tuple(
             (f.quote, f.turn_index) for f in facts if f is not None
         )

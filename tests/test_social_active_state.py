@@ -61,6 +61,54 @@ class TestSocialActiveState(unittest.TestCase):
         self.assertIsNone(state["role:guide"].value)
         self.assertEqual(state["role:messenger"].value, "Milo")
 
+    def test_case_only_name_changes_update_same_slot_not_create_alias(self):
+        state = reconstruct([
+            "State: Ivo carries a red card; Heron is a spacecraft.",
+            "Actually, ivo carries a green card; heron is a station.",
+        ])
+        self.assertEqual(set(state), {"card:Ivo", "type:Heron"})
+        self.assertEqual(state["card:Ivo"].value, "green")
+        self.assertEqual(state["type:Heron"].value, "station")
+        self.assertEqual(state["card:Ivo"].turn_index, 2)
+
+    def test_case_alias_same_turn_conflict_marked_unresolved(self):
+        state = reconstruct([
+            "State: Ivo carries a red card; ivo carries a blue card."
+        ])
+        self.assertEqual(len(state), 1)
+        self.assertEqual(state["card:Ivo"].status, "UNRESOLVED")
+
+    def test_plain_language_present_correction_prefixes_override_scoped_actor(self):
+        turns = ["State: Ava is the pilot of the Heron; Heron is a spacecraft."]
+        for utterance, expected in (
+            ("Actually, Ben is the pilot of the Heron.", "Ben"),
+            ("No, Kira is the pilot of the Heron.", "Kira"),
+            ("I meant Tessa is the pilot of the Heron.", "Tessa"),
+        ):
+            turns.append(utterance)
+            with self.subTest(utterance=utterance):
+                active = reconstruct(turns)
+                self.assertEqual(active["role:pilot_of:heron"].value, expected)
+                self.assertEqual(
+                    active["role:pilot_of:heron"].quote,
+                    utterance.removeprefix("Actually, ").removeprefix("No, ")
+                             .removeprefix("I meant ").rstrip(".")
+                )
+        turns.append(
+            "Actually, the pilot of the Heron might have changed."
+        )
+        self.assertEqual(
+            reconstruct(turns)["role:pilot_of:heron"].status, "UNRESOLVED"
+        )
+
+    def test_plain_language_correction_not_promoted_when_archived_or_quoted(self):
+        state = reconstruct([
+            "State: Ava is the pilot of the Heron.",
+            'The old log says "Actually, Ben is the pilot of the Heron."',
+            'Actually, "Kira is the pilot of the Heron" was just a quotation.',
+        ])
+        self.assertEqual(state["role:pilot_of:heron"].value, "Ava")
+
     def test_mixed_present_correction_and_quoted_archive_does_not_lose_update(self):
         state = reconstruct([
             "State: Rhea is the owner; Mila is the pilot.",
