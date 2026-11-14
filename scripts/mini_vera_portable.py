@@ -61,6 +61,12 @@ LAUNCHER = (
     "exit /b %ERRORLEVEL%\r\n"
 )
 
+# Second launcher reuses the same byte-verified bundle but enters the
+# existing RAM-only interactive shell through the consented preflight.
+CHAT_LAUNCHER = LAUNCHER.replace(
+    "tools.mini_vera.ollama_preflight %*",
+    "tools.mini_vera.conversation_console %*")
+
 
 class BundleRefused(ValueError):
     """Fail closed without modifying an existing install."""
@@ -168,7 +174,9 @@ def verify(output: Path) -> bool:
             part = part.parent
     if actual != set(expected) | {"INSTALL.json"} or actual_dirs != allowed_dirs:
         raise BundleRefused("missing or unexpected bundle file/directory")
-    if not {"mini-vera.cmd", "scripts/mini_vera_portable.py",
+    if not {"mini-vera.cmd", "mini-vera-chat.cmd",
+            "scripts/mini_vera_portable.py",
+            "tools/mini_vera/conversation_console.py",
             "tools/mini_vera/ollama_preflight.py"}.issubset(expected):
         raise BundleRefused("required launcher or verifier missing")
     for name, digest in expected.items():
@@ -201,7 +209,8 @@ def build(source: Path, output: Path, source_revision: str) -> Path:
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source / name, destination)
         (stage / "mini-vera.cmd").write_bytes(LAUNCHER.encode("ascii"))
-        file_names = (*paths, "mini-vera.cmd")
+        (stage / "mini-vera-chat.cmd").write_bytes(CHAT_LAUNCHER.encode("ascii"))
+        file_names = (*paths, "mini-vera.cmd", "mini-vera-chat.cmd")
         manifest = {
             "schema": "MINI_VERA_PORTABLE_SOURCE_V1",
             "source_revision_claim": source_revision,
