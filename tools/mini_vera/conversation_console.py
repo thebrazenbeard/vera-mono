@@ -30,6 +30,8 @@ def main(argv: list[str] | None = None) -> int:
                         default=60)
     parser.add_argument("--prompt",
                         help="Optional single-turn smoke; omit for interactive chat")
+    parser.add_argument("--compact-dialogue", action="store_true",
+                        help="Opt-in tested compact local conversation prompt; no persistent memory")
     args = parser.parse_args(argv)
 
     if not args.check and not args.confirm_host_idle:
@@ -68,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if args.prompt is not None:
         options += ["--prompt", args.prompt]
+    if args.compact_dialogue:
+        options.append("--compact-dialogue")
     print("Mini-Vera local session: neural model not weight-attested; "
           "memory is volatile and tools remain disabled. "
           "Type /quit to leave.", file=sys.stderr)
