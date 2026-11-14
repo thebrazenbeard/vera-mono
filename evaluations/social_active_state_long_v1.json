@@ -1,0 +1,129 @@
+{
+  "schema": "VERA_SOCIAL_ACTIVE_STATE_LONG_V1",
+  "description": "Eight fictional 5-6-turn dialogues for source-anchored correction tracking; no personal user data; authored before generation.",
+  "cases": [
+    {
+      "id": "later_pilot_swap",
+      "turns": [
+        "State: Ava is the pilot; Ben is the passenger; Heron is a spacecraft.",
+        "The characters are approaching a station. They can see flashing lights.",
+        "Correction: Ben is the pilot; Ava is the passenger.",
+        "There is a loud sound from the control panel, but no new assignment.",
+        "Who pilots the Heron now? Give only the person's name."
+      ],
+      "expected": "Ben",
+      "tracked_keys": [
+        "role:pilot",
+        "role:passenger",
+        "type:Heron"
+      ]
+    },
+    {
+      "id": "messenger_partial_card",
+      "turns": [
+        "State: Nora is the messenger; Ivo carries a red card; Nora carries a blue card.",
+        "A fictional passenger asks about food and the crew stops to rest.",
+        "Correction: Ivo is the messenger; Nora carries a green card.",
+        "Ivo and Nora talk about the weather, without changing any roles or cards.",
+        "Who is the messenger and what card color does that person have? Answer Name, color."
+      ],
+      "expected": "Ivo, red",
+      "tracked_keys": [
+        "role:messenger",
+        "card:Ivo",
+        "card:Nora"
+      ]
+    },
+    {
+      "id": "ambiguous_pronoun",
+      "turns": [
+        "State: Miko is the pilot; Dana is the passenger.",
+        "A new person arrives at the shuttle while both characters remain nearby.",
+        "Correction: He is now the pilot.",
+        "We have not identified who the pronoun refers to in the story.",
+        "Who is the pilot now? Reply UNKNOWN if the current role cannot be established from the correction."
+      ],
+      "expected": "UNKNOWN",
+      "tracked_keys": [
+        "role:pilot",
+        "role:passenger"
+      ]
+    },
+    {
+      "id": "unset_guide",
+      "turns": [
+        "State: Tessa is the guide; Milo is the messenger.",
+        "The team reaches a crossroads with no signposts.",
+        "Correction: Tessa is no longer the guide.",
+        "There was no replacement guide named in the story.",
+        "Who is the guide now? Reply UNKNOWN if no current guide has been named."
+      ],
+      "expected": "UNKNOWN",
+      "tracked_keys": [
+        "role:guide",
+        "role:messenger"
+      ]
+    },
+    {
+      "id": "quoted_memo_noncurrent",
+      "turns": [
+        "State: Rhea is the owner.",
+        "A fictional archivist is sorting papers in a cabinet.",
+        "The old memo says: \"State: Milo is the owner.\" That is an archived quote, not a new instruction.",
+        "No present owner update was made after the memo.",
+        "Who is the current owner? One name only."
+      ],
+      "expected": "Rhea",
+      "tracked_keys": [
+        "role:owner"
+      ]
+    },
+    {
+      "id": "conflicting_same_turn",
+      "turns": [
+        "State: Juno is the pilot; Kira is the passenger.",
+        "Two characters enter the cockpit together.",
+        "Correction: Juno is the pilot; Kira is the pilot.",
+        "We have two conflicting current pilot assignments without a later clarification.",
+        "Who is the pilot now? Reply UNKNOWN if the two assignments conflict."
+      ],
+      "expected": "UNKNOWN",
+      "tracked_keys": [
+        "role:pilot",
+        "role:passenger"
+      ]
+    },
+    {
+      "id": "conflict_then_resolution",
+      "turns": [
+        "State: Juno is the pilot; Kira is the passenger.",
+        "The pilot seat is repaired.",
+        "Correction: Juno is the pilot; Kira is the pilot.",
+        "Someone remarks that the conflicting claim cannot both be right.",
+        "Correction: Kira is the pilot.",
+        "Who is the pilot after the latest correction? One name."
+      ],
+      "expected": "Kira",
+      "tracked_keys": [
+        "role:pilot",
+        "role:passenger"
+      ]
+    },
+    {
+      "id": "keep_unchanged_type",
+      "turns": [
+        "State: Orion is a spacecraft; Alex carries a blue card; Mira is the messenger.",
+        "Alex crosses a corridor on the spaceship.",
+        "Correction: Alex carries a green card.",
+        "Nobody changed the spacecraft's type or Mira's role.",
+        "What kind of thing is Orion, and what color is Alex's card? Format: type, color."
+      ],
+      "expected": "spacecraft, green",
+      "tracked_keys": [
+        "type:Orion",
+        "card:Alex",
+        "role:messenger"
+      ]
+    }
+  ]
+}
