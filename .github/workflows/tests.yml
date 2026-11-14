@@ -34,6 +34,9 @@ jobs:
         run: |
           test "$(git check-attr eol -- packages/vera_control/src/vera_control/local_profile.py | awk '{print $3}')" = "lf"
           test "$(git check-attr eol -- packages/vera_runtime/src/runtime_cohesion/local_bindings.py | awk '{print $3}')" = "lf"
+      - name: Reject workspace auto-execution and invalid font sources
+        run: python scripts/audit_workspace_sources.py --root .
+
       - name: Install test dependencies
         run: python -m pip install --upgrade pip pytest jsonschema cryptography
 
