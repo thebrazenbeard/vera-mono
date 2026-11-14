@@ -66,6 +66,35 @@ class HostMemoryBrokerTests(unittest.TestCase):
             approve_record=record_policy,
             now_seconds=lambda: 1_000_000)
 
+    def test_actual_sqlite_host_floor_blocks_stale_grant_after_new_broker(self):
+        """Source-only, file-backed CAS across fresh brokers, not secure OS custody."""
+        from tools.mini_vera.unprotected_revision_floor import UnprotectedRevisionFloor
+
+        path = self.folder / "external-revision-floor.sqlite"
+        def fresh_broker():
+            return bind_host_public_memory(
+                self.ledger, integrity_key=KEY,
+                current_grant=lambda: self.permission["grant"],
+                current_authority_revision=lambda: self.permission["authority_revision"],
+                atomic_host_revision_floor=UnprotectedRevisionFloor(path),
+                approve_record=lambda record, _grant: record.record_id == "work-1",
+                now_seconds=lambda: 1_000_000)
+
+        self.assertEqual(13, fresh_broker()()[2])
+        self.permission["authority_revision"] = 11
+        self.permission["grant"] = replace(self.grant, authority_revision=11)
+        self.assertEqual(13, fresh_broker()()[2])
+        self.permission["authority_revision"] = 10
+        self.permission["grant"] = self.grant
+        with self.assertRaisesRegex(CompositionRejected, "rollback"):
+            fresh_broker()()
+        # A real process restart would lose ordinary Python values; this
+        # external SQLite file preserves the floor across new instances.
+        self.assertEqual(11, UnprotectedRevisionFloor(path).advance(0))
+        self.permission["authority_revision"] = 12
+        self.permission["grant"] = replace(self.grant, authority_revision=12)
+        self.assertEqual(13, fresh_broker()()[2])
+        self.assertEqual(12, UnprotectedRevisionFloor(path).advance(0))
     def test_host_grant_builds_usable_public_state_without_ledger_writes(self):
         provider = self.broker()
         head = self.ledger.current_head
