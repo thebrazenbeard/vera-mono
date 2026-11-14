@@ -12,8 +12,26 @@ import hashlib
 import json
 import re
 
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+def _ed25519_public_key(raw: bytes):
+    """Require the optional crypto backend only for actual verifier use."""
+    try:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    except ImportError as exc:
+        raise RuntimeError("Ed25519 verifier backend unavailable") from exc
+    return Ed25519PublicKey.from_public_bytes(raw)
+
+
+def _ed25519_signature_valid(raw: bytes, signature: bytes, signed: bytes) -> bool:
+    """Fail closed if the optional signing backend is absent or rejects proof."""
+    try:
+        from cryptography.exceptions import InvalidSignature
+    except ImportError:
+        return False
+    try:
+        _ed25519_public_key(raw).verify(signature, signed)
+    except (ValueError, TypeError, InvalidSignature, RuntimeError):
+        return False
+    return True
 
 
 class Evidence(StrEnum):
@@ -183,7 +201,7 @@ class TrustedHostSelfReportVerifier:
             raise ValueError("trusted key ID must be a nonblank string")
         if type(self.public_key_bytes) is not bytes or len(self.public_key_bytes) != 32:
             raise ValueError("Ed25519 public key must be 32 bytes")
-        Ed25519PublicKey.from_public_bytes(self.public_key_bytes)
+        _ed25519_public_key(self.public_key_bytes)
 
     def verify(
         self, binding: CurrentTurnHostAttestation, *,
@@ -216,8 +234,11 @@ class TrustedHostSelfReportVerifier:
             sig = base64.b64decode(binding.signature_b64.encode("ascii"), validate=True)
             if len(sig) != 64:
                 return False
-            Ed25519PublicKey.from_public_bytes(self.public_key_bytes).verify(sig, signed)
-        except (ValueError, TypeError, InvalidSignature, UnicodeEncodeError):
+            if not _ed25519_signature_valid(
+                self.public_key_bytes, sig, signed
+            ):
+                return False
+        except (ValueError, TypeError, UnicodeEncodeError):
             return False
         return True
 
@@ -265,10 +286,11 @@ class TrustedHostSelfReportVerifier:
             )
             if len(signature) != 64:
                 return False
-            Ed25519PublicKey.from_public_bytes(self.public_key_bytes).verify(
-                signature, signed
-            )
-        except (ValueError, TypeError, InvalidSignature, UnicodeEncodeError):
+            if not _ed25519_signature_valid(
+                self.public_key_bytes, signature, signed
+            ):
+                return False
+        except (ValueError, TypeError, UnicodeEncodeError):
             return False
         return True
 
