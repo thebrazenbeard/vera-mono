@@ -93,6 +93,36 @@ class TestCorrectionReplayFence(unittest.TestCase):
         self.assertEqual(self.fence.recorded_count, 1)
 
 
+    def test_first_candidate_rejects_unadmitted_prior_ledger_history(self):
+        # A signed witness for the *new* event does not authenticate the
+        # earlier entries in a caller-constructed ledger snapshot.
+        invented_prior = replace(
+            self.one, event_id="invented-prior", turn_id="older-turn",
+            statement="Invented previous user claim.",
+        )
+        unadmitted = self.base.append(invented_prior, expected_head=ROOT_HEAD)
+        new_entry = replace(
+            self.one, event_id="signed-next", turn_id="current-turn",
+            statement="A real signed correction candidate.",
+            supersedes=None,
+            subject_ref="fictional/unrelated/new-topic",
+        )
+        signed = self.witness(new_entry, unadmitted)
+        self.assertTrue(self.verifier.verify(
+            signed, entry=new_entry, ledger=unadmitted,
+            expected_session_id=new_entry.session_id,
+            expected_turn_id=new_entry.turn_id,
+            expected_previous_head=unadmitted.head,
+        ))
+        initial_head = self.fence.head
+        with self.assertRaises(FenceBlocked):
+            self.claim(
+                signed, entry=new_entry, ledger=unadmitted,
+                expected_fence_head=initial_head,
+            )
+        self.assertEqual(self.fence.recorded_count, 0)
+        self.assertEqual(self.fence.head, initial_head)
+
     def test_successive_distinct_signed_corrections_follow_ledger_head(self):
         first = self.claim(self.witness(self.one, self.base))
         after_one = self.base.append(self.one, expected_head=ROOT_HEAD)

@@ -16,7 +16,7 @@ import re
 import secrets
 import sqlite3
 
-from .social_revision_ledger import CorrectionEntry, CorrectionLedger
+from .social_revision_ledger import CorrectionEntry, CorrectionLedger, ROOT_HEAD
 from .social_user_correction_witness import (
     SignedUserCorrectionV1,
     TrustedCorrectionVerifier,
@@ -278,6 +278,8 @@ class CorrectionReplayFence:
                     raise FenceBlocked("stale external expected fence head")
                 if count >= MAX_CANDIDATES:
                     raise FenceBlocked("bounded synthetic replay fence full")
+                if count == 0 and witness.expected_previous_head != ROOT_HEAD:
+                    raise FenceBlocked("first signed correction requires empty ledger root")
                 if count:
                     last = db.execute(
                         "SELECT resulting_ledger_head FROM fence_events "
