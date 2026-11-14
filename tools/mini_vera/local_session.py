@@ -415,7 +415,11 @@ def main(argv: list[str] | None = None, *,
                       "per-message context limit. The reply was not truncated or persisted.",
                       file=sys.stderr)
         if args.prompt is not None:
-            return 0
+            # A one-shot CLI is commonly used as a health/success gate. A
+            # visibly incomplete reply is evidence of an attempted call,
+            # never a successful completed answer (interactive sessions may
+            # instead continue with the truncated history cleared above).
+            return 2 if result["status"] == "TRUNCATED_UNVERIFIED_OUTPUT" else 0
 
 
 if __name__ == "__main__":
