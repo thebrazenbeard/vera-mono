@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -23,6 +26,9 @@ class PortableBundleTests(unittest.TestCase):
         )
         (self.root / "tools/mini_vera/conversation_console.py").write_text(
             "VALUE = 2\n", encoding="utf-8"
+        )
+        (self.root / "tools/mini_vera/adapter_shape_gate.py").write_text(
+            'print("SYNTHETIC_ONLY")\n', encoding="utf-8"
         )
         (self.root / "scripts").mkdir()
         (self.root / "scripts/mini_vera_portable.py").write_text(
@@ -46,6 +52,8 @@ class PortableBundleTests(unittest.TestCase):
         self.assertEqual(manifest["model_alias"], "qwen3.5:0.8b")
         self.assertIn("mini-vera.cmd", manifest["files_sha256"])
         self.assertIn("mini-vera-chat.cmd", manifest["files_sha256"])
+        self.assertIn("mini-vera-adapter-check.cmd", manifest["files_sha256"])
+        self.assertIn("tools/mini_vera/adapter_shape_gate.py", manifest["files_sha256"])
         self.assertIn("tools/mini_vera/conversation_console.py", manifest["files_sha256"])
         self.assertIn("scripts/mini_vera_portable.py", manifest["files_sha256"])
         self.assertTrue(bundle.verify(output))
@@ -77,6 +85,25 @@ class PortableBundleTests(unittest.TestCase):
         self.assertIn("where python.exe", launcher)
         self.assertIn("mini_vera_portable.py", launcher)
         self.assertIn("ollama_preflight", launcher)
+
+    def test_adapter_launcher_verifies_and_disables_python_bytecode(self) -> None:
+        output = self.install()
+        launcher = (output / "mini-vera-adapter-check.cmd").read_bytes().decode("ascii")
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", launcher)
+        self.assertIn('verify --output "%CD%"', launcher)
+        self.assertIn("tools.mini_vera.adapter_shape_gate %*", launcher)
+        self.assertTrue(bundle.verify(output))
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows CMD launcher")
+    def test_adapter_launcher_executes_without_adding_cache_files(self) -> None:
+        output = self.install()
+        command = [os.environ.get("ComSpec", "cmd.exe"), "/d", "/c",
+                   str(output / "mini-vera-adapter-check.cmd")]
+        p = subprocess.run(command, cwd=output, capture_output=True, text=True, timeout=15)
+        self.assertEqual(0, p.returncode, p.stderr)
+        self.assertIn("SYNTHETIC_ONLY", p.stdout)
+        self.assertTrue(bundle.verify(output))
+        self.assertFalse(any(output.rglob("__pycache__")))
 
     def test_integrity_success_message_does_not_break_jsonl(self) -> None:
         output = self.install()
