@@ -66,6 +66,12 @@ LAUNCHER = (
 CHAT_LAUNCHER = LAUNCHER.replace(
     "tools.mini_vera.ollama_preflight %*",
     "tools.mini_vera.conversation_console %*")
+# Keep bytecode out of the sealed installation when running the read-only
+# adapter/HF base structural probe. The original launcher verifies the package
+# before executing a module and sets PYTHONDONTWRITEBYTECODE=1 for both paths.
+ADAPTER_LAUNCHER = LAUNCHER.replace(
+    "tools.mini_vera.ollama_preflight %*",
+    "tools.mini_vera.adapter_shape_gate %*")
 
 
 class BundleRefused(ValueError):
@@ -175,8 +181,10 @@ def verify(output: Path) -> bool:
     if actual != set(expected) | {"INSTALL.json"} or actual_dirs != allowed_dirs:
         raise BundleRefused("missing or unexpected bundle file/directory")
     if not {"mini-vera.cmd", "mini-vera-chat.cmd",
+            "mini-vera-adapter-check.cmd",
             "scripts/mini_vera_portable.py",
             "tools/mini_vera/conversation_console.py",
+            "tools/mini_vera/adapter_shape_gate.py",
             "tools/mini_vera/ollama_preflight.py"}.issubset(expected):
         raise BundleRefused("required launcher or verifier missing")
     for name, digest in expected.items():
@@ -210,7 +218,9 @@ def build(source: Path, output: Path, source_revision: str) -> Path:
             shutil.copyfile(source / name, destination)
         (stage / "mini-vera.cmd").write_bytes(LAUNCHER.encode("ascii"))
         (stage / "mini-vera-chat.cmd").write_bytes(CHAT_LAUNCHER.encode("ascii"))
-        file_names = (*paths, "mini-vera.cmd", "mini-vera-chat.cmd")
+        (stage / "mini-vera-adapter-check.cmd").write_bytes(ADAPTER_LAUNCHER.encode("ascii"))
+        file_names = (*paths, "mini-vera.cmd", "mini-vera-chat.cmd",
+                      "mini-vera-adapter-check.cmd")
         manifest = {
             "schema": "MINI_VERA_PORTABLE_SOURCE_V1",
             "source_revision_claim": source_revision,
