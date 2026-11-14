@@ -194,7 +194,11 @@ def _relation(left: Any, right: Any) -> str:
     return "MATCH" if left == right else "MISMATCH"
 
 
-def inspect(hf_config: Path, hf_tokenizer: Path, gguf: Path) -> dict[str, Any]:
+def inspect(hf_config: Path, hf_tokenizer: Path, gguf: Path, *,
+            hf_package_manifest: Path | None = None,
+            adapter_config: Path | None = None,
+            publisher_base_repository: str | None = None,
+            expected_gguf_sha256: str | None = None) -> dict[str, Any]:
     cfg = _json_file(hf_config)
     tokenizer = _json_file(hf_tokenizer)
     if cfg.get("model_type") != "qwen3_5":
@@ -253,10 +257,63 @@ def inspect(hf_config: Path, hf_tokenizer: Path, gguf: Path) -> dict[str, Any]:
             "general.source.huggingface.revision")
         if type(gg.get(name)) is str
     }
-    return {
+    declarations = (hf_package_manifest, adapter_config,
+                    publisher_base_repository, expected_gguf_sha256)
+    if any(value is not None for value in declarations) and not all(
+            value is not None for value in declarations):
+        raise ValueError("all source declaration inputs are required together")
+    provenance: dict[str, Any] = {}
+    if all(value is not None for value in declarations):
+        manifest = _json_file(hf_package_manifest)
+        adapter = _json_file(adapter_config)
+        local_base_path = adapter.get("base_model_name_or_path")
+        if type(local_base_path) is not str or not local_base_path.strip():
+            raise ValueError("adapter base path missing")
+        try:
+            adapter_base = Path(local_base_path).resolve(strict=True)
+            inspected_base = hf_config.parent.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise ValueError("adapter base path cannot be resolved") from exc
+        if adapter_base != inspected_base:
+            raise ValueError("adapter base path mismatch with inspected HF base")
+        base_record = manifest.get("base")
+        manifest_base = (base_record.get("repository")
+                         if type(base_record) is dict else None)
+        repo_syntax = r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
+        if type(manifest_base) is not str \
+                or not re.fullmatch(repo_syntax, manifest_base) \
+                or not re.fullmatch(repo_syntax, publisher_base_repository):
+            raise ValueError("source repository declaration invalid")
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", expected_gguf_sha256):
+            raise ValueError("published GGUF digest invalid")
+        complete_hash = hashlib.sha256()
+        with gguf.open("rb") as model:
+            for chunk in iter(lambda: model.read(1024 * 1024), b""):
+                complete_hash.update(chunk)
+        actual_digest = complete_hash.hexdigest()
+        if actual_digest != expected_gguf_sha256.lower():
+            raise ValueError("full GGUF SHA-256 mismatch with published checksum")
+        relation = ("MATCH" if manifest_base.casefold() ==
+                    publisher_base_repository.casefold() else "MISMATCH")
+        provenance = {
+            "declared_base_repository_relation": relation,
+            "hf_package_base_repository_claim": manifest_base,
+            "hf_package_base_revision_claim": base_record.get("revision"),
+            "hf_package_manifest_id": manifest.get("package_id"),
+            "hf_package_manifest_evidence_class": "DECLARED_ONLY",
+            "gguf_publisher_base_repository_claim": publisher_base_repository,
+            "gguf_complete_file_sha256_verified": True,
+            "gguf_complete_file_sha256": actual_digest,
+            "adapter_local_base_path_relation": "MATCH",
+            "proves_training_base_revision": False,
+            "proves_different_neural_weights": False,
+        }
+    architecture_status = ("ARCHITECTURE_MATCH_ANCESTRY_UNKNOWN" if not mismatches
+                           else "ARCHITECTURE_MISMATCH_ANCESTRY_UNKNOWN")
+    result = {
         "schema": "MINI_VERA_GGUF_HF_ARCHITECTURE_V1",
-        "status": ("ARCHITECTURE_MATCH_ANCESTRY_UNKNOWN" if not mismatches
-                   else "ARCHITECTURE_MISMATCH_ANCESTRY_UNKNOWN"),
+        "architecture_status": architecture_status,
+        "status": architecture_status,
         "architecture_mismatch_count": len(mismatches),
         "architecture_mismatch_fields": sorted(mismatches),
         "architecture_field_relations": observed,
@@ -281,6 +338,12 @@ def inspect(hf_config: Path, hf_tokenizer: Path, gguf: Path) -> dict[str, Any]:
         "runtime_qualified": False,
         "authority_effect": "NONE",
     }
+    if provenance:
+        result.update(provenance)
+        result["evidence_class"] = "METADATA_AND_FULL_FILE_HASH_WITH_SOURCE_CLAIMS"
+        if not mismatches and provenance["declared_base_repository_relation"] == "MISMATCH":
+            result["status"] = "DECLARED_UPSTREAM_CONFLICT_ANCESTRY_UNKNOWN"
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -288,9 +351,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--hf-config", type=Path, required=True)
     parser.add_argument("--hf-tokenizer", type=Path, required=True)
     parser.add_argument("--gguf", type=Path, required=True)
+    parser.add_argument("--hf-package-manifest", type=Path)
+    parser.add_argument("--adapter-config", type=Path)
+    parser.add_argument("--publisher-base-repository")
+    parser.add_argument("--expected-gguf-sha256")
     args = parser.parse_args(argv)
     try:
-        result = inspect(args.hf_config, args.hf_tokenizer, args.gguf)
+        result = inspect(
+            args.hf_config, args.hf_tokenizer, args.gguf,
+            hf_package_manifest=args.hf_package_manifest,
+            adapter_config=args.adapter_config,
+            publisher_base_repository=args.publisher_base_repository,
+            expected_gguf_sha256=args.expected_gguf_sha256)
     except (ValueError, OSError) as exc:
         result = {"schema": "MINI_VERA_GGUF_HF_ARCHITECTURE_V1",
                   "status": "UNABLE_TO_VALIDATE",
