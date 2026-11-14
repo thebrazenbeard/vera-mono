@@ -90,7 +90,9 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
         # Ignore complete quoted excerpts without discarding unrelated,
         # explicitly asserted corrections in the same USER turn.
         # Apostrophes inside words (I'm, Rhea's) are not quote delimiters.
-        body = _QUOTED_SPAN.sub("", body)
+        # Preserve a clause boundary: deleting a quote outright could join
+        # two never-contiguous fragments into a fabricated present assertion.
+        body = _QUOTED_SPAN.sub(";", body)
         # An unmatched quote is not a trusted direct assertion. Parse only
         # the unquoted prefix preceding that delimiter, if any.
         unmatched = [

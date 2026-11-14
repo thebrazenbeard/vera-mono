@@ -53,6 +53,26 @@ class TestSocialActiveState(unittest.TestCase):
         self.assertIsNone(state["role:pilot"].value)
         self.assertEqual(state["role:passenger"].value, "Dana")
 
+    def test_quoted_fragment_cannot_create_actor_from_two_source_fragments(self):
+        state = reconstruct([
+            'State: Av"an old memo"a is the pilot of the Heron.'
+        ])
+        self.assertNotIn("role:pilot_of:heron", state)
+
+    def test_quoted_negation_cannot_create_opposite_current_claim(self):
+        state = reconstruct([
+            'State: Ava is "not"the pilot of the Heron.'
+        ])
+        self.assertNotIn("role:pilot_of:heron", state)
+
+    def test_quoted_boundary_preserves_separate_explicit_correction(self):
+        state = reconstruct([
+            "State: Ava is the pilot of the Heron.",
+            'Correction: "Ben is the pilot of the Heron" was from an old log; Kira is the pilot of the Heron.',
+        ])
+        self.assertEqual(state["role:pilot_of:heron"].value, "Kira")
+        self.assertEqual(state["role:pilot_of:heron"].turn_index, 2)
+
     def test_typographic_quoted_old_role_does_not_override_current_state(self):
         state = reconstruct([
             "State: Ava is the pilot of the Heron; Rhea is the owner.",
