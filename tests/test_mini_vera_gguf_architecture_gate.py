@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 import struct
 import subprocess
@@ -139,6 +140,111 @@ class GgufArchitectureTests(unittest.TestCase):
             self.assertEqual(2,proc.returncode,proc.stderr)
             self.assertEqual("ARCHITECTURE_MATCH_ANCESTRY_UNKNOWN",
                              json.loads(proc.stdout)["status"])
+
+
+def declarations(root: Path, cfg: Path, gguf: Path,
+                 *, base_repo: str = "rodrigomt/Qwen3.5-4B-Uncensored-Aggressive"):
+    manifest = root/"MODEL_MANIFEST.json"
+    manifest.write_text(json.dumps({"base": {"repository": base_repo,
+                                              "revision": "revision-for-declaration-only"},
+                                    "package_id": "older-training-package"}))
+    adapter = root/"adapter_config.json"
+    adapter.write_text(json.dumps({"base_model_name_or_path": str(cfg.parent)}))
+    digest = hashlib.sha256(gguf.read_bytes()).hexdigest()
+    return manifest, adapter, digest
+
+
+class GgufPublishedSourceConflictTests(unittest.TestCase):
+    def test_pub_base_conflict_changes_report_not_tensor_ancestry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cfg,tok,gguf = mkfiles(root)
+            manifest,adapter,digest = declarations(root,cfg,gguf)
+            report = gate.inspect(
+                cfg,tok,gguf,hf_package_manifest=manifest,
+                adapter_config=adapter,
+                publisher_base_repository="Qwen/Qwen3.5-4B",
+                expected_gguf_sha256=digest)
+        self.assertEqual("DECLARED_UPSTREAM_CONFLICT_ANCESTRY_UNKNOWN",report["status"])
+        self.assertEqual("MISMATCH",report["declared_base_repository_relation"])
+        self.assertTrue(report["gguf_complete_file_sha256_verified"])
+        self.assertEqual("MATCH",report["adapter_local_base_path_relation"])
+        self.assertFalse(report["proves_weight_ancestry"])
+        self.assertEqual("NONE",report["authority_effect"])
+        self.assertEqual("ARCHITECTURE_MATCH_ANCESTRY_UNKNOWN",
+                         report["architecture_status"])
+        self.assertEqual("DECLARED_ONLY",report["hf_package_manifest_evidence_class"])
+
+    def test_matching_publisher_name_still_cannot_qualify_weights(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            cfg,tok,gguf=mkfiles(root)
+            manifest,adapter,digest=declarations(root,cfg,gguf,
+                base_repo="Qwen/Qwen3.5-4B")
+            report=gate.inspect(cfg,tok,gguf,hf_package_manifest=manifest,
+                adapter_config=adapter,
+                publisher_base_repository="Qwen/Qwen3.5-4B",
+                expected_gguf_sha256=digest)
+        self.assertEqual("ARCHITECTURE_MATCH_ANCESTRY_UNKNOWN",report["status"])
+        self.assertEqual("MATCH",report["declared_base_repository_relation"])
+        self.assertFalse(report["runtime_qualified"])
+
+    def test_architecture_mismatch_takes_priority_over_source_claim_conflict(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            cfg,tok,gguf=mkfiles(root,hidden=80)
+            manifest,adapter,digest=declarations(root,cfg,gguf)
+            report=gate.inspect(cfg,tok,gguf,hf_package_manifest=manifest,
+                adapter_config=adapter,
+                publisher_base_repository="Qwen/Qwen3.5-4B",
+                expected_gguf_sha256=digest)
+        self.assertEqual("ARCHITECTURE_MISMATCH_ANCESTRY_UNKNOWN",report["status"])
+        self.assertEqual("MISMATCH",report["declared_base_repository_relation"])
+        self.assertIn("hidden_size",report["architecture_mismatch_fields"])
+
+    def test_false_published_digest_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);cfg,tok,gguf=mkfiles(root)
+            manifest,adapter,_=declarations(root,cfg,gguf)
+            with self.assertRaisesRegex(ValueError,"full GGUF SHA-256 mismatch"):
+                gate.inspect(cfg,tok,gguf,hf_package_manifest=manifest,
+                    adapter_config=adapter,
+                    publisher_base_repository="Qwen/Qwen3.5-4B",
+                    expected_gguf_sha256="0"*64)
+
+    def test_adapter_base_path_must_match_current_hf_config_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);cfg,tok,gguf=mkfiles(root)
+            manifest,adapter,digest=declarations(root,cfg,gguf)
+            adapter.write_text(json.dumps({"base_model_name_or_path":str(root)}))
+            with self.assertRaisesRegex(ValueError,"adapter base path mismatch"):
+                gate.inspect(cfg,tok,gguf,hf_package_manifest=manifest,
+                    adapter_config=adapter,
+                    publisher_base_repository="Qwen/Qwen3.5-4B",
+                    expected_gguf_sha256=digest)
+
+    def test_partial_source_claims_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);cfg,tok,gguf=mkfiles(root)
+            manifest,_,_=declarations(root,cfg,gguf)
+            with self.assertRaisesRegex(ValueError,"all source declaration"):
+                gate.inspect(cfg,tok,gguf,hf_package_manifest=manifest)
+
+    def test_cli_emits_conflict_and_nonzero_qualification_exit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);cfg,tok,gguf=mkfiles(root)
+            manifest,adapter,digest=declarations(root,cfg,gguf)
+            cmd=[sys.executable,"-B","-m",
+                 "tools.mini_vera.gguf_architecture_gate",
+                 "--hf-config",str(cfg),"--hf-tokenizer",str(tok),
+                 "--gguf",str(gguf),"--hf-package-manifest",str(manifest),
+                 "--adapter-config",str(adapter),
+                 "--publisher-base-repository","Qwen/Qwen3.5-4B",
+                 "--expected-gguf-sha256",digest]
+            proc=subprocess.run(cmd,capture_output=True,text=True,timeout=15)
+        self.assertEqual(2,proc.returncode,proc.stderr)
+        self.assertEqual("DECLARED_UPSTREAM_CONFLICT_ANCESTRY_UNKNOWN",
+                         json.loads(proc.stdout)["status"])
 
 
 if __name__ == "__main__":
