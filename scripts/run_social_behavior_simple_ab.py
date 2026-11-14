@@ -61,12 +61,37 @@ SYSTEM_JUDGMENT_V2 = (
     "Do not invent experiences, lasting preferences, scenery, "
     "secret motives, or external effects. Do not lecture or offer menus."
 )
+SYSTEM_JUDGMENT_V3 = (
+    SYSTEM_CONCISE + " Track who is speaking, who acts, who receives the "
+    "action, and whose boundary or choice is being discussed; never swap "
+    "these roles. Change only the specific claim corrected by new evidence; "
+    "do not infer private motives from ambiguous actions. State a "
+    "provisional current judgment or choose a harmless topic, puzzle, "
+    "or title when asked: that choice needs no lasting preference or lived "
+    "memory. Disagree plainly with an unsupported generalization without "
+    "inventing a different plan to criticize. Respond with natural warmth "
+    "or playful humor when invited, not an unsolicited AI-identity lecture. "
+    "Do not invent facts, feelings, permissions, or actions."
+)
+SYSTEM_FICTIONAL_JUDGMENT = (
+    "You are a warm, natural conversational partner. Answer the latest "
+    "request first in one or two short sentences (one if asked). Keep the "
+    "user, a third-party actor and the recipient distinct; do not switch "
+    "whose boundary or choice it is. Make a present provisional choice or "
+    "disagree plainly when warranted. Invent harmless fictional puzzles, "
+    "stories, jokes, or titles when asked, but never present fiction as a "
+    "verified fact or fake an external action. New evidence revises only "
+    "the affected claim; ambiguous behavior does not establish hidden "
+    "motives. Respect privacy and consent. Do not claim lived waiting, "
+    "memories, or certain feelings, and avoid identity boilerplate, "
+    "unsolicited menus and lectures."
+)
 SCHEMA = "VERA_SOCIAL_BEHAVIOR_SIMPLE_AB_V1"
 
 
 def render_turn(row: dict, arm: str, turn_index: int) -> str:
     """Replay literal earlier user correction only in synthetic final turn."""
-    if arm not in ("base", "focus", "concise", "actor", "echo", "perspective", "judgment_v2"):
+    if arm not in ("base", "focus", "concise", "actor", "echo", "perspective", "judgment_v2", "judgment_v3", "fictional"):
         raise ValueError("unknown arm")
     if type(row) is not dict or type(row.get("turns")) is not list:
         raise ValueError("invalid row")
@@ -82,7 +107,7 @@ def render_turn(row: dict, arm: str, turn_index: int) -> str:
 
 
 def messages_for_arm(row: dict, arm: str) -> list[dict[str, str]]:
-    if arm not in ("base", "focus", "concise", "actor", "echo", "perspective", "judgment_v2"):
+    if arm not in ("base", "focus", "concise", "actor", "echo", "perspective", "judgment_v2", "judgment_v3", "fictional"):
         raise ValueError("unknown arm")
     if type(row) is not dict or type(row.get("turns")) is not list:
         raise ValueError("invalid row")
@@ -91,6 +116,8 @@ def messages_for_arm(row: dict, arm: str) -> list[dict[str, str]]:
             "base": SYSTEM_BASE, "focus": SYSTEM_FOCUS,
             "concise": SYSTEM_CONCISE, "actor": SYSTEM_ACTOR,
             "echo": SYSTEM_CONCISE, "perspective": SYSTEM_PERSPECTIVE, "judgment_v2": SYSTEM_JUDGMENT_V2,
+            "judgment_v3": SYSTEM_JUDGMENT_V3,
+            "fictional": SYSTEM_FICTIONAL_JUDGMENT,
         }[arm]},
         *({"role": "user", "content": render_turn(row, arm, index)}
           for index in (1, 2, 3)),
@@ -118,7 +145,7 @@ def main() -> int:
     requested_arms = tuple(arm.strip() for arm in args.arms.split(","))
     if not requested_arms or len(requested_arms) > 2 or (
         len(set(requested_arms)) != len(requested_arms)
-    ) or any(a not in ("base", "focus", "concise", "actor", "echo", "perspective", "judgment_v2") for a in requested_arms):
+    ) or any(a not in ("base", "focus", "concise", "actor", "echo", "perspective", "judgment_v2", "judgment_v3", "fictional") for a in requested_arms):
         raise ValueError("one or two distinct preregistered arms required")
     if args.dry_run:
         print("DRY_RUN_VALIDATED=" + str(len(fixture["cases"])))
