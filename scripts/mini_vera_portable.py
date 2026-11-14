@@ -72,6 +72,9 @@ CHAT_LAUNCHER = LAUNCHER.replace(
 ADAPTER_LAUNCHER = LAUNCHER.replace(
     "tools.mini_vera.ollama_preflight %*",
     "tools.mini_vera.adapter_shape_gate %*")
+GGUF_LAUNCHER = LAUNCHER.replace(
+    "tools.mini_vera.ollama_preflight %*",
+    "tools.mini_vera.gguf_architecture_gate %*")
 
 
 class BundleRefused(ValueError):
@@ -182,9 +185,11 @@ def verify(output: Path) -> bool:
         raise BundleRefused("missing or unexpected bundle file/directory")
     if not {"mini-vera.cmd", "mini-vera-chat.cmd",
             "mini-vera-adapter-check.cmd",
+            "mini-vera-gguf-check.cmd",
             "scripts/mini_vera_portable.py",
             "tools/mini_vera/conversation_console.py",
             "tools/mini_vera/adapter_shape_gate.py",
+            "tools/mini_vera/gguf_architecture_gate.py",
             "tools/mini_vera/ollama_preflight.py"}.issubset(expected):
         raise BundleRefused("required launcher or verifier missing")
     for name, digest in expected.items():
@@ -219,8 +224,9 @@ def build(source: Path, output: Path, source_revision: str) -> Path:
         (stage / "mini-vera.cmd").write_bytes(LAUNCHER.encode("ascii"))
         (stage / "mini-vera-chat.cmd").write_bytes(CHAT_LAUNCHER.encode("ascii"))
         (stage / "mini-vera-adapter-check.cmd").write_bytes(ADAPTER_LAUNCHER.encode("ascii"))
+        (stage / "mini-vera-gguf-check.cmd").write_bytes(GGUF_LAUNCHER.encode("ascii"))
         file_names = (*paths, "mini-vera.cmd", "mini-vera-chat.cmd",
-                      "mini-vera-adapter-check.cmd")
+                      "mini-vera-adapter-check.cmd", "mini-vera-gguf-check.cmd")
         manifest = {
             "schema": "MINI_VERA_PORTABLE_SOURCE_V1",
             "source_revision_claim": source_revision,
