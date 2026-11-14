@@ -41,7 +41,8 @@ def compose_local_turn(*, text: str, turn_id: str, history: list[dict[str, str]]
                        state: dict[str, Any], key: bytes, revision: int,
                        model: str | None = None, model_digest: str | None = None,
                        witness: Any | None = None,
-                       num_predict: int = 128) -> dict[str, Any]:
+                       num_predict: int = 128,
+                       dialogue_mode: str = "full") -> dict[str, Any]:
     args = {
         "identity": identity, "identity_raw": identity_raw,
         "behavior": behavior, "behavior_raw": behavior_raw,
@@ -53,11 +54,14 @@ def compose_local_turn(*, text: str, turn_id: str, history: list[dict[str, str]]
         "session_history": history,
         "num_predict": num_predict,
     }
+    if dialogue_mode == "compact" and witness is not None:
+        raise compose.CompositionRejected("compact dialogue cannot use artifact-bound model witness")
     if witness is not None:
         return artifact_binding.compose_from_witness(witness, **args)
     if model is None or model_digest is None:
         raise compose.CompositionRejected("model alias and declared digest required")
-    return compose.compose(**args, model=model, model_digest=model_digest)
+    return compose.compose(**args, model=model, model_digest=model_digest,
+                           dialogue_mode=dialogue_mode)
 
 
 def attach_host_source_observation(request: dict[str, Any],
@@ -164,7 +168,19 @@ def main(argv: list[str] | None = None, *,
                         help="With synthetic fact gate only: checked CLIENT source fact, not model text")
     parser.add_argument("--synthetic-source-only", action="store_true",
                         help="Opt-in deterministic synthetic PUBLIC source lookup; zero model HTTP")
+    parser.add_argument("--compact-dialogue", action="store_true",
+                        help="Opt-in, no-memory creative conversation prompt; no synthetic source gate")
     args = parser.parse_args(argv)
+    if args.compact_dialogue and (
+            not args.execute or args.synthetic_fact_evidence_gate
+            or args.synthetic_source_only or args.synthetic_source_first
+            or args.public_state is not None or args.state_key_file is not None
+            or args.expected_revision is not None or args.host_read_probe
+            or args.deliver_host_observation or args.model_root is not None
+            or args.manifest is not None or args.manifest_sha256 is not None
+            or live_public_provider is not None):
+        parser.error("--compact-dialogue requires isolated empty-memory model inference; "
+                     "not source fact gates, model manifests or host observations")
     if args.synthetic_source_first and not args.synthetic_fact_evidence_gate:
         parser.error("--synthetic-source-first requires --synthetic-fact-evidence-gate")
     if args.synthetic_source_only and (
@@ -290,6 +306,7 @@ def main(argv: list[str] | None = None, *,
                 state=state, key=key, revision=revision,
                 model=model, model_digest=digest, witness=witness,
                 num_predict=args.max_output_tokens,
+                dialogue_mode="compact" if args.compact_dialogue else "full",
             )
             loopback.validate_candidate(request)
             if args.synthetic_fact_evidence_gate or args.synthetic_source_only:
