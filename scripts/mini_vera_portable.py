@@ -75,6 +75,10 @@ ADAPTER_LAUNCHER = LAUNCHER.replace(
 GGUF_LAUNCHER = LAUNCHER.replace(
     "tools.mini_vera.ollama_preflight %*",
     "tools.mini_vera.gguf_architecture_gate %*")
+# Explicitly opt-in owned process lifecycle. Existing launchers unchanged.
+MANAGED_LAUNCHER = LAUNCHER.replace(
+    "tools.mini_vera.ollama_preflight %*",
+    "tools.mini_vera.managed_ollama_session %*")
 
 
 class BundleRefused(ValueError):
@@ -184,6 +188,7 @@ def verify(output: Path) -> bool:
     if actual != set(expected) | {"INSTALL.json"} or actual_dirs != allowed_dirs:
         raise BundleRefused("missing or unexpected bundle file/directory")
     if not {"mini-vera.cmd", "mini-vera-chat.cmd",
+            "mini-vera-managed.cmd", "tools/mini_vera/managed_ollama_session.py",
             "mini-vera-adapter-check.cmd",
             "mini-vera-gguf-check.cmd",
             "scripts/mini_vera_portable.py",
@@ -225,7 +230,9 @@ def build(source: Path, output: Path, source_revision: str) -> Path:
         (stage / "mini-vera-chat.cmd").write_bytes(CHAT_LAUNCHER.encode("ascii"))
         (stage / "mini-vera-adapter-check.cmd").write_bytes(ADAPTER_LAUNCHER.encode("ascii"))
         (stage / "mini-vera-gguf-check.cmd").write_bytes(GGUF_LAUNCHER.encode("ascii"))
+        (stage / "mini-vera-managed.cmd").write_bytes(MANAGED_LAUNCHER.encode("ascii"))
         file_names = (*paths, "mini-vera.cmd", "mini-vera-chat.cmd",
+                      "mini-vera-managed.cmd",
                       "mini-vera-adapter-check.cmd", "mini-vera-gguf-check.cmd")
         manifest = {
             "schema": "MINI_VERA_PORTABLE_SOURCE_V1",
