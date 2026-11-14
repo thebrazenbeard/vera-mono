@@ -243,6 +243,61 @@ class TestCorrectionReplayFence(unittest.TestCase):
         with self.assertRaises(FenceBlocked):
             self.claim(self.witness(self.one, self.base))
 
+    def test_signed_checkpoint_reopen_requires_external_assertion_and_epoch(self):
+        from vera_core.social_checkpoint_witness import (
+            SignedSocialCheckpointV1, TrustedCheckpointVerifier,
+            CHECKPOINT_GENESIS, reopen_synthetic_fence_from_signed_checkpoint,
+        )
+        first = self.claim(self.witness(self.one, self.base))
+        host_private = Ed25519PrivateKey.generate()
+        host_public = host_private.public_key().public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw,
+        )
+        host_verifier = TrustedCheckpointVerifier(
+            issuer_id="fictional-checkpoint-host", key_id="ephemeral-checkpoint-key",
+            public_key_bytes=host_public,
+        )
+        unsigned = SignedSocialCheckpointV1(
+            issuer_id=host_verifier.issuer_id, key_id=host_verifier.key_id,
+            installation_id="synthetic-install",
+            source_session_id="fictional-session",
+            release_commit="a" * 40,
+            correction_key_sha256=__import__("hashlib").sha256(
+                self.verifier.public_key_bytes
+            ).hexdigest(),
+            candidate_count=first.recorded_count,
+            fence_head=first.fence_head,
+            previous_checkpoint_digest=CHECKPOINT_GENESIS,
+            monotonic_epoch=1, signature_b64="",
+        )
+        signed = replace(unsigned, signature_b64=base64.b64encode(
+            host_private.sign(unsigned.signed_bytes())
+        ).decode("ascii"))
+        args = dict(
+            path=self.path, installation_id="synthetic-install",
+            source_session_id="fictional-session",
+            release_commit="a" * 40,
+            correction_verifier=self.verifier,
+            checkpoint_verifier=host_verifier,
+            checkpoint=signed, expected_monotonic_epoch=1,
+            expected_previous_checkpoint_digest=CHECKPOINT_GENESIS,
+        )
+        reopened = reopen_synthetic_fence_from_signed_checkpoint(**args)
+        self.assertEqual(reopened.head, first.fence_head)
+        self.assertEqual(reopened.recorded_count, 1)
+        for change in (
+            {"source_session_id": "other-session"},
+            {"release_commit": "b" * 40},
+            {"expected_monotonic_epoch": 2},
+            {"expected_previous_checkpoint_digest": "f" * 64},
+            {"checkpoint": replace(signed, fence_head="c" * 64)},
+        ):
+            with self.subTest(change=change):
+                with self.assertRaises(FenceBlocked):
+                    reopen_synthetic_fence_from_signed_checkpoint(
+                        **{**args, **change}
+                    )
+
     def test_actual_concurrent_fresh_processes_only_one_local_claim(self):
         from dataclasses import asdict
         import json
