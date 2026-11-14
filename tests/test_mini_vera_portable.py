@@ -21,6 +21,9 @@ class PortableBundleTests(unittest.TestCase):
         (self.root / "tools/mini_vera/ollama_preflight.py").write_text(
             "VALUE = 1\n", encoding="utf-8"
         )
+        (self.root / "tools/mini_vera/conversation_console.py").write_text(
+            "VALUE = 2\n", encoding="utf-8"
+        )
         (self.root / "scripts").mkdir()
         (self.root / "scripts/mini_vera_portable.py").write_text(
             "# fixture verifier\n", encoding="utf-8"
@@ -42,6 +45,8 @@ class PortableBundleTests(unittest.TestCase):
         self.assertEqual(manifest["neural_weights_included"], False)
         self.assertEqual(manifest["model_alias"], "qwen3.5:0.8b")
         self.assertIn("mini-vera.cmd", manifest["files_sha256"])
+        self.assertIn("mini-vera-chat.cmd", manifest["files_sha256"])
+        self.assertIn("tools/mini_vera/conversation_console.py", manifest["files_sha256"])
         self.assertIn("scripts/mini_vera_portable.py", manifest["files_sha256"])
         self.assertTrue(bundle.verify(output))
 
