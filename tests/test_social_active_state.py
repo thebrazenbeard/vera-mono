@@ -53,6 +53,36 @@ class TestSocialActiveState(unittest.TestCase):
         self.assertIsNone(state["role:pilot"].value)
         self.assertEqual(state["role:passenger"].value, "Dana")
 
+    def test_case_variant_duplicate_actor_is_not_a_conflict(self):
+        state = reconstruct([
+            "State: Ava is the pilot; ava is the pilot; Tessa is the guide."
+        ])
+        self.assertEqual(state["role:pilot"].status, "CURRENT")
+        self.assertEqual(state["role:pilot"].value.casefold(), "ava")
+        self.assertEqual(state["role:guide"].value, "Tessa")
+
+    def test_case_variant_distinct_actors_remain_conflicting(self):
+        state = reconstruct([
+            "State: Ava is the pilot; ava is the pilot; Mira is the pilot."
+        ])
+        self.assertEqual(state["role:pilot"].status, "UNRESOLVED")
+        self.assertIsNone(state["role:pilot"].value)
+
+    def test_case_only_prior_actor_negation_invalidates_current_role(self):
+        state = reconstruct([
+            "State: Ava is the pilot; Tessa is the guide.",
+            "Correction: ava is no longer the pilot.",
+        ])
+        self.assertEqual(state["role:pilot"].status, "UNRESOLVED")
+        self.assertIsNone(state["role:pilot"].value)
+        self.assertEqual(state["role:pilot"].turn_index, 2)
+        self.assertEqual(state["role:guide"].value, "Tessa")
+
+    def test_same_turn_case_variant_negation_never_mints_actor(self):
+        state = reconstruct(["State: Ava is the pilot; ava is not the pilot."])
+        self.assertEqual(state["role:pilot"].status, "UNRESOLVED")
+        self.assertIsNone(state["role:pilot"].value)
+
     def test_explicit_negation_marks_unknown_no_invented_replacement(self):
         state = reconstruct([
             "State: Tessa is the guide; Milo is the messenger.",

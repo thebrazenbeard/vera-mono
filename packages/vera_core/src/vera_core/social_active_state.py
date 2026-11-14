@@ -124,7 +124,10 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
                     proposals[role][-1] if proposals.get(role)
                     else active.get(role)
                 )
-                if previous and previous.value == neg.group(1):
+                if (
+                    previous and type(previous.value) is str
+                    and previous.value.casefold() == neg.group(1).casefold()
+                ):
                     proposals.setdefault(role, []).append(
                         ActiveFact(role, None, "UNRESOLVED", turn_index, clause)
                     )
@@ -198,7 +201,13 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
                             ActiveFact(key, None, "UNRESOLVED", turn_index, clause)
                         )
         for key, facts in proposals.items():
-            distinct = {(f.value, f.status) for f in facts}
+            # Case variants of one named fictional actor are not
+            # independent conflicting propositions.
+            distinct = {
+                (f.value.casefold() if isinstance(f.value, str) else None,
+                 f.status)
+                for f in facts
+            }
             if len(distinct) != 1:
                 negated = set()
                 ambiguous = False
@@ -214,7 +223,10 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
                             ambiguous = True
                 candidates = [
                     f for f in facts
-                    if f.status == "CURRENT" and f.value not in negated
+                    if f.status == "CURRENT" and f.value is not None
+                    and f.value.casefold() not in {
+                        name.casefold() for name in negated
+                    }
                 ]
                 if (
                     not ambiguous and candidates
