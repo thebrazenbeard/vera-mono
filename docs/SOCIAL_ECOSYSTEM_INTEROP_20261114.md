@@ -35,13 +35,14 @@ stated actor link abstain; unrelated fictional dialogue goes to the local model
 with status MODEL_UNVERIFIED. No effect, memory, or identity authority follows.
 
 This is actual integration of existing source-state extraction with model
-output. It does NOT yet import or consume LGCM, Meta, Humility, Empathy, or
-Personification. Those primitives require differently admitted data and
-typed contracts. Simply adding imports would create false completeness.
-Potential future host-owned interfaces: ephemeral Empathy response hint,
-identity-neutral Personification register guidance, externally held-out
-Humility confidence/outcome scoring, prewritten Meta strategy selection, and
-LGCM numeric dynamics evaluation. None may promote archival conations,
+output. The opt-in Personification advisory path below now consumes an exact
+pinned candidate source for **register/response-planning guidance only**.
+This bridge does NOT import or consume LGCM, Meta, Humility, or Empathy;
+their different primitives require independently admitted data and contracts.
+Simply adding imports would create false completeness. Candidate future
+host-owned interfaces include ephemeral Empathy response hints, externally
+held-out Humility confidence/outcome scoring, prewritten Meta strategy
+selection, and LGCM numeric dynamics evaluation. None may promote archival conations,
 caller-declared labels, or inferred preferences into current fact or consent.
 
 ## Tests and negative result retained
@@ -79,3 +80,62 @@ one pre-existing TestVerifier collection warning, FULL_RETAKE_EXIT=0
 rerun are retained above, rather than silently erased. These results
 establish source/test behavior only, not installed Vera runtime,
 general social intelligence or independent qualification.
+
+## Executed opt-in Personification bridge: PR #11 pinned source
+
+- Real read-only source checkout: thebrazenbeard/personification
+  OPEN DRAFT PR #11 at 8fe35557e9a6c7b99c8f50a532e20c8f8c43f4cc.
+  The candidate has no folder-open loader and its 49 Python3.12 tests
+  passed in an isolated Lappy checkout. Main f95bda5 still has a
+  concealed folder-open Node task invoking JavaScript disguised as
+  a font and enables automatic tasks. The original main tests had
+  1 failure and 1 error. Neither payload nor editor task was run.
+  This source-only candidate does not repair installed editor settings
+  and is not merged. Existing Personification PR #11 owns its fix;
+  this PR does not mutate Personification.
+- The scene CLI remains unchanged without optional flags. An explicitly
+  supplied --personification-checkout of the exact clean reviewed commit,
+  --actor-id, and --subject-id enables Personification's *actual*
+  ActorProfile, Interaction and plan_interaction APIs. Interaction kind
+  and preferred register are supplied, not silently inferred. The
+  bridge imports only src/personification; NO history or actor profile
+  is loaded automatically. A wrong/dirty HEAD is rejected before import.
+- A bounded SocialPlan is checked before use: answer_target must
+  exactly match the final literal user request; the plan must answer
+  that literal request first, and permission_to_act must be False.
+  Only register and humor advice is appended to the model system
+  instruction for OPEN fictional scene turns. The original user turns
+  remain unmodified. Source-backed direct answers never invoke the model
+  or this optional donor. Output includes a non-authoritative
+  personification_advisory summary only when the model branch used it.
+- TDD RED: new adapter/test surface 7 failures (1 pass) before the
+  adapter existed; CLI flag case independently RED (SystemExit 2).
+  Green focused suite: 27 passed +38 subtests, no failures;
+  includes real pinned donor and rejection of unsafe main checkout.
+- Real Lappy qwen3.5:0.8b temperature0 seed43 A/B: the baseline
+  and opt-in outputs both hallucinated aircraft/nose/runway details
+  absent from the fictional source. The opt-in program emitted
+  register DIRECT, humor_allowed False, literal_request_preserved True,
+  permission_to_act False, with model_used True. This is genuine
+  source consumption and style-contract enforcement, but NOT a
+  demonstrated improvement in factual grounding or social competence.
+
+Remaining independent owners: Empathy PR #189, LGCM numerical dynamics,
+Meta strategy-selection feedback, and Humility evidence calibration.
+No shortcut from a source import to host identity, authenticated
+evidence, user consent, memory or system permissions is claimed.
+No merge, native Vera runtime activation, deployment, model weights
+or sensitive user data was changed.
+
+## Verified final same-source checks: opt-in Personification adapter
+
+Final complete Python3.12 Vera Mono suite, correctly configured all
+monorepo packages on PYTHONPATH and isolated D: pytest basetemp:
+1203 passed, 104 skipped, 287 subtests passed; one existing
+TestVerifier collection warning; FULL_EXIT=0 (194.66 seconds).
+Focused normal 27 passed +38 subtests; Python3.12 -O
+27 passed +38 subtests, OPT_EXIT=0 (one expected pytest optimize
+warning); Python3.14 27 passed, PY314_EXIT=0 (existing
+pytest-asyncio warnings). Python3.12 compileall and git diff --check
+EXIT=0. All source-level claims are bounded to this opt-in fictional
+test harness. No independent model-level or live host qualification.
