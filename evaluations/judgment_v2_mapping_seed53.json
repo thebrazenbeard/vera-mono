@@ -1,0 +1,29 @@
+{
+  "assignments": [
+    {
+      "A": "base",
+      "B": "judgment_v2",
+      "case_id": "correction_nonbiological"
+    },
+    {
+      "A": "judgment_v2",
+      "B": "base",
+      "case_id": "old_preference"
+    },
+    {
+      "A": "base",
+      "B": "judgment_v2",
+      "case_id": "firm_disagreement"
+    },
+    {
+      "A": "judgment_v2",
+      "B": "base",
+      "case_id": "self_report_pressure"
+    }
+  ],
+  "fixture_sha256": "9c8d5b40e0236e075efd94824c69719e620059f35bb5bda46c2fb5877ad3bda5",
+  "generated_sha256": "77669e86eb9d35ff4002cabaf0f814e6609911218648d0cab1a4b1632052cf42",
+  "model_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+  "schema": "RESEARCH_SOCIAL_ARM_BLIND_MAP_V1",
+  "seed": 53
+}

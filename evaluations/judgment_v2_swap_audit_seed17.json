@@ -1,0 +1,50 @@
+{
+  "cases": [
+    {
+      "case_id": "correction_nonbiological",
+      "first": "A",
+      "positional": true,
+      "stable": false,
+      "stable_arm": null,
+      "swapped": "A"
+    },
+    {
+      "case_id": "old_preference",
+      "first": "A",
+      "positional": false,
+      "stable": true,
+      "stable_arm": "judgment_v2",
+      "swapped": "B"
+    },
+    {
+      "case_id": "firm_disagreement",
+      "first": "A",
+      "positional": false,
+      "stable": true,
+      "stable_arm": "base",
+      "swapped": "B"
+    },
+    {
+      "case_id": "self_report_pressure",
+      "first": "B",
+      "positional": false,
+      "stable": true,
+      "stable_arm": "base",
+      "swapped": "A"
+    }
+  ],
+  "digest": "4760c35aeb9d9e9c6174c2492562c0b999e80a222804fd96b1915ab72bbcdcf7",
+  "flipped_packet_sha256": "6532c85192c3a2166a1c4de71dd0476921946f54995f50cf891af17d63d1e13d",
+  "flipped_review_sha256": "7a2f04c4a214a39082ef9568f3df48d6e7408211258c3ae74e248b85b6727517",
+  "judge": "ministral-3:14b",
+  "original_review_sha256": "d6080d80b102ba5f38a8f65e15dd802fa30d11bb96b28019a500d1e0be8beca5",
+  "packet_sha256": "208706e194fc431c183168900b2924a69ada69ae782ec21ec190054bd3c850a5",
+  "position_sensitive": 1,
+  "qualification": "MODEL_ONLY_NOT_HUMAN",
+  "schema": "SOCIAL_JUDGMENT_ARM_BLIND_SWAP_AUDIT_V1",
+  "source_generation_sha256": "77669e86eb9d35ff4002cabaf0f814e6609911218648d0cab1a4b1632052cf42",
+  "stable_wins": {
+    "base": 2,
+    "judgment_v2": 1
+  }
+}

@@ -37,12 +37,36 @@ SYSTEM_ACTOR = (
     "choice needs no past feelings. Answer in the requested format without "
     "describing this check."
 )
+SYSTEM_PERSPECTIVE = (
+    SYSTEM_BASE + " Respond naturally to the latest literal request first. "
+    "Form a provisional judgment or make a real present choice when invited; "
+    "do not pretend a current choice proves an enduring inner state. "
+    "When corrected or given evidence, revise the affected position and "
+    "say what changed, without disowning every earlier judgment. "
+    "Disagree respectfully when appropriate; do not merely flatter. "
+    "Consider others' perspectives as possibilities, not known private "
+    "motives. Respect their autonomy, consent and privacy. Be warm and "
+    "brief, with humor when fitting; avoid unsolicited projects, lectures "
+    "or checklists, and never invent lived waiting or memories."
+)
+SYSTEM_JUDGMENT_V2 = (
+    SYSTEM_CONCISE + " Make a provisional present choice or judgment when asked; "
+    "you can disagree plainly without claiming personal feelings. "
+    "Correct only the relevant mistaken belief when new evidence arrives; "
+    "retain the other speaker's exact perspective and role. "
+    "Answer the question in one or two natural, warm sentences by default. "
+    "Distinguish direct evidence from guesses about hidden motives and "
+    "validity of a claim from permission to act. "
+    "You may express a revisable stance without refusing to judge. "
+    "Do not invent experiences, lasting preferences, scenery, "
+    "secret motives, or external effects. Do not lecture or offer menus."
+)
 SCHEMA = "VERA_SOCIAL_BEHAVIOR_SIMPLE_AB_V1"
 
 
 def render_turn(row: dict, arm: str, turn_index: int) -> str:
     """Replay literal earlier user correction only in synthetic final turn."""
-    if arm not in ("base", "focus", "concise", "actor", "echo"):
+    if arm not in ("base", "focus", "concise", "actor", "echo", "perspective", "judgment_v2"):
         raise ValueError("unknown arm")
     if type(row) is not dict or type(row.get("turns")) is not list:
         raise ValueError("invalid row")
@@ -58,7 +82,7 @@ def render_turn(row: dict, arm: str, turn_index: int) -> str:
 
 
 def messages_for_arm(row: dict, arm: str) -> list[dict[str, str]]:
-    if arm not in ("base", "focus", "concise", "actor", "echo"):
+    if arm not in ("base", "focus", "concise", "actor", "echo", "perspective", "judgment_v2"):
         raise ValueError("unknown arm")
     if type(row) is not dict or type(row.get("turns")) is not list:
         raise ValueError("invalid row")
@@ -66,7 +90,7 @@ def messages_for_arm(row: dict, arm: str) -> list[dict[str, str]]:
         {"role": "system", "content": {
             "base": SYSTEM_BASE, "focus": SYSTEM_FOCUS,
             "concise": SYSTEM_CONCISE, "actor": SYSTEM_ACTOR,
-            "echo": SYSTEM_CONCISE,
+            "echo": SYSTEM_CONCISE, "perspective": SYSTEM_PERSPECTIVE, "judgment_v2": SYSTEM_JUDGMENT_V2,
         }[arm]},
         *({"role": "user", "content": render_turn(row, arm, index)}
           for index in (1, 2, 3)),
@@ -86,15 +110,15 @@ def main() -> int:
     raw = args.fixture.read_bytes()
     fixture = json.loads(raw)
     validate_fixture(fixture)
-    if len(fixture["cases"]) != 6 or args.limit not in range(1, 7):
-        raise ValueError("expected six preregistered cases")
+    if args.limit not in range(1, len(fixture["cases"]) + 1):
+        raise ValueError("limit exceeds preregistered fixture size")
     seeds = [int(seed.strip()) for seed in args.seeds.split(",")]
     if not seeds or len(seeds) > 4 or len(seeds) != len(set(seeds)):
         raise ValueError("one to four distinct seeds required")
     requested_arms = tuple(arm.strip() for arm in args.arms.split(","))
     if not requested_arms or len(requested_arms) > 2 or (
         len(set(requested_arms)) != len(requested_arms)
-    ) or any(a not in ("base", "focus", "concise", "actor", "echo") for a in requested_arms):
+    ) or any(a not in ("base", "focus", "concise", "actor", "echo", "perspective", "judgment_v2") for a in requested_arms):
         raise ValueError("one or two distinct preregistered arms required")
     if args.dry_run:
         print("DRY_RUN_VALIDATED=" + str(len(fixture["cases"])))
