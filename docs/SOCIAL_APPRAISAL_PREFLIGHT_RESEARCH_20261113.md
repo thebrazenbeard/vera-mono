@@ -99,3 +99,11 @@ No host private key was generated or installed for Vera. Unit tests generate eph
 > **Hard boundary:** A correctly signed typed assertion still does not establish its semantic correctness, that the holder of the test key is Vera's authorized host, or that a new session's currentness ID is trusted. A host can cryptographically endorse a mistaken claim classification. This source-only candidate must not be installed or treated as identity, phenomenology, current desire, relationship consent, protected-action authority, or canonical-memory admission.
 
 **Remaining frontier:** Verify issuer/key ownership in an independently governed host trust source; qualify a real optional consumer binding against current runtime state; obtain independent held-out social and source-adjudication results; leave default conversation and all protected effects unchanged until those prerequisites are established.
+
+## Secondary local model review — qualified as MODEL_REVIEW, not independent verification
+
+A fresh local `qwen3:4b-instruct` Ollama inference (model digest `0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0`) reviewed the public V2 source at Git head `351357930385ee063a38d5202a2bce44b2742efe`. The prompt requested concrete falsifiers and examples. Output stopped at the 530-token limit, so it was incomplete. No human or independently authorized auditor ran.
+
+Its first proposed source defect was that comparing `Claim`/other `StrEnum` values with `is` rather than `==` might reject supposedly different instances of the same enum member. This allegation is **not substantiated**. On Lappy Python 3.12, `Claim.PROVISIONAL_POSITION is Claim("PROVISIONAL_POSITION")` returned `True`, and an attempted numeric `current_turn=1` from the model's example raised `ValueError: current_turn must be a nonblank string` as designed. A synthetic test now includes that invalid-turn input. No verified source defect followed from this model's output; do not inflate model speculation into code findings or independent approval.
+
+**Review provenance:** same worker invoked the local Qwen3 model; provider/runtime Ollama local; model output was incomplete and non-independent as a governance review. No private materials sent, no credential/training/model changes.

@@ -132,6 +132,8 @@ class TestPropositionV2(unittest.TestCase):
 
     def test_invalid_ref_and_enum_types_fail_closed(self):
         with self.assertRaises(ValueError):
+            replace(self.item, current_turn=1)
+        with self.assertRaises(ValueError):
             replace(self.item, proposition_ref=" ")
         with self.assertRaises(ValueError):
             self.sign(claim="PROVISIONAL_POSITION")
