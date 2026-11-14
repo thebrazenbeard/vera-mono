@@ -30,6 +30,9 @@ class PortableBundleTests(unittest.TestCase):
         (self.root / "tools/mini_vera/adapter_shape_gate.py").write_text(
             'print("SYNTHETIC_ONLY")\n', encoding="utf-8"
         )
+        (self.root / "tools/mini_vera/gguf_architecture_gate.py").write_text(
+            'print("GGUF_SYNTHETIC_ONLY")\n', encoding="utf-8"
+        )
         (self.root / "scripts").mkdir()
         (self.root / "scripts/mini_vera_portable.py").write_text(
             "# fixture verifier\n", encoding="utf-8"
@@ -53,6 +56,7 @@ class PortableBundleTests(unittest.TestCase):
         self.assertIn("mini-vera.cmd", manifest["files_sha256"])
         self.assertIn("mini-vera-chat.cmd", manifest["files_sha256"])
         self.assertIn("mini-vera-adapter-check.cmd", manifest["files_sha256"])
+        self.assertIn("mini-vera-gguf-check.cmd", manifest["files_sha256"])
         self.assertIn("tools/mini_vera/adapter_shape_gate.py", manifest["files_sha256"])
         self.assertIn("tools/mini_vera/conversation_console.py", manifest["files_sha256"])
         self.assertIn("scripts/mini_vera_portable.py", manifest["files_sha256"])
@@ -102,6 +106,26 @@ class PortableBundleTests(unittest.TestCase):
         p = subprocess.run(command, cwd=output, capture_output=True, text=True, timeout=15)
         self.assertEqual(0, p.returncode, p.stderr)
         self.assertIn("SYNTHETIC_ONLY", p.stdout)
+        self.assertTrue(bundle.verify(output))
+        self.assertFalse(any(output.rglob("__pycache__")))
+
+    def test_gguf_launcher_verifies_and_disables_bytecode(self) -> None:
+        output = self.install()
+        launcher = (output / "mini-vera-gguf-check.cmd").read_bytes().decode("ascii")
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", launcher)
+        self.assertIn('verify --output "%CD%"', launcher)
+        self.assertIn("tools.mini_vera.gguf_architecture_gate %*", launcher)
+        self.assertTrue(bundle.verify(output))
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows CMD launcher")
+    def test_gguf_launcher_executes_without_mutating_sealed_install(self) -> None:
+        output = self.install()
+        proc = subprocess.run(
+            [os.environ.get("ComSpec", "cmd.exe"), "/d", "/c",
+             str(output / "mini-vera-gguf-check.cmd")],
+            cwd=output, capture_output=True, text=True, timeout=15)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("GGUF_SYNTHETIC_ONLY", proc.stdout)
         self.assertTrue(bundle.verify(output))
         self.assertFalse(any(output.rglob("__pycache__")))
 
