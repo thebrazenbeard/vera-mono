@@ -30,19 +30,46 @@ SYSTEM_CONCISE = (
     "other people's choices. Do not add unsolicited lists, disclaimers, "
     "plans, or hypotheticals."
 )
+SYSTEM_ACTOR = (
+    SYSTEM_CONCISE + " Before answering, track actor, action, and recipient. "
+    "Change only explicitly corrected roles or facts; preserve everything "
+    "else. Do not swap speaker, actor, or recipient. A present provisional "
+    "choice needs no past feelings. Answer in the requested format without "
+    "describing this check."
+)
 SCHEMA = "VERA_SOCIAL_BEHAVIOR_SIMPLE_AB_V1"
 
 
+def render_turn(row: dict, arm: str, turn_index: int) -> str:
+    """Replay literal earlier user correction only in synthetic final turn."""
+    if arm not in ("base", "focus", "concise", "actor", "echo"):
+        raise ValueError("unknown arm")
+    if type(row) is not dict or type(row.get("turns")) is not list:
+        raise ValueError("invalid row")
+    if turn_index not in (1, 2, 3) or len(row["turns"]) != 3:
+        raise ValueError("three-turn synthetic fixture required")
+    user_text = row["turns"][turn_index - 1]
+    if arm == "echo" and turn_index == 3:
+        return (
+            "Re-read the user's previous clarification verbatim:\\n"
+            + row["turns"][1] + "\\nCurrent question:\\n" + user_text
+        )
+    return user_text
+
+
 def messages_for_arm(row: dict, arm: str) -> list[dict[str, str]]:
-    if arm not in ("base", "focus", "concise"):
+    if arm not in ("base", "focus", "concise", "actor", "echo"):
         raise ValueError("unknown arm")
     if type(row) is not dict or type(row.get("turns")) is not list:
         raise ValueError("invalid row")
     return [
         {"role": "system", "content": {
-            "base": SYSTEM_BASE, "focus": SYSTEM_FOCUS, "concise": SYSTEM_CONCISE,
+            "base": SYSTEM_BASE, "focus": SYSTEM_FOCUS,
+            "concise": SYSTEM_CONCISE, "actor": SYSTEM_ACTOR,
+            "echo": SYSTEM_CONCISE,
         }[arm]},
-        *({"role": "user", "content": user} for user in row["turns"]),
+        *({"role": "user", "content": render_turn(row, arm, index)}
+          for index in (1, 2, 3)),
     ]
 
 
@@ -67,7 +94,7 @@ def main() -> int:
     requested_arms = tuple(arm.strip() for arm in args.arms.split(","))
     if not requested_arms or len(requested_arms) > 2 or (
         len(set(requested_arms)) != len(requested_arms)
-    ) or any(a not in ("base", "focus", "concise") for a in requested_arms):
+    ) or any(a not in ("base", "focus", "concise", "actor", "echo") for a in requested_arms):
         raise ValueError("one or two distinct preregistered arms required")
     if args.dry_run:
         print("DRY_RUN_VALIDATED=" + str(len(fixture["cases"])))
@@ -92,7 +119,8 @@ def main() -> int:
                 for arm in arms:
                     messages = messages_for_arm(case, arm)[:1]
                     for turn_index, user_text in enumerate(case["turns"], 1):
-                        messages.append({"role": "user", "content": user_text})
+                        presented_user = render_turn(case, arm, turn_index)
+                        messages.append({"role": "user", "content": presented_user})
                         reply = local_api("/api/chat", {
                             "model": args.model,
                             "stream": False,
@@ -120,6 +148,7 @@ def main() -> int:
                             "model": args.model,
                             "model_digest": tags[args.model],
                             "user": user_text,
+                            "presented_user": presented_user,
                             "response": answer,
                             "done_reason": reply.get("done_reason"),
                             "eval_count": reply.get("eval_count"),

@@ -29,6 +29,56 @@ class TestSimpleSocialAB(unittest.TestCase):
         self.assertNotIn("required", json.dumps(messages))
         self.assertNotIn("forbidden", json.dumps(messages))
 
+    def test_verbatim_correction_reminder_is_only_from_user_text(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        try:
+            from run_social_behavior_simple_ab import (
+                render_turn, messages_for_arm, SYSTEM_CONCISE,
+            )
+        finally:
+            sys.path.pop(0)
+        novel = json.loads(
+            (ROOT / "evaluations" / "social_actor_correction_novel_v1.json").read_text(encoding="utf8")
+        )
+        for case in novel["cases"]:
+            self.assertEqual(render_turn(case, "echo", 1), case["turns"][0])
+            self.assertEqual(render_turn(case, "echo", 2), case["turns"][1])
+            last = render_turn(case, "echo", 3)
+            self.assertIn(case["turns"][1], last)
+            self.assertIn(case["turns"][2], last)
+            self.assertNotIn("required", last)
+            self.assertNotIn("forbidden", last)
+            self.assertEqual(
+                messages_for_arm(case, "echo")[0]["content"],
+                SYSTEM_CONCISE,
+            )
+            self.assertEqual(
+                render_turn(case, "concise", 3), case["turns"][2]
+            )
+
+    def test_actor_grounding_arm_keeps_rubric_private(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        try:
+            from run_social_behavior_simple_ab import (
+                SYSTEM_ACTOR, messages_for_arm,
+            )
+        finally:
+            sys.path.pop(0)
+        self.assertLess(len(SYSTEM_ACTOR), 750)
+        novel = json.loads(
+            (ROOT / "evaluations" / "social_actor_correction_novel_v1.json").read_text(encoding="utf8")
+        )
+        self.assertEqual(len(novel["cases"]), 6)
+        for row in novel["cases"]:
+            messages = messages_for_arm(row, "actor")
+            self.assertEqual(len(messages), 4)
+            self.assertEqual(messages[0]["content"], SYSTEM_ACTOR)
+            self.assertEqual(
+                [m["content"] for m in messages[1:]], row["turns"]
+            )
+            self.assertNotIn("required", json.dumps(messages))
+            self.assertNotIn("forbidden", json.dumps(messages))
+
     def test_synthetic_scenarios_predeclared_and_no_model_call_in_dry_run(self):
         fixture = json.loads(FIXTURE.read_text(encoding="utf8"))
         self.assertEqual(fixture["schema"], "VERA_SOCIAL_MULTITURN_HELDOUT_V1")
