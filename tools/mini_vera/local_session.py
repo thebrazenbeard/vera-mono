@@ -326,7 +326,11 @@ def main(argv: list[str] | None = None, *,
                     request, result, source_receipt, source_request_sha)
                 if args.synthetic_fact_evidence_gate:
                     from . import public_fact_guard
-                    record = public_fact_guard.apply(request, record)
+                    record = public_fact_guard.apply(
+                        request, record,
+                        approved_state_binding=(
+                            (after_state, after_key, after_revision)
+                            if live_public_provider is not None else None))
             except (loopback.LoopbackRejected, host_read_probe.ProbeRefused,
                     ValueError):
                 print("Local output withheld: read-only host probe failed or "

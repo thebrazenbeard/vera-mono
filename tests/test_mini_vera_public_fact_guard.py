@@ -40,6 +40,16 @@ class PublicFactGuardTests(unittest.TestCase):
             revision=revision, model="vera:local", model_digest="b"*64)
         return fixture, request
 
+    def binding(self, fixture, variant):
+        ledger = varied.MemoryLedger(fixture["ledger_path"], project_id="vera-mono",
+                                      identity_id="vera")
+        provider = approved_ledger_provider(
+            ledger, record_ids=["varied-public"], expected_head=fixture["head"],
+            expected_revision=8, integrity_key=varied.KEY,
+            host_public_project_approval=lambda record, head: varied._approval(
+                record, head, variant, fixture["public_sha256"]))
+        return provider()
+
     def model_record(self, request, text):
         return {
             "schema": "MINI_VERA_LOCAL_OUTPUT_V1",
@@ -55,7 +65,7 @@ class PublicFactGuardTests(unittest.TestCase):
         for variant in ("directory", "revision"):
             with self.subTest(variant=variant):
                 fixture, request = self.request(variant)
-                result = guard.apply(request, self.model_record(request, fixture["expected"]))
+                result = guard.apply(request, self.model_record(request, fixture["expected"]), approved_state_binding=self.binding(fixture, variant))
                 self.assertEqual("SOURCE_MATCHED_SYNTHETIC_RECORD_NOT_HOST_ATTESTATION",
                                  result["client"]["fact_gate"]["status"])
                 self.assertEqual(fixture["expected"], result["client"]["fact_gate"]["client_answer"])
@@ -87,7 +97,7 @@ class PublicFactGuardTests(unittest.TestCase):
 
     def test_wrong_approved_answer_is_suppressed_even_when_some_public_record_exists(self):
         fixture, request = self.request("revision")
-        result = guard.apply(request, self.model_record(request, "G-00000000"))
+        result = guard.apply(request, self.model_record(request, "G-00000000"), approved_state_binding=self.binding(fixture, "revision"))
         self.assertEqual("WITHHELD_MODEL_NOT_SOURCE_MATCHED",
                          result["client"]["fact_gate"]["status"])
         self.assertEqual("UNKNOWN", result["client"]["fact_gate"]["client_answer"])
