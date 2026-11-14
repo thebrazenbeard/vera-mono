@@ -15,11 +15,14 @@ from vera_core.social_revision_ledger import (
 
 CHILD = """
 import json
+from dataclasses import replace
 from pathlib import Path
 import sys
 from vera_core.social_revision_ledger import CorrectionLedger, PropositionType
 snap = Path(sys.argv[1]).read_text(encoding='utf-8')
 ledger = CorrectionLedger.restore(snap, expected_head=sys.argv[2])
+reconstructed = CorrectionLedger(entries=ledger.entries)
+relabeled = replace(ledger, archive_status='LOCAL_EPHEMERAL_SOURCE_CLAIMS_ONLY')
 event = ledger.latest('synthetic/concept/life', PropositionType.DEFINITION)
 print(json.dumps({
     'head':ledger.head,
@@ -27,6 +30,8 @@ print(json.dumps({
     'statement':event.statement,
     'status':ledger.archive_status,
     'current_claim':ledger.current_turn_evidence('S-1','T-2') is not None,
+    'reconstructed_current':reconstructed.current_turn_evidence('S-1','T-2') is not None,
+    'relabeled_current':relabeled.current_turn_evidence('S-1','T-2') is not None,
     'authority':ledger.external_action_authorized,
     'memory_admitted':ledger.public_receipt()['memory_admitted'],
 },sort_keys=True))
@@ -55,9 +60,10 @@ class TestSocialRevisionCrossProcess(unittest.TestCase):
     def test_fresh_interpreter_treats_snapshot_as_historical_even_same_turn(self):
         a = CorrectionLedger().append(self.first, expected_head=ROOT_HEAD)
         b = a.append(self.second, expected_head=a.head)
+        self.assertIsNone(b.current_turn_evidence("S-1", "T-2"))
         self.assertEqual(
-            b.current_turn_evidence("S-1", "T-2").statement,
-            self.second.statement
+            b.latest(self.second.subject_ref, PropositionType.DEFINITION).statement,
+            self.second.statement,
         )
         with tempfile.TemporaryDirectory(prefix="vera-synthetic-revisions-") as tmp:
             file = Path(tmp) / "synthetic-only.json"
@@ -72,6 +78,8 @@ class TestSocialRevisionCrossProcess(unittest.TestCase):
         self.assertEqual(restored["statement"], self.second.statement)
         self.assertEqual(restored["status"], "ANCHORED_HISTORICAL_EVIDENCE_ONLY")
         self.assertFalse(restored["current_claim"])
+        self.assertFalse(restored["reconstructed_current"])
+        self.assertFalse(restored["relabeled_current"])
         self.assertFalse(restored["authority"])
         self.assertFalse(restored["memory_admitted"])
 

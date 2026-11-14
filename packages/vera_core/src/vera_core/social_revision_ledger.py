@@ -70,6 +70,16 @@ class CorrectionEntry:
             raise ValueError("supersedes must be null or a bounded ID")
 
 
+def _reject_duplicate_json_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Do not let a valid final key silently mask an earlier forged claim."""
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON object key in correction snapshot")
+        result[key] = value
+    return result
+
+
 def _event_digest(previous: str, entry: CorrectionEntry) -> str:
     if not re.fullmatch(r"[0-9a-f]{64}", previous):
         raise RevisionConflict("invalid previous head")
@@ -152,22 +162,14 @@ class CorrectionLedger:
 
     def current_turn_evidence(self, session_id: str, turn_id: str
                               ) -> CorrectionEntry | None:
-        """Unsigned candidate from a local live turn; NEVER from any restore.
+        """Never reclassify caller-supplied archives as current-turn evidence.
 
-        Caller-supplied source labels and session IDs do not prove authorship.
+        Archived entries are constructible with public Python APIs. Even a
+        locally created instance or caller-selected archive_status cannot
+        establish a real host's user/session provenance. This deprecated
+        projection always fails closed; use latest() for source *history* and
+        require a separately trusted host witness for a live user statement.
         """
-        if self.archive_status != "LOCAL_EPHEMERAL_SOURCE_CLAIMS_ONLY":
-            return None
-        if (type(session_id) is not str or not session_id.strip()
-                or type(turn_id) is not str or not turn_id.strip()):
-            return None
-        for entry in reversed(self.entries):
-            if (
-                entry.source_kind is SourceKind.CURRENT_USER
-                and entry.session_id == session_id and entry.turn_id == turn_id
-                and self.latest(entry.subject_ref, entry.proposition_type) == entry
-            ):
-                return entry
         return None
 
     def snapshot(self, *, allow_sensitive_export: bool = False) -> str:
@@ -197,7 +199,7 @@ class CorrectionLedger:
                 ) -> CorrectionLedger:
         if type(raw) is not str or len(raw) > 2_000_000:
             raise ValueError("bounded JSON snapshot required")
-        payload = json.loads(raw)
+        payload = json.loads(raw, object_pairs_hook=_reject_duplicate_json_keys)
         if type(payload) is not dict or set(payload) != {
             "schema", "entries", "chain_hashes", "head"
         } or payload["schema"] != SCHEMA:

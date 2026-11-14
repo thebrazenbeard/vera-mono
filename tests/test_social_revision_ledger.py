@@ -79,8 +79,10 @@ class TestSocialRevisionLedger(unittest.TestCase):
 
     def test_source_not_promoted_to_authoritative_position(self):
         one = CorrectionLedger().append(self.a, expected_head=ROOT_HEAD)
-        claim = one.current_turn_evidence("synthetic-s1", "t1")
-        self.assertEqual(claim, self.a)
+        self.assertIsNone(one.current_turn_evidence("synthetic-s1", "t1"))
+        self.assertEqual(
+            one.latest(self.a.subject_ref, self.a.proposition_type), self.a
+        )
         self.assertFalse(one.current_position_authorized)
         self.assertFalse(one.external_action_authorized)
 
@@ -140,6 +142,19 @@ class TestSocialRevisionLedger(unittest.TestCase):
         with self.assertRaises(RevisionConflict):
             CorrectionLedger.restore(json.dumps(payload), expected_head=two.head)
 
+    def test_duplicate_json_key_rejected_even_if_last_value_matches_hash(self):
+        ledger = CorrectionLedger().append(self.a, expected_head=ROOT_HEAD)
+        valid = ledger.snapshot(allow_sensitive_export=True)
+        duplicated = valid.replace(
+            '"statement":"Life does not necessarily mean biological life."',
+            '"statement":"IMPERSONATED CLAIM",'
+            '"statement":"Life does not necessarily mean biological life."',
+            1,
+        )
+        self.assertNotEqual(duplicated, valid)
+        with self.assertRaises(ValueError):
+            CorrectionLedger.restore(duplicated, expected_head=ledger.head)
+
     def test_unknown_fields_not_auto_authority(self):
         one = CorrectionLedger().append(self.a, expected_head=ROOT_HEAD)
         payload = json.loads(one.snapshot(allow_sensitive_export=True))
@@ -162,9 +177,25 @@ class TestSocialRevisionLedger(unittest.TestCase):
         two = one.append(next_session, expected_head=one.head)
         self.assertEqual(two.latest(self.a.subject_ref, self.a.proposition_type), next_session)
         self.assertIsNone(two.current_turn_evidence("synthetic-s1", "t2"))
-        self.assertEqual(two.current_turn_evidence("synthetic-s2", "t2"), next_session)
+        self.assertIsNone(two.current_turn_evidence("synthetic-s2", "t2"))
         restored = CorrectionLedger.restore(two.snapshot(allow_sensitive_export=True), expected_head=two.head)
         self.assertIsNone(restored.current_turn_evidence("synthetic-s2", "t2"))
+
+    def test_reconstructed_historical_entries_do_not_become_current(self):
+        one = CorrectionLedger().append(self.a, expected_head=ROOT_HEAD)
+        history = CorrectionLedger.restore(
+            one.snapshot(allow_sensitive_export=True), expected_head=one.head
+        )
+        # A caller can always reconstruct entries or spoof a public status label.
+        # Neither should be mistaken for a trusted live source.
+        reconstructed = CorrectionLedger(entries=history.entries)
+        relabeled = replace(history, archive_status="LOCAL_EPHEMERAL_SOURCE_CLAIMS_ONLY")
+        for ledger in (history, reconstructed, relabeled):
+            with self.subTest(status=ledger.archive_status):
+                self.assertIsNone(
+                    ledger.current_turn_evidence("synthetic-s1", "t1")
+                )
+                self.assertFalse(ledger.current_position_authorized)
 
     def test_malformed_source_types_and_payload_rejected(self):
         with self.assertRaises(ValueError):
