@@ -7,6 +7,8 @@ import hashlib
 import json
 from pathlib import Path
 
+from prepare_social_multiturn_blind import build_pairs
+
 
 def read_jsonl(path: Path):
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
@@ -51,8 +53,20 @@ def audit(fixture_path, generation_path, blind_path, reversed_path,
         raise ValueError("missing/duplicate case identity")
     if len(mapping) != len(key["assignment"]):
         raise ValueError("duplicate map identity")
-    if sum(row["A"] == "qwen3.5:0.8b" for row in mapping.values()) * 2 != len(mapping):
-        raise ValueError("blind label assignment not balanced")
+    generated = read_jsonl(generation_path)
+    expected_pairs, expected_assignment = build_pairs(
+        json.loads(fixture), generated, fixture_sha,
+    )
+    if (key.get("schema") != "VERA_SOCIAL_MULTITURN_BLIND_KEY_V1"
+            or key.get("assignment") != expected_assignment):
+        raise ValueError("blind mapping differs from source generation")
+    expected_by_case = {row["case_id"]: row for row in expected_pairs}
+    if blind != expected_by_case:
+        raise ValueError("blind responses do not match recorded generations")
+    for case, source_pair in expected_by_case.items():
+        reversed_pair = {**source_pair, "A": source_pair["B"], "B": source_pair["A"]}
+        if flipped[case] != reversed_pair:
+            raise ValueError("reversed responses do not match source generation")
     c = Counter()
     per_case = []
     for case in sorted(ids):
@@ -109,7 +123,7 @@ def audit(fixture_path, generation_path, blind_path, reversed_path,
             "same_position_despite_swap": positional,
             "qualified_winner_model": qualified_model,
         })
-    gen = read_jsonl(generation_path)
+    gen = generated
     expected_turns = {
         (case, model, turn)
         for case, assignment in mapping.items()

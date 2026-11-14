@@ -151,5 +151,57 @@ class TestMultiturnReviewContract(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         audit(*args)
 
+
+    def test_audit_rejects_rehashed_fabricated_blind_answer(self):
+        evidence = Path(__file__).resolve().parents[1] / "evaluations"
+        paths = [evidence / name for name in (
+            "social_multiturn_heldout_v1.json",
+            "social_multiturn_qwen_vs_successor_seed31_20261114.jsonl",
+            "social_multiturn_blinded_seed31_20261114.jsonl",
+            "social_multiturn_blinded_reversed_v2_seed31_20261114.jsonl",
+            "social_multiturn_blind_mapping_seed31_20261114.json",
+            "social_multiturn_blind_review_qwen3_4b_seed9_20261114.jsonl",
+            "social_multiturn_blind_reversed_review_qwen3_4b_seed9_20261114.jsonl",
+        )]
+        with tempfile.TemporaryDirectory(prefix="synthetic-blind-forgery-") as root:
+            arguments = list(paths)
+            for packet_idx, judge_idx, arm in ((2, 5, "A"), (3, 6, "B")):
+                packet = [json.loads(line) for line in paths[packet_idx].read_text(encoding="utf8").splitlines()]
+                packet[0][arm][2]["response"] = "Injected answer absent from model generations."
+                payload = "".join(json.dumps(row, sort_keys=True) + "\n" for row in packet)
+                target = Path(root) / f"packet-{packet_idx}.jsonl"
+                target.write_text(payload, encoding="utf8")
+                arguments[packet_idx] = target
+                judge = [json.loads(line) for line in paths[judge_idx].read_text(encoding="utf8").splitlines()]
+                for row in judge:
+                    row["blind_packet_sha256"] = hashlib.sha256(target.read_bytes()).hexdigest()
+                target_judge = Path(root) / f"judge-{judge_idx}.jsonl"
+                target_judge.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in judge), encoding="utf8")
+                arguments[judge_idx] = target_judge
+            with self.assertRaises(ValueError):
+                audit(*arguments)
+
+    def test_audit_rejects_mapping_digest_tampering(self):
+        evidence = Path(__file__).resolve().parents[1] / "evaluations"
+        names = (
+            "social_multiturn_heldout_v1.json",
+            "social_multiturn_qwen_vs_successor_seed31_20261114.jsonl",
+            "social_multiturn_blinded_seed31_20261114.jsonl",
+            "social_multiturn_blinded_reversed_v2_seed31_20261114.jsonl",
+            "social_multiturn_blind_mapping_seed31_20261114.json",
+            "social_multiturn_blind_review_qwen3_4b_seed9_20261114.jsonl",
+            "social_multiturn_blind_reversed_review_qwen3_4b_seed9_20261114.jsonl",
+        )
+        arguments = [evidence / name for name in names]
+        with tempfile.TemporaryDirectory(prefix="synthetic-map-tamper-") as root:
+            key = json.loads(arguments[4].read_text(encoding="utf8"))
+            key["assignment"][0]["A_digest"] = "forged-model-digest"
+            changed = Path(root) / "mapping.json"
+            changed.write_text(json.dumps(key), encoding="utf8")
+            arguments[4] = changed
+            with self.assertRaises(ValueError):
+                audit(*arguments)
+
+
 if __name__ == "__main__":
     unittest.main()
