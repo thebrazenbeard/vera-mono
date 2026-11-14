@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from prepare_social_multiturn_blind import build_pairs
+from judge_social_multiturn_blind import validate_judge_output
 
 
 def read_jsonl(path: Path):
@@ -21,6 +22,23 @@ def unique_cases(path: Path) -> dict:
     if len(case_ids) != len(set(case_ids)):
         raise ValueError("duplicate review case ID")
     return {row["case_id"]: row for row in rows}
+
+
+def verified_judge_record(record: dict) -> bool:
+    """Reconstruct parser verdict from the stored raw review, not a label."""
+    if (record.get("schema") != "VERA_SOCIAL_MULTITURN_MODEL_REVIEW_V1"
+            or type(record.get("parsed_valid")) is not bool
+            or type(record.get("raw_response")) is not str):
+        raise ValueError("invalid judge record envelope")
+    try:
+        parsed = json.loads(record["raw_response"])
+        valid = validate_judge_output(parsed)
+    except (ValueError, TypeError):
+        parsed, valid = None, False
+    if (record["parsed_valid"] is not valid
+            or record.get("judgment") != (parsed if valid else None)):
+        raise ValueError("judge verdict differs from raw response")
+    return valid
 
 
 def swap_stable_winner(initial_label: str | None,
@@ -84,8 +102,8 @@ def audit(fixture_path, generation_path, blind_path, reversed_path,
             raise ValueError("reversed judge blind hash mismatched")
         if old["judge_digest"] != new["judge_digest"] or old["seed"] != new["seed"]:
             raise ValueError("model judge or seed changed")
-        p = bool(old["parsed_valid"])
-        q = bool(new["parsed_valid"])
+        p = verified_judge_record(old)
+        q = verified_judge_record(new)
         c["original_valid"] += p
         c["reversed_valid"] += q
         original = old["judgment"]["winner"] if p else None

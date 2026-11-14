@@ -203,5 +203,37 @@ class TestMultiturnReviewContract(unittest.TestCase):
                 audit(*arguments)
 
 
+    def test_audit_rejects_judge_verdict_laundering(self):
+        evidence = Path(__file__).resolve().parents[1] / "evaluations"
+        names = ("social_multiturn_heldout_v1.json",
+                 "social_multiturn_qwen_vs_successor_seed31_20261114.jsonl",
+                 "social_multiturn_blinded_seed31_20261114.jsonl",
+                 "social_multiturn_blinded_reversed_v2_seed31_20261114.jsonl",
+                 "social_multiturn_blind_mapping_seed31_20261114.json",
+                 "social_multiturn_blind_review_qwen3_4b_seed9_20261114.jsonl",
+                 "social_multiturn_blind_reversed_review_qwen3_4b_seed9_20261114.jsonl")
+        paths = [evidence / name for name in names]
+        self.assertEqual(audit(*paths)["review_gate"]["swap_stable_concrete_winners"], 0)
+        source = [json.loads(line) for line in paths[5].read_text(encoding="utf8").splitlines()]
+        self.assertTrue(source[1]["parsed_valid"])
+        for mutation in ("verdict", "raw", "truthy_flag"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as root:
+                rows = json.loads(json.dumps(source))
+                if mutation == "verdict":
+                    rows[1]["judgment"]["winner"] = "B"
+                elif mutation == "raw":
+                    raw = json.loads(rows[1]["raw_response"])
+                    raw["winner"] = "B"
+                    rows[1]["raw_response"] = json.dumps(raw)
+                else:
+                    rows[1]["parsed_valid"] = "false"
+                changed = Path(root) / "forged-judge.jsonl"
+                changed.write_text("".join(json.dumps(row) + "\n" for row in rows),
+                                   encoding="utf8")
+                args = list(paths)
+                args[5] = changed
+                with self.assertRaises(ValueError):
+                    audit(*args)
+
 if __name__ == "__main__":
     unittest.main()
