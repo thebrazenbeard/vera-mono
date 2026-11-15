@@ -10,3 +10,5 @@ social_fictional_holdout_qwen08_seed73_20261114.jsonl -text whitespace=cr-at-eol
 social_fictional_holdout_qwen4b_seed73_20261114.jsonl -text whitespace=cr-at-eol
 social_fictional_message_boundary_v1.json -text whitespace=cr-at-eol
 social_fictional_message_boundary_model_vs_source_seed79_20261114.jsonl -text whitespace=cr-at-eol
+social_fictional_natural_boundary_v1.json -text whitespace=cr-at-eol
+social_fictional_natural_boundary_4b_seed83_20261114.jsonl -text whitespace=cr-at-eol

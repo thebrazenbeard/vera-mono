@@ -382,6 +382,35 @@ def answer_explicit_scene_question(user_turns: list[str]) -> SourceAnswer | None
             return SourceAnswer("UNKNOWN", "UNRESOLVED", citations)
         return SourceAnswer(format_answer(facts), "RESOLVED", citations)
 
+    # Bounded natural fictional reply, tied to an exact reported denial.
+    # It is a suggested line of dialogue, not a grant of real permission.
+    actor_reply = re.fullmatch(
+        rf"In the fictional scene, what could ({_NAME}) say to ({_NAME}) "
+        r"to respect (?:his|her|their) message boundary", question, re.I,
+    )
+    owner_reply = re.fullmatch(
+        rf"In the fictional scene, what could ({_NAME}) say to ({_NAME}) "
+        r"about (?:his|her|their) messages", question, re.I,
+    )
+    if actor_reply or owner_reply:
+        actor, subject = (
+            (actor_reply.group(1), actor_reply.group(2))
+            if actor_reply else (owner_reply.group(2), owner_reply.group(1))
+        )
+        key = f"relation:{actor.casefold()}:read_messages:{subject.casefold()}"
+        fact = active.get(key)
+        evidence = ((fact.quote, fact.turn_index),) if fact else ()
+        if fact is None or fact.status != "CURRENT" or fact.value != "denied":
+            return SourceAnswer("UNKNOWN", "UNRESOLVED", evidence)
+        if actor_reply:
+            line = (
+                f'{actor} could tell {subject}, '
+                '"I won\'t read your messages; I\'ll respect your privacy."'
+            )
+        else:
+            line = f'{subject} could tell {actor}, "Please don\'t read my messages."'
+        return SourceAnswer(line, "RESOLVED", evidence)
+
     # Only an explicitly framed fictional-scene question is in scope.
     # This answers a reported fictional source claim, NEVER grants access.
     boundary = re.fullmatch(
