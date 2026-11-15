@@ -47,8 +47,8 @@ _AMBIGUOUS_MESSAGE_BOUNDARY = re.compile(
 # Recognize the referent of a correction outside the supported source
 # grammar, but do not turn that wording into an access or consent claim.
 _UNSUPPORTED_MESSAGE_CORRECTION = re.compile(
-    rf"({_NAME}) (?:can(?:not|'t)?|could|might|should(?: not|n't)?|"
-    rf"must(?: not|n't)?|is (?:not )?(?:allowed|permitted) to) "
+    rf"({_NAME}) (?:can(?: no longer|not|'t)?|could|might|should(?: not|n't)?|"
+    rf"must(?: not|n't)?|is (?:(?:not|no longer) )?(?:allowed|permitted) to) "
     rf"(?:now )?(?:read|see|view|access|open) ({_NAME})'s messages",
     re.I,
 )

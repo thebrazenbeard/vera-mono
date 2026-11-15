@@ -71,6 +71,40 @@ class TestFictionalMessageBoundary(unittest.TestCase):
                     "No, in the fictional scene, Nia may not read Omar's messages.")
                 self.assertEqual(result.evidence,(("Nia may not read Omar's messages",1),))
 
+    def test_unsupported_named_revocation_invalidates_only_affected_pair(self):
+        initial = (
+            "State: Nia may read Omar's messages; Omar may read Nia's messages; "
+            "Mira may not read Vale's messages."
+        )
+        for correction in (
+            "Correction: Nia can no longer read Omar's messages.",
+            "Correction: Nia is no longer allowed to read Omar's messages.",
+        ):
+            with self.subTest(correction=correction):
+                state = reconstruct([initial, correction])
+                affected = state["relation:nia:read_messages:omar"]
+                self.assertEqual(affected.status, "UNRESOLVED")
+                self.assertIsNone(affected.value)
+                self.assertEqual(affected.turn_index, 2)
+                self.assertEqual(
+                    state["relation:omar:read_messages:nia"].value,
+                    "reported_allowance",
+                )
+                self.assertEqual(
+                    state["relation:mira:read_messages:vale"].value,
+                    "denied",
+                )
+                answer = answer_explicit_scene_question([
+                    initial, correction,
+                    "In the fictional scene, may Nia read Omar's messages?",
+                ])
+                self.assertEqual(answer.answer, "UNKNOWN")
+                self.assertEqual(answer.status, "UNRESOLVED")
+                self.assertEqual(answer.evidence, (
+                    (correction.removeprefix("Correction: ").removesuffix("."), 2),
+                ))
+                self.assertFalse(answer.external_effect_authorized)
+
     def test_later_uncertain_same_pair_invalidates_stale_allowance(self):
         turns=[
             "State: Nia may read Omar's messages; Mira may not read Vale's messages.",
