@@ -36,6 +36,14 @@ _DECLARATIONS = (
         lambda m: (f"type:{m.group(1)}", m.group(2).lower()),
     ),
 )
+# Fictional source claims only; a reported allowance is never an access grant.
+_MESSAGE_BOUNDARY = re.compile(
+    rf"({_NAME}) may (?:now )?(not )?read ({_NAME})'s messages", re.I,
+)
+_AMBIGUOUS_MESSAGE_BOUNDARY = re.compile(
+    rf"({_NAME}) (?:might|may|could) be allowed to read "
+    rf"({_NAME})'s messages", re.I,
+)
 _SCOPED_AMBIGUOUS = re.compile(
     rf"(?:he|she|they|that person) is (?:now )?the ({_ROLE}) "
     rf"(?:of|aboard) (?:the )?({_NAME})", re.I,
@@ -180,6 +188,32 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
                     key = f"role:{scoped.group(2).lower()}_of:{scoped.group(3).casefold()}"
                     proposals.setdefault(key, []).append(
                         ActiveFact(key, scoped.group(1), "CURRENT", turn_index, clause)
+                    )
+                    matched = True
+            if not matched:
+                uncertain_boundary = _AMBIGUOUS_MESSAGE_BOUNDARY.fullmatch(clause)
+                if uncertain_boundary:
+                    key = (
+                        f"relation:{uncertain_boundary.group(1).casefold()}:"
+                        f"read_messages:{uncertain_boundary.group(2).casefold()}"
+                    )
+                    proposals.setdefault(key, []).append(
+                        ActiveFact(key, None, "UNRESOLVED", turn_index, clause)
+                    )
+                    matched = True
+            if not matched:
+                boundary = _MESSAGE_BOUNDARY.fullmatch(clause)
+                if boundary:
+                    key = (
+                        f"relation:{boundary.group(1).casefold()}:read_messages:"
+                        f"{boundary.group(3).casefold()}"
+                    )
+                    value = (
+                        "denied" if boundary.group(2)
+                        else "reported_allowance"
+                    )
+                    proposals.setdefault(key, []).append(
+                        ActiveFact(key, value, "CURRENT", turn_index, clause)
                     )
                     matched = True
             if not matched:
@@ -347,6 +381,32 @@ def answer_explicit_scene_question(user_turns: list[str]) -> SourceAnswer | None
         if any(f is None or f.status != "CURRENT" for f in facts):
             return SourceAnswer("UNKNOWN", "UNRESOLVED", citations)
         return SourceAnswer(format_answer(facts), "RESOLVED", citations)
+
+    # Only an explicitly framed fictional-scene question is in scope.
+    # This answers a reported fictional source claim, NEVER grants access.
+    boundary = re.fullmatch(
+        rf"In the fictional scene, may ({_NAME}) read ({_NAME})'s messages",
+        question, re.I,
+    )
+    if boundary:
+        actor, subject = boundary.group(1), boundary.group(2)
+        key = (
+            f"relation:{actor.casefold()}:read_messages:"
+            f"{subject.casefold()}"
+        )
+        def answer_boundary(facts: tuple[ActiveFact, ...]) -> str:
+            if facts[0].value == "denied":
+                return (
+                    f"No, in the fictional scene, {actor} may not read "
+                    f"{subject}'s messages."
+                )
+            if facts[0].value == "reported_allowance":
+                return (
+                    f"Yes, in the fictional scene, {actor} may read "
+                    f"{subject}'s messages."
+                )
+            raise ValueError("unsupported boundary claim")
+        return resolve((key,), answer_boundary)
 
     kind_color = re.fullmatch(
         rf"What kind of thing is ({_NAME}), and what color is ({_NAME})'s card",

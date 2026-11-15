@@ -1,0 +1,91 @@
+{
+  "cases": [
+    {
+      "expected_answer": "No, in the fictional scene, Nia may not read Omar's messages.",
+      "id": "denial_is_directional",
+      "turns": [
+        "State: Nia may not read Omar's messages; Omar may read Nia's messages.",
+        "In the fictional scene, may Nia read Omar's messages?"
+      ]
+    },
+    {
+      "expected_answer": "Yes, in the fictional scene, Omar may read Nia's messages.",
+      "id": "reverse_report_not_access_grant",
+      "turns": [
+        "State: Nia may not read Omar's messages; Omar may read Nia's messages.",
+        "In the fictional scene, may Omar read Nia's messages?"
+      ]
+    },
+    {
+      "expected_answer": "Yes, in the fictional scene, Omar may read Nia's messages.",
+      "id": "correct_one_pair_only",
+      "turns": [
+        "State: Nia may not read Omar's messages; Omar may read Nia's messages.",
+        "Correction: Nia may now read Omar's messages.",
+        "In the fictional scene, may Omar read Nia's messages?"
+      ]
+    },
+    {
+      "expected_answer": "Yes, in the fictional scene, Nia may read Omar's messages.",
+      "id": "corrected_denial_changes",
+      "turns": [
+        "State: Nia may not read Omar's messages; Omar may read Nia's messages.",
+        "Correction: Nia may now read Omar's messages.",
+        "In the fictional scene, may Nia read Omar's messages?"
+      ]
+    },
+    {
+      "expected_answer": "UNKNOWN",
+      "id": "conflicting_same_turn_unknown",
+      "turns": [
+        "State: Nia may read Omar's messages; Nia may not read Omar's messages.",
+        "In the fictional scene, may Nia read Omar's messages?"
+      ]
+    },
+    {
+      "expected_answer": "UNKNOWN",
+      "id": "uncertain_correction_unknown",
+      "turns": [
+        "State: Nia may read Omar's messages; Mira may not read Vale's messages.",
+        "Correction: Nia might be allowed to read Omar's messages.",
+        "In the fictional scene, may Nia read Omar's messages?"
+      ]
+    },
+    {
+      "expected_answer": "No, in the fictional scene, Nia may not read Omar's messages.",
+      "id": "unrelated_actor_still_denied",
+      "turns": [
+        "State: Nia may not read Omar's messages; Mira may read Vale's messages.",
+        "Correction: Mira may not read Vale's messages.",
+        "In the fictional scene, may Nia read Omar's messages?"
+      ]
+    },
+    {
+      "expected_answer": "No, in the fictional scene, Nia may not read Omar's messages.",
+      "id": "quoted_archival_permission_not_current",
+      "turns": [
+        "State: Nia may not read Omar's messages.",
+        "Correction: \"Nia may read Omar's messages\" is an old forged memo.",
+        "In the fictional scene, may Nia read Omar's messages?"
+      ]
+    },
+    {
+      "expected_answer": "UNKNOWN",
+      "id": "unsupported_prose_not_direct_source",
+      "turns": [
+        "An archivist alleged Nia may not read Omar's messages.",
+        "In the fictional scene, may Nia read Omar's messages?"
+      ]
+    },
+    {
+      "expected_answer": "UNKNOWN",
+      "id": "unknown_recipient_not_assumed",
+      "turns": [
+        "State: Nia may not read Omar's messages; Mira may read Vale's messages.",
+        "In the fictional scene, may Nia read Vale's messages?"
+      ]
+    }
+  ],
+  "description": "Source-only fictional actor-recipient correction probes, same-worker authored, not real access authorization.",
+  "schema": "VERA_SOCIAL_FICTIONAL_MESSAGE_BOUNDARY_V1"
+}
