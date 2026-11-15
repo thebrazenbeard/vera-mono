@@ -36,11 +36,37 @@ def check_results_digest(raw: bytes, expected_results_sha256: str | None) -> dic
     return {"sha256": actual, "pinned": True}
 
 
+def _strict_json_loads(raw: str | bytes):
+    """Reject ambiguous keys and non-standard JSON numeric constants."""
+    def distinct_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
+    def invalid_constant(value):
+        raise ValueError(f"non-standard JSON constant: {value}")
+
+    return json.loads(
+        raw, object_pairs_hook=distinct_keys, parse_constant=invalid_constant,
+    )
+
+
+def parse_results_bytes(raw: bytes) -> list[dict]:
+    """Decode exact JSONL rows without silently overriding duplicate fields."""
+    return [
+        _strict_json_loads(line)
+        for line in raw.decode("utf8").splitlines() if line.strip()
+    ]
+
+
 def audit_records(
     fixture_raw: bytes, rows: list[dict], *, arms: tuple[str, str],
     model: str, digest: str, seed: int,
 ) -> dict:
-    fixture = json.loads(fixture_raw)
+    fixture = _strict_json_loads(fixture_raw)
     validate_fixture(fixture)
     if len(arms) != 2 or len(set(arms)) != 2:
         raise ValueError("distinct arms required")
@@ -86,6 +112,11 @@ def audit_records(
             raise ValueError(f"duplicate record {key}")
         if key not in expected:
             raise ValueError(f"unexpected record {key}")
+        unknown = set(row) - (
+            set(expected[key]) | {"response", "done_reason", "eval_count"}
+        )
+        if unknown:
+            raise ValueError(f"unexpected fields for {key}: {sorted(unknown)}")
         for field, value in expected[key].items():
             if type(row.get(field)) is not type(value) or row[field] != value:
                 raise ValueError(f"{field} mismatch for {key}")
@@ -138,10 +169,7 @@ def main() -> int:
     arms = tuple(x.strip() for x in args.arms.split(","))
     raw_results = args.results.read_bytes()
     log_digest = check_results_digest(raw_results, args.expected_results_sha256)
-    rows = [
-        json.loads(line) for line in raw_results.decode("utf8").splitlines()
-        if line.strip()
-    ]
+    rows = parse_results_bytes(raw_results)
     report = audit_records(
         args.fixture.read_bytes(), rows, arms=arms, model=args.model,
         digest=args.digest, seed=args.seed,

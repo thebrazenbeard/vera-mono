@@ -158,6 +158,29 @@ class TransferAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "expected_results_sha256"):
             check_results_digest(original, "wrong-digest")
 
+    def test_rejects_undeclared_attestation_metadata(self):
+        rows = [dict(r) for r in self.rows]
+        rows[0]["model_response_authenticated"] = True
+        # A row must not smuggle an authoritative-looking attestation.
+        with self.assertRaisesRegex(ValueError, "unexpected fields"):
+            self.audit(rows)
+
+    def test_rejects_ambiguous_duplicate_json_response_keys(self):
+        from audit_social_behavior_transfer import parse_results_bytes
+        row = json.dumps(self.rows[0], sort_keys=True)
+        original = '"response": "base reply 1"'
+        self.assertIn(original, row)
+        row = row.replace(
+            original, '"response": "forged reply", "response": "base reply 1"', 1
+        )
+        # Vanilla json.loads silently uses the last value: this parsed
+        # response currently passes every existing audit field check.
+        self.assertEqual(
+            self.audit([json.loads(row), *self.rows[1:]])["records"], 6
+        )
+        with self.assertRaisesRegex(ValueError, "duplicate JSON key"):
+            parse_results_bytes((row + "\n").encode("utf8"))
+
     def test_truncations_are_reported_without_being_called_complete(self):
         rows = [dict(r) for r in self.rows]
         rows[5]["done_reason"] = "length"
