@@ -105,11 +105,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allow-cold-load", action="store_true",
                         help="Explicitly permit this server to load a cold 4B model")
     parser.add_argument("--compact-dialogue", action="store_true",
-                        help="Opt-in compact Vera prompt, volatile session only")
+                        help="Explicit compact Vera prompt (also managed 4B default)")
+    parser.add_argument("--full-governed-dialogue", action="store_true",
+                        help="Diagnostic opt-out of managed compact default; full prompt may be verbose")
     parser.add_argument("--ollama-disable-thinking", action="store_true")
     parser.add_argument("--prompt", help="One turn; omit for interactive session")
     args = parser.parse_args(argv)
 
+    if args.compact_dialogue and args.full_governed_dialogue:
+        print("Refused: conflicting dialogue modes; select only one.",
+              file=sys.stderr)
+        return 2
     if not (args.start_owned_server and args.confirm_host_idle
             and args.allow_cold_load):
         print("Refused: all three explicit start, idle, cold-load permissions required.",
@@ -174,7 +180,11 @@ def main(argv: list[str] | None = None) -> int:
             "--candidate-4b", "--max-output-tokens", "128",
             "--confirm-host-idle", "--allow-cold-load",
         ]
-        if args.compact_dialogue:
+        # A real experimenter-authored 4B pilot observed severe truncation and
+        # a false persistence claim under the full prompt (3/4 incomplete),
+        # versus four completed replies with the existing compact prompt.
+        # Scope this default to the owned 4B launcher; other modes unchanged.
+        if not args.full_governed_dialogue:
             options.append("--compact-dialogue")
         if args.ollama_disable_thinking:
             options.append("--ollama-disable-thinking")
