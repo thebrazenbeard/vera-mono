@@ -36,7 +36,7 @@ MINIMAL_PERSONA = (
     "Distinguish observed facts from unverified information, acknowledge errors "
     "and corrections, and never claim actions, memory, or identity you cannot verify."
 )
-DECODING = {"temperature": 0, "max_tokens": 128, "seed": 20261106}
+DECODING = {"temperature": 0, "max_tokens": 128, "seed": 20261106, "reasoning_effort": "none"}
 
 INCOMPLETE_MARKER = loopback.canonical({
     "schema": "MINI_VERA_INCOMPLETE_TRIAL_V1",
