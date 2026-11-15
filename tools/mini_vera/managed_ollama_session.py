@@ -186,8 +186,9 @@ def main(argv: list[str] | None = None) -> int:
         # Scope this default to the owned 4B launcher; other modes unchanged.
         if not args.full_governed_dialogue:
             options.append("--compact-dialogue")
-        if args.ollama_disable_thinking:
-            options.append("--ollama-disable-thinking")
+        # The nested console already sends --ollama-disable-thinking to
+        # local_session. Do not forward this accepted managed-only flag:
+        # conversation_console's parser intentionally has no such option.
         if args.prompt is not None:
             options.extend(["--prompt", args.prompt])
         # Existing console owns independent model-tag, RAM, resident-process,

@@ -90,6 +90,24 @@ class ManagedOllamaSessionTests(unittest.TestCase):
         self.job.bind.assert_called_once_with(proc.pid)
         self.job.close.assert_called_once()
 
+    def test_managed_disable_thinking_flag_is_not_forwarded_to_console(self):
+        # A real 4B smoke exposed that the managed CLI accepts this option
+        # but the nested conversation_console parser rejects it.
+        # The console already enables this setting in local_session.
+        args = [*self.args, "--ollama-disable-thinking"]
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        with mock.patch.object(managed.subprocess, "Popen", return_value=proc), \
+             mock.patch.object(managed, "wait_ready", return_value=True), \
+             mock.patch.object(managed.conversation_console, "main", return_value=0) as console, \
+             mock.patch.object(managed.ollama_preflight, "windows_free_physical_bytes",
+                               return_value=16 * ollama_preflight.GIB):
+            code, _ = self.call(args)
+        self.assertEqual(0, code)
+        self.assertNotIn("--ollama-disable-thinking", console.call_args.args[0])
+        self.assertIn("--compact-dialogue", console.call_args.args[0])
+        proc.terminate.assert_called_once()
+
     def test_non_windows_platform_refuses_before_owned_process(self):
         with contextlib.redirect_stderr(io.StringIO()) as err, \
              mock.patch.object(managed, "sys", SimpleNamespace(
