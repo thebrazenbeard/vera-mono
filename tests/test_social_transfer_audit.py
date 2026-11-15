@@ -87,6 +87,77 @@ class TransferAuditTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, field):
                     self.audit(rows)
 
+    def test_rejects_reordered_turns_and_arm_blocks(self):
+        for rows in (self.rows[::-1],
+                     [self.rows[1], self.rows[0], *self.rows[2:]],
+                     [*self.rows[3:6], *self.rows[:3]]):
+            with self.subTest(order=[(r['arm'], r['turn_index']) for r in rows]):
+                with self.assertRaisesRegex(ValueError, 'order'):
+                    self.audit(rows)
+
+    def test_rejects_invalid_token_counts(self):
+        for bad in (-1, True, 1.5, None):
+            with self.subTest(bad=bad):
+                rows = [dict(r) for r in self.rows]
+                rows[0]['eval_count'] = bad
+                with self.assertRaisesRegex(ValueError, 'eval_count'):
+                    self.audit(rows)
+
+    def test_second_case_reverses_prompt_arm_order(self):
+        from audit_social_behavior_transfer import audit_records
+        other = {
+            "id": "fictional_two",
+            "turns": ["Different question", "Different correction",
+                      "What about that change?"],
+            "criteria": {"required": ["different"], "forbidden": ["invented"]},
+        }
+        fixture = dict(self.fixture, cases=[*self.fixture["cases"], other])
+        raw = json.dumps(fixture, sort_keys=True).encode("utf8")
+        sha = hashlib.sha256(raw).hexdigest()
+        original = [dict(r, fixture_sha256=sha) for r in self.rows]
+        added = []
+        for arm in ("judgment_v3", "base"):
+            system = hashlib.sha256(
+                messages_for_arm(other, arm)[0]["content"].encode()
+            ).hexdigest()
+            for turn in (1, 2, 3):
+                old = next(
+                    r for r in self.rows
+                    if r["arm"] == arm and r["turn_index"] == turn
+                )
+                added.append(dict(
+                    old,
+                    case_id=other["id"],
+                    fixture_sha256=sha,
+                    system_sha256=system,
+                    user=other["turns"][turn - 1],
+                    presented_user=render_turn(other, arm, turn),
+                ))
+        args = dict(arms=("base", "judgment_v3"), model=self.model,
+                    digest=self.digest, seed=79)
+        self.assertEqual(
+            audit_records(raw, original + added, **args)["records"], 12
+        )
+        with self.assertRaisesRegex(ValueError, "order"):
+            audit_records(raw, original + added[3:] + added[:3], **args)
+
+    def test_pinned_result_hash_detects_response_file_changes(self):
+        from audit_social_behavior_transfer import check_results_digest
+        original = b'{"response":"genuine"}\n'
+        expected = hashlib.sha256(original).hexdigest()
+        self.assertEqual(
+            check_results_digest(original, expected),
+            {"sha256": expected, "pinned": True},
+        )
+        self.assertEqual(
+            check_results_digest(original, None),
+            {"sha256": expected, "pinned": False},
+        )
+        with self.assertRaisesRegex(ValueError, "results sha256 mismatch"):
+            check_results_digest(original.replace(b"genuine", b"forged!"), expected)
+        with self.assertRaisesRegex(ValueError, "expected_results_sha256"):
+            check_results_digest(original, "wrong-digest")
+
     def test_truncations_are_reported_without_being_called_complete(self):
         rows = [dict(r) for r in self.rows]
         rows[5]["done_reason"] = "length"
