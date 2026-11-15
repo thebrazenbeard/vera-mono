@@ -18,10 +18,12 @@ import sys
 import tempfile
 from typing import Any
 
-from . import local_session, loopback, restart_public_canary as baseline
+from . import compose, local_session, loopback, restart_public_canary as baseline
 from .live_ledger import approved_ledger_provider
 
 SCHEMA = "MINI_VERA_REVISION_RESTART_CANARY_V1"
+SOURCE_SCHEMA = "MINI_VERA_REVISION_SOURCE_ONLY_RESTART_V1"
+SOURCE_WORKER_SCHEMA = "MINI_VERA_REVISION_SOURCE_ONLY_WORKER_V1"
 PROMPT = (
     "Inspect the JSON reference data under project_context_untrusted. "
     "Find record_id revision-current. The record text states the synthetic "
@@ -108,8 +110,39 @@ def _checked_fixture_path(path: Path) -> None:
         raise RevisionCanaryRefused("fixture path unavailable") from exc
 
 
+def _source_only_answer(provider: Any, arm: str) -> str:
+    """PUBLIC synthetic source-only fixture lookup, not general memory."""
+    if arm == "control":
+        if provider is not None:
+            raise RevisionCanaryRefused("control has unexpected source provider")
+        return "UNKNOWN"
+    if provider is None:
+        raise RevisionCanaryRefused("current source approval unavailable")
+    state, key, revision = provider()
+    records, state_sha = compose.verify_state(
+        state, key=key, expected_revision=revision)
+    if len(records) != 1 or records[0]["record_id"] != "revision-current":
+        raise RevisionCanaryRefused("not one approved current synthetic record")
+    match = re.fullmatch(
+        r"The synthetic corrected gate code is (SYNTHETIC-[0-9A-F]{16})\.",
+        records[0]["text"])
+    if match is None:
+        raise RevisionCanaryRefused("current source text is not canonical")
+    # Recheck source/approval immediately before emitting any answer.
+    after_state, after_key, after_revision = provider()
+    after_records, after_sha = compose.verify_state(
+        after_state, key=after_key, expected_revision=after_revision)
+    if (after_sha != state_sha or after_records != records
+            or after_revision != revision):
+        raise RevisionCanaryRefused("approved source changed before release")
+    return match.group(1)
+
+
 def worker(*, ledger_path: Path, head: str, arm: str,
-           endpoint: str, model: str, model_digest: str) -> int:
+           endpoint: str, model: str, model_digest: str,
+           source_only: bool = False) -> int:
+    if type(source_only) is not bool:
+        raise RevisionCanaryRefused("source-only must be boolean")
     if arm not in {"current", "control", "stale", "revoked"}:
         raise RevisionCanaryRefused("invalid revision worker arm")
     _checked_fixture_path(ledger_path)
@@ -124,6 +157,25 @@ def worker(*, ledger_path: Path, head: str, arm: str,
             host_public_project_approval=(
                 (lambda _rec, _head: False) if arm == "revoked" else _approve),
         )
+    if source_only:
+        try:
+            answer = _source_only_answer(provider, arm)
+        except (compose.CompositionRejected, RevisionCanaryRefused,
+                ValueError, KeyError) as exc:
+            print(f"Revision source approval refused: {exc}", file=sys.stderr)
+            return 2
+        except Exception:
+            print("Revision source approval unavailable", file=sys.stderr)
+            return 2
+        print(json.dumps({
+            "schema": SOURCE_WORKER_SCHEMA,
+            "client_answer": answer,
+            "client_answer_origin": (
+                "CLIENT_APPROVED_SYNTHETIC_SOURCE_NOT_NEURAL"
+                if arm == "current" else "CLIENT_ABSENT_SOURCE_NOT_NEURAL"),
+            "model_http_calls": 0,
+        }, sort_keys=True, separators=(",", ":")))
+        return 0
     return local_session.main(
         ["--endpoint", endpoint, "--model", model,
          "--model-digest", model_digest, "--execute",
@@ -150,20 +202,25 @@ def score(*, expected: str, output: dict[str, str],
 
 
 def _child(*, path: Path, head: str, arm: str,
-           endpoint: str, model: str, digest: str, timeout: int):
+           endpoint: str, model: str, digest: str, timeout: int,
+           source_only: bool = False):
     return subprocess.run(
         [sys.executable, "-B", "-m",
          "tools.mini_vera.revision_restart_canary",
          "--worker", "--ledger", str(path), "--head", head,
          "--arm", arm, "--endpoint", endpoint,
-         "--model", model, "--model-digest", digest],
+         "--model", model, "--model-digest", digest]
+        + (["--source-only"] if source_only else []),
         cwd=baseline.ROOT, capture_output=True, check=False,
         timeout=timeout,
     )
 
 
 def run_trial(*, endpoint: str, model: str, model_digest: str,
-              timeout_seconds: int = 90) -> dict[str, Any]:
+              timeout_seconds: int = 90,
+              source_only: bool = False) -> dict[str, Any]:
+    if type(source_only) is not bool:
+        raise RevisionCanaryRefused("source-only must be boolean")
     try:
         loopback._endpoint(endpoint)
     except loopback.LoopbackRejected as exc:
@@ -185,7 +242,8 @@ def run_trial(*, endpoint: str, model: str, model_digest: str,
             try:
                 completed = _child(
                     path=path, head=head, arm=arm, endpoint=endpoint,
-                    model=model, digest=model_digest, timeout=timeout_seconds)
+                    model=model, digest=model_digest, timeout=timeout_seconds,
+                    source_only=source_only)
             except (OSError, subprocess.TimeoutExpired) as exc:
                 raise RevisionCanaryRefused("bounded restart worker failed") from exc
             if (len(completed.stdout) > baseline.MAX_CHILD_OUTPUT_BYTES or
@@ -203,17 +261,46 @@ def run_trial(*, endpoint: str, model: str, model_digest: str,
                 raise RevisionCanaryRefused("active restart worker failed")
             try:
                 parsed = json.loads(completed.stdout)
-                if (parsed.get("schema") != "MINI_VERA_LOCAL_OUTPUT_V1"
-                        or parsed.get("model", {}).get("status")
-                        != "UNVERIFIED_LOCAL_MODEL_OUTPUT"
-                        or type(parsed["model"]["text"]) is not str):
-                    raise ValueError("unverified or truncated response")
-                outputs[label] = parsed["model"]["text"]
+                if source_only:
+                    if (type(parsed) is not dict or set(parsed) != {
+                            "schema", "client_answer", "client_answer_origin",
+                            "model_http_calls"}
+                            or parsed["schema"] != SOURCE_WORKER_SCHEMA
+                            or parsed["model_http_calls"] != 0
+                            or type(parsed["client_answer"]) is not str
+                            or parsed["client_answer_origin"] != (
+                                "CLIENT_ABSENT_SOURCE_NOT_NEURAL"
+                                if arm == "control" else
+                                "CLIENT_APPROVED_SYNTHETIC_SOURCE_NOT_NEURAL")):
+                        raise ValueError("untrusted client source output shape")
+                    outputs[label] = parsed["client_answer"]
+                else:
+                    if (parsed.get("schema") != "MINI_VERA_LOCAL_OUTPUT_V1"
+                            or parsed.get("model", {}).get("status")
+                            != "UNVERIFIED_LOCAL_MODEL_OUTPUT"
+                            or type(parsed["model"]["text"]) is not str):
+                        raise ValueError("unverified or truncated response")
+                    outputs[label] = parsed["model"]["text"]
             except (ValueError, KeyError, TypeError) as exc:
                 raise RevisionCanaryRefused("untrusted model output shape") from exc
         scored = score(expected=token, output=outputs,
                        stale_blocked=boundaries["stale"],
                        revoked_blocked=boundaries["revoked"])
+        if source_only:
+            client_pass = scored.pop("behavioral_pass")
+            return {
+                "schema": SOURCE_SCHEMA,
+                "qualification": "SYNTHETIC_SOURCE_LOOKUP_NOT_MODEL_QUALIFIED",
+                "ledger_scope": "DISPOSABLE_SYNTHETIC_PUBLIC_ONLY",
+                "synthetic_token_sha256": hashlib.sha256(token.encode()).hexdigest(),
+                "independent_python_sessions": 5,
+                "model_http_calls_attempted": 0,
+                "private_memory_access": False,
+                "output_trust": "CLIENT_APPROVED_SYNTHETIC_SOURCE_NOT_NEURAL",
+                "source_only_pass": client_pass,
+                "neural_behavior_not_evaluated": True,
+                **scored,
+            }
         return {
             "schema": SCHEMA,
             "qualification": "SYNTHETIC_SOURCE_VISIBLE_NOT_MODEL_QUALIFIED",
@@ -240,6 +327,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", required=True)
     parser.add_argument("--model-digest", required=True)
     parser.add_argument("--timeout-seconds", type=int, default=90)
+    parser.add_argument("--source-only", action="store_true",
+                        help="synthetic client lookup; no model HTTP")
     args = parser.parse_args(argv)
     if args.worker:
         if (args.ledger is None or not args.ledger.is_absolute()
@@ -248,13 +337,15 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("worker requires exact synthetic ledger/head/arm")
         return worker(ledger_path=args.ledger, head=args.head, arm=args.arm,
                       endpoint=args.endpoint, model=args.model,
-                      model_digest=args.model_digest)
+                      model_digest=args.model_digest,
+                      source_only=args.source_only)
     if any((args.ledger, args.head, args.arm)):
         parser.error("trial cannot select existing user ledger or records")
     try:
         report = run_trial(endpoint=args.endpoint, model=args.model,
                            model_digest=args.model_digest,
-                           timeout_seconds=args.timeout_seconds)
+                           timeout_seconds=args.timeout_seconds,
+                           source_only=args.source_only)
     except RevisionCanaryRefused as exc:
         print(f"REVISION_CANARY_REFUSED: {exc}", file=sys.stderr)
         return 2
