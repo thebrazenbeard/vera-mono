@@ -136,8 +136,22 @@ def main() -> int:
     if len(raw) > MAX_STDIN_BYTES:
         raise ValueError("input exceeds bounded JSON size")
     payload = json.loads(raw)
-    if type(payload) is not dict or set(payload) != {"user_turns"}:
-        raise ValueError("input must contain exactly user_turns")
+    if type(payload) is not dict:
+        raise ValueError("input must be a JSON object")
+    allowed = (
+        ({"user_turns"}, {"user_turns", "scene_direction"})
+        if args.bounded_tone else ({"user_turns"},)
+    )
+    if set(payload) not in allowed:
+        raise ValueError("input keys are outside the selected research route")
+    scene_direction = payload.get("scene_direction")
+    if "scene_direction" in payload and (
+        type(scene_direction) is not str
+        or not scene_direction.strip()
+        or len(scene_direction) > 320
+        or any(c in scene_direction for c in ("\n", "\r", "\x00"))
+    ):
+        raise ValueError("scene_direction must be a bounded one-line string")
     turns = payload["user_turns"]
     advisory = None
 
@@ -185,7 +199,9 @@ def main() -> int:
                 ],
             })
             return answer["message"]["content"]
-        response = route_styled_boundary_reply(turns, select_tone)
+        response = route_styled_boundary_reply(
+            turns, select_tone, scene_direction=scene_direction,
+        )
     else:
         response = route_scene_reply(turns, generate)
     print(json.dumps({

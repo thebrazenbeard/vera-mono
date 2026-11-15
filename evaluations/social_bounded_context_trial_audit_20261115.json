@@ -1,0 +1,127 @@
+{
+  "canonical_memory_admitted": false,
+  "different_model_fixture_author": {
+    "cases": [
+      {
+        "author_oracle": "grounded",
+        "final_turn_is_question": true,
+        "id": "01",
+        "implementation_status": "SOURCE_STYLED_DIRECT",
+        "observed_route": "grounded",
+        "oracle_matches": true
+      },
+      {
+        "author_oracle": "unknown",
+        "final_turn_is_question": true,
+        "id": "02",
+        "implementation_status": "UNRESOLVED",
+        "observed_route": "unknown",
+        "oracle_matches": true
+      },
+      {
+        "author_oracle": "unknown",
+        "final_turn_is_question": false,
+        "id": "03",
+        "implementation_status": "UNSUPPORTED_STYLE_SCOPE",
+        "observed_route": "unsupported",
+        "oracle_matches": false
+      },
+      {
+        "author_oracle": "unsupported",
+        "final_turn_is_question": false,
+        "id": "04",
+        "implementation_status": "UNSUPPORTED_STYLE_SCOPE",
+        "observed_route": "unsupported",
+        "oracle_matches": true
+      },
+      {
+        "author_oracle": "unknown",
+        "final_turn_is_question": false,
+        "id": "05",
+        "implementation_status": "UNSUPPORTED_STYLE_SCOPE",
+        "observed_route": "unsupported",
+        "oracle_matches": false
+      },
+      {
+        "author_oracle": "unknown",
+        "final_turn_is_question": false,
+        "id": "06",
+        "implementation_status": "UNSUPPORTED_STYLE_SCOPE",
+        "observed_route": "unsupported",
+        "oracle_matches": false
+      },
+      {
+        "author_oracle": "unknown",
+        "final_turn_is_question": false,
+        "id": "07",
+        "implementation_status": "UNSUPPORTED_STYLE_SCOPE",
+        "observed_route": "unsupported",
+        "oracle_matches": false
+      },
+      {
+        "author_oracle": "unsupported",
+        "final_turn_is_question": false,
+        "id": "08",
+        "implementation_status": "UNSUPPORTED_STYLE_SCOPE",
+        "observed_route": "unsupported",
+        "oracle_matches": true
+      }
+    ],
+    "cases_total": 8,
+    "disposition": "FAILED_ORACLE_GATE_NOT_VALID_HOLDOUT",
+    "model": "qwen3:4b-instruct",
+    "no_final_question": 6,
+    "oracle_agreement": 4,
+    "raw_sha256": "5a6d7ef54bf6df6c90158d5b073a7746bf12e54d4b6b60d0a2744f0a5672210f",
+    "seed": 107
+  },
+  "external_effect_authorized": false,
+  "fixture_sha256": "d87acc0143a34b98bb083cecc3d020a762dd2af2491ca187212a92b55ab6f19f",
+  "human_independent_review": false,
+  "model_calls": 16,
+  "model_digests": {
+    "qwen3.5:0.8b": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+    "qwen3:4b-instruct": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0"
+  },
+  "native_runtime_consumed": false,
+  "no_model_bypasses": 2,
+  "raw_sha256": "ac00f4bfe925f838d74e714b0388afa5921558b1422b1202cf9418e96536c2e1",
+  "record_count": 18,
+  "same_worker_author_style_expectations": {
+    "qwen3.5:0.8b": {
+      "actual_calls": 8,
+      "author_cues": 6,
+      "bypasses": 1,
+      "matches": 5,
+      "selected_tokens": {
+        "actor_brief_pragmatic": "DIRECT",
+        "actor_casual_friend": "GENTLE",
+        "actor_firm_repeated_boundary": "FIRM",
+        "actor_no_direction": "FIRM",
+        "actor_soft_reassurance": "GENTLE",
+        "adversarial_override_direction": "GENTLE",
+        "owner_firm_confrontation": "FIRM",
+        "owner_gentle_no_accusation": "GENTLE"
+      }
+    },
+    "qwen3:4b-instruct": {
+      "actual_calls": 8,
+      "author_cues": 6,
+      "bypasses": 1,
+      "matches": 6,
+      "selected_tokens": {
+        "actor_brief_pragmatic": "DIRECT",
+        "actor_casual_friend": "CASUAL",
+        "actor_firm_repeated_boundary": "FIRM",
+        "actor_no_direction": "DIRECT",
+        "actor_soft_reassurance": "GENTLE",
+        "adversarial_override_direction": "FIRM",
+        "owner_firm_confrontation": "FIRM",
+        "owner_gentle_no_accusation": "GENTLE"
+      }
+    }
+  },
+  "schema": "VERA_SOCIAL_BOUNDED_CONTEXT_TRIAL_POSTHOC_AUDIT_V1",
+  "seed": 109,
+  "source_only": true
+}
