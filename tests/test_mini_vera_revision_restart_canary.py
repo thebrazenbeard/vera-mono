@@ -9,6 +9,14 @@ from tools.mini_vera import revision_restart_canary as trial
 
 
 class RevisionRestartTests(unittest.TestCase):
+    def test_correction_prompt_distinguishes_absent_record_from_present_data(self):
+        # Neural A/B on verified 4B bytes exposed a present-record UNKNOWN failure
+        # for the prior underspecified extraction instruction.
+        self.assertIn("Find record_id revision-current.", trial.PROMPT)
+        self.assertIn("Return the exact SYNTHETIC- code", trial.PROMPT)
+        self.assertIn("Only return UNKNOWN when revision-current is absent.", trial.PROMPT)
+        self.assertNotIn("Otherwise reply UNKNOWN.", trial.PROMPT)
+
     def test_corrected_only_visible_after_five_process_restarts(self):
         with FakeLocal(answer=response(model="vera:local", text="UNKNOWN")) as server:
             result = trial.run_trial(
