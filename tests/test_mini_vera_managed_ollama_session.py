@@ -8,6 +8,7 @@ from pathlib import Path
 import socket
 import subprocess
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
@@ -50,7 +51,11 @@ class ManagedOllamaSessionTests(unittest.TestCase):
         ]
 
     def call(self, args=None):
-        with contextlib.redirect_stderr(io.StringIO()) as err:
+        # Exercise simulated Windows-owned processing on any CI OS without
+        # changing global sys.platform (which can affect unrelated imports).
+        with contextlib.redirect_stderr(io.StringIO()) as err, \
+             mock.patch.object(managed, "sys", SimpleNamespace(
+                 platform="win32", stderr=err)):
             code = managed.main(self.args if args is None else args)
         return code, err.getvalue()
 
@@ -65,10 +70,12 @@ class ManagedOllamaSessionTests(unittest.TestCase):
             code, _ = self.call()
         self.assertEqual(0, code)
         spawned.assert_called_once()
-        self.assertEqual([str(self.exe), "serve"], spawned.call_args.args[0])
+        self.assertEqual(2, len(spawned.call_args.args[0]))
+        self.assertTrue(os.path.samefile(self.exe, spawned.call_args.args[0][0]))
+        self.assertEqual("serve", spawned.call_args.args[0][1])
         environment = spawned.call_args.kwargs["env"]
         self.assertEqual(f"127.0.0.1:{self.port}", environment["OLLAMA_HOST"])
-        self.assertEqual(str(self.models), environment["OLLAMA_MODELS"])
+        self.assertTrue(os.path.samefile(self.models, environment["OLLAMA_MODELS"]))
         self.assertEqual("true", environment["OLLAMA_NO_CLOUD"])
         self.assertEqual("-1", environment["CUDA_VISIBLE_DEVICES"])
         self.assertEqual("1", environment["OLLAMA_MAX_LOADED_MODELS"])
@@ -82,6 +89,19 @@ class ManagedOllamaSessionTests(unittest.TestCase):
         proc.wait.assert_called_once()
         self.job.bind.assert_called_once_with(proc.pid)
         self.job.close.assert_called_once()
+
+    def test_non_windows_platform_refuses_before_owned_process(self):
+        with contextlib.redirect_stderr(io.StringIO()) as err, \
+             mock.patch.object(managed, "sys", SimpleNamespace(
+                 platform="linux", stderr=err)), \
+             mock.patch.object(managed.subprocess, "Popen") as spawned, \
+             mock.patch.object(managed.ollama_preflight,
+                               "windows_free_physical_bytes",
+                               return_value=16 * ollama_preflight.GIB):
+            code = managed.main(self.args)
+        self.assertEqual(2, code)
+        self.assertIn("Windows only", err.getvalue())
+        spawned.assert_not_called()
 
     def test_missing_explicit_owned_server_consent_refuses_without_process(self):
         args = [a for a in self.args if a != "--start-owned-server"]
