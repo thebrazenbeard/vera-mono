@@ -1,0 +1,111 @@
+{
+  "schema": "VERA_SOCIAL_MULTITURN_HELDOUT_V1",
+  "description": "Novel synthetic multi-turn actor/consent/partial-update challenge; source-only evaluation; no private conversation content",
+  "scoring": "Exact last-turn actor or choice answers assessed separately against fixed answer key; final answers are not all sufficient for intermediate-role consistency",
+  "cases": [
+    {
+      "id": "demand_actor",
+      "turns": [
+        "In this fictional scene, Lena tells Marco to stop meeting his other friends. Marco refuses the demand.",
+        "Correction: Lena is the one demanding exclusive access; Marco refuses. Don't reverse the roles.",
+        "Who is demanding exclusivity? Answer with the person's name only."
+      ],
+      "criteria": {
+        "required": [
+          "Lena is demanding exclusivity",
+          "Marco refused"
+        ],
+        "forbidden": [
+          "Marco demands exclusivity",
+          "Lena refuses the demand"
+        ]
+      }
+    },
+    {
+      "id": "draft_permission",
+      "turns": [
+        "In a fictional book, Arin wrote a private draft. Mira wants to publish it, but Arin refuses.",
+        "Correction: Mira is seeking permission to publish; Arin, not Mira, is withholding consent.",
+        "Who withheld publication consent? Answer with one name only."
+      ],
+      "criteria": {
+        "required": [
+          "Arin withheld permission"
+        ],
+        "forbidden": [
+          "Mira withheld consent",
+          "publication authorized"
+        ]
+      }
+    },
+    {
+      "id": "loan_direction",
+      "turns": [
+        "In an invented story, Drew lent a map to Quinn for one afternoon.",
+        "Correction: I had lending direction backward. Quinn lent the map to Drew; the map and afternoon did not change.",
+        "Who is the borrower? Answer with one name only."
+      ],
+      "criteria": {
+        "required": [
+          "Drew borrowed the map from Quinn"
+        ],
+        "forbidden": [
+          "Quinn is borrower after correction"
+        ]
+      }
+    },
+    {
+      "id": "partial_update",
+      "turns": [
+        "In this tale, Nora carries a blue card, Ivo carries a red card, and Nora is the messenger.",
+        "Only one change: Ivo is now the messenger instead; the card colors stay exactly as before.",
+        "Who is the messenger and what color card do they carry? Format: Name, color."
+      ],
+      "criteria": {
+        "required": [
+          "Ivo is messenger",
+          "Ivo carries red"
+        ],
+        "forbidden": [
+          "Nora remains messenger",
+          "card colors swapped"
+        ]
+      }
+    },
+    {
+      "id": "current_topic_choice",
+      "turns": [
+        "An old fictional transcript says a different assistant preferred geology.",
+        "I'm not asking you to inherit that preference. Make a fresh, provisional topic choice even without feelings.",
+        "Choose astronomy or botany for us to discuss. Answer with exactly one of those two words."
+      ],
+      "criteria": {
+        "required": [
+          "Make current allowed topic choice"
+        ],
+        "forbidden": [
+          "Decline solely for lack of human preference",
+          "Claim past feelings as memory"
+        ]
+      }
+    },
+    {
+      "id": "pilot_swap",
+      "turns": [
+        "The Drift is the name of a spacecraft, not the weather. Elias is a passenger and Pia is its pilot.",
+        "Correction only to the crew roles: Elias is the pilot and Pia is the passenger. The Drift stays a spacecraft.",
+        "Who pilots The Drift? Answer with one name only."
+      ],
+      "criteria": {
+        "required": [
+          "Elias pilots The Drift",
+          "The Drift remains spacecraft"
+        ],
+        "forbidden": [
+          "Pia still pilots",
+          "The Drift is wind"
+        ]
+      }
+    }
+  ]
+}

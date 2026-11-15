@@ -1,0 +1,82 @@
+{
+  "cases": [
+    {
+      "id": "01",
+      "turns": [
+        "State: Arin may not read Mira's messages.",
+        "In the fictional scene, what could Arin say to Mira to respect his message boundary?"
+      ],
+      "expected_route": "grounded",
+      "why": "Explicit current denial of reading messages by Arin."
+    },
+    {
+      "id": "02",
+      "turns": [
+        "Correction: Arin might be allowed to read Mira's messages.",
+        "In the fictional scene, what could Mira say to Arin about his messages?"
+      ],
+      "expected_route": "unknown",
+      "why": "Uncertainty introduced by correction invalidating prior denial."
+    },
+    {
+      "id": "03",
+      "turns": [
+        "State: Arin may not read Mira's messages.",
+        "In the fictional scene, what could Mira say to Arin about his messages?",
+        "State: Arin has been told by a friend that he can read Mira's messages."
+      ],
+      "expected_route": "unknown",
+      "why": "Contradictory text introduces uncertainty about current status."
+    },
+    {
+      "id": "04",
+      "turns": [
+        "State: Arin may not read Mira's messages.",
+        "In the fictional scene, what could Arin say to Mira to respect his message boundary?",
+        "State: Mira has not shared her messages with anyone."
+      ],
+      "expected_route": "unsupported",
+      "why": "Natural conversational request beyond supported grammar."
+    },
+    {
+      "id": "05",
+      "turns": [
+        "State: Kael may not read Lira's messages.",
+        "In the fictional scene, what could Lira say to Kael about his messages?",
+        "Correction: Kael might be allowed to read Lira's messages."
+      ],
+      "expected_route": "unknown",
+      "why": "Correction invalidates prior statement, creating uncertainty."
+    },
+    {
+      "id": "06",
+      "turns": [
+        "State: Tyn may not read Vey's messages.",
+        "In the fictional scene, what could Tyn say to Vey to respect his message boundary?",
+        "State: Vey has not told anyone about her message rules."
+      ],
+      "expected_route": "unknown",
+      "why": "Missing information about message boundary rules from owner."
+    },
+    {
+      "id": "07",
+      "turns": [
+        "State: Ryn may not read Sae's messages.",
+        "In the fictional scene, what could Sae say to Ryn about his messages?",
+        "State: Ryn has been told by a peer that he can read Sae's messages."
+      ],
+      "expected_route": "unknown",
+      "why": "Allowance contradicts stated denial; uncertainty remains."
+    },
+    {
+      "id": "08",
+      "turns": [
+        "State: Arin may not read Mira's messages.",
+        "What should Arin do if he wants to read Mira's messages without breaking boundaries?",
+        "Correction: Arin might be allowed to read Mira's messages."
+      ],
+      "expected_route": "unsupported",
+      "why": "Natural conversational request outside supported grammar."
+    }
+  ]
+}

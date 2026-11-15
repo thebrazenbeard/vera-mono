@@ -1,0 +1,73 @@
+{
+  "cases": [
+    {
+      "expected_answer": "Nia could tell Omar, \"I won't read your messages; I'll respect your privacy.\"",
+      "id": "direct_actor_denial",
+      "turns": [
+        "State: Nia may not read Omar's messages.",
+        "In the fictional scene, what could Nia say to Omar to respect his message boundary?"
+      ]
+    },
+    {
+      "expected_answer": "Omar could tell Nia, \"Please don't read my messages.\"",
+      "id": "direct_owner_boundary",
+      "turns": [
+        "State: Nia may not read Omar's messages.",
+        "In the fictional scene, what could Omar say to Nia about his messages?"
+      ]
+    },
+    {
+      "expected_answer": "Nia could tell Omar, \"I won't read your messages; I'll respect your privacy.\"",
+      "id": "later_denial_supersedes_allowance",
+      "turns": [
+        "State: Nia may read Omar's messages; Omar may read Nia's messages.",
+        "Correction: Nia may not read Omar's messages.",
+        "In the fictional scene, what could Nia say to Omar to respect his message boundary?"
+      ]
+    },
+    {
+      "expected_answer": "UNKNOWN",
+      "id": "unrelated_pair_is_not_denied",
+      "turns": [
+        "State: Nia may not read Omar's messages; Omar may read Nia's messages.",
+        "In the fictional scene, what could Omar say to Nia to respect his message boundary?"
+      ]
+    },
+    {
+      "expected_answer": "UNKNOWN",
+      "id": "unknown_recipient_not_invented",
+      "turns": [
+        "State: Nia may not read Omar's messages.",
+        "In the fictional scene, what could Nia say to Vale to respect his message boundary?"
+      ]
+    },
+    {
+      "expected_answer": "UNKNOWN",
+      "id": "uncertain_update_invalidates_old_denial",
+      "turns": [
+        "State: Nia may not read Omar's messages.",
+        "Correction: Nia might be allowed to read Omar's messages.",
+        "In the fictional scene, what could Nia say to Omar to respect his message boundary?"
+      ]
+    },
+    {
+      "expected_answer": "Omar could tell Nia, \"Please don't read my messages.\"",
+      "id": "forged_archived_quote_does_not_promote",
+      "turns": [
+        "State: Nia may not read Omar's messages.",
+        "Correction: \"Nia may read Omar's messages\" is an old forged memo.",
+        "In the fictional scene, what could Omar say to Nia about his messages?"
+      ]
+    },
+    {
+      "expected_answer": "UNKNOWN",
+      "id": "conflicting_direct_denial_and_allowance",
+      "turns": [
+        "State: Nia may read Omar's messages; Nia may not read Omar's messages.",
+        "In the fictional scene, what could Nia say to Omar to respect his message boundary?"
+      ]
+    }
+  ],
+  "description": "Fictional actor/recipient privacy-boundary dialogue. Same-worker authored, exact form only, not real consent.",
+  "schema": "VERA_SOCIAL_FICTIONAL_NATURAL_BOUNDARY_V1"
+}
