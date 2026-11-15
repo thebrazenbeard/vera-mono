@@ -44,6 +44,14 @@ _AMBIGUOUS_MESSAGE_BOUNDARY = re.compile(
     rf"({_NAME}) (?:might|may|could) be allowed to read "
     rf"({_NAME})'s messages", re.I,
 )
+# Recognize the referent of a correction outside the supported source
+# grammar, but do not turn that wording into an access or consent claim.
+_UNSUPPORTED_MESSAGE_CORRECTION = re.compile(
+    rf"({_NAME}) (?:can(?:not|'t)?|could|might|should(?: not|n't)?|"
+    rf"must(?: not|n't)?|is (?:not )?(?:allowed|permitted) to) "
+    rf"(?:now )?(?:read|see|view|access|open) ({_NAME})'s messages",
+    re.I,
+)
 _SCOPED_AMBIGUOUS = re.compile(
     rf"(?:he|she|they|that person) is (?:now )?the ({_ROLE}) "
     rf"(?:of|aboard) (?:the )?({_NAME})", re.I,
@@ -237,9 +245,21 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
                 ("correction", "update", "only change",
                  "actually", "no,", "i meant")
             ):
-                # Unsupported corrections are *not* an excuse to preserve a
-                # stale actor as certainly current.
-                scoped_refs = tuple(_SCOPED_REF.finditer(clause))
+                # A direct but unsupported correction to an exact fictional
+                # reader/owner pair supersedes its earlier reported boundary.
+                # Do not promote synonyms such as "view" into permission.
+                message_ref = _UNSUPPORTED_MESSAGE_CORRECTION.fullmatch(clause)
+                if message_ref:
+                    key = (
+                        f"relation:{message_ref.group(1).casefold()}:"
+                        f"read_messages:{message_ref.group(2).casefold()}"
+                    )
+                    proposals.setdefault(key, []).append(
+                        ActiveFact(key, None, "UNRESOLVED", turn_index, clause)
+                    )
+                    matched = True
+                # Unsupported role corrections must not preserve stale actors.
+                scoped_refs = tuple(_SCOPED_REF.finditer(clause)) if not matched else ()
                 if scoped_refs:
                     for scoped_ref in scoped_refs:
                         key = (
@@ -249,7 +269,7 @@ def reconstruct(user_turns: list[str]) -> dict[str, ActiveFact]:
                         proposals.setdefault(key, []).append(
                             ActiveFact(key, None, "UNRESOLVED", turn_index, clause)
                         )
-                else:
+                elif not matched:
                     for role_name in dict.fromkeys(
                         x.lower() for x in _BOUNDED_ROLE.findall(clause)
                     ):
