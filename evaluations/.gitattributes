@@ -17,3 +17,5 @@ social_bounded_scene_direction_v1.json -text whitespace=cr-at-eol
 social_bounded_scene_direction_qwen_seed109_20261115.jsonl -text whitespace=cr-at-eol
 social_bounded_challenge_qwen4b_seed107_20261115.json -text whitespace=cr-at-eol
 social_bounded_context_trial_audit_20261115.json -text whitespace=cr-at-eol
+social_judgment_v3_vs_base_qwen08_seed79_20261115.jsonl -text whitespace=cr-at-eol
+social_judgment_v3_vs_base_qwen4b_seed79_20261115.jsonl -text whitespace=cr-at-eol

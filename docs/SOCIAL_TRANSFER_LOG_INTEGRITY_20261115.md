@@ -66,7 +66,20 @@ intentional per-case prompt-arm reversal. Expanded focused suite:
 - Python3.12 compileall and git diff --check: exit0.
 
 Fresh full Python3.12 suite after changes: 1263 passed, 106 skipped, 363 subtests passed, one preexisting TestVerifier collection warning, exit0, 128.61 seconds.
-VN1_AND_VN2_EXACT_COMMIT_VALIDATION_PENDING
+Cross-workstation falsifier at commit 7bfe528:
+- VN2 Linux Python3.12: 8 unittest cases passed and pinned Qwen3:4B
+  48-row audit passed, original SHA256 preserved.
+- VN1 Windows Python3.13: 8 pytest cases and 13 subtests passed,
+  but the pinned 0.8B log audit correctly FAILED. VN1 has
+  core.autocrlf=true. Both published 48-line raw JSONL files lacked
+  a per-file -text rule: checkout inserted 48 CR bytes in each file.
+  The original Git blob SHA256 matched the pinned expected value,
+  while the altered working files did not.
+- Added byte-preserving -text rules for exactly those two JSONL
+  files in evaluations/.gitattributes, leaving original logs
+  entirely unchanged. This is a checkout-currentness fix rather
+  than an adjustment to the auditor or evidence.
+VN1_AND_VN2_POST_ATTRIBUTE_VALIDATION_PENDING
 
 ## Material hostile limits
 
