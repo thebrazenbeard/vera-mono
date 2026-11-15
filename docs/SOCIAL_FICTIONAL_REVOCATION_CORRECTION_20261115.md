@@ -62,3 +62,29 @@ Fresh full Lappy Python3.12 test suite: 1264 passed, 106 skipped, 365 subtests p
 Evidence class: source inspection, reproducible test-first regression,
 local tests. Not independent human review, model behavior qualification
 or observed deployed behavior. No paid compute.
+
+
+## Cross-workstation exact-commit check
+
+On exact committed source HEAD d1bebcc88c7f9a334ca8ab1f9c067d951514d5ae,
+VN1 Windows Python3.13 and VN2 Linux Mint Python3.12 each passed
+38 bounded source tests, including the two newly red-then-green
+revocation cases and the entire social_active_state test class.
+Each isolated runner imported the real committed social_active_state.py
+source through a test-only package namespace, with no changes to
+source files, credentials or native runtime.
+
+The broader sparse-checkout tests initially failed on both workstations
+at module collection because the vera_core package initializer eagerly
+imports other packages. The first failure was missing portfolio_runtime
+from the sparse checkout; after expanding all 12 package source roots
+the next failure was uninstalled jsonschema. Tests using the exact
+CLI in a subprocess and a frozen fixture also could not run in that
+limited environment without those dependencies and fixture assets.
+
+These secondary host failures are **environmental/integration gaps**,
+not evidence of a parser regression. The Lappy full integrated suite
+passed earlier at this commit before publication. The secondary
+38-test checks only qualify the bounded module behavior and do not
+establish a working native deployment or full-package compatibility
+on VN1 or VN2.
