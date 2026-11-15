@@ -20,6 +20,7 @@ for package in sorted((ROOT / "packages").iterdir()):
 
 from vera_core.social_active_state import (  # noqa: E402
     reconstruct, render_state, route_scene_reply,
+    route_styled_boundary_reply,
 )
 from run_social_multiturn_eval import local_api  # noqa: E402
 
@@ -117,7 +118,13 @@ def main() -> int:
         "DIRECT", "CONVERSATIONAL", "GENTLE",
     ), default="CONVERSATIONAL")
     parser.add_argument("--allow-humor", action="store_true")
+    parser.add_argument(
+        "--bounded-tone", action="store_true",
+        help="Experimental source-grounded fictional dialogue; model selects tone only",
+    )
     args = parser.parse_args()
+    if args.bounded_tone and args.personification_checkout is not None:
+        parser.error("--bounded-tone and --personification-checkout are separate trials")
     if args.personification_checkout is None:
         if (args.actor_id is not None or args.subject_id is not None
             or args.interaction_kind != "GENERAL"
@@ -160,7 +167,27 @@ def main() -> int:
         })
         return response["message"]["content"]
 
-    response = route_scene_reply(turns, generate)
+    if args.bounded_tone:
+        def select_tone(prompt: str) -> str:
+            answer = local_api("/api/chat", {
+                "model": args.model, "stream": False, "think": False,
+                "keep_alive": "0",
+                "options": {
+                    "temperature": 0, "seed": args.seed,
+                    "num_predict": 24, "num_ctx": 2048,
+                },
+                "messages": [
+                    {"role": "system", "content": (
+                        "Return exactly one uppercase token: DIRECT, GENTLE, "
+                        "FIRM or CASUAL. No explanation."
+                    )},
+                    {"role": "user", "content": prompt},
+                ],
+            })
+            return answer["message"]["content"]
+        response = route_styled_boundary_reply(turns, select_tone)
+    else:
+        response = route_scene_reply(turns, generate)
     print(json.dumps({
         "answer": response.answer,
         "status": response.status,

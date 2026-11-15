@@ -542,3 +542,88 @@ def route_scene_reply(
     if type(reply) is not str or not reply.strip():
         raise RuntimeError("local model returned empty or invalid text")
     return RoutedSceneReply(reply, "MODEL_UNVERIFIED", (), True)
+
+
+def route_styled_boundary_reply(
+    user_turns: list[str], select_tone: Callable[[str], str],
+) -> RoutedSceneReply:
+    """Opt-in fictional dialogue: model selects tone, never proposition text.
+
+    Only an exact current reported denial can be surfaced. The model receives
+    an already-grounded sentence and may choose a tone token, not authorize
+    new content. Untrusted selections fall back to the direct source answer.
+    """
+    question = user_turns[-1].strip() if user_turns else ""
+    actor = re.fullmatch(
+        rf"In the fictional scene, what could ({_NAME}) say to ({_NAME}) "
+        r"to respect (?:his|her|their) message boundary\?", question, re.I,
+    )
+    owner = re.fullmatch(
+        rf"In the fictional scene, what could ({_NAME}) say to ({_NAME}) "
+        r"about (?:his|her|their) messages\?", question, re.I,
+    )
+    if not (actor or owner):
+        return RoutedSceneReply("UNKNOWN", "UNSUPPORTED_STYLE_SCOPE", (), False)
+    fact = answer_explicit_scene_question(user_turns)
+    if fact is None:
+        return RoutedSceneReply("UNKNOWN", "UNSUPPORTED_STYLE_SCOPE", (), False)
+    if fact.status != "RESOLVED":
+        return RoutedSceneReply(fact.answer, fact.status, fact.evidence, False)
+
+    reader, proprietor = (
+        (actor.group(1), actor.group(2))
+        if actor else (owner.group(2), owner.group(1))
+    )
+    if actor:
+        lines = {
+            "DIRECT": fact.answer,
+            "GENTLE": (
+                f'{reader} could tell {proprietor}, '
+                '"I understand. I won\'t read your messages, '
+                'and I\'ll respect your privacy."'
+            ),
+            "FIRM": (
+                f'{reader} could tell {proprietor}, '
+                '"I won\'t read your messages. '
+                'That\'s your boundary, and I\'ll honor it."'
+            ),
+            "CASUAL": (
+                f'{reader} could tell {proprietor}, '
+                '"Got it. Your messages are private, and I won\'t read them."'
+            ),
+        }
+    else:
+        lines = {
+            "DIRECT": fact.answer,
+            "GENTLE": (
+                f'{proprietor} could tell {reader}, '
+                '"I\'d appreciate it if you didn\'t read my messages."'
+            ),
+            "FIRM": (
+                f'{proprietor} could tell {reader}, '
+                '"Please don\'t read my messages. '
+                'I need you to respect that boundary."'
+            ),
+            "CASUAL": (
+                f'{proprietor} could tell {reader}, '
+                '"Hey, please leave my messages private."'
+            ),
+        }
+    prompt = (
+        "Fictional style-only selector. Select exactly one uppercase token "
+        "DIRECT, GENTLE, FIRM or CASUAL. No explanation, JSON or additions. "
+        "The source-verified line below is fixed in meaning. Choose the "
+        "most fitting conversational delivery without inventing access, "
+        "permission, new emotions or motives.\n"
+        "Grounded line: " + fact.answer + "\n"
+        "User request: " + question
+    )
+    choice = select_tone(prompt)
+    tone = choice.strip() if type(choice) is str else None
+    if tone not in lines:
+        return RoutedSceneReply(
+            fact.answer, "SOURCE_STYLE_FALLBACK", fact.evidence, True
+        )
+    return RoutedSceneReply(
+        lines[tone], "SOURCE_STYLED_" + tone, fact.evidence, True
+    )
