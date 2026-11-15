@@ -46,6 +46,61 @@ class RevisionRestartTests(unittest.TestCase):
             self.assertNotIn("current_token", json.dumps(result))
             self.assertNotIn("model_text", json.dumps(result))
 
+    def test_opt_in_source_only_five_processes_no_neural_http(self):
+        # Separates deterministic approved-source recall from neural imitation.
+        with FakeLocal(answer=response(model="vera:local", text="WRONG")) as server:
+            result = trial.run_trial(
+                endpoint=server.url, model="vera:local",
+                model_digest="b" * 64, timeout_seconds=20, source_only=True)
+        self.assertEqual("MINI_VERA_REVISION_SOURCE_ONLY_RESTART_V1", result["schema"])
+        self.assertEqual("SYNTHETIC_SOURCE_LOOKUP_NOT_MODEL_QUALIFIED",
+                         result["qualification"])
+        self.assertTrue(result["source_only_pass"])
+        self.assertTrue(result["neural_behavior_not_evaluated"])
+        self.assertEqual(0, result["model_http_calls_attempted"])
+        self.assertEqual(5, result["independent_python_sessions"])
+        self.assertEqual(2, result["corrected_exact_count"])
+        self.assertTrue(result["control_unknown"])
+        self.assertTrue(result["stale_superseded_refused"])
+        self.assertTrue(result["revoked_refused"])
+        self.assertEqual([], server.requests)
+        self.assertNotIn("current_token", json.dumps(result))
+        self.assertNotIn("old_token", json.dumps(result))
+        self.assertNotIn("SYNTHETIC_PRIVATE_NEVER_SEND", json.dumps(result))
+
+    def test_source_only_refuses_missing_binding_and_second_check_revocation(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        empty_state, empty_key = trial.local_session.empty_public_state()
+        with self.assertRaises(trial.RevisionCanaryRefused):
+            trial._source_only_answer(
+                lambda: (empty_state, empty_key, 0), "current")
+        self.assertEqual("UNKNOWN", trial._source_only_answer(None, "control"))
+        with self.assertRaises(trial.RevisionCanaryRefused):
+            trial._source_only_answer(
+                lambda: (empty_state, empty_key, 0), "control")
+
+        with TemporaryDirectory(prefix="mini-vera-revision-restart-") as temp:
+            path, head, _expected = trial._fixture(Path(temp))
+            ledger = trial.baseline.MemoryLedger(
+                path, project_id="vera-mono", identity_id="vera")
+            approved = trial.approved_ledger_provider(
+                ledger, record_ids=["revision-current"], expected_head=head,
+                expected_revision=8, integrity_key=trial.baseline.KEY,
+                host_public_project_approval=trial._approve)
+            calls = [0]
+
+            def revoked_after_first_read():
+                calls[0] += 1
+                if calls[0] == 1:
+                    return approved()
+                raise trial.compose.CompositionRejected("host approval revoked")
+
+            with self.assertRaises(trial.compose.CompositionRejected):
+                trial._source_only_answer(revoked_after_first_read, "current")
+            self.assertEqual(2, calls[0])
+
     def test_invalid_endpoint_refuses_before_disposable_ledger(self):
         with self.assertRaises(trial.RevisionCanaryRefused):
             trial.run_trial(endpoint="https://external.example/v1",
