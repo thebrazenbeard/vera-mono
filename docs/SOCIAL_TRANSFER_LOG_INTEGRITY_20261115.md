@@ -79,7 +79,20 @@ Cross-workstation falsifier at commit 7bfe528:
   files in evaluations/.gitattributes, leaving original logs
   entirely unchanged. This is a checkout-currentness fix rather
   than an adjustment to the auditor or evidence.
-VN1_AND_VN2_POST_ATTRIBUTE_VALIDATION_PENDING
+Final exact-head 5299687 cross-machine revalidation:
+- VN1 Windows Python3.13, FRESH isolated sparse Git clone with
+  core.autocrlf=true: both raw JSONL worktree files exactly match
+  Git blobs (zero CRLF), with the original 46399-byte and
+  54544-byte lengths and frozen SHA256 values. The new -text
+  attribute is unset on both files. Eight pytest cases and
+  13 subtests passed; 0.8B pinned 48-row audit PASS, exit0.
+- VN2 Linux Mint Python3.12, refreshed same exact commit:
+  8 unittest cases PASS and 4B pinned 48-row audit PASS,
+  exit0; both attributes report unset.
+- GitHub PR #214 remains a SOURCE-ONLY research draft.
+  This validates source byte portability, not model authorship,
+  native deployment, host access authority or social quality.
+No device reboot, model inference, native release or merge occurred.
 
 ## Material hostile limits
 
