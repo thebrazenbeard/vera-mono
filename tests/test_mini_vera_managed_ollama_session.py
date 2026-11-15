@@ -178,6 +178,45 @@ class ManagedOllamaSessionTests(unittest.TestCase):
         self.assertIn("remains occupied", message)
         proc.terminate.assert_called_once()
 
+    def test_managed_4b_defaults_to_compact_when_unspecified(self):
+        args = [arg for arg in self.args if arg != "--compact-dialogue"]
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        with mock.patch.object(managed.subprocess, "Popen", return_value=proc), \
+             mock.patch.object(managed, "wait_ready", return_value=True), \
+             mock.patch.object(managed.conversation_console, "main", return_value=0) as console, \
+             mock.patch.object(managed.ollama_preflight, "windows_free_physical_bytes",
+                               return_value=16 * ollama_preflight.GIB):
+            code, _ = self.call(args)
+        self.assertEqual(0, code)
+        self.assertIn("--compact-dialogue", console.call_args.args[0])
+        self.job.bind.assert_called_once_with(proc.pid)
+        proc.terminate.assert_called_once()
+
+    def test_explicit_full_governed_mode_keeps_diagnostic_alternative(self):
+        args = [arg for arg in self.args if arg != "--compact-dialogue"]
+        args.append("--full-governed-dialogue")
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        with mock.patch.object(managed.subprocess, "Popen", return_value=proc), \
+             mock.patch.object(managed, "wait_ready", return_value=True), \
+             mock.patch.object(managed.conversation_console, "main", return_value=0) as console, \
+             mock.patch.object(managed.ollama_preflight, "windows_free_physical_bytes",
+                               return_value=16 * ollama_preflight.GIB):
+            code, _ = self.call(args)
+        self.assertEqual(0, code)
+        self.assertNotIn("--compact-dialogue", console.call_args.args[0])
+        self.assertNotIn("--full-governed-dialogue", console.call_args.args[0])
+        proc.terminate.assert_called_once()
+
+    def test_conflicting_dialogue_modes_refuse_before_owning_server(self):
+        args = [*self.args, "--full-governed-dialogue"]
+        with mock.patch.object(managed.subprocess, "Popen") as spawned:
+            code, error = self.call(args)
+        self.assertEqual(2, code)
+        self.assertIn("conflicting dialogue modes", error)
+        spawned.assert_not_called()
+
     def test_bad_digest_is_refused_without_child(self):
         args = list(self.args)
         args[args.index("--expected-tag-digest") + 1] = "not-a-digest"
