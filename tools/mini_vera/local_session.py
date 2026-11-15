@@ -12,6 +12,7 @@ import argparse
 import hmac
 import json
 from pathlib import Path
+import re
 import secrets
 import sys
 from collections.abc import Callable
@@ -24,6 +25,23 @@ from . import artifact_binding, compose, host_read_probe, loopback
 # attestation. Change them only with an explicitly reviewed source update.
 PINNED_IDENTITY_SHA256 = "b7fdd42bfcea319c27b405339de580c2c37879e8a19d5c4642739ae855875e7f"
 PINNED_BEHAVIOR_SHA256 = "ec1defa8fcf96371a427991d40695842ffe6794aeb2e3f26c69ef5f528ee7d6d"
+
+
+# A deliberately narrow presentation barrier for demonstrably unperformed
+# durable writes. This is NOT a general truthfulness or hallucination detector.
+_PERSISTENT_WRITE_CLAIM = re.compile(
+    r"\b(?:(?:this|that|the)\s+"
+    r"(?:update|correction|change|detail|fact|information)\s+"
+    r"(?:is|was|has\s+been)\s+|"
+    r"(?:i(?:'ve|\s+have)?|we(?:'ve|\s+have)?)\s+)"
+    r"(?:now\s+)?(?:saved|recorded|stored|written|added)\s+"
+    r"(?:(?:it|that|this|(?:your|the)\s+(?:[\w-]+\s+){0,3}[\w-]+)\s+)?"
+    r"(?:in|into|to)\s+"
+    r"(?:(?:my|our|the)\s+)?"
+    r"(?:persistent|permanent|long[- ]term|durable)\s+"
+    r"(?:memory|context|state)\b",
+    re.IGNORECASE,
+)
 
 
 def empty_public_state() -> tuple[dict[str, Any], bytes]:
@@ -374,6 +392,18 @@ def main(argv: list[str] | None = None, *,
                 print("Local output withheld: post-inference public-memory approval "
                       "or source integrity changed; session stopped.", file=sys.stderr)
                 return 2
+        # This client has no persistent write path. A model claim that it
+        # saved a correction to durable memory is not an action receipt, and
+        # must never be presented or replayed as if the write happened.
+        # Run before BOTH structured and conversational output formatting.
+        if _PERSISTENT_WRITE_CLAIM.search(result["response"]["text"]):
+            history.clear()
+            print("Local output withheld: unsupported persistent-memory claim; "
+                  "no durable write occurred. Session history cleared.",
+                  file=sys.stderr)
+            if args.prompt is not None:
+                return 2
+            continue
         if args.structured_output:
             try:
                 if args.host_read_probe and not args.deliver_host_observation:
