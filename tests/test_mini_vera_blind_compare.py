@@ -36,6 +36,16 @@ class MiniVeraBlindCompareTests(unittest.TestCase):
         self.assertNotEqual(arms["minimal_persona"]["messages"][0]["content"],
                             arms["governed_composer"]["messages"][0]["content"])
 
+    def test_all_comparison_arms_disable_ollama_reasoning_budget(self):
+        # On Lappy's real 0.8B Qwen, the original bare arm returned
+        # HTTP 200, finish_reason=length, and zero visible content
+        # after spending all 128 completion tokens on reasoning.
+        # Explicit reasoning_effort=none completed a visible answer.
+        arms = blind_compare.arm_payloads(candidate())
+        for name, payload in arms.items():
+            with self.subTest(arm=name):
+                self.assertEqual(payload["reasoning_effort"], "none")
+
     def test_fake_local_server_comparison_records_three_real_http_receipts(self):
         with FakeLocal() as fake:
             sheet, private = blind_compare.compare(candidate(), endpoint=fake.url)
