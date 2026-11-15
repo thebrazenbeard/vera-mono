@@ -245,6 +245,91 @@ raise SystemExit(local_session.main(['--endpoint', 'http://127.0.0.1:11434/v1', 
             self.assertIn("Vera> Second distinct server reply.", output.getvalue())
             self.assertNotIn("Authorization", server.requests[0][2])
 
+    def test_false_persistent_memory_claim_is_withheld_and_one_shot_fails(self):
+        claim = "This update is recorded in the persistent context."
+        with FakeLocal(answer=response(model="vera:local", text=claim)) as server:
+            out, err = io.StringIO(), io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute",
+                    "--host-idle-confirmed", "--prompt", "Rename the ship."]
+            with redirect_stdout(out), redirect_stderr(err):
+                status = local_session.main(args)
+            self.assertEqual(2, status)
+            self.assertEqual(1, len(server.requests))
+            self.assertNotIn(claim, out.getvalue())
+            self.assertIn("unsupported persistent-memory claim", err.getvalue())
+
+    def test_false_persistence_discarded_across_interactive_turns(self):
+        claim = "I've saved that to my permanent memory."
+        with FakeLocal(answer=response(model="vera:local", text=claim)) as server:
+            out, err = io.StringIO(), io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute",
+                    "--host-idle-confirmed"]
+            def next_input(_prompt):
+                return {0: "First request", 1: "Second request",
+                        2: "/quit"}[len(server.requests)] if len(server.requests) < 2 else "/quit"
+            # Change only the second model's response, not the first claim.
+            def second_input(_prompt):
+                if len(server.requests) == 1:
+                    server.answer = response(
+                        model="vera:local",
+                        text="I did not save this to persistent memory.")
+                return next_input(_prompt)
+            with patch("builtins.input", side_effect=second_input), \
+                 redirect_stdout(out), redirect_stderr(err):
+                status = local_session.main(args)
+            self.assertEqual(0, status)
+            self.assertEqual(2, len(server.requests))
+            self.assertEqual([2, 2],
+                             [len(item[1]["messages"]) for item in server.requests])
+            self.assertNotIn(claim, out.getvalue())
+            self.assertIn("Vera> I did not save this", out.getvalue())
+            self.assertIn("Session history cleared", err.getvalue())
+
+    def test_false_persistence_withheld_from_structured_output(self):
+        claim = "This correction has been saved to long-term memory."
+        with FakeLocal(answer=response(model="vera:local", text=claim)) as server:
+            out, err = io.StringIO(), io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute",
+                    "--host-idle-confirmed", "--structured-output",
+                    "--prompt", "Correction"]
+            with redirect_stdout(out), redirect_stderr(err):
+                status = local_session.main(args)
+            self.assertEqual(2, status)
+            self.assertEqual(1, len(server.requests))
+            self.assertNotIn(claim, out.getvalue())
+            self.assertIn("unsupported persistent-memory claim", err.getvalue())
+
+    def test_first_person_claim_with_possessive_object_is_withheld(self):
+        claim = "I saved your new fictional ship name to my permanent memory."
+        with FakeLocal(answer=response(model="vera:local", text=claim)) as server:
+            out, err = io.StringIO(), io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute",
+                    "--host-idle-confirmed", "--prompt", "What changed?"]
+            with redirect_stdout(out), redirect_stderr(err):
+                self.assertEqual(2, local_session.main(args))
+            self.assertEqual(1, len(server.requests))
+            self.assertNotIn(claim, out.getvalue())
+            self.assertIn("unsupported persistent-memory claim", err.getvalue())
+
+    def test_truncated_false_persistence_claim_is_not_displayed(self):
+        claim = "This update is recorded in the persistent context."
+        truncated = response(model="vera:local", text=claim)
+        truncated["choices"][0]["finish_reason"] = "length"
+        with FakeLocal(answer=truncated) as server:
+            out, err = io.StringIO(), io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute",
+                    "--host-idle-confirmed", "--prompt", "Correction"]
+            with redirect_stdout(out), redirect_stderr(err):
+                self.assertEqual(2, local_session.main(args))
+            self.assertEqual(1, len(server.requests))
+            self.assertNotIn(claim, out.getvalue())
+            self.assertIn("unsupported persistent-memory claim", err.getvalue())
+
     def test_two_new_processes_do_not_inherit_volatile_chat_history(self):
         with FakeLocal(answer=response(model="vera:local")) as server:
             command = [sys.executable, "-m", "tools.mini_vera.local_session",
