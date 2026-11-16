@@ -59,6 +59,33 @@ class ManagedOllamaSessionTests(unittest.TestCase):
             code = managed.main(self.args if args is None else args)
         return code, err.getvalue()
 
+    def test_explicit_small_model_uses_existing_small_model_preflight(self):
+        args = list(self.args)
+        args[args.index("--model") + 1] = "qwen3.5:0.8b"
+        args.append("--small-08b")
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        with mock.patch.object(managed.subprocess, "Popen", return_value=proc), \
+             mock.patch.object(managed, "wait_ready", return_value=True), \
+             mock.patch.object(managed.conversation_console, "main", return_value=0) as console, \
+             mock.patch.object(managed.ollama_preflight, "windows_free_physical_bytes",
+                               return_value=16 * ollama_preflight.GIB):
+            try:
+                code, _ = self.call(args)
+            except SystemExit as exc:
+                code = exc.code  # Missing CLI support is the expected RED.
+        self.assertEqual(0, code)
+        forwarded = console.call_args.args[0]
+        self.assertNotIn("--candidate-4b", forwarded)
+        self.assertEqual("qwen3.5:0.8b", forwarded[forwarded.index("--model") + 1])
+        self.assertIn("--expected-tag-digest", forwarded)
+        self.assertIn("--confirm-host-idle", forwarded)
+        self.assertIn("--allow-cold-load", forwarded)
+        self.assertIn("--compact-dialogue", forwarded)
+        self.job.bind.assert_called_once_with(proc.pid)
+        proc.terminate.assert_called_once()
+        self.job.close.assert_called_once()
+
     def test_optin_session_runs_guarded_console_and_terminates_only_owned_child(self):
         proc = mock.Mock()
         proc.poll.return_value = None
