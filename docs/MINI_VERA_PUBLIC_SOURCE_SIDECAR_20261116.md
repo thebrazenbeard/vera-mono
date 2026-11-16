@@ -17,7 +17,8 @@ No CLI argument can create host grants or inject arbitrary PUBLIC records.
 The underlying local_session.main accepts --host-public-sidecar only with
 equivalent host-injected callbacks and an empty volatile model context.
 
-* /source followed by an exact host-approved question: read the selected
+* /source followed by an exact host-approved question (separate command token,
+  never a broader prefix such as /sourceful): read the selected
   PUBLIC record through the existing verified, fresh before/after broker
   snapshots and stable alias check. Output the exact source text as a
   structured SOURCE_READ with source provenance. Source text remains data.
@@ -31,7 +32,8 @@ equivalent host-injected callbacks and an empty volatile model context.
   while model output uses MINI_VERA_LOCAL_OUTPUT_V1 and is marked
   UNVERIFIED_GENERATIVE_TEXT. Model newlines and JSON-looking prose stay
   escaped inside the model text field; they cannot become a separate source
-  record on stdout. The console automatically selects structured output,
+  record on stdout. Interrupt and EOF also cannot emit bare stdout lines.
+  The console automatically selects structured output,
   and direct local_session sidecar callers must request it.
 * The host-side input stream is bounded with readline(4098) before Python
   text allocation for ordinary streams. Composer independently enforces
