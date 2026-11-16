@@ -408,16 +408,22 @@ def main(argv: list[str] | None = None, *,
                 else:
                     current = input("You> ")
             except (EOFError, KeyboardInterrupt):
-                print()
+                # Hybrid stdout is a typed JSONL channel: even a user
+                # interrupt must not emit an unstructured blank record.
+                print(file=sys.stderr if args.host_public_sidecar else sys.stdout)
                 return 0
             if current.strip().lower() in {"/quit", "/exit"}:
                 return 0
             if not current.strip():
                 continue
-            if args.host_public_sidecar and current.strip().lower().startswith("/source"):
-                # /source is an explicit CLIENT command, not model-generated
-                # prose. Never fall back to the model on misses or revoked data.
-                question = current.strip()[len("/source"):].strip()
+            tokenized = current.strip()
+            lower = tokenized.lower()
+            if (args.host_public_sidecar and lower.startswith("/source")
+                    and (len(lower) == len("/source")
+                         or lower[len("/source")].isspace())):
+                # Only a separate command token chooses source routing.
+                # /sourceful and similar ordinary text stay neural.
+                question = tokenized[len("/source"):].strip()
                 try:
                     answer = host_question_reader.read_allowed_question(
                         sidecar_provider, question=question,

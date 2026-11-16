@@ -187,6 +187,48 @@ class SourceSidecarTests(unittest.TestCase):
         self.assertNotIn("Synthetic public project milestone",json.dumps(second))
         self.assertEqual(3,len(out.getvalue().splitlines()))
 
+    def test_keyboard_interrupt_never_prints_nonjson_stdout(self):
+        class InterruptedStream(io.StringIO):
+            def readline(self, size=-1):
+                raise KeyboardInterrupt()
+        out,err=io.StringIO(),io.StringIO()
+        with FakeLocal(answer=response(model="vera:local",text="unused")) as server:
+            with (
+                mock.patch.object(sys,"stdin",InterruptedStream()),
+                contextlib.redirect_stdout(out),
+                contextlib.redirect_stderr(err),
+            ):
+                code=local_session.main(
+                    self.args(server.url),
+                    live_public_provider=self.provider(),
+                    host_public_question_aliases=dict(self.ALIASES))
+        self.assertEqual(0,code,err.getvalue())
+        self.assertEqual("",out.getvalue(),
+                         "hybrid stdout must contain typed JSONL only")
+        self.assertEqual(0,self.provider_reads)
+        self.assertEqual([],server.requests)
+
+    def test_source_prefix_word_is_ordinary_neural_turn(self):
+        out,err=io.StringIO(),io.StringIO()
+        data="/sourceful ask about a poem\n/quit\n"
+        with FakeLocal(answer=response(model="vera:local",text="A fictional poem.")) as server:
+            with (
+                mock.patch.object(sys,"stdin",io.StringIO(data)),
+                contextlib.redirect_stdout(out),
+                contextlib.redirect_stderr(err),
+            ):
+                code=local_session.main(
+                    self.args(server.url),
+                    live_public_provider=self.provider(),
+                    host_public_question_aliases=dict(self.ALIASES))
+        self.assertEqual(0,code,err.getvalue())
+        self.assertEqual(0,self.provider_reads)
+        self.assertEqual(1,len(server.requests))
+        rows=[json.loads(line) for line in out.getvalue().splitlines()]
+        self.assertEqual(["MINI_VERA_LOCAL_OUTPUT_V1"],
+                         [row["schema"] for row in rows])
+        self.assertEqual("A fictional poem.",rows[0]["model"]["text"])
+
 class SourceSidecarConsoleTests(unittest.TestCase):
     def test_packaged_console_delegates_trusted_sidecar_with_model_guard(self):
         receipt={"schema":"MINI_VERA_08B_PREFLIGHT_V1",
