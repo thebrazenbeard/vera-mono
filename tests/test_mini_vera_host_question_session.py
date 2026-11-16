@@ -74,10 +74,62 @@ class HostQuestionSessionTests(TestCase):
                         host_public_question_aliases=aliases)
         return code, out.getvalue(), err.getvalue()
 
+    def test_interactive_oversize_stdin_is_bounded_before_source_read(self):
+        class AuditedInput(io.StringIO):
+            def __init__(self):
+                super().__init__("A" * 100000 + "\n")
+                self.read_sizes = []
+
+            def readline(self, size=-1):
+                self.read_sizes.append(size)
+                return super().readline(size)
+
+        hostile = AuditedInput()
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(sys, "stdin", hostile), \
+             mock.patch.object(ollama_preflight, "probe",
+                               side_effect=AssertionError("no preflight")), \
+             mock.patch.object(loopback, "execute",
+                               side_effect=AssertionError("no HTTP")), \
+             contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = conversation_console.main(
+                ["--interactive-host-questions"],
+                live_public_provider=lambda: (_ for _ in ()).throw(
+                    AssertionError("no host read on oversized input")),
+                host_public_question_aliases=dict(self.ALIASES))
+
+        self.assertEqual(2, code)
+        self.assertEqual("", out.getvalue())
+        self.assertEqual([host_question_reader.MAX_QUESTION_BYTES + 2],
+                         hostile.read_sizes)
+        self.assertIn("too long", err.getvalue().lower())
+
+    def test_interactive_exact_limit_with_windows_newline_returns_unknown(self):
+        out, err = io.StringIO(), io.StringIO()
+        question = "A" * host_question_reader.MAX_QUESTION_BYTES
+        with mock.patch.object(sys, "stdin",
+                               io.StringIO(question + "\r\n/quit\n")), \
+             mock.patch.object(ollama_preflight, "probe",
+                               side_effect=AssertionError("no preflight")), \
+             mock.patch.object(loopback, "execute",
+                               side_effect=AssertionError("no model HTTP")), \
+             contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = conversation_console.main(
+                ["--interactive-host-questions"],
+                live_public_provider=lambda: (_ for _ in ()).throw(
+                    AssertionError("an unmatched question must not read the ledger")),
+                host_public_question_aliases=dict(self.ALIASES))
+        self.assertEqual(0, code, err.getvalue())
+        records = [json.loads(line) for line in out.getvalue().splitlines()]
+        self.assertEqual(1, len(records))
+        self.assertEqual("UNKNOWN", records[0]["status"])
+        self.assertEqual(0, records[0]["model_http_calls"])
+
     def test_interactive_question_session_rechecks_source_and_never_uses_model(self):
         out, err = io.StringIO(), io.StringIO()
         prompts = [self.QUESTION, "What else is in your private records?", "/quit"]
-        with mock.patch("builtins.input", side_effect=prompts), \
+        with mock.patch.object(sys, "stdin",
+                               io.StringIO("\n".join(prompts) + "\n")), \
              mock.patch.object(ollama_preflight, "probe",
                                side_effect=AssertionError("no model preflight")), \
              mock.patch.object(loopback, "execute",
@@ -105,14 +157,20 @@ class HostQuestionSessionTests(TestCase):
         original = self.provider()
         questions = [0]
 
-        def next_question():
-            questions[0] += 1
-            if questions[0] == 2:
-                self.grant = None
-                self.auth_revision += 1
-            return self.QUESTION
+        class RevocationInput(io.StringIO):
+            def __init__(self):
+                super().__init__((self_question + "\n") * 2)
+            def readline(self, size=-1):
+                questions[0] += 1
+                if questions[0] == 2:
+                    self_grant_revoke()
+                return super().readline(size)
+        self_question = self.QUESTION
+        def self_grant_revoke():
+            self.grant = None
+            self.auth_revision += 1
 
-        with mock.patch("builtins.input", side_effect=next_question), \
+        with mock.patch.object(sys, "stdin", RevocationInput()), \
              mock.patch.object(ollama_preflight, "probe",
                                side_effect=AssertionError("no preflight")), \
              mock.patch.object(loopback, "execute",
@@ -157,9 +215,10 @@ class HostQuestionSessionTests(TestCase):
                 self.assertEqual(2, captured.exception.code)
 
     def test_interactive_eof_and_quit_do_not_call_source_or_model(self):
-        for stop in (EOFError(), "/exit", "/quit"):
+        for stop in ("", "/exit", "/quit"):
             with self.subTest(stop=repr(stop)):
-                with mock.patch("builtins.input", side_effect=[stop]), \
+                with mock.patch.object(sys, "stdin",
+                                       io.StringIO(stop + ("\n" if stop else ""))), \
                      mock.patch.object(ollama_preflight, "probe",
                                        side_effect=AssertionError("no model")), \
                      mock.patch.object(loopback, "execute",
