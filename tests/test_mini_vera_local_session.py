@@ -245,6 +245,52 @@ raise SystemExit(local_session.main(['--endpoint', 'http://127.0.0.1:11434/v1', 
             self.assertIn("Vera> Second distinct server reply.", output.getvalue())
             self.assertNotIn("Authorization", server.requests[0][2])
 
+    def test_claim_of_memory_write_without_durable_adjective_is_withheld(self):
+        # This client has no memory write tool; omitting "persistent" or
+        # "permanent" must not make a fabricated write appear real.
+        claim = "I've saved that in my memory."
+        with FakeLocal(answer=response(model="vera:local", text=claim)) as server:
+            out, err = io.StringIO(), io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute",
+                    "--host-idle-confirmed", "--structured-output",
+                    "--prompt", "Remember the new fictional ship name"]
+            with redirect_stdout(out), redirect_stderr(err):
+                status = local_session.main(args)
+        self.assertEqual(2, status)
+        self.assertEqual(1, len(server.requests))
+        self.assertEqual("", out.getvalue())
+        self.assertIn("unsupported persistent-memory claim", err.getvalue())
+
+    def test_memory_write_denial_is_not_false_blocked(self):
+        denial = "I did not save that in my memory."
+        with FakeLocal(answer=response(model="vera:local", text=denial)) as server:
+            out, err = io.StringIO(), io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute",
+                    "--host-idle-confirmed", "--structured-output",
+                    "--prompt", "Did you save that?"]
+            with redirect_stdout(out), redirect_stderr(err):
+                status = local_session.main(args)
+        self.assertEqual(0, status, err.getvalue())
+        self.assertEqual(1, len(server.requests))
+        self.assertEqual(denial, json.loads(out.getvalue())["model"]["text"])
+
+
+    def test_second_memory_write_phrasing_is_withheld(self):
+        claim = "I recorded your fictional captain name in memory."
+        with FakeLocal(answer=response(model="vera:local", text=claim)) as server:
+            out, err = io.StringIO(), io.StringIO()
+            args = ["--endpoint", server.url, "--model", "vera:local",
+                    "--model-digest", "b" * 64, "--execute",
+                    "--host-idle-confirmed", "--prompt", "Remember that name"]
+            with redirect_stdout(out), redirect_stderr(err):
+                status = local_session.main(args)
+        self.assertEqual(2, status)
+        self.assertEqual(1, len(server.requests))
+        self.assertEqual("", out.getvalue())
+        self.assertIn("unsupported persistent-memory claim", err.getvalue())
+
     def test_false_persistent_memory_claim_is_withheld_and_one_shot_fails(self):
         claim = "This update is recorded in the persistent context."
         with FakeLocal(answer=response(model="vera:local", text=claim)) as server:

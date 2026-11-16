@@ -44,6 +44,17 @@ _PERSISTENT_WRITE_CLAIM = re.compile(
 )
 
 
+# A separate narrow guard for unsupported memory writes that do not
+# include an explicit "permanent" or "persistent" adjective. This client
+# only has volatile model history, never a memory-admission/write path.
+_MEMORY_WRITE_CLAIM = re.compile(
+    r"\b(?:i(?:'ve|\s+have)?|we(?:'ve|\s+have)?)\s+"
+    r"(?:now\s+)?(?:saved|stored|recorded|added|written)\s+"
+    r"(?:[^\s.?!]{1,40}\s+){0,8}"
+    r"(?:to|into|in)\s+(?:(?:my|our|the)\s+)?memor(?:y|ies)\b",
+    re.IGNORECASE,
+)
+
 def empty_public_state() -> tuple[dict[str, Any], bytes]:
     """A process-local empty state, not a substitute persistent memory store."""
     key = secrets.token_bytes(32)
@@ -538,7 +549,8 @@ def main(argv: list[str] | None = None, *,
         # saved a correction to durable memory is not an action receipt, and
         # must never be presented or replayed as if the write happened.
         # Run before BOTH structured and conversational output formatting.
-        if _PERSISTENT_WRITE_CLAIM.search(result["response"]["text"]):
+        if (_PERSISTENT_WRITE_CLAIM.search(result["response"]["text"])
+                or _MEMORY_WRITE_CLAIM.search(result["response"]["text"])):
             history.clear()
             print("Local output withheld: unsupported persistent-memory claim; "
                   "no durable write occurred. Session history cleared.",
