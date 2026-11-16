@@ -155,7 +155,8 @@ def structured_local_result(request: dict[str, Any], result: dict[str, Any],
 
 def main(argv: list[str] | None = None, *,
          live_public_provider: Callable[[], tuple[dict[str, Any], bytes, int]] | None = None,
-         host_exact_record_id: str | None = None) -> int:
+         host_exact_record_id: str | None = None,
+         host_public_question_aliases: dict[str, str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--endpoint", required=True, help="Explicit numeric loopback /v1 endpoint")
     parser.add_argument("--model", help="Server model alias (operator-declared, not attested)")
@@ -190,6 +191,40 @@ def main(argv: list[str] | None = None, *,
     parser.add_argument("--compact-dialogue", action="store_true",
                         help="Opt-in, no-memory creative conversation prompt; no synthetic source gate")
     args = parser.parse_args(argv)
+    if host_public_question_aliases is not None:
+        # Trusted host in-process API; not a CLI approval source.
+        if (live_public_provider is None or host_exact_record_id is not None
+                or args.prompt is None or not args.structured_output
+                or args.execute or args.host_idle_confirmed
+                or args.model is not None or args.model_digest is not None
+                or args.model_root is not None or args.manifest is not None
+                or args.manifest_sha256 is not None
+                or args.public_state is not None
+                or args.state_key_file is not None
+                or args.expected_revision is not None
+                or args.synthetic_fact_evidence_gate
+                or args.synthetic_source_first or args.synthetic_source_only
+                or args.compact_dialogue or args.host_read_probe
+                or args.deliver_host_observation or args.ollama_disable_thinking):
+            parser.error("host exact-question aliases require trusted "
+                         "provider, one structured prompt, and no model "
+                         "or imported state")
+        try:
+            loopback._endpoint(args.endpoint)
+        except loopback.LoopbackRejected:
+            parser.error("invalid local endpoint")
+        from . import host_exact_reader, host_question_reader
+        try:
+            answer = host_question_reader.read_allowed_question(
+                live_public_provider, question=args.prompt,
+                aliases=host_public_question_aliases)
+        except host_exact_reader.HostSourceRefused:
+            print("Local host question source-only output withheld: approved "
+                  "source unavailable or changed.", file=sys.stderr)
+            return 2
+        print(json.dumps(answer, ensure_ascii=False, sort_keys=True,
+                         separators=(",", ":")))
+        return 0
     if host_exact_record_id is not None:
         # Trusted-host entrypoint ONLY. The ID, ledger provider, approval,
         # policy, and durable authority floor are injected outside the model.
