@@ -89,6 +89,31 @@ SYSTEM_FICTIONAL_JUDGMENT = (
 SCHEMA = "VERA_SOCIAL_BEHAVIOR_SIMPLE_AB_V1"
 
 
+def validate_model_reply(reply: dict, *, expected_model: str) -> str:
+    """Reject inconsistent local transport metadata before logging a response.
+
+    This checks the *claimed* model tag and response shape; it does not
+    independently authenticate Ollama, model weights, or generation custody.
+    """
+    if type(reply) is not dict or reply.get("model") != expected_model:
+        raise ValueError("model response tag mismatch")
+    if reply.get("done") is not True:
+        raise ValueError("done marker must be true")
+    if reply.get("done_reason") not in ("stop", "length"):
+        raise ValueError("done_reason invalid")
+    if type(reply.get("eval_count")) is not int or reply["eval_count"] < 0:
+        raise ValueError("eval_count invalid")
+    message = reply.get("message")
+    if type(message) is not dict or message.get("role") != "assistant":
+        raise ValueError("assistant role required")
+    if message.get("tool_calls") not in (None, []):
+        raise ValueError("tool_calls present despite tools-disabled experiment")
+    answer = message.get("content")
+    if type(answer) is not str or not answer.strip():
+        raise ValueError("assistant content empty")
+    return answer
+
+
 def render_turn(row: dict, arm: str, turn_index: int) -> str:
     """Replay literal earlier user correction only in synthetic final turn."""
     if arm not in ("base", "focus", "concise", "actor", "echo", "perspective", "judgment_v2", "judgment_v3", "fictional"):
@@ -185,9 +210,7 @@ def main() -> int:
                             },
                             "messages": messages,
                         })
-                        answer = reply["message"]["content"]
-                        if type(answer) is not str or not answer.strip():
-                            raise RuntimeError("empty model response")
+                        answer = validate_model_reply(reply, expected_model=args.model)
                         out.write(json.dumps({
                             "schema": SCHEMA,
                             "case_id": case["id"],
