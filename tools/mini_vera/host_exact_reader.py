@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import hmac
+import json
 from typing import Any
 
 from . import compose
@@ -32,7 +33,7 @@ def read_public_record(provider: Callable[[], tuple[dict[str, Any], bytes, int]]
             or compose.ID.fullmatch(record_id) is None):
         raise HostSourceRefused("explicit host provider and exact record ID required")
 
-    def read_snapshot() -> tuple[dict[str, Any], bytes, int, list[dict[str, str]], str, bytes]:
+    def read_snapshot() -> tuple[dict[str, Any], bytes, int, list[dict[str, str]], str, bytes, str]:
         try:
             binding = provider()
             if type(binding) is not tuple or len(binding) != 3:
@@ -44,15 +45,20 @@ def read_public_record(provider: Callable[[], tuple[dict[str, Any], bytes, int]]
                 raise HostSourceRefused("invalid source")
             # Never keep the provider's mutable dict for a post-check comparison.
             immutable_source = compose.canonical(state)
-            return state, key, revision, records, state_sha, immutable_source
+            if compose.sha256(immutable_source) != state_sha:
+                raise HostSourceRefused('host source changed during snapshot')
+            # Bind attribution to immutable verified bytes. A host-owned
+            # state dict can change after the final equality checks.
+            source_id = json.loads(immutable_source)['source_id']
+            return state, key, revision, records, state_sha, immutable_source, source_id
         except Exception:
             # Host policy and ledger exceptions can carry private record text.
             raise HostSourceRefused("host public-source approval unavailable") from None
 
-    _before_state, before_key, before_revision, before_records, before_sha, before_bytes = read_snapshot()
+    _before_state, before_key, before_revision, before_records, before_sha, before_bytes, _ = read_snapshot()
     record = next((row for row in before_records if row["record_id"] == record_id), None)
 
-    after_state, after_key, after_revision, after_records, after_sha, after_bytes = read_snapshot()
+    _after_state, after_key, after_revision, after_records, after_sha, after_bytes, source_id = read_snapshot()
     if (after_revision != before_revision
             or not hmac.compare_digest(before_key, after_key)
             or not hmac.compare_digest(before_sha, after_sha)
@@ -72,7 +78,7 @@ def read_public_record(provider: Callable[[], tuple[dict[str, Any], bytes, int]]
         "status": "SOURCE_READ", "answer": record["text"],
         "source": {
             "record_id": record_id,
-            "source_id": after_state["source_id"],
+            "source_id": source_id,
             "text_sha256": record["source_sha256"],
             "state_sha256": after_sha,
             "revision": after_revision,
