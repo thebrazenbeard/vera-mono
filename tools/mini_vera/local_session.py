@@ -154,7 +154,8 @@ def structured_local_result(request: dict[str, Any], result: dict[str, Any],
 
 
 def main(argv: list[str] | None = None, *,
-         live_public_provider: Callable[[], tuple[dict[str, Any], bytes, int]] | None = None) -> int:
+         live_public_provider: Callable[[], tuple[dict[str, Any], bytes, int]] | None = None,
+         host_exact_record_id: str | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--endpoint", required=True, help="Explicit numeric loopback /v1 endpoint")
     parser.add_argument("--model", help="Server model alias (operator-declared, not attested)")
@@ -189,6 +190,46 @@ def main(argv: list[str] | None = None, *,
     parser.add_argument("--compact-dialogue", action="store_true",
                         help="Opt-in, no-memory creative conversation prompt; no synthetic source gate")
     args = parser.parse_args(argv)
+    if host_exact_record_id is not None:
+        # Trusted-host entrypoint ONLY. The ID, ledger provider, approval,
+        # policy, and durable authority floor are injected outside the model.
+        # This is not a CLI approval switch or a neural memory path.
+        if (live_public_provider is None
+                or type(host_exact_record_id) is not str
+                or compose.ID.fullmatch(host_exact_record_id) is None
+                or args.prompt != host_exact_record_id
+                or not args.structured_output or args.execute
+                or args.host_idle_confirmed or args.model is not None
+                or args.model_digest is not None
+                or args.model_root is not None or args.manifest is not None
+                or args.manifest_sha256 is not None
+                or args.public_state is not None
+                or args.state_key_file is not None
+                or args.expected_revision is not None
+                or args.synthetic_fact_evidence_gate
+                or args.synthetic_source_first or args.synthetic_source_only
+                or args.compact_dialogue
+                or args.host_read_probe or args.deliver_host_observation
+                or args.ollama_disable_thinking):
+            parser.error("host exact-record source requires one matching "
+                         "record ID, a trusted live provider, structured "
+                         "output, and no model or imported state")
+        # Numeric loopback parsing only; do NOT send an HTTP request.
+        try:
+            loopback._endpoint(args.endpoint)
+        except loopback.LoopbackRejected:
+            parser.error("invalid local endpoint")
+        from . import host_exact_reader
+        try:
+            answer = host_exact_reader.read_public_record(
+                live_public_provider, record_id=host_exact_record_id)
+        except host_exact_reader.HostSourceRefused:
+            print("Local host source-only output withheld: approved source "
+                  "unavailable or changed.", file=sys.stderr)
+            return 2
+        print(json.dumps(answer, ensure_ascii=False, sort_keys=True,
+                         separators=(",", ":")))
+        return 0
     if args.compact_dialogue and (
             not args.execute or args.synthetic_fact_evidence_gate
             or args.synthetic_source_only or args.synthetic_source_first
