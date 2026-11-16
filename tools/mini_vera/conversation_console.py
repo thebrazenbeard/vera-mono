@@ -9,11 +9,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable
+from typing import Any
 
 from . import local_session, loopback, ollama_preflight
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *,
+         live_public_provider: Callable[[], tuple[dict[str, Any], bytes, int]] | None = None,
+         host_exact_record_id: str | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--endpoint", default="http://127.0.0.1:11434/v1")
     parser.add_argument("--model", default="qwen3.5:0.8b")
@@ -35,6 +39,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--candidate-4b", action="store_true",
                         help="Experimental 2-3 GiB candidate with stronger RAM guard and explicit tag digest")
     args = parser.parse_args(argv)
+    if host_exact_record_id is not None:
+        # This opt-in is a trusted host PYTHON kwarg, not a CLI flag. A model
+        # cannot choose a record or approve a ledger grant. The source-only
+        # path must not probe, contact, start, or load an inference server.
+        if (live_public_provider is None
+                or args.prompt != host_exact_record_id
+                or args.check or args.confirm_host_idle or args.allow_cold_load
+                or args.compact_dialogue or args.candidate_4b
+                or args.expected_tag_digest is not None
+                or args.model != "qwen3.5:0.8b"):
+            parser.error("embedded exact-source lookup requires matching "
+                         "host record ID/provider and no model options")
+        return local_session.main(
+            ["--endpoint", args.endpoint, "--structured-output",
+             "--prompt", host_exact_record_id],
+            live_public_provider=live_public_provider,
+            host_exact_record_id=host_exact_record_id)
+    if live_public_provider is not None:
+        parser.error("embedded live provider requires a host exact record ID")
 
     if args.candidate_4b and args.expected_tag_digest is None:
         print("Refused: candidate 4B requires --expected-tag-digest.", file=sys.stderr)
