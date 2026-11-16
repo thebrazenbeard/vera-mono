@@ -17,7 +17,8 @@ from . import local_session, loopback, ollama_preflight
 
 def main(argv: list[str] | None = None, *,
          live_public_provider: Callable[[], tuple[dict[str, Any], bytes, int]] | None = None,
-         host_exact_record_id: str | None = None) -> int:
+         host_exact_record_id: str | None = None,
+         host_public_question_aliases: dict[str, str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--endpoint", default="http://127.0.0.1:11434/v1")
     parser.add_argument("--model", default="qwen3.5:0.8b")
@@ -39,6 +40,21 @@ def main(argv: list[str] | None = None, *,
     parser.add_argument("--candidate-4b", action="store_true",
                         help="Experimental 2-3 GiB candidate with stronger RAM guard and explicit tag digest")
     args = parser.parse_args(argv)
+    if host_public_question_aliases is not None:
+        # Exact host-supplied phrase mapping; never model-selected lookup.
+        # No CLI option exposes aliases or issues grants.
+        if (live_public_provider is None or host_exact_record_id is not None
+                or args.prompt is None or args.check or args.confirm_host_idle
+                or args.allow_cold_load or args.compact_dialogue
+                or args.candidate_4b or args.expected_tag_digest is not None
+                or args.model != "qwen3.5:0.8b"):
+            parser.error("host question aliases require trusted provider, "
+                         "one prompt, and no model options")
+        return local_session.main(
+            ["--endpoint", args.endpoint, "--structured-output",
+             "--prompt", args.prompt],
+            live_public_provider=live_public_provider,
+            host_public_question_aliases=host_public_question_aliases)
     if host_exact_record_id is not None:
         # This opt-in is a trusted host PYTHON kwarg, not a CLI flag. A model
         # cannot choose a record or approve a ledger grant. The source-only
