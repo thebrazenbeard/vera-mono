@@ -190,7 +190,37 @@ def main(argv: list[str] | None = None, *,
                         help="Opt-in deterministic synthetic PUBLIC source lookup; zero model HTTP")
     parser.add_argument("--compact-dialogue", action="store_true",
                         help="Opt-in, no-memory creative conversation prompt; no synthetic source gate")
+    parser.add_argument("--host-public-sidecar", action="store_true",
+                        help="Host-injected /source command alongside isolated volatile chat")
     args = parser.parse_args(argv)
+    sidecar_provider = None
+    sidecar_aliases = None
+    if args.host_public_sidecar:
+        # The host alone injects source access; this mode must never import
+        # records into a model request or enable a user-controlled approval CLI.
+        if (not callable(live_public_provider)
+                or host_public_question_aliases is None
+                or args.prompt is not None or not args.execute
+                or not args.host_idle_confirmed or not args.compact_dialogue
+                or not args.structured_output
+                or any((args.public_state, args.state_key_file,
+                        args.expected_revision is not None, args.model_root,
+                        args.manifest, args.manifest_sha256,
+                        args.synthetic_fact_evidence_gate,
+                        args.synthetic_source_first, args.synthetic_source_only,
+                        args.host_read_probe, args.deliver_host_observation))):
+            parser.error("host PUBLIC sidecar requires injected provider/aliases, "
+                         "interactive compact inference, and no imported state")
+        from . import host_exact_reader, host_question_reader
+        try:
+            host_question_reader._host_alias_snapshot(host_public_question_aliases)
+        except host_exact_reader.HostSourceRefused:
+            parser.error("invalid injected PUBLIC question allowlist")
+        sidecar_provider, sidecar_aliases = (
+            live_public_provider, host_public_question_aliases)
+        # Normal neural turns must always use empty ephemeral state.
+        live_public_provider = None
+        host_public_question_aliases = None
     if host_public_question_aliases is not None:
         # Trusted host in-process API; not a CLI approval source.
         if (live_public_provider is None or host_exact_record_id is not None
@@ -361,13 +391,43 @@ def main(argv: list[str] | None = None, *,
             current = args.prompt
         else:
             try:
-                current = input("You> ")
+                if args.host_public_sidecar:
+                    print("You> ", end="", file=sys.stderr, flush=True)
+                    raw_line = sys.stdin.readline(compose.MAX_TURN_BYTES + 2)
+                    if not raw_line:
+                        return 0
+                    # An ordinary line-oriented stream is bounded BEFORE its
+                    # text is allocated, like the standalone host-question mode.
+                    if (len(raw_line) > compose.MAX_TURN_BYTES + 2
+                            or (len(raw_line) == compose.MAX_TURN_BYTES + 2
+                                and not raw_line.endswith("\n"))):
+                        print("Local sidecar question too long; output withheld.",
+                              file=sys.stderr)
+                        return 2
+                    current = raw_line.rstrip("\r\n")
+                else:
+                    current = input("You> ")
             except (EOFError, KeyboardInterrupt):
                 print()
                 return 0
             if current.strip().lower() in {"/quit", "/exit"}:
                 return 0
             if not current.strip():
+                continue
+            if args.host_public_sidecar and current.strip().lower().startswith("/source"):
+                # /source is an explicit CLIENT command, not model-generated
+                # prose. Never fall back to the model on misses or revoked data.
+                question = current.strip()[len("/source"):].strip()
+                try:
+                    answer = host_question_reader.read_allowed_question(
+                        sidecar_provider, question=question,
+                        aliases=sidecar_aliases)
+                except host_exact_reader.HostSourceRefused:
+                    print("Local PUBLIC source output withheld: source unavailable "
+                          "or changed.", file=sys.stderr)
+                    return 2
+                print(json.dumps(answer, ensure_ascii=False, sort_keys=True,
+                                 separators=(",", ":")))
                 continue
         counter += 1
         try:

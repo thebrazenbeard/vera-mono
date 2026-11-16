@@ -37,14 +37,28 @@ def main(argv: list[str] | None = None, *,
                         help="Optional single-turn smoke; omit for interactive chat")
     parser.add_argument("--interactive-host-questions", action="store_true",
                         help="Host-injected approved PUBLIC question loop; zero model HTTP")
+    parser.add_argument("--interactive-hybrid-public", action="store_true",
+                        help="Host-injected explicit /source command alongside volatile neural chat")
     parser.add_argument("--compact-dialogue", action="store_true",
                         help="Opt-in tested compact local conversation prompt; no persistent memory")
     parser.add_argument("--candidate-4b", action="store_true",
                         help="Experimental 2-3 GiB candidate with stronger RAM guard and explicit tag digest")
     args = parser.parse_args(argv)
+    if args.interactive_hybrid_public and (
+            not callable(live_public_provider)
+            or host_public_question_aliases is None
+            or host_exact_record_id is not None
+            or args.interactive_host_questions
+            or not args.compact_dialogue
+            or not args.confirm_host_idle or args.check
+            or args.prompt is not None or args.candidate_4b
+            or args.expected_tag_digest is None):
+        parser.error("interactive hybrid PUBLIC source requires host-injected "
+                     "provider/aliases, pinned model digest, idle confirmation, "
+                     "and interactive compact dialogue")
     if args.interactive_host_questions and host_public_question_aliases is None:
         parser.error("interactive host questions require an injected host allowlist")
-    if host_public_question_aliases is not None:
+    if host_public_question_aliases is not None and not args.interactive_hybrid_public:
         # Exact host-supplied phrase mapping; never model-selected lookup.
         # No CLI option exposes aliases or issues grants.
         if (live_public_provider is None or host_exact_record_id is not None
@@ -109,7 +123,7 @@ def main(argv: list[str] | None = None, *,
              "--prompt", host_exact_record_id],
             live_public_provider=live_public_provider,
             host_exact_record_id=host_exact_record_id)
-    if live_public_provider is not None:
+    if live_public_provider is not None and not args.interactive_hybrid_public:
         parser.error("embedded live provider requires a host exact record ID")
 
     if args.candidate_4b and args.expected_tag_digest is None:
@@ -188,6 +202,13 @@ def main(argv: list[str] | None = None, *,
     print("Mini-Vera local session: neural model not weight-attested; "
           "memory is volatile and tools remain disabled. "
           "Type /quit to leave.", file=sys.stderr)
+    if args.interactive_hybrid_public:
+        # Source is a separate CLIENT command. The provider is only passed
+        # to local_session's explicit /source branch; never to neural compose.
+        options.extend(("--host-public-sidecar", "--structured-output"))
+        return local_session.main(
+            options, live_public_provider=live_public_provider,
+            host_public_question_aliases=host_public_question_aliases)
     return local_session.main(options)
 
 
