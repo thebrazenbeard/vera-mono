@@ -1,4 +1,4 @@
-"""Opt-in owned, CPU-only Ollama lifecycle for the guarded local 4B console.
+"""Opt-in owned, CPU-only Ollama lifecycle for guarded 4B or explicit 0.8B chat.
 
 No downloads, no model registration or weight change, no system-service edits.
 Only an already-installed Ollama binary and existing model registry may be used.
@@ -103,9 +103,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--confirm-host-idle", action="store_true",
                         help="Freshly confirmed exclusive operator willingness to use free RAM")
     parser.add_argument("--allow-cold-load", action="store_true",
-                        help="Explicitly permit this server to load a cold 4B model")
+                        help="Explicitly permit this server to load the selected local model")
+    parser.add_argument("--small-08b", action="store_true",
+                        help="Use the existing <=2 GiB small-model preflight instead of candidate 4B")
     parser.add_argument("--compact-dialogue", action="store_true",
-                        help="Explicit compact Vera prompt (also managed 4B default)")
+                        help="Explicit compact Vera prompt (the managed default)")
     parser.add_argument("--full-governed-dialogue", action="store_true",
                         help="Diagnostic opt-out of managed compact default; full prompt may be verbose")
     parser.add_argument("--ollama-disable-thinking", action="store_true")
@@ -177,13 +179,16 @@ def main(argv: list[str] | None = None) -> int:
             "--endpoint", f"http://127.0.0.1:{args.port}/v1",
             "--model", args.model,
             "--expected-tag-digest", args.expected_tag_digest,
-            "--candidate-4b", "--max-output-tokens", "128",
+            "--max-output-tokens", "128",
             "--confirm-host-idle", "--allow-cold-load",
         ]
         # A real experimenter-authored 4B pilot observed severe truncation and
         # a false persistence claim under the full prompt (3/4 incomplete),
         # versus four completed replies with the existing compact prompt.
-        # Scope this default to the owned 4B launcher; other modes unchanged.
+        # Preserve this compact default in both managed model-size lanes.
+        if not args.small_08b:
+            # Existing managed 4B behavior is unchanged by default.
+            options.append("--candidate-4b")
         if not args.full_governed_dialogue:
             options.append("--compact-dialogue")
         # The nested console already sends --ollama-disable-thinking to
