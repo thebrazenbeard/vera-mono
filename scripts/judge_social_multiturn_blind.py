@@ -32,6 +32,41 @@ def ollama(route, payload=None):
         return json.load(response)
 
 
+def strict_review_json(raw: str) -> object:
+    """Reject duplicate member names and nonstandard constants in judge evidence."""
+    def unique_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate judge JSON key: {key}")
+            result[key] = value
+        return result
+
+    def invalid_constant(value):
+        raise ValueError(f"non-standard judge JSON constant: {value}")
+
+    return json.loads(raw, object_pairs_hook=unique_keys, parse_constant=invalid_constant)
+
+
+def validate_judge_transport(reply: object, *, expected_model: str) -> str:
+    """Check local endpoint claims; this does not authenticate model weights."""
+    if type(reply) is not dict or reply.get("model") != expected_model:
+        raise ValueError("judge model response tag mismatch")
+    if reply.get("done") is not True or reply.get("done_reason") not in ("stop", "length"):
+        raise ValueError("incomplete or unexpected judge completion")
+    if type(reply.get("eval_count")) is not int or reply["eval_count"] < 0:
+        raise ValueError("invalid judge token count")
+    message = reply.get("message")
+    if type(message) is not dict or message.get("role") != "assistant":
+        raise ValueError("judge assistant role required")
+    if message.get("tool_calls") not in (None, []):
+        raise ValueError("judge unexpectedly returned tool calls")
+    content = message.get("content")
+    if type(content) is not str or not content.strip():
+        raise ValueError("judge response is blank")
+    return content
+
+
 def validate_judge_output(answer: object) -> bool:
     if type(answer) is not dict or set(answer) != {"winner", "A", "B"}:
         return False
@@ -87,9 +122,9 @@ def main():
                 ],
             }
             result = ollama("/api/chat", payload)
-            answer_text = result["message"]["content"]
+            answer_text = validate_judge_transport(result, expected_model=JUDGE_MODEL)
             try:
-                answer_json = json.loads(answer_text)
+                answer_json = strict_review_json(answer_text)
                 valid = validate_judge_output(answer_json)
             except (ValueError, TypeError):
                 answer_json = None

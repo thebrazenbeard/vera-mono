@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from prepare_social_multiturn_blind import build_pairs
-from judge_social_multiturn_blind import validate_judge_output
+from judge_social_multiturn_blind import strict_review_json, validate_judge_output
 
 
 def read_jsonl(path: Path):
@@ -31,7 +31,7 @@ def verified_judge_record(record: dict) -> bool:
             or type(record.get("raw_response")) is not str):
         raise ValueError("invalid judge record envelope")
     try:
-        parsed = json.loads(record["raw_response"])
+        parsed = strict_review_json(record["raw_response"])
         valid = validate_judge_output(parsed)
     except (ValueError, TypeError):
         parsed, valid = None, False
