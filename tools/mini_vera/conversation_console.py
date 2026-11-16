@@ -35,26 +35,50 @@ def main(argv: list[str] | None = None, *,
                         default=60)
     parser.add_argument("--prompt",
                         help="Optional single-turn smoke; omit for interactive chat")
+    parser.add_argument("--interactive-host-questions", action="store_true",
+                        help="Host-injected approved PUBLIC question loop; zero model HTTP")
     parser.add_argument("--compact-dialogue", action="store_true",
                         help="Opt-in tested compact local conversation prompt; no persistent memory")
     parser.add_argument("--candidate-4b", action="store_true",
                         help="Experimental 2-3 GiB candidate with stronger RAM guard and explicit tag digest")
     args = parser.parse_args(argv)
+    if args.interactive_host_questions and host_public_question_aliases is None:
+        parser.error("interactive host questions require an injected host allowlist")
     if host_public_question_aliases is not None:
         # Exact host-supplied phrase mapping; never model-selected lookup.
         # No CLI option exposes aliases or issues grants.
         if (live_public_provider is None or host_exact_record_id is not None
-                or args.prompt is None or args.check or args.confirm_host_idle
+                or (args.interactive_host_questions == (args.prompt is not None))
+                or args.check or args.confirm_host_idle
                 or args.allow_cold_load or args.compact_dialogue
                 or args.candidate_4b or args.expected_tag_digest is not None
                 or args.model != "qwen3.5:0.8b"):
             parser.error("host question aliases require trusted provider, "
                          "one prompt, and no model options")
-        return local_session.main(
-            ["--endpoint", args.endpoint, "--structured-output",
-             "--prompt", args.prompt],
-            live_public_provider=live_public_provider,
-            host_public_question_aliases=host_public_question_aliases)
+        def answer_question(text: str) -> int:
+            return local_session.main(
+                ["--endpoint", args.endpoint, "--structured-output",
+                 "--prompt", text],
+                live_public_provider=live_public_provider,
+                host_public_question_aliases=host_public_question_aliases)
+
+        if args.interactive_host_questions:
+            # Every turn re-enters the exact host reader. Never cache an
+            # answer or use the model for missing/unapproved questions.
+            while True:
+                try:
+                    print("You> ", end="", file=sys.stderr, flush=True)
+                    question = input()
+                except (EOFError, KeyboardInterrupt):
+                    print(file=sys.stderr)
+                    return 0
+                if question.strip().lower() in {"/quit", "/exit"}:
+                    return 0
+                if question.strip():
+                    code = answer_question(question)
+                    if code != 0:
+                        return code
+        return answer_question(args.prompt)
     if host_exact_record_id is not None:
         # This opt-in is a trusted host PYTHON kwarg, not a CLI flag. A model
         # cannot choose a record or approve a ledger grant. The source-only
