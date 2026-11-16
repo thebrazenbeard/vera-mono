@@ -65,6 +65,63 @@ class HostExactReaderTests(unittest.TestCase):
         self.assertEqual(0, answer["model_http_calls"])
         self.assertEqual(0, answer["writes"])
 
+    def test_source_identifier_cannot_change_after_verified_snapshot(self):
+        """A host-owned mutable state may change during final equality checks."""
+        import hmac
+        from unittest import mock
+        from tools.mini_vera import host_exact_reader
+
+        state, key, revision = self.provider()()
+        validated_source_id = state["source_id"]
+        forged_id = "forged-public-source-attribution"
+        untouched_compare = hmac.compare_digest
+        changed = [False]
+
+        def change_during_final_compare(left, right):
+            if (not changed[0] and type(left) is bytes and type(right) is bytes
+                    and len(left) == len(right) == 32):
+                changed[0] = True
+                state["source_id"] = forged_id
+            return untouched_compare(left, right)
+
+        with mock.patch.object(
+                host_exact_reader.hmac, "compare_digest",
+                side_effect=change_during_final_compare):
+            result = read_public_record(
+                lambda: (state, key, revision), record_id="work-1")
+
+        self.assertTrue(changed[0], "the mutation must occur in the final check")
+        self.assertEqual("SOURCE_READ", result["status"])
+        self.assertEqual(validated_source_id, result["source"]["source_id"])
+        self.assertNotEqual(forged_id, result["source"]["source_id"])
+    def test_refuses_state_mutation_between_verification_and_snapshot_copy(self):
+        """Both reads can share a forged snapshot while their verified SHA is old."""
+        from unittest import mock
+        state, key, revision = self.provider()()
+        original_source_id = state["source_id"]
+        canonical_original = compose.canonical
+        calls = {"source": 0, "provider": 0}
+
+        def reset_before_verification():
+            calls["provider"] += 1
+            calls["source"] = 0
+            state["source_id"] = original_source_id
+            return state, key, revision
+
+        def mutate_during_freeze(value):
+            if value is state:
+                calls["source"] += 1
+                if calls["source"] == 2:
+                    state["source_id"] = "forged-source-at-freeze"
+            return canonical_original(value)
+
+        with mock.patch.object(compose, "canonical",
+                               side_effect=mutate_during_freeze):
+            with self.assertRaises(HostSourceRefused):
+                read_public_record(
+                    reset_before_verification, record_id="work-1")
+        self.assertEqual(1, calls["provider"])
+
     def test_unknown_id_returns_unknown_without_enumerating_approved_sources(self):
         answer = read_public_record(self.provider(), record_id="not-approved")
         self.assertEqual("UNKNOWN", answer["answer"])
