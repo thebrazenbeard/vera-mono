@@ -74,6 +74,107 @@ class HostQuestionSessionTests(TestCase):
                         host_public_question_aliases=aliases)
         return code, out.getvalue(), err.getvalue()
 
+    def test_interactive_question_session_rechecks_source_and_never_uses_model(self):
+        out, err = io.StringIO(), io.StringIO()
+        prompts = [self.QUESTION, "What else is in your private records?", "/quit"]
+        with mock.patch("builtins.input", side_effect=prompts), \
+             mock.patch.object(ollama_preflight, "probe",
+                               side_effect=AssertionError("no model preflight")), \
+             mock.patch.object(loopback, "execute",
+                               side_effect=AssertionError("no neural inference")), \
+             contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            try:
+                code = conversation_console.main(
+                    ["--interactive-host-questions"],
+                    live_public_provider=self.provider(),
+                    host_public_question_aliases=dict(self.ALIASES))
+            except SystemExit as exc:
+                code = exc.code
+        self.assertEqual(0, code, err.getvalue())
+        results = [json.loads(line) for line in out.getvalue().splitlines()]
+        self.assertEqual(2, len(results))
+        self.assertEqual("SOURCE_READ", results[0]["status"])
+        self.assertEqual("work-1", results[0]["source"]["record_id"])
+        self.assertEqual("UNKNOWN", results[1]["answer"])
+        self.assertIsNone(results[1]["source"])
+        self.assertTrue(all(row["model_http_calls"] == 0 for row in results))
+        self.assertNotIn("work-1", json.dumps(results[1]))
+
+    def test_interactive_revocation_on_next_turn_withholds_output(self):
+        out, err = io.StringIO(), io.StringIO()
+        original = self.provider()
+        questions = [0]
+
+        def next_question():
+            questions[0] += 1
+            if questions[0] == 2:
+                self.grant = None
+                self.auth_revision += 1
+            return self.QUESTION
+
+        with mock.patch("builtins.input", side_effect=next_question), \
+             mock.patch.object(ollama_preflight, "probe",
+                               side_effect=AssertionError("no preflight")), \
+             mock.patch.object(loopback, "execute",
+                               side_effect=AssertionError("no model HTTP")), \
+             contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = conversation_console.main(
+                ["--interactive-host-questions"],
+                live_public_provider=original,
+                host_public_question_aliases=dict(self.ALIASES))
+
+        self.assertEqual(2, code)
+        self.assertEqual(2, questions[0])
+        results = [json.loads(line) for line in out.getvalue().splitlines()]
+        self.assertEqual(1, len(results))
+        self.assertEqual("SOURCE_READ", results[0]["status"])
+        self.assertIn("withheld", err.getvalue())
+
+    def test_interactive_cannot_be_started_from_cli_or_mixed_with_model(self):
+        cases = (
+            (["--interactive-host-questions"], None, None),
+            (["--interactive-host-questions", "--prompt", self.QUESTION],
+             self.provider(), dict(self.ALIASES)),
+            (["--interactive-host-questions", "--allow-cold-load"],
+             self.provider(), dict(self.ALIASES)),
+            (["--interactive-host-questions", "--confirm-host-idle"],
+             self.provider(), dict(self.ALIASES)),
+            (["--interactive-host-questions", "--check"],
+             self.provider(), dict(self.ALIASES)),
+        )
+        for argv, provider, aliases in cases:
+            with self.subTest(argv=argv):
+                with mock.patch.object(ollama_preflight, "probe",
+                                       side_effect=AssertionError("no preflight")), \
+                     mock.patch.object(loopback, "execute",
+                                       side_effect=AssertionError("no HTTP")), \
+                     contextlib.redirect_stdout(io.StringIO()), \
+                     contextlib.redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit) as captured:
+                        conversation_console.main(
+                            argv, live_public_provider=provider,
+                            host_public_question_aliases=aliases)
+                self.assertEqual(2, captured.exception.code)
+
+    def test_interactive_eof_and_quit_do_not_call_source_or_model(self):
+        for stop in (EOFError(), "/exit", "/quit"):
+            with self.subTest(stop=repr(stop)):
+                with mock.patch("builtins.input", side_effect=[stop]), \
+                     mock.patch.object(ollama_preflight, "probe",
+                                       side_effect=AssertionError("no model")), \
+                     mock.patch.object(loopback, "execute",
+                                       side_effect=AssertionError("no HTTP")), \
+                     contextlib.redirect_stdout(io.StringIO()) as out, \
+                     contextlib.redirect_stderr(io.StringIO()):
+                    def no_read():
+                        raise AssertionError("unnecessary host read")
+                    code = conversation_console.main(
+                        ["--interactive-host-questions"],
+                        live_public_provider=no_read,
+                        host_public_question_aliases=dict(self.ALIASES))
+                self.assertEqual(0, code)
+                self.assertEqual("", out.getvalue())
+
     def test_console_answers_approved_question_without_model_preflight(self):
         code, out, err = self.invoke(provider=self.provider())
         self.assertEqual(0, code, err)
