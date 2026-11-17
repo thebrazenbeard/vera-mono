@@ -12,7 +12,7 @@ import sys
 from collections.abc import Callable
 from typing import Any
 
-from . import local_session, loopback, ollama_preflight
+from . import host_question_reader, local_session, loopback, ollama_preflight
 
 
 def main(argv: list[str] | None = None, *,
@@ -68,10 +68,23 @@ def main(argv: list[str] | None = None, *,
             while True:
                 try:
                     print("You> ", end="", file=sys.stderr, flush=True)
-                    question = input()
+                    # Bound allocation BEFORE consulting the host source reader.
+                    # The host alias grammar is at most 160 ASCII characters.
+                    raw_line = sys.stdin.readline(
+                        host_question_reader.MAX_QUESTION_BYTES + 2)
                 except (EOFError, KeyboardInterrupt):
                     print(file=sys.stderr)
                     return 0
+                if not raw_line:
+                    return 0
+                question = raw_line.rstrip("\r\n")
+                if (len(question) > host_question_reader.MAX_QUESTION_BYTES
+                        or len(raw_line) > host_question_reader.MAX_QUESTION_BYTES + 2
+                        or (len(raw_line) == host_question_reader.MAX_QUESTION_BYTES + 2
+                            and not raw_line.endswith("\n"))):
+                    print("Local host question too long; source output withheld.",
+                          file=sys.stderr)
+                    return 2
                 if question.strip().lower() in {"/quit", "/exit"}:
                     return 0
                 if question.strip():
