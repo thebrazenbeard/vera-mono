@@ -354,12 +354,18 @@ class DurableLearnedInfluenceGate:
         cue_event_id: str,
         use_evidence_id: str | None = None,
         require_qualified: bool = False,
+        expected_review_evidence_ref: str | None = None,
     ) -> LearnedInfluenceReceipt:
         if type(revision) is not LearnedRevision:
             raise TypeError("revision must be exact LearnedRevision")
         if type(cue_event_id) is not str or not cue_event_id:
             raise ValueError("cue_event_id must be a non-empty exact string")
 
+        if expected_review_evidence_ref is not None and (
+            type(expected_review_evidence_ref) is not str
+            or not 0 < len(expected_review_evidence_ref) <= 256
+        ):
+            raise LearnedInfluenceBlocked("expected reviewed evidence identity must be bounded")
         db = self._connect()
         try:
             db.execute("BEGIN IMMEDIATE")
@@ -374,6 +380,13 @@ class DurableLearnedInfluenceGate:
             if review is None:
                 raise LearnedInfluenceBlocked(
                     "learned revision requires explicit review before influence"
+                )
+            # Match the signed external review reference INSIDE this transaction,
+            # before inserting cue/use evidence. Mismatch must not burn the cue.
+            if (expected_review_evidence_ref is not None
+                    and str(review["evidence_ref"]) != expected_review_evidence_ref):
+                raise LearnedInfluenceBlocked(
+                    "signed reviewer reference differs from current qualified review"
                 )
             if require_qualified and len(str(review["evidence_ref"])) > 256:
                 raise LearnedInfluenceBlocked(
