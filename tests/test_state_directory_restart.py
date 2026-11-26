@@ -9,7 +9,7 @@ IDENTITY = "vera"
 def test_state_directory_reopens_complete_lifecycle_without_conversation(tmp_path):
     state = VeraStateDirectory(
         tmp_path / "vera-state",
-        project_id=PROJECT,
+        initialize=True, project_id=PROJECT,
         identity_id=IDENTITY,
     )
     lifecycle = state.open()
@@ -63,7 +63,7 @@ def test_state_directory_reopens_complete_lifecycle_without_conversation(tmp_pat
 def test_state_directory_does_not_provision_trust_or_authority(tmp_path):
     state = VeraStateDirectory(
         tmp_path / "vera-state",
-        project_id=PROJECT,
+        initialize=True, project_id=PROJECT,
         identity_id=IDENTITY,
     )
     state.open()

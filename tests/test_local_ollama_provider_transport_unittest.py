@@ -71,7 +71,7 @@ def loopback_peer():
 
 
 def accepted_state(base: Path):
-    state = VeraStateDirectory(base / "state", project_id="vera-mono", identity_id="vera")
+    state = VeraStateDirectory(base / "state", initialize=True, project_id="vera-mono", identity_id="vera")
     lifecycle = state.open()
     request = AdmissionRequest(
         record_id="m-local",

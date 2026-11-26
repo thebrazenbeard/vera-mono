@@ -5,9 +5,10 @@ from vera_core import VeraStateDirectory
 def test_vera_state_directory_owns_provider_neutral_intake(tmp_path):
     state = VeraStateDirectory(
         tmp_path / "state",
-        project_id="vera-mono",
+        initialize=True, project_id="vera-mono",
         identity_id="vera",
     )
+    state.open()
     assert state.paths.intake == (tmp_path / "state" / "intake").resolve()
 
     result = state.ingestor().ingest(

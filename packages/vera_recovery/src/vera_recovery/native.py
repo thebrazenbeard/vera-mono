@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -101,7 +102,7 @@ class NativeRecoveryCheckpointStore:
         return canonical_sha256(cls._GENESIS_PAYLOAD)
 
     def _init_db(self) -> None:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS meta (
@@ -133,12 +134,12 @@ class NativeRecoveryCheckpointStore:
 
     @property
     def current_head(self) -> str:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             return self._meta(db)[1]
 
     @property
     def current_generation(self) -> int:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             return self._meta(db)[0]
 
     def append(
@@ -172,7 +173,7 @@ class NativeRecoveryCheckpointStore:
             else self._require_text(created_at, "created_at")
         )
 
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             existing = db.execute(
                 "SELECT payload_json,checkpoint_digest FROM checkpoints WHERE checkpoint_id=?",
@@ -238,7 +239,7 @@ class NativeRecoveryCheckpointStore:
             return self._from_row(checkpoint_digest, payload)
 
     def read(self, checkpoint_id: str) -> NativeRecoveryCheckpoint:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             row = db.execute(
                 "SELECT payload_json,checkpoint_digest FROM checkpoints WHERE checkpoint_id=?",
                 (checkpoint_id,),
@@ -255,7 +256,7 @@ class NativeRecoveryCheckpointStore:
             checkpoint_digest,
             "checkpoint_digest",
         )
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             row = db.execute(
                 """
                 SELECT payload_json,checkpoint_digest
@@ -272,7 +273,7 @@ class NativeRecoveryCheckpointStore:
         )
 
     def latest(self) -> NativeRecoveryCheckpoint | None:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             row = db.execute(
                 """
                 SELECT payload_json,checkpoint_digest

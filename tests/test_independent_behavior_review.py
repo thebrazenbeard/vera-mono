@@ -105,7 +105,7 @@ class FakeBehaviorTransport:
 
 
 def accepted_state(tmp_path):
-    state = VeraStateDirectory(tmp_path / "state", project_id=PROJECT, identity_id=IDENTITY)
+    state = VeraStateDirectory(tmp_path / "state", initialize=True, project_id=PROJECT, identity_id=IDENTITY)
     lifecycle = state.open()
     admitted = lifecycle.memory.admit(
         AdmissionRequest(

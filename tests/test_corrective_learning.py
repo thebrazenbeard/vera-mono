@@ -48,9 +48,10 @@ def test_corrective_learning_survives_restart_and_enforces_full_cycle(tmp_path):
 def test_state_directory_owns_corrective_learning_state(tmp_path):
     state = vera_core.VeraStateDirectory(
         tmp_path / "vera-state",
-        project_id="vera-mono",
+        initialize=True, project_id="vera-mono",
         identity_id="vera",
     )
+    state.open()
     assert hasattr(state, "corrective_learning_ledger")
 
     state.corrective_learning_ledger().start(

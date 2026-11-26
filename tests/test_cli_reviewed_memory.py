@@ -50,7 +50,7 @@ def _args(root: Path, *options: str) -> list[str]:
 
 
 def _approve(root: Path, *, text: str = "The bench is closed on Fridays.") -> tuple[str, str]:
-    state = VeraStateDirectory(root, project_id="test-project", identity_id="test-identity")
+    state = VeraStateDirectory(root, initialize=True, project_id="test-project", identity_id="test-identity")
     memory = state.open().memory
     receipt = memory.admit(AdmissionRequest(
         record_id="rule-1", text=text, memory_class=MemoryClass.WORKING_PROJECT,

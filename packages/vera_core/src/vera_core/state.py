@@ -9,6 +9,7 @@ from coordination_bus import SQLiteCoordinationRepository
 from r8a0.trust import configure_provisioning_root
 from vera_assurance import AtomicCurrentnessStore, EffectFence
 from vera_memory import MemoryLedger
+from vera_memory.ledger import MemoryLedgerError
 from vera_recovery import NativeRecoveryCheckpointStore
 
 from .behavior_effect_verification import BehaviorEffectVerificationStore
@@ -75,6 +76,7 @@ class VeraStateDirectory:
         project_id: str,
         identity_id: str,
         currentness_subject_id: str = "vera-runtime",
+        initialize: bool = False,
     ):
         candidate = Path(root).expanduser().resolve()
         if type(project_id) is not str or not project_id:
@@ -141,14 +143,24 @@ class VeraStateDirectory:
         self.project_id = project_id
         self.identity_id = identity_id
         self.currentness_subject_id = currentness_subject_id
+        if type(initialize) is not bool:
+            raise ValueError("initialize must be a boolean")
+        self._initialize = initialize
 
     def open(self) -> NativeVeraLifecycle:
-        self.paths.root.mkdir(parents=True, exist_ok=True)
-        configure_provisioning_root(self.paths.root)
+        # Default is existing-state selection. A new root is an explicit,
+        # one-shot initialization request, never inferred from a missing ledger.
+        initialize = self._initialize
+        self._initialize = False
+        if initialize:
+            if self.paths.root.exists() and any(self.paths.root.iterdir()):
+                raise MemoryLedgerError("fresh state initialization requires an empty root")
+            self.paths.root.mkdir(parents=True, exist_ok=True)
         memory = MemoryLedger(
             self.paths.memory,
             project_id=self.project_id,
             identity_id=self.identity_id,
+            create_if_missing=initialize,
         )
         checkpoints = NativeRecoveryCheckpointStore(
             self.paths.recovery,
@@ -172,6 +184,7 @@ class VeraStateDirectory:
         )
         with lifecycle.action_lock():
             effect_audit.repair_from_fence(effect_fence)
+        configure_provisioning_root(self.paths.root)
         return lifecycle
 
     def intake_store(self) -> FileSystemStore:
