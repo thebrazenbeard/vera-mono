@@ -57,7 +57,7 @@ class FakeSourceTransport:
 def accepted_state(tmp_path):
     state = VeraStateDirectory(
         tmp_path / "state",
-        project_id=PROJECT,
+        initialize=True, project_id=PROJECT,
         identity_id=IDENTITY,
     )
     lifecycle = state.open()

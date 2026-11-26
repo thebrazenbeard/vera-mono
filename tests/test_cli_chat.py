@@ -80,6 +80,8 @@ def test_chat_legacy_console_escapes_unrepresentable_unicode_without_losing_repl
 ):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     reply = "Hello! 😊 café"
     connection = _Connection(_Response({"role": "assistant", "content": reply}))
     args = _interactive_args(root) if mode == "interactive" else _args(root)
@@ -106,6 +108,8 @@ def test_chat_legacy_console_escapes_unrepresentable_unicode_without_losing_repl
 def test_chat_utf8_console_preserves_literal_unicode_reply(tmp_path):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     reply = "Hello! 😊 café"
     connection = _Connection(_Response({"role": "assistant", "content": reply}))
     output = io.BytesIO()
@@ -124,7 +128,7 @@ def test_interactive_chat_uses_stdin_without_history_memory_or_authority(
 ):
     root = tmp_path / "private-state-path-CANARY"
     root.mkdir()
-    state = VeraStateDirectory(root, project_id="private-project-CANARY",
+    state = VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
                                identity_id="private-identity-CANARY")
     memory_head = state.open().memory.current_head
     connections = [_Connection(), _Connection()]
@@ -158,7 +162,7 @@ def test_interactive_chat_uses_stdin_without_history_memory_or_authority(
 def test_opt_in_ephemeral_history_carries_only_prior_in_process_turns(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
-    state = VeraStateDirectory(root, project_id="private-project-CANARY",
+    state = VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
                                identity_id="private-identity-CANARY")
     original_head = state.open().memory.current_head
     connections = [_Connection(), _Connection(), _Connection()]
@@ -193,6 +197,8 @@ def test_opt_in_ephemeral_history_carries_only_prior_in_process_turns(tmp_path, 
 def test_ephemeral_history_rejects_invalid_counts_before_model_calls(tmp_path, capsys, bad_count):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     with patch.object(sys, "stdin", io.StringIO("Do not send\n")), \
             patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
         with pytest.raises(SystemExit) as exc:
@@ -204,6 +210,8 @@ def test_ephemeral_history_rejects_invalid_counts_before_model_calls(tmp_path, c
 def test_ephemeral_history_rejects_one_shot_context_before_network(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     with patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
         with pytest.raises(SystemExit) as exc:
             cli.main(_args(root, "--ephemeral-history-turns", "1"))
@@ -214,6 +222,8 @@ def test_ephemeral_history_rejects_one_shot_context_before_network(tmp_path, cap
 def test_ephemeral_history_discards_oversized_unverified_reply(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     long_reply = "R" * 7000
     first = _Connection(_Response({"role": "assistant", "content": long_reply}))
     second = _Connection()
@@ -232,6 +242,8 @@ def test_ephemeral_history_discards_oversized_unverified_reply(tmp_path, capsys)
 def test_ephemeral_history_never_credits_failed_model_reply(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     first = _Connection()
     second = _Connection(fail=OSError("offline"))
     with patch.object(sys, "stdin", io.StringIO("first turn\nsecond fails\nthird unsent\n")), \
@@ -247,6 +259,8 @@ def test_ephemeral_history_never_credits_failed_model_reply(tmp_path, capsys):
 def test_interactive_chat_eof_and_interrupt_before_prompt_send_nothing(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     with patch("vera_core.local_model_advisory.HTTPConnection") as ctor, \
             patch.object(sys, "stdin", io.StringIO("")):
         assert cli.main(_interactive_args(root)) == 0
@@ -272,6 +286,8 @@ def test_interactive_chat_rejects_arg_prompt_and_oversize_before_network(
 ):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     args = _interactive_args(root)
     args.insert(1, "SECRET_POSITIONAL_PROMPT")
     with patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
@@ -314,6 +330,8 @@ def test_local_chat_rejects_literal_shell_metacharacters_and_noncanonical_endpoi
 ):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     args = _args(root, "--json")
     args[args.index(flag) + 1] = bad_value
     with patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
@@ -329,6 +347,8 @@ def test_local_chat_rejects_literal_shell_metacharacters_and_noncanonical_endpoi
 def test_interactive_chat_fails_closed_when_second_model_call_fails(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     connections = [_Connection(), _Connection(fail=OSError("offline"))]
     with patch.object(sys, "stdin", io.StringIO("First\nSecond\nThird\n")), \
             patch("vera_core.local_model_advisory.HTTPConnection", side_effect=connections) as ctor:
@@ -344,6 +364,8 @@ def test_interactive_chat_fails_closed_when_second_model_call_fails(tmp_path, ca
 def test_interactive_chat_interrupt_during_model_call_is_not_success(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     with patch.object(sys, "stdin", io.StringIO("First\n")), \
             patch("vera_core.cli.advise_local_model", side_effect=KeyboardInterrupt):
         assert cli.main(_interactive_args(root)) == 130
@@ -358,7 +380,7 @@ def test_chat_binds_only_minimal_qvr_metadata_and_cold_restart_has_no_memory_adm
     root = tmp_path / "private-state-path-CANARY"
     root.mkdir()
     state = VeraStateDirectory(
-        root, project_id="private-project-CANARY", identity_id="private-identity-CANARY",
+        root, initialize=True, project_id="private-project-CANARY", identity_id="private-identity-CANARY",
     )
     initial_memory_head = state.open().memory.current_head
     requests = []
@@ -416,6 +438,8 @@ def test_chat_rejects_incomplete_or_missing_state_before_network(tmp_path, capsy
 def test_chat_rejects_nonloopback_and_unavailable_endpoint(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     args = _args(root)
     args[args.index("http://127.0.0.1:11434/v1")] = "http://192.168.1.71:11434/v1"
     with patch("vera_core.local_model_advisory.HTTPConnection") as ctor:
@@ -435,6 +459,8 @@ def test_chat_rejects_nonloopback_and_unavailable_endpoint(tmp_path, capsys):
 def test_chat_never_executes_model_tool_calls(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     tool_reply = _Response({
         "role": "assistant", "content": "I will run it",
         "tool_calls": [{"id": "call-1", "type": "function", "function": {
@@ -453,6 +479,8 @@ def test_chat_never_executes_model_tool_calls(tmp_path, capsys):
 def test_chat_context_digest_is_stable_and_model_prompt_is_hashed(tmp_path, capsys):
     root = tmp_path / "state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     connection = _Connection()
     with patch("vera_core.local_model_advisory.HTTPConnection", return_value=connection):
         assert cli.main(_args(root, "--json")) == 0
@@ -467,7 +495,7 @@ def test_chat_context_digest_is_stable_and_model_prompt_is_hashed(tmp_path, caps
 def test_accepted_state_does_not_leak_memory_commitments_or_runtime_id(tmp_path, capsys):
     root = tmp_path / "accepted-state"
     root.mkdir()
-    state = VeraStateDirectory(root, project_id="private-project-CANARY",
+    state = VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
                                identity_id="private-identity-CANARY")
     lifecycle = state.open()
     admitted = lifecycle.memory.admit(AdmissionRequest(
@@ -507,7 +535,7 @@ def test_chat_reconciles_existing_durable_currentness_without_admitting_new_memo
     """An interrupted final journal append can be repaired by QVR reconstruction."""
     root = tmp_path / "interrupted-state"
     root.mkdir()
-    state = VeraStateDirectory(root, project_id="private-project-CANARY",
+    state = VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
                                identity_id="private-identity-CANARY")
     lifecycle = state.open()
     admitted = lifecycle.memory.admit(AdmissionRequest(
@@ -565,6 +593,8 @@ def test_chat_reconciles_existing_durable_currentness_without_admitting_new_memo
 def test_cold_process_restart_reopens_same_minimal_state(tmp_path):
     root = tmp_path / "persistent-state"
     root.mkdir()
+    VeraStateDirectory(root, initialize=True, project_id="private-project-CANARY",
+                       identity_id="private-identity-CANARY").open()
     script = """
 import json, sys
 from unittest.mock import patch

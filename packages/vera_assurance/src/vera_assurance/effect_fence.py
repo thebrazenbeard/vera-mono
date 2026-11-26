@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -46,7 +47,7 @@ class EffectFence:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS effects (
@@ -105,7 +106,7 @@ class EffectFence:
         permit = self._require_digest(mechanical_permit_digest, "mechanical_permit_digest")
         authority = self._require_digest(authority_evidence_digest, "authority_evidence_digest")
         currentness = self._require_digest(currentness_evidence_digest, "currentness_evidence_digest")
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT * FROM effects WHERE effect_id=?", (effect_id,)).fetchone()
             if row is not None:
@@ -148,7 +149,7 @@ class EffectFence:
             authority_evidence_digest=authority_evidence_digest,
             currentness_evidence_digest=currentness_evidence_digest,
         )
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT * FROM effects WHERE effect_id=?", (effect_id,)).fetchone()
             receipt = self._row(row)
@@ -182,7 +183,7 @@ class EffectFence:
         self._require_id(effect_id, "effect_id")
         if result_digest is not None:
             result_digest = self._require_digest(result_digest, "result_digest")
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT * FROM effects WHERE effect_id=?", (effect_id,)).fetchone()
             if row is None:
@@ -212,7 +213,7 @@ class EffectFence:
 
     def cancel_before_dispatch(self, effect_id: str) -> EffectReceipt:
         self._require_id(effect_id, "effect_id")
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT * FROM effects WHERE effect_id=?", (effect_id,)).fetchone()
             if row is None:
@@ -235,7 +236,7 @@ class EffectFence:
             )
 
     def all(self) -> tuple[EffectReceipt, ...]:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             rows = db.execute(
                 "SELECT * FROM effects ORDER BY effect_id"
             ).fetchall()
@@ -248,7 +249,7 @@ class EffectFence:
             EffectState.ATTEMPTED_UNKNOWN.value,
         )
         placeholders = ",".join("?" for _ in states)
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             rows = db.execute(
                 f"SELECT * FROM effects WHERE state IN ({placeholders}) ORDER BY effect_id",
                 states,
@@ -296,7 +297,7 @@ class EffectFence:
                 )
             target = EffectState.RECONCILED_NO_EFFECT
 
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
                 "SELECT * FROM effects WHERE effect_id=?",
@@ -342,7 +343,7 @@ class EffectFence:
             )
 
     def read(self, effect_id: str) -> EffectReceipt:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             row = db.execute("SELECT * FROM effects WHERE effect_id=?", (effect_id,)).fetchone()
         if row is None:
             raise KeyError(effect_id)
@@ -376,7 +377,7 @@ class AtomicCurrentnessStore:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS currentness (
@@ -406,7 +407,7 @@ class AtomicCurrentnessStore:
             raise ValueError("subject_id must be a non-empty exact string")
         payload_json = canonical_json(payload)
         payload_digest = sha256_hex(payload_json.encode("utf-8"))
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -449,7 +450,7 @@ class AtomicCurrentnessStore:
             return CurrentnessSnapshot(subject_id, generation, snapshot_digest, payload_digest)
 
     def read(self, subject_id: str) -> CurrentnessSnapshot:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute("SELECT * FROM currentness WHERE subject_id=?", (subject_id,)).fetchone()
         if row is None:
@@ -475,7 +476,7 @@ class AtomicCurrentnessStore:
         )
 
     def read_payload(self, subject_id: str) -> object:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute(
                 "SELECT payload_json,payload_digest FROM currentness WHERE subject_id=?",

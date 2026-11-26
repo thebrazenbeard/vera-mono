@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 import json
@@ -64,7 +65,7 @@ class OutboundExecutionAudit:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS meta (
@@ -111,12 +112,12 @@ class OutboundExecutionAudit:
 
     @property
     def head(self) -> str:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             return self._meta(db)[1]
 
     @property
     def sequence(self) -> int:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             return self._meta(db)[0]
 
     def append(
@@ -138,7 +139,7 @@ class OutboundExecutionAudit:
         normalized_payload = dict(payload)
         payload_json = canonical_json(normalized_payload)
 
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             replay = db.execute(
                 """
@@ -204,7 +205,7 @@ class OutboundExecutionAudit:
         self,
         effect_id: str | None = None,
     ) -> tuple[OutboundAuditEvent, ...]:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             if effect_id is None:
                 rows = db.execute(
                     "SELECT * FROM events ORDER BY sequence"
@@ -221,7 +222,7 @@ class OutboundExecutionAudit:
         return tuple(self._row(row) for row in rows)
 
     def latest(self, effect_id: str) -> OutboundAuditEvent | None:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             row = db.execute(
                 """
                 SELECT * FROM events
@@ -447,7 +448,7 @@ class OutboundExecutionAudit:
         )
 
     def verify_chain(self) -> str:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             rows = db.execute(
                 "SELECT * FROM events ORDER BY sequence"
             ).fetchall()
