@@ -146,7 +146,7 @@ def arbitrate_salience(
     policy = SaliencePolicy() if policy is None else policy
     effective_incentive = target.incentive * (1.0 - target.satiation)
 
-    if max(target.hazard, target.avoidance) >= policy.protective_threshold:
+    if 0 < max(target.hazard, target.avoidance) >= policy.protective_threshold:
         dominant = "hazard" if target.hazard >= target.avoidance else "avoidance"
         supporting = tuple(
             name
@@ -154,7 +154,7 @@ def arbitrate_salience(
                 ("hazard", target.hazard),
                 ("avoidance", target.avoidance),
             )
-            if name != dominant and value >= policy.protective_threshold
+            if name != dominant and 0 < value >= policy.protective_threshold
         )
         return SalienceDecision(
             target_id=target.target_id,
@@ -167,7 +167,7 @@ def arbitrate_salience(
 
     candidates = _ordinary_candidates(target)
     dominant, priority = max(candidates, key=lambda item: item[1])
-    if priority < policy.activation_threshold:
+    if priority == 0 or priority < policy.activation_threshold:
         return SalienceDecision(
             target_id=target.target_id,
             mode=SalienceMode.QUIESCENT,
@@ -184,7 +184,7 @@ def arbitrate_salience(
     supporting = tuple(
         name
         for name, value in candidates
-        if name != dominant and value >= support_floor
+        if name != dominant and 0 < value >= support_floor
     )
 
     if dominant in {"motivational", "incentive"}:
