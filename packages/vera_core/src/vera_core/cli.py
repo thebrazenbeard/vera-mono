@@ -85,6 +85,13 @@ def _parser() -> argparse.ArgumentParser:
         help="pretty-print JSON instead of canonical compact JSON",
     )
 
+    task = subparsers.add_parser(
+        "task",
+        help="inspect one exact local task and its saved recovery frontier; private data",
+    )
+    task.add_argument("task_id", help="exact existing task ID")
+    _add_state_binding(task, required=True)
+
     shell = subparsers.add_parser(
         "shell",
         aliases=["console"],
@@ -192,6 +199,47 @@ def _status(args: argparse.Namespace) -> int:
         _write_json(payload, indent=2)
     else:
         _write_json(payload, separators=(",", ":"))
+    return 0
+
+
+def _inspect_task(args: argparse.Namespace) -> int:
+    state = _bound_state(args)
+    if not state.paths.tasks.is_file():
+        raise ValueError("task inspection requires an existing task ledger")
+    ledger = QualifiedVeraRuntime.from_state_directory(state).tasks
+    before = ledger.verify_chain()
+    task = ledger.read(args.task_id)
+    if ledger.verify_chain() != before:
+        raise ValueError("task journal changed during inspection; refresh explicitly")
+    checkpoint = task.latest_checkpoint
+    closeout = task.closeout
+    _write_json({
+        "schema": "VERA_MONO_LOCAL_TASK_INSPECTION_V1",
+        "task_id": task.task_id,
+        "packet": task.packet.canonical_body(),
+        "packet_digest": task.packet.packet_digest,
+        "journal_head_digest": before,
+        "task_head_digest": task.journal_head_digest,
+        "closed": task.closed,
+        "checkpoint_status": (
+            "CLOSED_TASK" if task.closed else
+            "NO_CHECKPOINT" if checkpoint is None else "SAVED_UNASSESSED"
+        ),
+        "latest_checkpoint": None if checkpoint is None else dict(checkpoint),
+        "unresolved_correction_ids": list(task.unresolved_correction_ids),
+        "active_dependency_ids": [item.dependency_id for item in task.active_dependencies],
+        "active_delegation_ids": [item.delegation_id for item in task.active_delegations],
+        "closeout": None if closeout is None else {
+            "closeout_id": closeout.closeout_id,
+            "next_frontier": closeout.next_frontier,
+            "claim_ceiling": closeout.claim_ceiling,
+            "evidence_refs": list(closeout.evidence_refs),
+            "blockers": list(closeout.blockers),
+            "surfaces": dict(closeout.surfaces),
+        },
+        "authorization_effect": "NONE",
+        "claim_ceiling": "LOCAL_SAVED_TASK_EVIDENCE_NOT_CURRENT_WORLD_STATE_OR_RESUME_AUTHORITY",
+    })
     return 0
 
 
@@ -560,6 +608,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "status":
             return _status(args)
+        if args.command == "task":
+            return _inspect_task(args)
         if args.command in {"shell", "console"}:
             return _shell(args)
         if args.command == "advise":
