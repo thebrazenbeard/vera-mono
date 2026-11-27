@@ -27,6 +27,16 @@ Donor references are preserved under `provenance/` and inside historical source 
 
 External infrastructure can still exist where it is genuinely external: model/provider APIs, databases, devices, transports, and separately executed hostile reviewers. The adapters, contracts, policy, and state machines for using them belong here.
 
+### Optional semantic advisories
+
+Explicit `claim-assess` and `opportunities` commands accept bounded JSON on stdin
+and optionally load separately supplied `humility.runtime` or
+`freerowcochkar.opportunities`. Neither package is required for normal Vera Mono
+commands or bundled here. These are caller-unverified, no-authority advisories,
+not automatic chat checks, authenticated evidence, memory admission, or execution.
+See [the invocation, licensing, trust, and evidence boundaries](docs/optional-semantic-advisories.md)
+before supplying either package.
+
 ### Optional Deep Memory search transport (source candidate)
 
 `runtime_cohesion.deep_memory_cli_transport.PinnedDeepMemoryCLITransport` is an
