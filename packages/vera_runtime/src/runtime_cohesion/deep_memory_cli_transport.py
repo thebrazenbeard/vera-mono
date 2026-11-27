@@ -307,6 +307,27 @@ class PinnedDeepMemoryCLITransport:
             )
 
         checked_files = self._attest_source_files()
+        bindings = provider_source_binding.get("bindings")
+        required = {
+            "architecture/DEEP_MEMORY_ARCHITECTURE_BINDING_V1.json",
+            "architecture/DEEP_MEMORY_INTEGRATION_CONTRACT_V1.md",
+            "schema/DEEP_MEMORY_EVIDENCE_RESULT_V1.schema.json",
+        }
+        if not isinstance(bindings, list) or len(bindings) != len(required):
+            raise EvidenceContractError("invalid provider contract binding set")
+        seen = set()
+        for binding in bindings:
+            if not isinstance(binding, Mapping):
+                raise EvidenceContractError("invalid provider contract binding")
+            name, digest = binding.get("path"), binding.get("blob")
+            if (
+                not isinstance(name, str) or name not in required
+                or name in seen or not isinstance(digest, str)
+                or not _SHA.fullmatch(digest) or name not in checked_files
+                or _git_blob_sha(checked_files[name]) != digest
+            ):
+                raise EvidenceContractError("provider contract binding differs from verified source")
+            seen.add(name)
         with tempfile.TemporaryDirectory(
             prefix="vera-deepmemory-verified-"
         ) as temp_name:

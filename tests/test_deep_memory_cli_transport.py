@@ -86,8 +86,15 @@ class PinnedCLITest(unittest.TestCase):
         (self.root / "tools" / "deep_memory_catalog.py").write_text(
             "# fixture\n", encoding="utf-8"
         )
+        bindings = json.loads(DEFAULT_REGISTRY.read_text(encoding="utf-8"))["providers"][0]["source"]["bindings"]
+        resource_root = DEFAULT_REGISTRY.parents[2]
+        for binding in bindings:
+            content = (resource_root / binding["vendored_path"]).read_bytes()
+            target = self.root / binding["path"]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
         subprocess.run(["git", "init", "-q", str(self.root)], check=True)
-        subprocess.run(["git", "-C", str(self.root), "add", "tools"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "add", "tools", "architecture", "schema"], check=True)
         git_env = dict(
             os.environ,
             GIT_AUTHOR_NAME="test",
@@ -168,6 +175,28 @@ class PinnedCLITest(unittest.TestCase):
             batch.claim_ceiling,
             "HISTORICAL_EVIDENCE_ONLY_NOT_CURRENT_MEMORY_OR_AUTHORITY",
         )
+
+    def test_declared_contract_mismatch_refused(self):
+        registry = json.loads(self.registry_path.read_text(encoding="utf-8"))
+        registry["providers"][0]["source"]["bindings"][0]["blob"] = "0" * 40
+        self.registry_path.write_text(json.dumps(registry), encoding="utf-8")
+        with self.assertRaisesRegex(EvidenceContractError, "contract binding"):
+            self.search("PROJECT")
+
+    def test_missing_or_duplicate_contract_binding_refused(self):
+        original = json.loads(self.registry_path.read_text(encoding="utf-8"))
+        import copy
+        for mode in ("missing", "duplicate"):
+            with self.subTest(mode=mode):
+                registry = copy.deepcopy(original)
+                bindings = registry["providers"][0]["source"]["bindings"]
+                if mode == "missing":
+                    bindings.pop()
+                else:
+                    bindings.append(bindings[0].copy())
+                self.registry_path.write_text(json.dumps(registry), encoding="utf-8")
+                with self.assertRaisesRegex(EvidenceContractError, "contract binding"):
+                    self.search("PROJECT")
 
     def test_private_result_is_filtered(self):
         self.assertEqual(
@@ -556,29 +585,57 @@ class PinnedCLITest(unittest.TestCase):
             with self.assertRaises(ProcessLookupError):
                 os.kill(int(pid_file.read_text()), 0)
 
-    def test_slow_stdout_is_killed_at_deadline(self):
+    def _assert_provider_deadline(self, *, seconds, require_started, wall_bound):
+        from unittest.mock import patch
+
         pid_file = Path(self.temp.name) / "timeout.pid"
         self.recommit_fixture_program(
             "import os,sys,time\nfrom pathlib import Path\n"
             f"Path({str(pid_file)!r}).write_text(str(os.getpid()))\n"
-            "sys.stdout.write('partial')\nsys.stdout.flush()\ntime.sleep(5)\n"
+            "sys.stdout.write('partial')\nsys.stdout.flush()\ntime.sleep(10)\n"
         )
         transport = PinnedDeepMemoryCLITransport(
             self.root,
             source_repository=self.source_repository,
             source_commit=self.sha,
-            timeout_seconds=0.2,
+            timeout_seconds=seconds,
         )
+        actual_popen = subprocess.Popen
+        providers = []
+
+        def observe_launch(*args, **kwargs):
+            child = actual_popen(*args, **kwargs)
+            argv = args[0] if args else kwargs.get("args", ())
+            if isinstance(argv, (list, tuple)) and any(
+                str(arg).endswith("query_deep_memory.py") for arg in argv
+            ):
+                providers.append(child)
+            return child
+
         start = time.monotonic()
-        with self.assertRaisesRegex(EvidenceContractError, "timed out"):
-            DeepMemoryEvidenceAdapter(
-                transport, registry_path=self.registry_path
-            ).search(EvidenceSearchRequest("witness", ("PROJECT",)))
-        self.assertLess(time.monotonic() - start, 3)
-        self.assertTrue(pid_file.is_file())
+        with patch.object(subprocess, "Popen", side_effect=observe_launch):
+            with self.assertRaisesRegex(EvidenceContractError, "timed out"):
+                DeepMemoryEvidenceAdapter(
+                    transport, registry_path=self.registry_path
+                ).search(EvidenceSearchRequest("witness", ("PROJECT",)))
+        self.assertLess(time.monotonic() - start, wall_bound)
+        self.assertEqual(len(providers), 1)
+        child = providers[0]
+        self.assertIsNotNone(child.poll())
+        if require_started:
+            self.assertTrue(pid_file.is_file())
+        if pid_file.is_file():
+            self.assertEqual(int(pid_file.read_text()), child.pid)
         if os.name == "posix":
             with self.assertRaises(ProcessLookupError):
-                os.kill(int(pid_file.read_text()), 0)
+                os.kill(child.pid, 0)
+
+    def test_short_deadline_reaps_child_regardless_of_startup(self):
+        self._assert_provider_deadline(seconds=0.2, require_started=False, wall_bound=3)
+
+    def test_slow_stdout_is_killed_at_deadline(self):
+        self._assert_provider_deadline(seconds=2, require_started=True, wall_bound=5)
+
 
 
 if __name__ == "__main__":
