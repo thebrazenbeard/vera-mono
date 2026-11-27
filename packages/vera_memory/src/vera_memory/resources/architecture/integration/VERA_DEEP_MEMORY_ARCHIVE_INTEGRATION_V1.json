@@ -18,8 +18,8 @@
     "vendored_human_contract_path": "architecture/integration/vendor/DEEP_MEMORY_INTEGRATION_CONTRACT_V1.md",
     "canonical_retrieval": "UNION_ALL_LEDGER_TRANCHES_WITH_HISTORICAL_CANON_PROVENANCE_AND_CLASSIFICATION_OVERLAYS",
     "authority_class": "EVIDENCE_SEARCH_ONLY",
-    "reviewed_provider_head": "63edbc51fb87c889ab58051d02e18ba2aeca0d24",
-    "source_merged_commit": "63edbc51fb87c889ab58051d02e18ba2aeca0d24",
+    "reviewed_provider_head": "89809dfc15ad615b77cc0c264813f5e3df32badd",
+    "source_merged_commit": "89809dfc15ad615b77cc0c264813f5e3df32badd",
     "source_state": "MERGED_SOURCE"
   },
   "current_memory_plane": {

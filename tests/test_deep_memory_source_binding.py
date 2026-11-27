@@ -15,7 +15,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCE = ROOT / "packages/vera_memory/src/vera_memory/resources"
 INTEGRATION = RESOURCE / "architecture/integration"
-PIN = "63edbc51fb87c889ab58051d02e18ba2aeca0d24"
+PIN = "89809dfc15ad615b77cc0c264813f5e3df32badd"
 ARCHITECTURE_BLOB = "8fc03596e8095ebdf6a787430738512b7b5f85c5"
 
 
