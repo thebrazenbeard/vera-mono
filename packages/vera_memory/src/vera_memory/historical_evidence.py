@@ -8,6 +8,7 @@ memory, select present state, or authorize action.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from types import MappingProxyType
 from typing import Mapping
 
@@ -24,6 +25,50 @@ class HistoricalEvidenceError(ValueError):
 
 class HistoricalEvidenceAccessError(HistoricalEvidenceError):
     pass
+
+
+_MAX_CONTENT_DEPTH = 32
+_MAX_CONTENT_NODES = 10_000
+
+
+def _freeze_content(value: object, *, active: set[int], budget: list[int], depth: int) -> object:
+    """Snapshot JSON-like evidence recursively, without caller-owned aliases.
+
+    A top-level read-only mapping alone does not protect its nested dicts and
+    lists. Historical provenance must not change after a caller has handed over
+    a result, including through an alias retained by an untrusted producer.
+    """
+    budget[0] -= 1
+    if budget[0] < 0 or depth > _MAX_CONTENT_DEPTH:
+        raise ValueError("historical content exceeds bounded snapshot limits")
+    if type(value) in (str, int, bool, type(None)):
+        return value
+    if type(value) is float:
+        if not isfinite(value):
+            raise ValueError("historical content cannot contain NaN or infinity")
+        return value
+    if isinstance(value, Mapping) or type(value) in (list, tuple):
+        identity = id(value)
+        if identity in active:
+            raise ValueError("historical content contains a reference cycle")
+        active.add(identity)
+        try:
+            if isinstance(value, Mapping):
+                result = {}
+                for key, item in value.items():
+                    if type(key) is not str:
+                        raise TypeError("historical content object keys must be exact strings")
+                    result[key] = _freeze_content(
+                        item, active=active, budget=budget, depth=depth + 1
+                    )
+                return MappingProxyType(result)
+            return tuple(
+                _freeze_content(item, active=active, budget=budget, depth=depth + 1)
+                for item in value
+            )
+        finally:
+            active.remove(identity)
+    raise TypeError("historical content must contain only JSON-compatible values")
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,10 +92,13 @@ class HistoricalEvidenceRecord:
             ("provenance_ceiling", self.provenance_ceiling),
             ("currentness_rule", self.currentness_rule),
         ):
-            if type(value) is not str or not value:
+            if type(value) is not str or not value.strip():
                 raise ValueError(f"{label} must be a non-empty exact string")
-        object.__setattr__(self, "source_ids", tuple(self.source_ids))
-        if any(type(item) is not str or not item for item in self.source_ids):
+        if type(self.source_ids) is not tuple:
+            # tuple("source") would silently split provenance into character
+            # IDs, just as tuple("PRIVATE") can widen a privacy scope.
+            raise ValueError("source_ids must be an exact tuple")
+        if any(type(item) is not str or not item.strip() for item in self.source_ids):
             raise ValueError("source_ids must contain non-empty exact strings")
         if len(self.source_ids) != len(set(self.source_ids)):
             raise ValueError("source_ids must be unique")
@@ -61,7 +109,9 @@ class HistoricalEvidenceRecord:
         if self.content is not None:
             if not isinstance(self.content, Mapping):
                 raise TypeError("content must be a mapping when supplied")
-            object.__setattr__(self, "content", MappingProxyType(dict(self.content)))
+            object.__setattr__(self, "content", _freeze_content(
+                self.content, active=set(), budget=[_MAX_CONTENT_NODES], depth=0
+            ))
 
     @property
     def recorded_at_status(self) -> str:
@@ -91,11 +141,15 @@ class HistoricalEvidenceResult:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "records", tuple(self.records))
-        object.__setattr__(
-            self,
-            "authorized_privacy_scopes",
-            tuple(self.authorized_privacy_scopes),
-        )
+        if type(self.authorized_privacy_scopes) is not tuple:
+            raise HistoricalEvidenceAccessError(
+                "authorized privacy scopes must be an exact tuple"
+            )
+        if any(type(scope) is not str or not scope.strip()
+               for scope in self.authorized_privacy_scopes):
+            raise HistoricalEvidenceAccessError(
+                "authorized privacy scopes must contain non-empty exact strings"
+            )
 
 
 def query_historical_evidence(
@@ -111,13 +165,15 @@ def query_historical_evidence(
     """
 
     if type(authorized_privacy_scopes) is not tuple:
-        authorized_privacy_scopes = tuple(authorized_privacy_scopes)
+        raise HistoricalEvidenceAccessError(
+            "authorized privacy scopes must be an exact tuple"
+        )
     if not authorized_privacy_scopes:
         raise HistoricalEvidenceAccessError(
             "historical evidence retrieval requires explicit privacy scope authorization"
         )
     if any(
-        type(scope) is not str or not scope
+        type(scope) is not str or not scope.strip()
         for scope in authorized_privacy_scopes
     ):
         raise HistoricalEvidenceAccessError(
