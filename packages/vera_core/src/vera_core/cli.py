@@ -90,6 +90,10 @@ def _parser() -> argparse.ArgumentParser:
         help="inspect one exact local task and its saved recovery frontier; private data",
     )
     task.add_argument("task_id", help="exact existing task ID")
+    task.add_argument(
+        "--expected-journal-head", required=True,
+        help="trusted previously retained task journal SHA-256, not read from the inspected ledger",
+    )
     _add_state_binding(task, required=True)
 
     shell = subparsers.add_parser(
@@ -203,11 +207,16 @@ def _status(args: argparse.Namespace) -> int:
 
 
 def _inspect_task(args: argparse.Namespace) -> int:
+    expected = args.expected_journal_head
+    if len(expected) != 64 or any(c not in "0123456789abcdef" for c in expected):
+        raise ValueError("expected journal head must be an exact lowercase SHA-256")
     state = _bound_state(args)
     if not state.paths.tasks.is_file():
         raise ValueError("task inspection requires an existing task ledger")
     ledger = QualifiedVeraRuntime.from_state_directory(state).tasks
     before = ledger.verify_chain()
+    if before != expected:
+        raise ValueError("expected journal head does not match; verify custody and refresh independently")
     task = ledger.read(args.task_id)
     if ledger.verify_chain() != before:
         raise ValueError("task journal changed during inspection; refresh explicitly")
@@ -237,8 +246,10 @@ def _inspect_task(args: argparse.Namespace) -> int:
             "blockers": list(closeout.blockers),
             "surfaces": dict(closeout.surfaces),
         },
+        "expected_journal_head_matched": True,
+        "expected_head_origin": "CALLER_RETAINED_UNAUTHENTICATED",
         "authorization_effect": "NONE",
-        "claim_ceiling": "LOCAL_SAVED_TASK_EVIDENCE_NOT_CURRENT_WORLD_STATE_OR_RESUME_AUTHORITY",
+        "claim_ceiling": "PIN_MATCHED_LOCAL_SAVED_TASK_EVIDENCE_NOT_CURRENT_WORLD_STATE_OR_RESUME_AUTHORITY",
     })
     return 0
 
