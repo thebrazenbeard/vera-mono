@@ -12,8 +12,8 @@
       "authority_class": "EVIDENCE_SEARCH_ONLY",
       "source": {
         "repository": "thebrazenbeard/deepmemorystorage",
-        "reviewed_provider_head": "63edbc51fb87c889ab58051d02e18ba2aeca0d24",
-        "source_merged_commit": "63edbc51fb87c889ab58051d02e18ba2aeca0d24",
+        "reviewed_provider_head": "89809dfc15ad615b77cc0c264813f5e3df32badd",
+        "source_merged_commit": "89809dfc15ad615b77cc0c264813f5e3df32badd",
         "source_state": "MERGED_SOURCE",
         "bindings": [
           {
