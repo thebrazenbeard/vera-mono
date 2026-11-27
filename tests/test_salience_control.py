@@ -121,3 +121,30 @@ def test_quiescent_targets_do_not_create_fake_attention():
     )
     assert result.selected_target_id is None
     assert result.decision is None
+
+def test_zero_thresholds_do_not_create_attention_without_support():
+    for policy in (SaliencePolicy(activation_threshold=0),
+                   SaliencePolicy(protective_threshold=0),
+                   SaliencePolicy(activation_threshold=0, protective_threshold=0)):
+        result = select_salient_target([SalienceTarget("empty"),
+                                      SalienceTarget("satiated", incentive=1, satiation=1)],
+                                     policy=policy)
+        assert result.selected_target_id is None
+        assert result.decision is None
+        assert not result.used_protective_override
+        assert all(x.mode is SalienceMode.QUIESCENT for x in result.evaluations)
+
+
+def test_zero_thresholds_preserve_positive_support_and_exclude_zero_drivers():
+    policy = SaliencePolicy(activation_threshold=0, protective_threshold=0)
+    result = select_salient_target([SalienceTarget("empty"),
+                                  SalienceTarget("inspection", epistemic=.1)], policy=policy)
+    assert result.selected_target_id == "inspection"
+    assert result.decision.mode is SalienceMode.EPISTEMIC
+    assert result.decision.supporting_drivers == ()
+    assert result.authority is TransferAuthority.NONE
+    decision = arbitrate_salience(SalienceTarget("protect", avoidance=.1), policy=policy)
+    assert decision.mode is SalienceMode.PROTECTIVE
+    assert decision.dominant_driver == "avoidance"
+    assert decision.supporting_drivers == ()
+    assert decision.authority is TransferAuthority.NONE
