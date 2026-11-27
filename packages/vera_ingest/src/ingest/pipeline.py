@@ -5,8 +5,9 @@ import uuid
 
 from .adapters import FileAdapter, GitHubAdapter, HttpAdapter, MessageAdapter, TextBytesAdapter
 from .adapters.base import AcquisitionFailed, PolicyRejected
-from .canonical import canonical_digest
+from .canonical import canonical_digest, sha256_bytes
 from .model import (
+    Artifact,
     Derivation,
     EvidenceClass,
     IngestRecord,
@@ -88,7 +89,6 @@ class Ingestor:
         normalized = existing.get("normalized_artifact")
         normalized_artifact = None
         if normalized is not None:
-            from .model import Artifact
             normalized_artifact = Artifact(**normalized)
         if result_status is not IngestStatus.DUPLICATE:
             warnings.append("duplicate_existing_record")
@@ -191,9 +191,26 @@ class Ingestor:
         if claimed and claimed != sniffed:
             warnings.append(f"media_type_mismatch: claimed={claimed} sniffed={sniffed}")
         raw_media = sniffed
-        raw_artifact, created = self.store.put_blob(
-            acquisition.data, media_type=raw_media, kind="raw"
-        )
+        # Bind the incoming raw bytes to the existing V1 identity before
+        # persistence. Duplicate admission must never silently repair a missing
+        # immutable blob in an already committed record.
+        identity = {
+            "schema": "INGEST_IDENTITY_V1",
+            "source": acquisition.source.identity_material(),
+            "raw_sha256": sha256_bytes(acquisition.data),
+            "claimed_media_type": claimed,
+            "normalizer_version": NORMALIZER_VERSION,
+            "policy_id": policy.policy_id,
+        }
+        ingest_id = canonical_digest(identity)
+        existing = self.store.get_record(ingest_id) if self.store.has_record(ingest_id) else None
+        if existing is None:
+            raw_artifact, created = self.store.put_blob(
+                acquisition.data, media_type=raw_media, kind="raw"
+            )
+        else:
+            raw_artifact = Artifact(**existing["raw_artifact"])
+            created = False
         raw_receipt = self._receipt(
             ingest_id=None,
             stage="persist_raw",
@@ -203,24 +220,14 @@ class Ingestor:
         )
         receipt_ids.append(raw_receipt.receipt_id)
 
-        identity = {
-            "schema": "INGEST_IDENTITY_V1",
-            "source": acquisition.source.identity_material(),
-            "raw_sha256": raw_artifact.sha256,
-            "claimed_media_type": claimed,
-            "normalizer_version": NORMALIZER_VERSION,
-            "policy_id": policy.policy_id,
-        }
-        ingest_id = canonical_digest(identity)
-
-        if self.store.has_record(ingest_id):
+        if existing is not None:
             return self._result_from_existing(
                 ingest_id=ingest_id,
                 acquisition=acquisition,
                 raw_artifact=raw_artifact,
                 receipt_ids=receipt_ids,
                 warnings=warnings,
-                existing=self.store.get_record(ingest_id),
+                existing=existing,
             )
 
         effective_media = claimed or sniffed
