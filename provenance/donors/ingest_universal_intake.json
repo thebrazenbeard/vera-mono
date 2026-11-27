@@ -137,5 +137,25 @@
     "src/ingest/resources/schemas/ingest-record-v1.schema.json",
     "src/ingest/resources/schemas/ingest-stage-receipt-v1.schema.json"
   ],
-  "byte_identity_rule": "GIT_BLOB_AND_SHA256_OF_COMMITTED_DONOR_BYTES; WORKTREE_LINE_ENDING_REPRESENTATION_IS_NOT_IDENTITY"
+  "byte_identity_rule": "GIT_BLOB_AND_SHA256_OF_COMMITTED_DONOR_BYTES; WORKTREE_LINE_ENDING_REPRESENTATION_IS_NOT_IDENTITY",
+  "local_source_adaptations": [
+    {
+      "local_path": "src/ingest/storage.py",
+      "base_donor_git_blob": "5fe08590c2ae48fa5584da58d645386cea22a8f9",
+      "base_donor_sha256": "2c0815585349292d02d1d59ebc527dd6a53250e2969e201ec78dc1d901071ab1",
+      "git_blob": "d8ac30d3a5b68a6cc3ca4f2a14ddfee66b5f1f2b",
+      "sha256": "e6cd1472ae463cd7db5c04f94e14cc7bebf0b24d96c292518d16de398ecf5713",
+      "size": 17622,
+      "scope": "Managed V1 record readback and fail-closed pre-persistence presence classification. Existing artifact, identity, receipt and shared derivation binding. Trusted root; no hostile filesystem race guarantee."
+    },
+    {
+      "local_path": "src/ingest/pipeline.py",
+      "base_donor_git_blob": "6c222bad94592946885485f0bb88655706c743bb",
+      "base_donor_sha256": "24f9b92a9351d3d816744fd557638206bab76d6950af909a396e29a09aebbd3e",
+      "git_blob": "e42f07b68ab33b4b521bbd92b372e2dbe15290d5",
+      "sha256": "fa46bd732c66c980a5562da27c13002d1b40c4add5d54de76f89c4392f13166e",
+      "size": 16713,
+      "scope": "Compute unchanged identity and verify committed duplicate material before any raw persistence; preserve original receipt and record format."
+    }
+  ]
 }
