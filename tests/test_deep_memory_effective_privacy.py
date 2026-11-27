@@ -111,5 +111,31 @@ class DeepMemoryEffectiveOverlayPrivacyTests(unittest.TestCase):
                 self.assertFalse(batch.execution_authorized)
 
 
+
+    def test_present_null_never_inherits_authorization(self):
+        for field in ("amendments", "historical_canon_overlays", "classification_corrections"):
+            for invalid in (
+                {"privacy_scope": None},
+                {"effective_privacy_scope": None},
+                {"privacy_scope": None, "effective_privacy_scope": "PROJECT"},
+                {"privacy_scope": "PROJECT", "effective_privacy_scope": None},
+                {"privacy_scope": None, "effective_privacy_scope": None},
+            ):
+                with self.subTest(field=field, invalid=invalid):
+                    with self.assertRaises(EvidenceAuthorizationError):
+                        _search(field, _overlay(**invalid))
+
+    def test_absence_and_consistent_explicit_scope_remain_eligible(self):
+        for field in ("amendments", "historical_canon_overlays", "classification_corrections"):
+            for valid in ({}, {"privacy_scope": "PROJECT"},
+                          {"effective_privacy_scope": "PROJECT"},
+                          {"privacy_scope": "PROJECT", "effective_privacy_scope": "PROJECT"}):
+                with self.subTest(field=field, valid=valid):
+                    result = _search(field, _overlay(**valid))
+                    self.assertEqual(result.count, 1)
+                    self.assertFalse(result.canonical_memory_transfer)
+                    self.assertFalse(result.execution_authorized)
+
+
 if __name__ == "__main__":
     unittest.main()
