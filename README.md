@@ -44,9 +44,10 @@ effective overlay privacy scopes are checked. An archive-wide audit, live provid
 installation, current-memory write, or execution authority is **not** provided.
 
 The bundled registry now pins the reviewed DeepMemoryStorage
-`63edbc51fb87c889ab58051d02e18ba2aeca0d24`; the vendored architecture
-binding is synchronized to its exact Git blob. Its retrieval program, result
-schema, and integration contract are unchanged from the previous source pin.
+`89809dfc15ad615b77cc0c264813f5e3df32badd`. The vendored architecture
+binding, result schema, and integration contract retain their reviewed Git blob
+identities; the provider retrieval program changed at this source revision.
+The transport verifies the declared contract blobs against the pinned source tree.
 Any checkout at a different commit, including later `main`, fails closed.
 Its deterministic tests use a synthetic producer at an exact Git commit, not a
 claim of a deployed runtime or a live historical-data retrieval. Operator source
