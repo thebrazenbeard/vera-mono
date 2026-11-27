@@ -171,6 +171,7 @@ def advise_local_model(
     api_key_env: str | None = None,
     max_tokens: int = 180,
     timeout_seconds: int = 60,
+    temperature: float = 0.2,
 ) -> AdvisoryResult:
     """Request one read-only advisory completion without disclosing Vera state."""
     host, port, canonical_endpoint = _endpoint_address(endpoint)
@@ -183,13 +184,15 @@ def advise_local_model(
         raise LocalModelError("max_tokens must be within 1..512")
     if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 300:
         raise LocalModelError("timeout_seconds must be within 1..300")
+    if type(temperature) not in (float, int) or not 0.0 <= temperature <= 1.0:
+        raise LocalModelError("local inference temperature must be between 0.0 and 1.0")
     authorization = _authorization_header(api_key_env)
 
     request = {
         "model": model_id,
         "stream": False,
         "max_tokens": max_tokens,
-        "temperature": 0.2,
+        "temperature": float(temperature),
         "messages": [
             {
                 "role": "system",

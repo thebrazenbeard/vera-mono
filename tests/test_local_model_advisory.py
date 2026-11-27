@@ -365,3 +365,18 @@ def test_cli_advice_is_explicit_and_does_not_read_vera_state(monkeypatch, capsys
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "UNVERIFIED_MODEL_OUTPUT"
     assert payload["memory_admission"] == "NONE"
+
+
+def test_explicit_zero_temperature_is_forwarded_to_local_model_for_reproducibility():
+    conn=_Connection()
+    _advise_with(conn,temperature=0.0)
+    assert conn.requests[0][2]["temperature"]==0.0
+
+
+@pytest.mark.parametrize("invalid",[-0.01,1.01,float("nan"),float("inf"),True,"0",10**1000])
+def test_invalid_temperature_refused_before_model_network(invalid):
+    with patch("vera_core.local_model_advisory.HTTPConnection") as connection:
+        with pytest.raises(LocalModelError,match="temperature"):
+            advise_local_model("synthetic",endpoint="http://127.0.0.1:11434/v1",
+              model_id="gemma3:1b",temperature=invalid)
+    connection.assert_not_called()
