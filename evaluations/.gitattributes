@@ -1,0 +1,21 @@
+# Preserve the exact CRLF bytes of the reviewed local A/B-swapped packet.
+# The local Qwen judge consumed and hashed these bytes before Git publication.
+social_multiturn_blinded_reversed_v2_seed31_20261114.jsonl -text whitespace=cr-at-eol
+social_judgment_novel_v1.json -text whitespace=cr-at-eol
+social_judgment_v3_unseen_v1.json -text whitespace=cr-at-eol
+social_fictional_holdout_v1.json -text whitespace=cr-at-eol
+social_judgment_v3_vs_v2_qwen08_seed67_20261114.jsonl -text whitespace=cr-at-eol
+social_fictional_vs_v3_qwen08_seed71_20261114.jsonl -text whitespace=cr-at-eol
+social_fictional_holdout_qwen08_seed73_20261114.jsonl -text whitespace=cr-at-eol
+social_fictional_holdout_qwen4b_seed73_20261114.jsonl -text whitespace=cr-at-eol
+social_fictional_message_boundary_v1.json -text whitespace=cr-at-eol
+social_fictional_message_boundary_model_vs_source_seed79_20261114.jsonl -text whitespace=cr-at-eol
+social_fictional_natural_boundary_v1.json -text whitespace=cr-at-eol
+social_fictional_natural_boundary_4b_seed83_20261114.jsonl -text whitespace=cr-at-eol
+social_bounded_tone_local_models_seed41_20261115.jsonl -text whitespace=cr-at-eol
+social_bounded_scene_direction_v1.json -text whitespace=cr-at-eol
+social_bounded_scene_direction_qwen_seed109_20261115.jsonl -text whitespace=cr-at-eol
+social_bounded_challenge_qwen4b_seed107_20261115.json -text whitespace=cr-at-eol
+social_bounded_context_trial_audit_20261115.json -text whitespace=cr-at-eol
+social_judgment_v3_vs_base_qwen08_seed79_20261115.jsonl -text whitespace=cr-at-eol
+social_judgment_v3_vs_base_qwen4b_seed79_20261115.jsonl -text whitespace=cr-at-eol

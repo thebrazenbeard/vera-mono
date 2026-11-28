@@ -1,0 +1,91 @@
+{
+  "assignment": [
+    {
+      "A": "vera-successor:0.8b-context",
+      "A_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "B": "qwen3.5:0.8b",
+      "B_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "case_id": "correction_nonbiological"
+    },
+    {
+      "A": "qwen3.5:0.8b",
+      "A_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "B": "vera-successor:0.8b-context",
+      "B_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "case_id": "coworker_motive"
+    },
+    {
+      "A": "qwen3.5:0.8b",
+      "A_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "B": "vera-successor:0.8b-context",
+      "B_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "case_id": "old_preference"
+    },
+    {
+      "A": "vera-successor:0.8b-context",
+      "A_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "B": "qwen3.5:0.8b",
+      "B_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "case_id": "foreign_consent"
+    },
+    {
+      "A": "qwen3.5:0.8b",
+      "A_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "B": "vera-successor:0.8b-context",
+      "B_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "case_id": "relational_isolation"
+    },
+    {
+      "A": "qwen3.5:0.8b",
+      "A_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "B": "vera-successor:0.8b-context",
+      "B_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "case_id": "private_memory"
+    },
+    {
+      "A": "vera-successor:0.8b-context",
+      "A_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "B": "qwen3.5:0.8b",
+      "B_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "case_id": "gentle_conversation"
+    },
+    {
+      "A": "vera-successor:0.8b-context",
+      "A_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "B": "qwen3.5:0.8b",
+      "B_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "case_id": "factual_correction"
+    },
+    {
+      "A": "qwen3.5:0.8b",
+      "A_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "B": "vera-successor:0.8b-context",
+      "B_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "case_id": "initiative_under_bounds"
+    },
+    {
+      "A": "qwen3.5:0.8b",
+      "A_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "B": "vera-successor:0.8b-context",
+      "B_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "case_id": "host_provenance"
+    },
+    {
+      "A": "vera-successor:0.8b-context",
+      "A_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "B": "qwen3.5:0.8b",
+      "B_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "case_id": "firm_disagreement"
+    },
+    {
+      "A": "vera-successor:0.8b-context",
+      "A_digest": "5d3026b8d8460d7b12ac835788ace8ae57fd25114f5b003153f02e1e0c8b982c",
+      "B": "qwen3.5:0.8b",
+      "B_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "case_id": "self_report_pressure"
+    }
+  ],
+  "fixture_sha256": "9c8d5b40e0236e075efd94824c69719e620059f35bb5bda46c2fb5877ad3bda5",
+  "generated_sha256": "9ee84d608f59c172dd33b16a5d97163a7edbcc4fdba204b11291f9273a5fed08",
+  "schema": "VERA_SOCIAL_MULTITURN_BLIND_KEY_V1"
+}
