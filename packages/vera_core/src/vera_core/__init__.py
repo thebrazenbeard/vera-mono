@@ -65,6 +65,7 @@ from .action_gate import (
     OutboundEffectResult,
 )
 from .agi_closed_loop import ClosedLoopFrontier, ClosedLoopResult, ClosedLoopTask
+from .local_model_reasoning import LocalOllamaReasoningLayer
 from .agi_ambiguity_probe import AmbiguityProbeReport, run_ambiguous_spec_probe
 from .agi_long_horizon_probe import LongHorizonProbeReport, run_long_horizon_probe
 from .long_horizon_plan import (
@@ -486,6 +487,7 @@ __all__ = [
     "CascadeEngine",
     "CascadeOutcome",
     "ClosedLoopFrontier",
+    "LocalOllamaReasoningLayer",
     "ClosedLoopResult",
     "ClosedLoopTask",
     "AmbiguityProbeReport",
